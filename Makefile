@@ -9,3 +9,6 @@ parser/parser.a:
 
 duck.exe: main.c ast_executor.c ast_executor.h object_system/object_system.a parser/parser.a
 	gcc -o duck.exe main.c ast_executor.c object_system/object_system.a parser/parser.a
+
+clean:
+	rm duck.exe

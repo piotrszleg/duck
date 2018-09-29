@@ -9,7 +9,7 @@ object* execute_ast(expression* exp, table* scope);
 
 object* ast_function_call(object* o, table* arguments){
     expression* function_body=(expression*)(((function*)o)->data);
-    table* t=(table*)object_new(t_table);
+    table* t=new_table();
     /*const char *key;
     map_iter_t iter = map_iter(&m);
     while ((key = map_next(&t->fields, &iter))) {
@@ -29,15 +29,15 @@ object* execute_ast(expression* exp, table* scope){
             literal* l=(literal*)exp;
             switch(l->ltype){
                 case _int:
-                    result=object_new(t_number);
+                    result=(object*)new_number();
                     ((number*)result)->value=l->ival;
                     break;
                 case _float:
-                    result=object_new(t_number);
+                    result=(object*)new_number();
                     ((number*)result)->value=l->fval;
                     break;
                 case _string:
-                    result=object_new(t_string);
+                    result=(object*)new_string();
                     ((string*)result)->value=l->sval;
                     break;
             }
@@ -46,7 +46,7 @@ object* execute_ast(expression* exp, table* scope){
         case _block:
         {
             block* b=(block*)exp;
-            table* scope=(table*)object_new(t_table);
+            table* scope=new_table();
             for (int i = 0; i < vector_total(&b->lines); i++){
                 execute_ast(vector_get(&b->lines, i), scope);
             }
@@ -68,20 +68,13 @@ object* execute_ast(expression* exp, table* scope){
         case _unary:
         {
             unary* u=(unary*)exp;
-            switch(u->op){
-                case '+':
-                    result=add(execute_ast(u->left, scope), execute_ast(u->right, scope));
-                    break;
-                default:
-                    printf("operator: %c\n", u->op);
-                    result=object_new(t_null);
-            }
+            result=operator(execute_ast(u->left, scope), execute_ast(u->right, scope), &u->op);
             break;
         }
         case _function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
-            function* f=(function*)object_new(t_function);
+            function* f=(function*)new_function();
 
             f->data=(void*)d->body;
             f->pointer=ast_function_call;
@@ -91,7 +84,7 @@ object* execute_ast(expression* exp, table* scope){
         case _function_call:
         {
             function_call* c=(function_call*)exp;
-            table* function_scope=(table*)object_new(t_table);
+            table* function_scope=new_table();
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
                 char buf[16];
                 itoa(i, buf, 10);
@@ -103,7 +96,7 @@ object* execute_ast(expression* exp, table* scope){
         default:
         {
             printf("type: %i\n", exp->type);
-            result=object_new(t_null);
+            result=(object*)new_null();
         }
     }
     return result;

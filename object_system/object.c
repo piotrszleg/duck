@@ -68,57 +68,70 @@ object* cast(object* o, object_type type){
             {
                 char* buffer=malloc(sizeof(char)*1024);
                 strcpy(buffer, stringify(o));
-                object* result=new_string();
-                ((string*)result)->value=buffer;
-                return result;
+                string* result=new_string();
+                result->value=buffer;
+                return (object*)result;
             }
         case t_number:
             {
                 if(o->type==t_number){
                     return o;
                 } else {
-                    object* result=new_number();
+                   number* result=new_number();
                     if(o->type==t_null){
-                        ((number*)result)->value=0;// null is the only false'y value for now
+                        result->value=0;// null is the only false'y value for now
                     } else if(o->type==t_string && is_number(((string*)o)->value)){
-                        ((number*)result)->value=atoi(((string*)o)->value);// convert string to int if it contains number
+                        result->value=atoi(((string*)o)->value);// convert string to int if it contains number
                     } else {
-                        ((number*)result)->value=1;// value is not false'y
+                        result->value=1;// value is not false'y
                     }
-                    return result;
+                    return (object*)result;
                 }
             }
         default:
             ERROR(WRONG_ARGUMENT_TYPE, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o->type], OBJECT_TYPE_NAMES[type]);
-            return new_null();// conversion can't be performed
+            return (object*)new_null();// conversion can't be performed
     }
 }
 
-object* add(object* a, object* b){
+object* operator(object* a, object *b, char* op){
     if(a->type!=b->type){
         b=cast(b, a->type);
     }
     switch(a->type){
         case t_string:
-            {
+            if(strcmp(op, "+")==0){
                 char* buffer=malloc(sizeof(char)*1024);
                 if(!buffer){ ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure"); }
                 strcpy(buffer, ((string*) a)->value);
                 strcat(buffer, ((string*) b)->value);
-                object* result=new_string();
-                ((string*)result)->value=buffer;
-
-                return result;
+                string* result=new_string();
+                result->value=buffer;
+                return (object*)result;
             }
 
         case t_number:
             {
-                object* result=new_number();
-                ((number*)result)->value=((number*) a)->value+ ((number*) b)->value;
-                return result;
+                number* result=new_number();
+                if(strcmp(op, "+")==0){
+                    result->value=((number*) a)->value + ((number*) b)->value;
+                    return (object*)result;
+                }
+                if(strcmp(op, "-")==0){
+                    result->value=((number*) a)->value - ((number*) b)->value;
+                    return (object*)result;
+                }
+                if(strcmp(op, "*")==0){
+                    result->value=((number*) a)->value * ((number*) b)->value;
+                    return (object*)result;
+                }
+                if(strcmp(op, "/")==0){
+                    result->value=((number*) a)->value / ((number*) b)->value;
+                    return (object*)result;
+                }
             }
         default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Can't add object of type <%s> and <%s>", OBJECT_TYPE_NAMES[a->type], OBJECT_TYPE_NAMES[b->type]);
+            ERROR(WRONG_ARGUMENT_TYPE, "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a->type], OBJECT_TYPE_NAMES[b->type]);
             return NULL;
 
     }
@@ -160,7 +173,7 @@ char* stringify(struct object* o){
         case t_null:
             return "<null>";
         default:
-            ERROR(INCORRECT_OBJECT_POINTER, "Object at %#8x has no valid type value", o);
+            ERROR(INCORRECT_OBJECT_POINTER, "Object at %#8x has no valid type value", (unsigned int)o);
             return NULL;
     }
 }
@@ -182,7 +195,7 @@ object* get(object* o, char*key){
             object** map_get_result=map_get(&((struct table*)o)->fields, key);
 
             if(map_get_result==NULL){// there's no object at this key
-                return new_null();
+                return (object*)new_null();
             }else {
                 return *map_get_result;
             }

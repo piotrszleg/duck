@@ -13,7 +13,7 @@ o["+!"] = (self, b)->map(self, (e)->e+b)
 o["set!"] = -> Error("Read-only table.")
 
 # wrapping base types
-degree = (num)=>{
+degree = (num)->{
     d=wrap(num)
     d["+"] = (self, b) -> {
         result=self.value+b

@@ -46,7 +46,7 @@ RUNTIME_OBJECT(table,
 )
 
 RUNTIME_OBJECT(function,
-    object* (*pointer)(object* o, table*);
+    object* (*pointer)(object*, table*);
     int arguments_count;
     void* data;
 );
@@ -56,7 +56,7 @@ char* stringify(object* o);
 object* object_new(object_type);
 void object_delete(object* o);
 
-object* add(object* a, object* b);
+object* operator(object* a, object* b, char* op);
 
 object* call(object* o, table* arguments);
 

@@ -5,7 +5,7 @@ tests: tests.exe
 
 # compile c files into objects
 map.o object.o tests.o error.o: map.c map.h object.c object.h error.h error.c
-	gcc -c map.c object.c  error.c
+	gcc -c map.c object.c error.c
 
 # pack object files into archive
 object_system.a: map.o object.o error.o
