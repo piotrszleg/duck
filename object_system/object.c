@@ -8,50 +8,25 @@ const char* OBJECT_TYPE_NAMES[]={
     "table"
 };
 
-// allocates object of type t in pointer variable named result
-#define ALLOC_OBJECT(t, t_enum) \
-    object* result= malloc(sizeof(t)); \
-    if(!result) { ERROR(MEMORY_ALLOCATION_FAILURE , "Memory allocation failure"); } \
-    result->type=t_enum;
+#define RUNTIME_OBJECT_NEW(t, body) \
+    t* new_ ## t(){  \
+        t* instance=malloc(sizeof(t)); \
+		instance->type=t_ ## t; \
+        body \
+        return instance; \
+    }
 
 // all objects should be made and removed using these functions
 
-object* object_new(object_type type){
-    switch(type){
-        case t_string:
-            {
-                ALLOC_OBJECT(string, type);
-                return result;
-            }
+RUNTIME_OBJECT_NEW(null,)
+RUNTIME_OBJECT_NEW(number,)
+RUNTIME_OBJECT_NEW(function,)
+RUNTIME_OBJECT_NEW(string,)
+RUNTIME_OBJECT_NEW(table,
+    map_init(&((table*)instance)->fields);
+)
 
-        case t_number:
-            {
-                ALLOC_OBJECT(number, type);
-                return result;
-            }
-
-        case t_function:
-            {
-                ALLOC_OBJECT(function, type);
-                return result;
-            }
-
-        case t_table:
-            {
-                ALLOC_OBJECT(table, type);
-                map_init(&((table*)result)->fields);
-                return result;
-            }
-        case t_null:
-            {
-                ALLOC_OBJECT(object, t_null);
-                return result;
-            }
-        default:
-            return NULL;
-    }
-}
-
+// TODO free pointers
 void object_delete(object* o){
     switch(o->type){
         case t_string:
@@ -70,7 +45,6 @@ void object_delete(object* o){
         default:
             free(o);
     }
-    o=NULL;
 }
 
 int is_number(const char *s)
@@ -87,7 +61,7 @@ object* cast(object* o, object_type type){
             {
                 char* buffer=malloc(sizeof(char)*1024);
                 strcpy(buffer, stringify(o));
-                object* result=object_new(t_string);
+                object* result=new_string();
                 ((string*)result)->value=buffer;
                 return result;
             }
@@ -96,7 +70,7 @@ object* cast(object* o, object_type type){
                 if(o->type==t_number){
                     return o;
                 } else {
-                    object* result=object_new(t_number);
+                    object* result=new_number();
                     if(o->type==t_null){
                         ((number*)result)->value=0;// null is the only false'y value for now
                     } else if(o->type==t_string && is_number(((string*)o)->value)){
@@ -109,7 +83,7 @@ object* cast(object* o, object_type type){
             }
         default:
             ERROR(WRONG_ARGUMENT_TYPE, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o->type], OBJECT_TYPE_NAMES[type]);
-            return object_new(t_null);// conversion can't be performed
+            return new_null();// conversion can't be performed
     }
 }
 
@@ -124,7 +98,7 @@ object* add(object* a, object* b){
                 if(!buffer){ ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure"); }
                 strcpy(buffer, ((string*) a)->value);
                 strcat(buffer, ((string*) b)->value);
-                object* result=object_new(t_string);
+                object* result=new_string();
                 ((string*)result)->value=buffer;
 
                 return result;
@@ -132,7 +106,7 @@ object* add(object* a, object* b){
 
         case t_number:
             {
-                object* result=object_new(t_number);
+                object* result=new_number();
                 ((number*)result)->value=((number*) a)->value+ ((number*) b)->value;
                 return result;
             }
@@ -201,7 +175,7 @@ object* get(object* o, char*key){
             object** map_get_result=map_get(&((struct table*)o)->fields, key);
 
             if(map_get_result==NULL){// there's no object at this key
-                return object_new(t_null);
+                return new_null();
             }else {
                 return *map_get_result;
             }

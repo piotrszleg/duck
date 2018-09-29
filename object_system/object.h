@@ -29,6 +29,8 @@ struct object{// object interface, all objects in this file implement it
     }; \
     t* new_ ## t(); \
 
+RUNTIME_OBJECT(null,)
+
 RUNTIME_OBJECT(number,
     float value;
 )
