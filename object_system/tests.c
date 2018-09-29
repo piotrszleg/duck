@@ -1,4 +1,7 @@
-#include "tests.h"
+#include <stdio.h>
+#include <assert.h>
+#include "object.h"
+#include "error.h"
 
 void test_error_catching(){
     printf("TEST: %s\n", __FUNCTION__);
@@ -103,7 +106,7 @@ void adding_number_string(){// tests whether 1+2=3
     printf("test successful\n");
 }
 
-void run_object_system_tests(){
+void main(){
     TRY_CATCH(
         test_error_catching();
         adding_numbers();

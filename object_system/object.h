@@ -21,33 +21,33 @@ struct object{// object interface, all objects in this file implement it
     enum object_type type;
 };
 
-typedef struct number number;
-struct number{
-    enum object_type type;
-    float value;
-};
+#define RUNTIME_OBJECT(t, body) \
+    typedef struct t t; \
+    struct t { \
+        object_type type; \
+        body \
+    }; \
+    t* new_ ## t(); \
 
-typedef struct string string;
-struct string{
-    enum object_type type;
+RUNTIME_OBJECT(number,
+    float value;
+)
+
+RUNTIME_OBJECT(string,
     char* value;
-};
+)
 
 typedef map_t(struct object*) object_map_t;
 
-typedef struct table table;
-struct table{
-    enum object_type type;
+RUNTIME_OBJECT(table,
     object_map_t fields;
-};
+)
 
-typedef struct function function;
-struct function{
-    enum object_type type;
+RUNTIME_OBJECT(function,
     object* (*pointer)(object* o, table*);
     int arguments_count;
     void* data;
-};
+);
 
 char* stringify(object* o);
 

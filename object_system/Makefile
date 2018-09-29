@@ -1,10 +1,21 @@
 all: object_system.a
 
-map.o object.o tests.o error.o: map.c map.h object.c object.h tests.c tests.h error.h error.c
-	gcc -c map.c object.c tests.c error.c
+tests: tests.exe
+	./tests.exe
 
-object_system.a: map.o object.o tests.o error.o
-	ar cr object_system.a map.o object.o tests.o error.o
+# compile c files into objects
+map.o object.o tests.o error.o: map.c map.h object.c object.h error.h error.c
+	gcc -c map.c object.c  error.c
+
+# pack object files into archive
+object_system.a: map.o object.o error.o
+	ar cr object_system.a map.o object.o error.o
+
+# compile c files into exe
+tests.exe: map.c map.h object.c object.h tests.c error.h error.c
+	gcc -Wall -o tests.exe map.c object.c error.c tests.c 
 
 clean:
 	rm object_system.a
+	rm error.o map.o object.o tests.o
+	rm test.exe
