@@ -30,18 +30,25 @@ RUNTIME_OBJECT_NEW(table,
 void object_delete(object* o){
     switch(o->type){
         case t_string:
-            free((string*)o);
+        {
+            string* as_string=(string*)o;
+            free(as_string);
+            free(as_string->value);
             break;
+        }
         case t_number:
             free((number*)o);
             break;
         case t_function:
             free((table*)o);
             break;
-        case t_table:
-            map_deinit(&((table*)o)->fields);
-            free((table*)o);
+        case t_table: 
+        {
+            table* as_table=(table*)o;
+            map_deinit(&as_table->fields);
+            free(as_table);
             break;
+        }
         default:
             free(o);
     }
