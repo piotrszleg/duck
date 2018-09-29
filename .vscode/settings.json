@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "tests.h": "c",
+        "object.h": "c",
+        "ast_executor.h": "c",
+        "parser_tests.h": "c"
+    }
+}

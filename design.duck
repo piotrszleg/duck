@@ -1,0 +1,37 @@
+o=[1, 2, 3]
+
+# metatable - not really
+o.set_metatable(
+    o.get_metatable + [
+        "+" = (self, b)->map(self, (e)->e+b)
+        "set" = -> Error("Read-only table.")
+    ]
+)
+
+# magic indexes
+o["+!"] = (self, b)->map(self, (e)->e+b)
+o["set!"] = -> Error("Read-only table.")
+
+# wrapping base types
+degree = (num)=>{
+    d=wrap(num)
+    d["+"] = (self, b) -> {
+        result=self.value+b
+        if(result>360){
+            result-360
+        } else {
+            result
+        }
+    }
+}
+
+# magic functions
+return!(0)
+yield!(0)
+
+arr=[1, 2, 3, name="John"]
+
+f=(a, b)->{
+    c=a-b
+    (a+b)/c
+}
