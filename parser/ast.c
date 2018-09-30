@@ -75,7 +75,7 @@ char* stringify_expression(expression* exp, int indentation){
         case _unary:
         {
             unary* u=(unary*)exp;
-            snprintf(result, result_size, "\n%sUNARY: \n%s-> left: %s \n%s-> sign: '%c' \n%s-> right: %s", 
+            snprintf(result, result_size, "\n%sUNARY: \n%s-> left: %s \n%s-> sign: '%s' \n%s-> right: %s", 
                                         indentation_string,
                                         indentation_string, stringify_expression((expression*)u->left, indentation+1), 
                                         indentation_string, u->op,

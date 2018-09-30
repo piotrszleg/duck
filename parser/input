@@ -1,4 +1,4 @@
-if(1){ 
+if(1&&2){ 
     print("if") 
 } elif(2) {
      print("elif")

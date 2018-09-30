@@ -55,7 +55,7 @@ AST_OBJECT(function_call,
 
 AST_OBJECT(unary,
     expression* left;
-    char op;
+    char* op;
     expression* right;
 )
 

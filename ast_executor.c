@@ -77,10 +77,7 @@ object* execute_ast(expression* exp, table* scope){
         case _unary:
         {
             unary* u=(unary*)exp;
-            char op[2];
-            op[0]=u->op;
-            op[1]='\0';
-            result=operator(execute_ast(u->left, scope), execute_ast(u->right, scope), op);
+            result=operator(execute_ast(u->left, scope), execute_ast(u->right, scope), u->op);
             break;
         }
         case _conditional:

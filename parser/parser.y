@@ -206,7 +206,7 @@ assignment:
 		a->left=(name*)$1;
 		unary* u=new_unary();
 		u->left=$1;
-		u->op=$2[0];
+		u->op=strdup($2);
 		u->right=$4;
 		a->right=(expression*)u;
 		$$=(expression*)a;
@@ -237,7 +237,7 @@ unary:
 	{
 		unary* u=new_unary();
 		u->left=$1;
-		u->op=$2[0];
+		u->op=strdup($2);
 		u->right=$3;
 		$$=(expression*)u;
 	}

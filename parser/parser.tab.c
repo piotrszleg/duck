@@ -1648,7 +1648,7 @@ yyreduce:
 		a->left=(name*)(yyvsp[(1) - (4)].exp);
 		unary* u=new_unary();
 		u->left=(yyvsp[(1) - (4)].exp);
-		u->op=(yyvsp[(2) - (4)].sval)[0];
+		u->op=strdup((yyvsp[(2) - (4)].sval));
 		u->right=(yyvsp[(4) - (4)].exp);
 		a->right=(expression*)u;
 		(yyval.exp)=(expression*)a;
@@ -1697,7 +1697,7 @@ yyreduce:
     {
 		unary* u=new_unary();
 		u->left=(yyvsp[(1) - (3)].exp);
-		u->op=(yyvsp[(2) - (3)].sval)[0];
+		u->op=strdup((yyvsp[(2) - (3)].sval));
 		u->right=(yyvsp[(3) - (3)].exp);
 		(yyval.exp)=(expression*)u;
 	;}
