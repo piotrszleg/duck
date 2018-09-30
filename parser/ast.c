@@ -7,6 +7,7 @@
         return instance; \
     }
 
+AST_OBJECT_NEW(empty)
 AST_OBJECT_NEW(block)
 AST_OBJECT_NEW(literal)
 AST_OBJECT_NEW(name)
@@ -39,10 +40,12 @@ char* stringify_expression(expression* exp, int indentation){
     }
 
     switch(exp->type){
+        case _empty:
+            strcat(result, "EMPTY\0");// "EMPTY" will always smaller than result_size
+            break;
         case _name:
-        {
             snprintf(result, result_size, "\n%sNAME: %s", indentation_string, ((name*)exp)->value);
-        }
+            break;
         case _literal:
         {
             literal* l=(literal*)exp;
@@ -136,12 +139,13 @@ void delete_expression(expression* exp){
     }
 
     switch(exp->type){
+        case _empty:
+            free((empty*)exp);
+            break;
         case _name:
-        {
             free(((name*)exp)->value);
             free(((name*)exp));
             break;
-        }
         case _literal:
         {
             literal* l=(literal*)exp;
@@ -209,7 +213,7 @@ void delete_expression(expression* exp){
             break;
         }
         default:
-            printf("Deletion of this type was not implemented");
+            printf("Deletion of this type (%i) was not implemented", exp->type);
             break;
     }
 }

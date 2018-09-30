@@ -8,6 +8,7 @@
 
 typedef enum expression_type expression_type;
 enum expression_type{
+    _empty,
     _block,
     _literal,
     _name,
@@ -30,8 +31,8 @@ struct expression {
         body \
     }; \
     t* new_ ## t(); \
-    
 
+AST_OBJECT(empty,)
 
 AST_OBJECT(block, 
     vector lines;
@@ -65,8 +66,8 @@ AST_OBJECT(function_declaration,
 
 AST_OBJECT(conditional,
     expression* condition;
-    block* ontrue;
-    block* onfalse;
+    expression* ontrue;
+    expression* onfalse;
 )
 
 typedef enum literal_type literal_type;

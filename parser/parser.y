@@ -90,37 +90,48 @@ line:
 	;
 block:
 	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { $$=$4 }
+expression:
+	'(' expression ')' {$$=$2;}
+	| literal
+	| block
+	| name
+	| assignment
+	| call
+	| function
+	| conditional
+	| unary;
 conditional:
-	IF '(' expression ')' expression  {
+	IF '(' expression ')' expression  {	
 		conditional* c=new_conditional();
 		c->condition=$3;
-		c->ontrue=(block*)$5;
+		c->ontrue=$5;
+		c->onfalse=new_empty();
 		$$=(expression*)c;
 	}
 	| IF '(' expression ')' expression conditional_else {
 		conditional* c=new_conditional();
 		c->condition=$3;
-		c->ontrue=(block*)$5;
-		c->onfalse=(block*)$6;
+		c->ontrue=$5;
+		c->onfalse=$6;
 		$$=(expression*)c;
 	}
 	;
 conditional_else:
 	ELSE expression {
-		printf("ELSE, parser.y, l108");
 		$$=$2
 	}
 	| ELIF '(' expression ')' expression conditional_else {
 		conditional* c=new_conditional();
 		c->condition=$3;
-		c->ontrue=(block*)$5;
-		c->onfalse=(block*)$6;
+		c->ontrue=$5;
+		c->onfalse=$6;
 		$$=(expression*)c;
 	}
 	| ELIF '(' expression ')' expression {
 		conditional* c=new_conditional();
 		c->condition=$3;
-		c->ontrue=(block*)$5;
+		c->ontrue=$5;
+		c->onfalse=new_empty();
 		$$=(expression*)c;
 	} 
 	;
@@ -161,16 +172,6 @@ function:
 		$$=(expression*)f;
 	}
 	;
-expression:
-	'(' expression ')' {$$=$2;}
-	| literal
-	| block
-	| name
-	| assignment
-	| call
-	| function
-	| conditional
-	| unary;
 literal: 
 	INT { 
 		literal* l=new_literal();

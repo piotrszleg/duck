@@ -17,3 +17,5 @@
     So when * is used with a pointer it dereferences it 
     `*operand` becomes `operand`, `**operand` becomes `*operand` 
     and `*operand` becomes a deadly bug in your code if you're using `void`  pointers 
+
+[Linking libraries dynamically](https://github.com/alainfrisch/flexdll)

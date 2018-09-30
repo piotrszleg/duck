@@ -12,7 +12,7 @@ lex.yy.c: lexer.l parser.tab.h
 
 # compile c files into objects
 parser.tab.o lex.yy.o ast.o vector.o: parser.tab.c parser.tab.h lex.yy.c ast.h ast.c vector.h vector.c
-	gcc -Wall -c parser.tab.c lex.yy.c ast.c vector.c
+	gcc -g -Wall -c parser.tab.c lex.yy.c ast.c vector.c
 
 # pack object files into archive
 parser.a: parser.tab.o lex.yy.o vector.o ast.o
@@ -21,7 +21,7 @@ parser.a: parser.tab.o lex.yy.o vector.o ast.o
 
 # compile c files into exe
 tests.exe: parser.tab.c parser.tab.h lex.yy.c ast.h ast.c vector.h vector.c tests.c
-	gcc -Wall -o tests.exe parser.tab.c lex.yy.c ast.c vector.c tests.c
+	gcc -g -Wall -o tests.exe parser.tab.c lex.yy.c ast.c vector.c tests.c
 
 clean:
 	rm parser.a

@@ -1,10 +1,7 @@
-name="John" # set name to john
-num=0.5 # set num to 0.5
-num=1
-table={
-    a=2 # a is 2
-    b=3 # b is 3
+if(1){ 
+    print("if") 
+} elif(2) {
+     print("elif")
+} else {
+    print("else")
 }
-f=(a, b)->b
-result=f(1, 2)
-num=5

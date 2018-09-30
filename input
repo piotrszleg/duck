@@ -10,6 +10,8 @@ callresult=f(1, 2)
 
 if(1){
     print(7071)
+} elif(2){
+    print(7170)
 } else {
     print(1707)
 }
