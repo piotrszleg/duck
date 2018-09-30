@@ -64,29 +64,43 @@ int is_number(const char *s)
     return 1;
 }
 
+// TODO:  write tests
+int is_falsy(object* o){
+    switch(o->type){
+        case t_null:
+            return 0;// null is falsy
+        case t_function:
+            return 1;// every function isn't falsy
+        case t_string:
+            return strlen(((string*)o)->value);// "" (string of length 0) is falsy
+        case t_number:
+            return ((number*)o)->value==0;// 0 is falsy
+        case t_table:
+            return ((table*)o)->fields.base.nnodes==0;// empty table is falsy
+    }
+}
+
 object* cast(object* o, object_type type){
+    if(o->type==type){
+        return o;
+    }
     switch(type){
         case t_string:
             {
                 char* buffer=malloc(sizeof(char)*1024);
-                strcpy(buffer, stringify(o));
+                strncpy(buffer, stringify(o), 1024);
                 string* result=new_string();
                 result->value=buffer;
                 return (object*)result;
             }
         case t_number:
             {
-                if(o->type==t_number){
-                    return o;
-                } else {
-                   number* result=new_number();
-                    if(o->type==t_null){
-                        result->value=0;// null is the only false'y value for now
-                    } else if(o->type==t_string && is_number(((string*)o)->value)){
-                        result->value=atoi(((string*)o)->value);// convert string to int if it contains number
-                    } else {
-                        result->value=1;// value is not false'y
-                    }
+                number* result=new_number();
+                if(o->type==t_null){
+                    result->value=0;// null is zero
+                    return (object*)result;
+                } else if(o->type==t_string && is_number(((string*)o)->value)){
+                    result->value=atoi(((string*)o)->value);// convert string to int if it contains number
                     return (object*)result;
                 }
             }

@@ -6,5 +6,6 @@
 #include "object_system/error.h"
 
 object* execute_ast(expression* exp, table* scope);
+void register_globals(table* scope);
 
 #endif

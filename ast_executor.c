@@ -9,11 +9,21 @@ So what you're going to do is:
 - add arguments to function_scope using names from ast_function vector and
 */
 
-object* execute_ast(expression* exp, table* scope);
-
-object* ast_function_call(object* o, table* scope/*, vector arguments*/){
+object* ast_function_call(object* o, table* scope){
     function* as_function=(function*)o;
     return execute_ast((expression*)as_function->data, scope);
+}
+
+object* native_print(object* o, table* scope){
+    printf("%s\n", stringify(get((object*)scope, "self")));
+    return (object*)new_null();
+}
+
+void register_globals(table* scope){
+    function* print_function=new_function();
+    vector_add(&print_function->argument_names, "self");
+    print_function->pointer=&native_print;
+    set((object*)scope, "print", (object*)print_function);
 }
 
 object* execute_ast(expression* exp, table* scope){
@@ -45,6 +55,7 @@ object* execute_ast(expression* exp, table* scope){
         {
             block* b=(block*)exp;
             table* scope=new_table();
+            register_globals(scope);
             for (int i = 0; i < vector_total(&b->lines); i++){
                 execute_ast(vector_get(&b->lines, i), scope);
             }
@@ -69,6 +80,15 @@ object* execute_ast(expression* exp, table* scope){
             result=operator(execute_ast(u->left, scope), execute_ast(u->right, scope), &u->op);
             break;
         }
+        case _conditional:
+        {
+            conditional* c=(conditional*)exp;
+            if(is_falsy(execute_ast(c->condition, scope))){
+                execute_ast((expression*)c->onfalse, scope);
+            } else{
+                execute_ast((expression*)c->ontrue, scope);
+            }
+        }
         case _function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
@@ -92,7 +112,7 @@ object* execute_ast(expression* exp, table* scope){
                 itoa(i, buf, 10);
                 set((object*)function_scope, vector_get(&f->argument_names, i), execute_ast(vector_get(&c->arguments->lines, i), scope));// here instead of "b" should be argument name from function decalaration
             }
-            result=(object*)call(get((object*)scope, c->function_name->value), function_scope);
+            result=(object*)call((object*)f, function_scope);
             break;
         }
         default:

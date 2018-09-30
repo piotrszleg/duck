@@ -7,8 +7,9 @@ table={
 }
 f=(a, b)->(0+a)+b
 callresult=f(1, 2)
+
 if(0){
-    num=5
+    print(7071)
 } else {
-    num=10
+    print(1707)
 }

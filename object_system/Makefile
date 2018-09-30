@@ -9,7 +9,7 @@ map.o object.o tests.o error.o: map.c map.h object.c object.h error.h error.c ve
 
 # pack object files into archive
 object_system.a: map.o object.o error.o vector.o
-	ar cr object_system.a map.o object.o error.o  vector.o
+	ar cr object_system.a map.o object.o error.o vector.o
 
 # compile c files into exe
 tests.exe: map.c map.h object.c object.h tests.c error.h error.c vector.h vector.c
