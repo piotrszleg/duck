@@ -4,6 +4,7 @@
 #include "error.h"
 #include <stdlib.h>
 #include <ctype.h>
+#include "vector.h"
 
 typedef enum object_type object_type;
 enum object_type{
@@ -46,8 +47,9 @@ RUNTIME_OBJECT(table,
 )
 
 RUNTIME_OBJECT(function,
-    object* (*pointer)(object*, table*);
-    int arguments_count;
+    object* (*pointer)(object* o, table* scope);
+    table* enclosing_scope;
+    vector argument_names;
     void* data;
 );
 

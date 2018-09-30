@@ -5,6 +5,10 @@ table={
     a=2 # a is 2
     b=3 # b is 3
 }
-f=(a, b)->b
-result=f(1, 2)
-num=5
+f=(a, b)->(0+a)+b
+callresult=f(1, 2)
+if(0){
+    num=5
+} else {
+    num=10
+}

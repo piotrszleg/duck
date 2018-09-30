@@ -20,7 +20,9 @@ const char* OBJECT_TYPE_NAMES[]={
 
 RUNTIME_OBJECT_NEW(null,)
 RUNTIME_OBJECT_NEW(number,)
-RUNTIME_OBJECT_NEW(function,)
+RUNTIME_OBJECT_NEW(function,
+    vector_init(&instance->argument_names);
+)
 RUNTIME_OBJECT_NEW(string,)
 RUNTIME_OBJECT_NEW(table,
     map_init(&((table*)instance)->fields);

@@ -1,21 +1,19 @@
 #include "ast_executor.h"
 
-struct ast_function{
-    vector arguments;
-    block body;
-};
+
+/*
+So what you're going to do is:
+- add arguments vector to call function
+- in ast_function_call get argument names from ast_function stored in data pointer of the function
+- copy scope to function_scope
+- add arguments to function_scope using names from ast_function vector and
+*/
 
 object* execute_ast(expression* exp, table* scope);
 
-object* ast_function_call(object* o, table* arguments){
-    expression* function_body=(expression*)(((function*)o)->data);
-    table* t=new_table();
-    /*const char *key;
-    map_iter_t iter = map_iter(&m);
-    while ((key = map_next(&t->fields, &iter))) {
-         *map_get(&t->fields, key)
-    }*/
-    return execute_ast(function_body, arguments);
+object* ast_function_call(object* o, table* scope/*, vector arguments*/){
+    function* as_function=(function*)o;
+    return execute_ast((expression*)as_function->data, scope);
 }
 
 object* execute_ast(expression* exp, table* scope){
@@ -75,8 +73,11 @@ object* execute_ast(expression* exp, table* scope){
         {
             function_declaration* d=(function_declaration*)exp;
             function* f=(function*)new_function();
-
+            for (int i = 0; i < vector_total(d->arguments); i++){
+                vector_add(&f->argument_names, ((name*)vector_get(d->arguments, i))->value);
+            }
             f->data=(void*)d->body;
+            f->enclosing_scope=scope;
             f->pointer=ast_function_call;
             result=(object*)f;
             break;
@@ -85,17 +86,18 @@ object* execute_ast(expression* exp, table* scope){
         {
             function_call* c=(function_call*)exp;
             table* function_scope=new_table();
+            function* f=(function*)get((object*)scope, c->function_name->value);
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
                 char buf[16];
                 itoa(i, buf, 10);
-                set((object*)function_scope, "b", execute_ast(vector_get(&c->arguments->lines, i), scope));// here instead of "b" should be argument name from function decalaration
+                set((object*)function_scope, vector_get(&f->argument_names, i), execute_ast(vector_get(&c->arguments->lines, i), scope));// here instead of "b" should be argument name from function decalaration
             }
             result=(object*)call(get((object*)scope, c->function_name->value), function_scope);
             break;
         }
         default:
         {
-            printf("type: %i\n", exp->type);
+            printf("uncatched type: %i\n", exp->type);
             result=(object*)new_null();
         }
     }

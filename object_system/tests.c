@@ -44,10 +44,10 @@ void adding_strings(){// tests whether "Hello "+"Cruel World"="Hello Cruel World
     printf("test successful\n");
 }
 
-object* add_three(object* o, table* arguments){
+object* add_three(object* o, table* scope){
     number* three=new_number();
     three->value=3;
-    object* result= operator(get((object*)arguments, "1"), (object*)three, "+");
+    object* result= operator(get((object*)scope, "1"), (object*)three, "+");
     object_delete((object*)three);
     return result;
     // TODO: free number
