@@ -1,8 +1,8 @@
 ## TODO:
-- fix if instruction
+- reference counting and garbage collection
+- logical and comparison operators
 - add different syntax for table declarations and scopes
 - scope inheritance
-- add multi character operators and \`function\` syntax
 
 ## POINTERS:
 **&** - returns pointer to it's operand

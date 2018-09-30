@@ -44,11 +44,12 @@
      FLOAT = 260,
      STRING = 261,
      NAME = 262,
-     UNARY_OPERATOR = 263,
-     ARROW = 264,
-     IF = 265,
-     ELSE = 266,
-     ELIF = 267
+     ASSIGN_UNARY_OPERATOR = 263,
+     UNARY_OPERATOR = 264,
+     ARROW = 265,
+     IF = 266,
+     ELSE = 267,
+     ELIF = 268
    };
 #endif
 
@@ -70,7 +71,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 74 "parser.tab.h"
+#line 75 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

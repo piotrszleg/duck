@@ -1,7 +1,1 @@
-if(1&&2){ 
-    print("if") 
-} elif(2) {
-     print("elif")
-} else {
-    print("else")
-}
+sum=(a, b)->a+b

@@ -41,6 +41,7 @@ void yyerror(const char *s);
 %token <fval> FLOAT
 %token <sval> STRING
 %token <sval> NAME
+%token <sval> ASSIGN_UNARY_OPERATOR
 %token <sval> UNARY_OPERATOR
 %token <ival> ARROW
 %token <ival> IF
@@ -200,14 +201,14 @@ name:
 		$$=(expression*)n;
 	  } ;
 assignment:
-	name UNARY_OPERATOR '=' expression 
+	name ASSIGN_UNARY_OPERATOR expression 
 	{
 		assignment* a=new_assignment();
 		a->left=(name*)$1;
 		unary* u=new_unary();
 		u->left=$1;
 		u->op=strdup($2);
-		u->right=$4;
+		u->right=$3;
 		a->right=(expression*)u;
 		$$=(expression*)a;
 	}
