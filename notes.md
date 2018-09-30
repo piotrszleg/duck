@@ -1,7 +1,8 @@
 ## TODO:
-- add "test" builds to Makefiles
-- add `-Wall` to compiler options
-- fix ast objects declaration
+- fix if instruction
+- add different syntax for table declarations and scopes
+- scope inheritance
+- add multi character operators and \`function\` syntax
 
 ## POINTERS:
 **&** - returns pointer to it's operand
