@@ -87,10 +87,11 @@ object* execute_ast(expression* exp, table* scope){
         {
             conditional* c=(conditional*)exp;
             if(is_falsy(execute_ast(c->condition, scope))){
-                execute_ast((expression*)c->onfalse, scope);
+                result=execute_ast((expression*)c->onfalse, scope);
             } else{
-                execute_ast((expression*)c->ontrue, scope);
+                result=execute_ast((expression*)c->ontrue, scope);
             }
+            break;
         }
         case _function_declaration:
         {
