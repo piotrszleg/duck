@@ -1,18 +1,17 @@
 name="John" # set name to john
-num=1 # set num to 0.5
+num=0.5 # set num to 0.5
 table={
     a=2 # a is 2
     b=3 # b is 3
 }
-num=2
 f=(a, b)-> if(a) b  else 0 
 callresult=f(1, 2)
 print(name)
 
-if((num==1) || (num<0)){
+if(num==0.5&&num>0){
     print("we")
 } elif(2){
     print("are")
 } else {
-    print("the music makers")
+    print("the dreamers of dreams")
 }

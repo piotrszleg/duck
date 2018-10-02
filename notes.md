@@ -1,8 +1,6 @@
 ## TODO:
-- reference counting and garbage collection
-- comparison operators
+- fixing syntax for comparison operators
 - not and minus
-- int and float number distinction
 - add different syntax for table declarations and scopes
 - scope inheritance
 

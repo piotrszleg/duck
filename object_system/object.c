@@ -1,6 +1,6 @@
 #include "object.h"
 
-#define GC_LOG 1
+#define GC_LOG 0
 
 const char* OBJECT_TYPE_NAMES[]={
     "null",
@@ -264,8 +264,13 @@ char* stringify(struct object* o){
             return ((string*)o)->value;
         case t_number:
             {
+                float n=((number*)o)->value;
                 char buffer[100];
-                return itoa(((number*)o)->value, buffer, 10);
+                if(ceilf(n)==n){
+                    return itoa(n, buffer, 10);// display number as an integer
+                } else{
+                    return gcvt(n, 3, buffer);
+                }
             }
         case t_table:
             {
