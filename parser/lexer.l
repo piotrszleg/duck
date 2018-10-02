@@ -37,10 +37,12 @@ else                { return ELSE; }
 [0-9]+              { yylval.ival = atoi(yytext); return INT; }
 \"[a-zA-Z0-9]+\"    { yylval.sval = unquote(yytext); return STRING; }
 [a-zA-Z0-9]+        { yylval.sval = strdup(yytext); return NAME; }
-[+\-\/*^&|]+        { yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
+->                  { return ARROW; }
+[\(\)\{\}=,#]       { return yytext[0]; }// symbols used directly by parser
+[+\-\/*^&|<>]+        { yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
+==					{ yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 [+\-\/*^&|]+=        { yylval.sval = remove_last_character(yytext); return ASSIGN_UNARY_OPERATOR; }// += etc
 `(.+?)`             { yylval.sval = unquote(yytext); return UNARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo
-[\(\)\{\}=,#]       { return yytext[0]; }// symbols used directly by parser
-->                  { return ARROW; }
+
 .                   ;
 %%

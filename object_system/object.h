@@ -20,12 +20,14 @@ extern const char* OBJECT_TYPE_NAMES[];// array mapping enum object_type to thei
 typedef struct object object;
 struct object{// object interface, all objects in this file implement it
     enum object_type type;
+    int ref_count;
 };
 
 #define RUNTIME_OBJECT(t, body) \
     typedef struct t t; \
     struct t { \
         object_type type; \
+        int ref_count; \
         body \
     }; \
     t* new_ ## t(); \
@@ -55,7 +57,8 @@ RUNTIME_OBJECT(function,
 
 char* stringify(object* o);
 
-object* object_new(object_type);
+void collect_garbage(table* scope);
+
 void object_delete(object* o);
 
 int is_falsy(object* o);
