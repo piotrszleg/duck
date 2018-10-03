@@ -40,7 +40,7 @@ else                { return ELSE; }
 ->                  { return ARROW; }
 !=					{ yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 ==					{ yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
-[\(\)\{\},#=]       { return yytext[0]; }// symbols used directly by parser
+[\(\)\{\},#=\[\]]       { return yytext[0]; }// symbols used directly by parser
 [+\-\/*^&|<>]+        { yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 [+\-\/*^&|]+=        { yylval.sval = remove_last_character(yytext); return ASSIGN_UNARY_OPERATOR; }// +=, -= etc
 `.+?`             { yylval.sval = unquote(yytext); return UNARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo

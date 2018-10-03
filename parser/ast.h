@@ -35,6 +35,7 @@ struct expression {
 AST_OBJECT(empty,)
 
 AST_OBJECT(block, 
+    int is_table;
     vector lines;
 )
 

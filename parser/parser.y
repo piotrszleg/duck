@@ -93,7 +93,9 @@ line:
 	| expression
 	;
 block:
-	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { $$=$4 }
+	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { $$=$4; }
+	| OPT_ENDLS '[' OPT_ENDLS lines OPT_ENDLS ']' OPT_ENDLS { ((block*)$4)->is_table=1; $$=$4; }
+	;
 expression:
 	'(' expression ')' {$$=$2;}
 	| literal

@@ -94,7 +94,7 @@ char* stringify_expression(expression* exp, int indentation){
         case _block:
         {
             block* b=(block*)exp;
-            snprintf(result, result_size, "\n%sBLOCK: ", indentation_string);
+            snprintf(result, result_size, b->is_table ? "\n%sBLOCK: " : "\n%sTABLE: ", indentation_string);
             for (int i = 0; i < vector_total(&b->lines); i++){
                 strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1));
             }
