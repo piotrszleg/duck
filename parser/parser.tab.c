@@ -1464,7 +1464,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 96 "parser.y"
-    { (yyval.exp)=(yyvsp[(4) - (7)].exp); ;}
+    { ((block*)(yyvsp[(4) - (7)].exp))->is_table=0; (yyval.exp)=(yyvsp[(4) - (7)].exp); ;}
     break;
 
   case 10:

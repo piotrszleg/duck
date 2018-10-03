@@ -3,6 +3,9 @@ all: parser.a
 tests: tests.exe
 	./tests.exe
 
+repl: repl.exe
+	./repl.exe
+
 # bison and lex
 parser.tab.c parser.tab.h: parser.y
 	bison -d parser.y
@@ -22,6 +25,9 @@ parser.a: parser.tab.o lex.yy.o vector.o ast.o
 # compile c files into exe
 tests.exe: parser.tab.c parser.tab.h lex.yy.c ast.h ast.c vector.h vector.c tests.c
 	gcc -g -Wall -o tests.exe parser.tab.c lex.yy.c ast.c vector.c tests.c
+
+repl.exe: parser.tab.c parser.tab.h lex.yy.c ast.h ast.c vector.h vector.c repl.c
+	gcc -g -Wall -o repl.exe parser.tab.c lex.yy.c ast.c vector.c repl.c
 
 clean:
 	rm parser.a
