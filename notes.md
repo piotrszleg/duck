@@ -1,4 +1,5 @@
 ## TODO:
+- tests for parser
 - fixing syntax for comparison operators
 - not and minus
 - add different syntax for table declarations and scopes
@@ -10,7 +11,7 @@
     `operand*` becomes `operand**`
     and so on
     watch out for macro expansion
-    
+
 **\*** - when it appears after type name it transforms it into pointer type 
     `int* p;` means p is a of type "pointer to int" 
     but people who designed c generously decided to saved us from remembering too much symbols so same symbol is used in three completely different contexts, how fun.

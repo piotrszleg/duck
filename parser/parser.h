@@ -3,8 +3,9 @@
 
 #include "ast.h"
 
-typedef void (*parsing_handler_pointer)(expression*); 
+expression* parsing_result;
 
-void parse_file(char* file_name, parsing_handler_pointer callback);
+void parse_string(char* s);
+void parse_file(char* file_name);
 
 #endif

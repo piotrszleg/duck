@@ -12,7 +12,7 @@ extern int yyparse();
 extern FILE *yyin;
 extern int line_num;
 
-parsing_handler_pointer parsing_handler;
+expression* parsing_result;
  
 void yyerror(const char *s);
 
@@ -64,7 +64,10 @@ void yyerror(const char *s);
 
 %%
 program:
-	lines { (*parsing_handler)($1);  }
+	lines { 
+		parsing_result=malloc(sizeof(expression));
+		parsing_result = $1;
+	}
 	;
 lines:
 	lines line {
@@ -256,7 +259,21 @@ void print_and_delete(expression* result){
 	delete_expression(result);
 }
 
-void parse_file(char* file_name, parsing_handler_pointer callback) {
+typedef struct yy_buffer_state * YY_BUFFER_STATE;
+extern int yyparse();
+extern YY_BUFFER_STATE yy_scan_string(char * str);
+extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
+
+void parse_string(char* s) {
+	// Set Flex to read from it instead of defaulting to STDIN:
+	YY_BUFFER_STATE buffer = yy_scan_string(s);
+
+	// Parse through the input:
+	yyparse();
+	yy_delete_buffer(buffer);
+}
+
+void parse_file(char* file_name) {
 	// Open a file handle to a particular file:
 	FILE *myfile = fopen(file_name, "r");
 	// Make sure it is valid:
@@ -266,12 +283,9 @@ void parse_file(char* file_name, parsing_handler_pointer callback) {
 	}
 	// Set Flex to read from it instead of defaulting to STDIN:
 	yyin = myfile;
-
-	parsing_handler=callback;
 	
 	// Parse through the input:
 	yyparse();
-	
 }
 
 void yyerror(const char *s) {

@@ -1,10 +1,18 @@
+#include <assert.h>
 #include "parser.h"
 
-void print_parsing_result(expression* result){
-    printf(stringify_expression(result, 0));
-    delete_expression(result);
+extern expression* parsing_result;
+
+void literals_parsing(){// tests literals parsing
+    printf("TEST: %s\n", __FUNCTION__);
+
+    parse_string("5");
+    assert(((block*)parsing_result));// todo examine the inner structure
+
+    delete_expression(parsing_result);
+    printf("test successful\n");
 }
 
 int main(){
-    parse_file("input", print_parsing_result);
+    literals_parsing();
 }
