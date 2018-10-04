@@ -197,6 +197,7 @@ void delete_expression(expression* exp){
             for (int i = 0; i < vector_total(f->arguments); i++){
                 delete_expression(vector_get(f->arguments, i));
             }
+            free(f->arguments);
             delete_expression((expression*)f->body);
             free(f);
             break;

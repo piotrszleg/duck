@@ -76,12 +76,14 @@ lines:
 	}
 	| line	{
 		block* b=new_block();
+		b->is_table=0;
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
 	}
 	| expression {
 		block* b=new_block();
+		b->is_table=0;
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
@@ -93,7 +95,7 @@ line:
 	| expression
 	;
 block:
-	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { ((block*)$4)->is_table=0; $$=$4; }
+	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { $$=$4; }
 	| OPT_ENDLS '[' OPT_ENDLS lines OPT_ENDLS ']' OPT_ENDLS { ((block*)$4)->is_table=1; $$=$4; }
 	;
 expression:
@@ -111,7 +113,7 @@ conditional:
 		conditional* c=new_conditional();
 		c->condition=$3;
 		c->ontrue=$5;
-		c->onfalse=new_empty();
+		c->onfalse=(expression*)new_empty();
 		$$=(expression*)c;
 	}
 	| IF '(' expression ')' expression conditional_else {
@@ -137,7 +139,7 @@ conditional_else:
 		conditional* c=new_conditional();
 		c->condition=$3;
 		c->ontrue=$5;
-		c->onfalse=new_empty();
+		c->onfalse=(expression*)new_empty();
 		$$=(expression*)c;
 	} 
 	;
@@ -147,10 +149,10 @@ arguments:
 		$$=$1;
 	}
 	| name {
-		vector args;
-		vector_init(&args);
-		vector_add(&args, $1);
-		$$=&args;
+		vector* args=malloc(sizeof(vector));
+		vector_init(args);
+		vector_add(args, $1);
+		$$=args;
 	}
 	;
 function:
@@ -162,18 +164,18 @@ function:
 	} 
 	| name ARROW expression {
 		function_declaration* f=new_function_declaration();
-		vector args;
-		vector_init(&args);
-		vector_add(&args, $1);
-		f->arguments=&args;
+		vector* args=malloc(sizeof(vector));
+		vector_init(args);
+		vector_add(args, $1);
+		f->arguments=args;
 		f->body=(block*)$3;
 		$$=(expression*)f;
 	}
 	| ARROW expression {
 		function_declaration* f=new_function_declaration();
-		vector args;
-		vector_init(&args);
-		f->arguments=&args;
+		vector* args=malloc(sizeof(vector));
+		vector_init(args);
+		f->arguments=args;
 		f->body=(block*)$2;
 		$$=(expression*)f;
 	}
@@ -230,6 +232,7 @@ call:
 		function_call* c=new_function_call();
 		c->function_name=(name*)$1;
 		c->arguments=(block*)$3;
+		c->arguments->is_table=1;
 		$$=(expression*)c;
 	}
 	| name '(' ')' {

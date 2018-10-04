@@ -26,6 +26,14 @@ void register_globals(table* scope){
     set((object*)scope, "print", (object*)print_function);
 }
 
+void copy_table(table* source, table* destination){
+    const char *key;
+    map_iter_t iter = map_iter(&source->fields);
+    while (key = map_next(&source->fields, &iter)) {
+        map_set(&destination->fields, key, (*map_get(&source->fields, key)));// dereference contained object, so it can be garbage collected
+    }
+}
+
 object* execute_ast(expression* exp, table* scope){
     if(exp==NULL){
         ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
@@ -54,12 +62,14 @@ object* execute_ast(expression* exp, table* scope){
         case _block:
         {
             block* b=(block*)exp;
-            table* scope=new_table();
-            register_globals(scope);
+            table* new_scope=new_table();//TODO: scope inheritance
+            register_globals(new_scope);
             for (int i = 0; i < vector_total(&b->lines); i++){
-                execute_ast(vector_get(&b->lines, i), scope);
+                result=execute_ast(vector_get(&b->lines, i), scope);
             }
-            result=(object*)scope;
+            if(b->is_table){
+                result=(object*)scope;
+            }
             break;
         }
         case _name:
@@ -108,6 +118,9 @@ object* execute_ast(expression* exp, table* scope){
             function_call* c=(function_call*)exp;
             table* function_scope=new_table();
             function* f=(function*)get((object*)scope, c->function_name->value);
+            if(f->type==t_null){
+                ERROR(INCORRECT_OBJECT_POINTER, "No function named %s in the current scope.", c->function_name->value);
+            }
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
                 char buf[16];
                 itoa(i, buf, 10);

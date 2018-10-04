@@ -1,6 +1,6 @@
 #include "object.h"
 
-#define GC_LOG 0
+#define GC_LOG 1
 
 const char* OBJECT_TYPE_NAMES[]={
     "null",

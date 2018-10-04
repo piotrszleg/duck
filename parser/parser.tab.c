@@ -462,11 +462,11 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,    67,    67,    73,    77,    83,    91,    92,    93,    96,
-      97,   100,   101,   102,   103,   104,   105,   106,   107,   108,
-     110,   117,   126,   129,   136,   145,   149,   157,   163,   172,
-     182,   188,   194,   202,   209,   220,   229,   235,   242,   252,
-     253,   255,   256
+       0,    67,    67,    73,    77,    84,    93,    94,    95,    98,
+      99,   102,   103,   104,   105,   106,   107,   108,   109,   110,
+     112,   119,   128,   131,   138,   147,   151,   159,   165,   174,
+     184,   190,   196,   204,   211,   222,   231,   238,   245,   255,
+     256,   258,   259
 };
 #endif
 
@@ -1442,6 +1442,7 @@ yyreduce:
 #line 77 "parser.y"
     {
 		block* b=new_block();
+		b->is_table=0;
 		vector_init(&b->lines);
 		vector_add(&b->lines, (yyvsp[(1) - (1)].exp));
 		(yyval.exp)=(expression*)b;
@@ -1451,9 +1452,10 @@ yyreduce:
   case 5:
 
 /* Line 1455 of yacc.c  */
-#line 83 "parser.y"
+#line 84 "parser.y"
     {
 		block* b=new_block();
+		b->is_table=0;
 		vector_init(&b->lines);
 		vector_add(&b->lines, (yyvsp[(1) - (1)].exp));
 		(yyval.exp)=(expression*)b;
@@ -1463,33 +1465,33 @@ yyreduce:
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 96 "parser.y"
-    { ((block*)(yyvsp[(4) - (7)].exp))->is_table=0; (yyval.exp)=(yyvsp[(4) - (7)].exp); ;}
+#line 98 "parser.y"
+    { (yyval.exp)=(yyvsp[(4) - (7)].exp); ;}
     break;
 
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 97 "parser.y"
+#line 99 "parser.y"
     { ((block*)(yyvsp[(4) - (7)].exp))->is_table=1; (yyval.exp)=(yyvsp[(4) - (7)].exp); ;}
     break;
 
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 100 "parser.y"
+#line 102 "parser.y"
     {(yyval.exp)=(yyvsp[(2) - (3)].exp);;}
     break;
 
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 110 "parser.y"
+#line 112 "parser.y"
     {	
 		conditional* c=new_conditional();
 		c->condition=(yyvsp[(3) - (5)].exp);
 		c->ontrue=(yyvsp[(5) - (5)].exp);
-		c->onfalse=new_empty();
+		c->onfalse=(expression*)new_empty();
 		(yyval.exp)=(expression*)c;
 	;}
     break;
@@ -1497,7 +1499,7 @@ yyreduce:
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 117 "parser.y"
+#line 119 "parser.y"
     {
 		conditional* c=new_conditional();
 		c->condition=(yyvsp[(3) - (6)].exp);
@@ -1510,7 +1512,7 @@ yyreduce:
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 126 "parser.y"
+#line 128 "parser.y"
     {
 		(yyval.exp)=(yyvsp[(2) - (2)].exp)
 	;}
@@ -1519,7 +1521,7 @@ yyreduce:
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 129 "parser.y"
+#line 131 "parser.y"
     {
 		conditional* c=new_conditional();
 		c->condition=(yyvsp[(3) - (6)].exp);
@@ -1532,12 +1534,12 @@ yyreduce:
   case 24:
 
 /* Line 1455 of yacc.c  */
-#line 136 "parser.y"
+#line 138 "parser.y"
     {
 		conditional* c=new_conditional();
 		c->condition=(yyvsp[(3) - (5)].exp);
 		c->ontrue=(yyvsp[(5) - (5)].exp);
-		c->onfalse=new_empty();
+		c->onfalse=(expression*)new_empty();
 		(yyval.exp)=(expression*)c;
 	;}
     break;
@@ -1545,7 +1547,7 @@ yyreduce:
   case 25:
 
 /* Line 1455 of yacc.c  */
-#line 145 "parser.y"
+#line 147 "parser.y"
     {
 		vector_add((yyvsp[(1) - (3)].args), (yyvsp[(3) - (3)].exp));
 		(yyval.args)=(yyvsp[(1) - (3)].args);
@@ -1555,19 +1557,19 @@ yyreduce:
   case 26:
 
 /* Line 1455 of yacc.c  */
-#line 149 "parser.y"
+#line 151 "parser.y"
     {
-		vector args;
-		vector_init(&args);
-		vector_add(&args, (yyvsp[(1) - (1)].exp));
-		(yyval.args)=&args;
+		vector* args=malloc(sizeof(vector));
+		vector_init(args);
+		vector_add(args, (yyvsp[(1) - (1)].exp));
+		(yyval.args)=args;
 	;}
     break;
 
   case 27:
 
 /* Line 1455 of yacc.c  */
-#line 157 "parser.y"
+#line 159 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
 		f->arguments=(yyvsp[(2) - (5)].args);
@@ -1579,13 +1581,13 @@ yyreduce:
   case 28:
 
 /* Line 1455 of yacc.c  */
-#line 163 "parser.y"
+#line 165 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
-		vector args;
-		vector_init(&args);
-		vector_add(&args, (yyvsp[(1) - (3)].exp));
-		f->arguments=&args;
+		vector* args=malloc(sizeof(vector));
+		vector_init(args);
+		vector_add(args, (yyvsp[(1) - (3)].exp));
+		f->arguments=args;
 		f->body=(block*)(yyvsp[(3) - (3)].exp);
 		(yyval.exp)=(expression*)f;
 	;}
@@ -1594,12 +1596,12 @@ yyreduce:
   case 29:
 
 /* Line 1455 of yacc.c  */
-#line 172 "parser.y"
+#line 174 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
-		vector args;
-		vector_init(&args);
-		f->arguments=&args;
+		vector* args=malloc(sizeof(vector));
+		vector_init(args);
+		f->arguments=args;
 		f->body=(block*)(yyvsp[(2) - (2)].exp);
 		(yyval.exp)=(expression*)f;
 	;}
@@ -1608,7 +1610,7 @@ yyreduce:
   case 30:
 
 /* Line 1455 of yacc.c  */
-#line 182 "parser.y"
+#line 184 "parser.y"
     { 
 		literal* l=new_literal();
 		l->ival=(yyvsp[(1) - (1)].ival);
@@ -1620,7 +1622,7 @@ yyreduce:
   case 31:
 
 /* Line 1455 of yacc.c  */
-#line 188 "parser.y"
+#line 190 "parser.y"
     { 
 		literal* l=new_literal();
 		l->fval=(yyvsp[(1) - (1)].fval);
@@ -1632,7 +1634,7 @@ yyreduce:
   case 32:
 
 /* Line 1455 of yacc.c  */
-#line 194 "parser.y"
+#line 196 "parser.y"
     { 
 		literal* l=new_literal();
 		l->sval=strdup((yyvsp[(1) - (1)].sval));
@@ -1644,7 +1646,7 @@ yyreduce:
   case 33:
 
 /* Line 1455 of yacc.c  */
-#line 202 "parser.y"
+#line 204 "parser.y"
     {
 		name* n=new_name();
 		n->value=malloc(sizeof(char)*100);
@@ -1656,7 +1658,7 @@ yyreduce:
   case 34:
 
 /* Line 1455 of yacc.c  */
-#line 210 "parser.y"
+#line 212 "parser.y"
     {
 		assignment* a=new_assignment();
 		a->left=(name*)(yyvsp[(1) - (3)].exp);
@@ -1672,7 +1674,7 @@ yyreduce:
   case 35:
 
 /* Line 1455 of yacc.c  */
-#line 221 "parser.y"
+#line 223 "parser.y"
     {
 		assignment* a=new_assignment();
 		a->left=(name*)(yyvsp[(1) - (3)].exp);
@@ -1684,11 +1686,12 @@ yyreduce:
   case 36:
 
 /* Line 1455 of yacc.c  */
-#line 229 "parser.y"
+#line 231 "parser.y"
     {
 		function_call* c=new_function_call();
 		c->function_name=(name*)(yyvsp[(1) - (4)].exp);
 		c->arguments=(block*)(yyvsp[(3) - (4)].exp);
+		c->arguments->is_table=1;
 		(yyval.exp)=(expression*)c;
 	;}
     break;
@@ -1696,7 +1699,7 @@ yyreduce:
   case 37:
 
 /* Line 1455 of yacc.c  */
-#line 235 "parser.y"
+#line 238 "parser.y"
     {
 		function_call* c=new_function_call();
 		c->function_name=(name*)(yyvsp[(1) - (3)].exp);
@@ -1707,7 +1710,7 @@ yyreduce:
   case 38:
 
 /* Line 1455 of yacc.c  */
-#line 243 "parser.y"
+#line 246 "parser.y"
     {
 		unary* u=new_unary();
 		u->left=(yyvsp[(1) - (3)].exp);
@@ -1720,7 +1723,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 1724 "parser.tab.c"
+#line 1727 "parser.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1932,7 +1935,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 257 "parser.y"
+#line 260 "parser.y"
 
 
 void print_and_delete(expression* result){
