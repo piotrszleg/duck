@@ -14,3 +14,4 @@ if(num==0.5&&num>0){
 } else {
     print("the dreamers of dreams")
 }
+table

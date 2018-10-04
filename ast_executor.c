@@ -63,12 +63,19 @@ object* execute_ast(expression* exp, table* scope){
         {
             block* b=(block*)exp;
             table* new_scope=new_table();//TODO: scope inheritance
-            register_globals(new_scope);
+            if(!b->is_table){
+                register_globals(new_scope);
+            }
             for (int i = 0; i < vector_total(&b->lines); i++){
-                result=execute_ast(vector_get(&b->lines, i), scope);
+                result=execute_ast(vector_get(&b->lines, i), new_scope);
             }
             if(b->is_table){
-                result=(object*)scope;
+                result=(object*)new_scope;
+            } else {
+                // TODO: fix garbage collection
+                result->ref_count++;
+                collect_garbage(new_scope);
+                object_delete(new_scope);
             }
             break;
         }
