@@ -33,6 +33,19 @@ struct object{// object interface, all objects in this file implement it
     }; \
     t* new_ ## t(); \
 
+#define RUNTIME_OBJECT_NEW(t, body) \
+    t* new_ ## t(){  \
+        t* instance=malloc(sizeof(t)); \
+		instance->type=t_ ## t; \
+        instance->ref_count=0; \
+        body \
+        return instance; \
+    }
+
+#define CHECK_OBJECT(checked) \
+    if(checked==NULL) { ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); } \
+    if(checked->type<t_null||checked->type>t_table) { ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); }
+
 RUNTIME_OBJECT(null,)
 
 RUNTIME_OBJECT(number,

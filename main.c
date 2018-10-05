@@ -15,6 +15,7 @@ int main(){
         delete_expression(parsing_result);
     ,
         printf(err_message);
+        int i=0/0;
         exit(-1);
     )
 }

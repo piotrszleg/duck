@@ -1,14 +1,5 @@
 #include "ast_executor.h"
 
-
-/*
-So what you're going to do is:
-- add arguments vector to call function
-- in ast_function_call get argument names from ast_function stored in data pointer of the function
-- copy scope to function_scope
-- add arguments to function_scope using names from ast_function vector and
-*/
-
 object* ast_function_call(object* o, table* scope){
     function* as_function=(function*)o;
     return execute_ast((expression*)as_function->data, scope);
@@ -19,10 +10,35 @@ object* native_print(object* o, table* scope){
     return (object*)new_null();
 }
 
+object* scope_get_override(object* o, table* scope){
+    object* self=get((object*)scope, "self");
+    if(self->type!=t_table){
+        ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect self argument.");
+        return (object*)new_null();
+    }
+    object* key=((string*)get((object*)scope, "key"));
+    if(key->type!=t_string){
+        ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect key argument.");
+        return (object*)new_null();
+    }
+    object** map_get_result=map_get(&((table*)self)->fields, ((string*)key)->value);
+
+    if(map_get_result!=NULL){
+        return *map_get_result;
+    } else{
+        object* base=((string*)get((object*)self, "base"));
+        if(base->type==t_table){
+            return get(base, ((string*)key)->value);
+        }
+        return (object*)new_null();
+    }
+}
+
 void register_globals(table* scope){
     function* print_function=new_function();
     vector_add(&print_function->argument_names, "self");
     print_function->pointer=&native_print;
+
     set((object*)scope, "print", (object*)print_function);
 }
 
@@ -64,7 +80,10 @@ object* execute_ast(expression* exp, table* scope){
             block* b=(block*)exp;
             table* new_scope=new_table();//TODO: scope inheritance
             if(!b->is_table){
-                register_globals(new_scope);
+                function* f=new_function();
+                f->pointer=&scope_get_override;
+                set(new_scope, "get", f);
+                set(new_scope, "base", scope);
             }
             for (int i = 0; i < vector_total(&b->lines); i++){
                 result=execute_ast(vector_get(&b->lines, i), new_scope);
@@ -74,8 +93,8 @@ object* execute_ast(expression* exp, table* scope){
             } else {
                 // TODO: fix garbage collection
                 result->ref_count++;
-                collect_garbage(new_scope);
-                object_delete(new_scope);
+                //collect_garbage(new_scope);
+                //object_delete(new_scope);
             }
             break;
         }
@@ -129,9 +148,11 @@ object* execute_ast(expression* exp, table* scope){
                 ERROR(INCORRECT_OBJECT_POINTER, "No function named %s in the current scope.", c->function_name->value);
             }
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                char buf[16];
-                itoa(i, buf, 10);
-                set((object*)function_scope, vector_get(&f->argument_names, i), execute_ast(vector_get(&c->arguments->lines, i), scope));// here instead of "b" should be argument name from function decalaration
+                //char buf[16];
+                //itoa(i, buf, 10);
+                char* argument_name=vector_get(&f->argument_names, i);
+                object* argument_value=execute_ast(vector_get(&c->arguments->lines, i), scope);
+                set((object*)function_scope, argument_name, argument_value);
             }
             result=(object*)call((object*)f, function_scope);
             break;

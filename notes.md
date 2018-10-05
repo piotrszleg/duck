@@ -1,9 +1,7 @@
 ## TODO:
-- tests for parser
-- fixing syntax for comparison operators
-- not and minus
-- add different syntax for table declarations and scopes
 - scope inheritance
+- replace table with vector in function call
+- not and minus
 
 ## POINTERS:
 **&** - returns pointer to it's operand
@@ -14,8 +12,7 @@
 
 **\*** - when it appears after type name it transforms it into pointer type 
     `int* p;` means p is a of type "pointer to int" 
-    but people who designed c generously decided to saved us from remembering too much symbols so same symbol is used in three completely different contexts, how fun.
-    So when * is used with a pointer it dereferences it 
+    but people who designed c generously decided to saved us from remembering too much symbols so the same symbol is used in three completely different contexts, how fun. So when * is used with a pointer it dereferences it 
     `*operand` becomes `operand`, `**operand` becomes `*operand` 
     and `*operand` becomes a deadly bug in your code if you're using `void`  pointers 
 

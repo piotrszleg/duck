@@ -12,6 +12,7 @@ void test_error_catching(){
         num1->value=1;
         call((object*)num1, (table*)num1);// try to call a number one, it should throw an error
     ,
+        printf(err_message);
         assert(err_type==WRONG_ARGUMENT_TYPE);
         object_delete((object*)num1);
         printf("test successful\n");
@@ -87,10 +88,6 @@ void table_indexing(){// t["name"]="John" => t["name"]=="John"
     set((object*)t, "name", (object*)n);// set t["name"]=2, check if it is possible to change variable type and value
 
     assert(strcmp(stringify(get((object*)t, "name")), "2")==0);// test if setting succeeded
-
-    object_delete((object*)s);
-    object_delete((object*)n);
-    object_delete((object*)t);
 
     printf("test successful\n");
 }

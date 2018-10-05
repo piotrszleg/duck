@@ -10,14 +10,6 @@ const char* OBJECT_TYPE_NAMES[]={
     "table"
 };
 
-#define RUNTIME_OBJECT_NEW(t, body) \
-    t* new_ ## t(){  \
-        t* instance=malloc(sizeof(t)); \
-		instance->type=t_ ## t; \
-        instance->ref_count=0; \
-        body \
-        return instance; \
-    }
 
 // all objects should be made and removed using these functions
 
@@ -51,6 +43,8 @@ void collect_garbage(table* scope){
 
 // TODO free pointers
 void object_delete(object* o){
+    CHECK_OBJECT(o);
+
     switch(o->type){
         case t_string:
         {
@@ -92,6 +86,8 @@ int is_number(const char *s)
 
 // TODO:  write tests
 int is_falsy(object* o){
+    CHECK_OBJECT(o);
+
     switch(o->type){
         case t_null:
             return 1;// null is falsy
@@ -114,6 +110,8 @@ int sign(int x){
 
 // if a>b returns 1 if a<b returns -1, if a==b returns 0
 int compare(object* a, object *b){
+    CHECK_OBJECT(a);
+    CHECK_OBJECT(b);
     // null is always less than anything
     if(a->type!=t_null && b->type==t_null){
         return 1;
@@ -143,6 +141,7 @@ int compare(object* a, object *b){
 }
 
 object* cast(object* o, object_type type){
+    CHECK_OBJECT(o);
     if(o->type==type){
         return o;
     }
@@ -181,6 +180,8 @@ number* create_number(int value){
 // TODO replace create_number with new_number with value argument
 // replace ifs with a switch
 object* operator(object* a, object *b, char* op){
+    CHECK_OBJECT(a);
+    CHECK_OBJECT(b);
     if(strcmp(op, "==")==0){
         return (object*)create_number(compare(a, b)==0);
     }
@@ -258,7 +259,8 @@ object* operator(object* a, object *b, char* op){
     }
 }
 
-char* stringify(struct object* o){
+char* stringify(object* o){
+    CHECK_OBJECT(o);
     switch(o->type){
         case t_string:
             return ((string*)o)->value;
@@ -305,6 +307,8 @@ char* stringify(struct object* o){
 }
 
 object* call(object* o, table* arguments){
+    CHECK_OBJECT(o);
+    CHECK_OBJECT(arguments);
     switch(o->type){
         case t_function:
             return ((struct function*)o)->pointer(o, arguments);
@@ -314,12 +318,28 @@ object* call(object* o, table* arguments){
     }
 }
 
-object* get(object* o, char*key){
+object* get(object* o, char* key){
+    CHECK_OBJECT(o);
     switch(o->type){
         case t_table:
         {
-            object** map_get_result=map_get(&((struct table*)o)->fields, key);
+            // try to get "get" operator overriding function from the table and use it
+            object** map_get_override=map_get(&((struct table*)o)->fields, "get");
+            if(map_get_override!=NULL){
+                // create arguments for the function
+                table* arguments=new_table();
+                string* key_string=new_string();
+                key_string->value=strdup(key);
+                set((object*)arguments, "self", o);
+                set((object*)arguments, "key", key_string);
+                // call function with arguments
+                object* result = call(*map_get_override, arguments);
+                object_delete(arguments);
+                object_delete(key_string);
+                return result;
+            }
 
+            object** map_get_result=map_get(&((struct table*)o)->fields, key);
             if(map_get_result==NULL){// there's no object at this key
                 return (object*)new_null();
             }else {
@@ -333,19 +353,13 @@ object* get(object* o, char*key){
 }
 
 void set(object* o, char*key, object* value){
+    CHECK_OBJECT(o);
     switch(o->type){
         case t_table:
         {
             object** value_at_key = map_get(&((struct table*)o)->fields, key);
             if(value_at_key!=NULL){
-                if((*value_at_key)->ref_count==1){
-                    if(GC_LOG){
-                        printf("%s was garbage collected.\n", stringify(*value_at_key));
-                    }
-                    object_delete(*value_at_key);// it was the only object referencing this object, so it can be deleted
-                } else {
-                    (*value_at_key)->ref_count--;// table no longer holds a reference to this object
-                }
+                (*value_at_key)->ref_count--;// table no longer holds a reference to this object
                 if(value->type==t_null){
                     map_remove(&((struct table*)o)->fields, key);// setting key to null removes it
                     return;
