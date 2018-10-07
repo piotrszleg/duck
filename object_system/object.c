@@ -1,6 +1,6 @@
 #include "object.h"
 
-#define GC_LOG 1
+#define GC_LOG 0
 
 const char* OBJECT_TYPE_NAMES[]={
     "null",
@@ -23,21 +23,13 @@ RUNTIME_OBJECT_NEW(table,
     map_init(&((table*)instance)->fields);
 )
 
-void collect_garbage(table* scope){
-    const char *key;
-    map_iter_t iter = map_iter(&m);
-    while (key = map_next(&scope->fields, &iter)) {
-        object* checked=*map_get(&scope->fields, key);
-        if(checked->ref_count<=1){
-            if(checked->type==t_table){
-                collect_garbage((table*)checked);
-            }
-            if(GC_LOG){
-                printf("%s was garbage collected.\n", stringify(checked));
-            }
-            map_remove(&scope->fields, key);
-            object_delete(checked);
+// check if object is referenced by anything if not delete it
+void garbage_collector_check(object* checked){
+    if(checked->ref_count==0){
+        if(GC_LOG){
+            printf("%s was garbage collected.\n", stringify(checked));
         }
+        object_delete(checked);
     }
 }
 
@@ -65,7 +57,9 @@ void object_delete(object* o){
             const char *key;
             map_iter_t iter = map_iter(&as_table->fields);
             while (key = map_next(&as_table->fields, &iter)) {
-                (*map_get(&as_table->fields, key))->ref_count--;// dereference contained object, so it can be garbage collected
+                object* value=(*map_get(&as_table->fields, key));
+                value->ref_count--;// dereference contained object, so it can be garbage collected
+                garbage_collector_check(value);
             }
             map_deinit(&as_table->fields);
             free(as_table);
@@ -360,6 +354,7 @@ void set(object* o, char*key, object* value){
             object** value_at_key = map_get(&((struct table*)o)->fields, key);
             if(value_at_key!=NULL){
                 (*value_at_key)->ref_count--;// table no longer holds a reference to this object
+                garbage_collector_check(*value_at_key);
                 if(value->type==t_null){
                     map_remove(&((struct table*)o)->fields, key);// setting key to null removes it
                     return;

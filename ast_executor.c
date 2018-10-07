@@ -46,7 +46,7 @@ void copy_table(table* source, table* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
     while (key = map_next(&source->fields, &iter)) {
-        map_set(&destination->fields, key, (*map_get(&source->fields, key)));// dereference contained object, so it can be garbage collected
+        map_set(&destination->fields, key, (*map_get(&source->fields, key)));
     }
 }
 
@@ -79,6 +79,7 @@ object* execute_ast(expression* exp, table* scope){
         {
             block* b=(block*)exp;
             table* new_scope=new_table();//TODO: scope inheritance
+            new_scope->ref_count++;
             if(!b->is_table){
                 function* f=new_function();
                 f->pointer=&scope_get_override;
@@ -93,8 +94,7 @@ object* execute_ast(expression* exp, table* scope){
             } else {
                 // TODO: fix garbage collection
                 result->ref_count++;
-                //collect_garbage(new_scope);
-                //object_delete(new_scope);
+                object_delete(new_scope);
             }
             break;
         }

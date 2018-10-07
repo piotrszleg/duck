@@ -1,7 +1,9 @@
 ## TODO:
-- scope inheritance
-- replace table with vector in function call
+- dot paths and square brackets syntax
 - not and minus
+- more comments
+- replace table with vector in function call
+- fix gc
 
 ## POINTERS:
 **&** - returns pointer to it's operand
