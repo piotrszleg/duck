@@ -15,6 +15,7 @@ enum expression_type{
     _assignment,
     _function_call,
     _unary,
+    _prefix,
     _function_declaration,
     _conditional
 };
@@ -56,6 +57,11 @@ AST_OBJECT(function_call,
 
 AST_OBJECT(unary,
     expression* left;
+    char* op;
+    expression* right;
+)
+
+AST_OBJECT(prefix,
     char* op;
     expression* right;
 )

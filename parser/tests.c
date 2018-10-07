@@ -84,9 +84,33 @@ void assignment_operators(){
     printf("test successful\n");
 }
 
+void prefixes(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    char *tested_operators[2]={
+        "-",
+        "!",
+    };
+
+    parse_string("-1, !a");
+    assert(parsing_result->type==_block);
+    block* as_block=(block*)parsing_result;
+    assert(vector_total(&as_block->lines)==2);
+
+    for (int i = 0; i < vector_total(&as_block->lines); i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==_prefix);
+        assert(strcmp(((prefix*)e)->op, tested_operators[i])==0);
+    }
+
+    delete_expression(parsing_result);
+    printf("test successful\n");
+}
+
 int main(){
     literals();
     operators();
+    prefixes();
     assignment_operators();
     // TODO: function calling, conditionals
     // tables and function declarations

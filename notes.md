@@ -1,9 +1,8 @@
 ## TODO:
 - dot paths and square brackets syntax
-- not and minus
+- delete execute_ast results
 - more comments
 - replace table with vector in function call
-- fix gc
 
 ## POINTERS:
 **&** - returns pointer to it's operand

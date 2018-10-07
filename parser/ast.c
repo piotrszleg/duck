@@ -14,6 +14,7 @@ AST_OBJECT_NEW(name)
 AST_OBJECT_NEW(assignment)
 AST_OBJECT_NEW(function_call)
 AST_OBJECT_NEW(unary)
+AST_OBJECT_NEW(prefix)
 AST_OBJECT_NEW(function_declaration)
 AST_OBJECT_NEW(conditional)
 
@@ -80,6 +81,15 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)u->left, indentation+1), 
                                         indentation_string, u->op,
                                         indentation_string, stringify_expression((expression*)u->right, indentation+1));
+            break;
+        }
+        case _prefix:
+        {
+            prefix* p=(prefix*)exp;
+            snprintf(result, result_size, "\n%sUNARY: \n%s-> sign: '%s' \n%s-> right: %s", 
+                                        indentation_string,
+                                        indentation_string, p->op,
+                                        indentation_string, stringify_expression((expression*)p->right, indentation+1));
             break;
         }
         case _function_call:
@@ -168,7 +178,16 @@ void delete_expression(expression* exp){
             unary* u=(unary*)exp;
             delete_expression((expression*)u->left);
             delete_expression((expression*)u->right);
+            free(u->op);
             free(u);
+            break;
+        }
+        case _prefix:
+        {
+            prefix* p=(prefix*)exp;
+            delete_expression((expression*)p->right);
+            free(p->op);
+            free(p);
             break;
         }
         case _function_call:

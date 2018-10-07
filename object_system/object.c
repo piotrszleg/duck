@@ -211,6 +211,14 @@ object* operator(object* a, object *b, char* op){
             return b;
         }
     }
+    if(strcmp(op, "!")==0){
+        return create_number(is_falsy(a));
+    }
+    if(strcmp(op, "-")==0){
+        number* a_as_number=(number*)cast(a, t_number);
+        a_as_number->value=-a_as_number->value;
+        return a_as_number;
+    }
     if(a->type!=b->type){
         b=cast(b, a->type);
     }

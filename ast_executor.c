@@ -116,6 +116,14 @@ object* execute_ast(expression* exp, table* scope){
             result=operator(execute_ast(u->left, scope), execute_ast(u->right, scope), u->op);
             break;
         }
+        case _prefix:
+        {
+            prefix* p=(prefix*)exp;
+            object* null_object=new_null();
+            result=operator(execute_ast(p->right, scope), null_object, p->op);
+            object_delete(null_object);
+            break;
+        }
         case _conditional:
         {
             conditional* c=(conditional*)exp;

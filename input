@@ -1,7 +1,7 @@
 name="John" # set name to john
 num=0.5 # set num to 0.5
 table=[
-    a=2 # a is 2
+    a=-2 # a is 2
     b=3 # b is 3
 ]
 print(name)

@@ -43,6 +43,7 @@ void yyerror(const char *s);
 %token <sval> NAME
 %token <sval> ASSIGN_UNARY_OPERATOR
 %token <sval> UNARY_OPERATOR
+%token <sval> PREFIX_OPERATOR
 %token <ival> ARROW
 %token <ival> IF
 %token <ival> ELSE
@@ -56,6 +57,7 @@ void yyerror(const char *s);
 %type <exp> name;
 %type <exp> assignment;
 %type <exp> unary;
+%type <exp> prefix;
 %type <exp> call;
 %type <args> arguments;
 %type <exp> function;
@@ -107,7 +109,8 @@ expression:
 	| call
 	| function
 	| conditional
-	| unary;
+	| unary
+	| prefix;
 conditional:
 	IF '(' expression ')' expression  {	
 		conditional* c=new_conditional();
@@ -249,6 +252,15 @@ unary:
 		u->op=strdup($2);
 		u->right=$3;
 		$$=(expression*)u;
+	}
+	;
+prefix:
+	PREFIX_OPERATOR expression 
+	{
+		prefix* p=new_prefix();
+		p->op=strdup($1);
+		p->right=$2;
+		$$=(expression*)p;
 	}
 	;
 OPT_ENDLS:

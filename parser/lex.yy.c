@@ -371,8 +371,8 @@ static void yy_fatal_error (yyconst char msg[]  );
 	*yy_cp = '\0'; \
 	(yy_c_buf_p) = yy_cp;
 
-#define YY_NUM_RULES 19
-#define YY_END_OF_BUFFER 20
+#define YY_NUM_RULES 20
+#define YY_END_OF_BUFFER 21
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -382,10 +382,10 @@ struct yy_trans_info
 	};
 static yyconst flex_int16_t yy_accept[44] =
     {   0,
-        0,    0,    0,    0,   20,   18,    1,    2,   18,   18,
-        3,   15,   14,   15,    8,   15,   14,   10,   18,   10,
-       10,   12,    0,    3,   15,   15,   16,   11,    0,    8,
-       10,   13,    0,   17,   10,    4,    9,    7,   10,   10,
+        0,    0,    0,    0,   21,   19,    1,    2,   15,   19,
+        3,   16,   14,   15,    8,   16,   14,   10,   19,   10,
+       10,   12,    0,    3,   16,   16,   17,   11,    0,    8,
+       10,   13,    0,   18,   10,    4,    9,    7,   10,   10,
         5,    6,    0
     } ;
 
@@ -859,29 +859,34 @@ YY_RULE_SETUP
 case 15:
 YY_RULE_SETUP
 #line 44 "lexer.l"
-{ yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
+{ yylval.sval = strdup(yytext); return PREFIX_OPERATOR; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
 #line 45 "lexer.l"
-{ yylval.sval = remove_last_character(yytext); return ASSIGN_UNARY_OPERATOR; }// +=, -= etc
+{ yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
 #line 46 "lexer.l"
-{ yylval.sval = unquote(yytext); return UNARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo
+{ yylval.sval = remove_last_character(yytext); return ASSIGN_UNARY_OPERATOR; }// +=, -= etc
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 48 "lexer.l"
-;
+#line 47 "lexer.l"
+{ yylval.sval = unquote(yytext); return UNARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
 #line 49 "lexer.l"
+;
+	YY_BREAK
+case 20:
+YY_RULE_SETUP
+#line 50 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 885 "lex.yy.c"
+#line 890 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMENT):
 	yyterminate();
@@ -1880,6 +1885,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 49 "lexer.l"
+#line 50 "lexer.l"
 
 
