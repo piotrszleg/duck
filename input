@@ -4,6 +4,7 @@ table=[
     a=-2 # a is 2
     b=3 # b is 3
 ]
+table.a=100
 print(name)
 f=(a, b)-> {
     if(a>0){

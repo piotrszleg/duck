@@ -9,6 +9,8 @@
 
 AST_OBJECT_NEW(empty)
 AST_OBJECT_NEW(block)
+AST_OBJECT_NEW(table_literal)
+AST_OBJECT_NEW(path)
 AST_OBJECT_NEW(literal)
 AST_OBJECT_NEW(name)
 AST_OBJECT_NEW(assignment)
@@ -97,14 +99,32 @@ char* stringify_expression(expression* exp, int indentation){
             function_call* c=(function_call*)exp;
             snprintf(result, result_size, "\n%sCALL: \n%s-> name: %s \n%s-> arguments: %s", 
                                         indentation_string,
-                                        indentation_string, stringify_expression((expression*)c->function_name, indentation+1), 
+                                        indentation_string, stringify_expression((expression*)c->function_path, indentation+1), 
                                         indentation_string, stringify_expression((expression*)c->arguments, indentation+1));
             break;
         }
         case _block:
         {
-            block* b=(block*)exp;
-            snprintf(result, result_size, b->is_table ? "\n%sBLOCK: " : "\n%sTABLE: ", indentation_string);
+            snprintf(result, result_size, "\n%sBLOCK: ", indentation_string);
+            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
+            for (int i = 0; i < vector_total(&b->lines); i++){
+                strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1));
+            }
+            break;
+        }
+        case _table_literal:
+        {
+            snprintf(result, result_size, "\n%sTABLE_LITERAL: ", indentation_string);
+            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
+            for (int i = 0; i < vector_total(&b->lines); i++){
+                strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1));
+            }
+            break;
+        }
+        case _path:
+        {
+            snprintf(result, result_size, "\n%sPATH: ", indentation_string);
+            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
             for (int i = 0; i < vector_total(&b->lines); i++){
                 strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1));
             }
@@ -193,7 +213,7 @@ void delete_expression(expression* exp){
         case _function_call:
         {
             function_call* c=(function_call*)exp;
-            delete_expression((expression*)c->function_name);
+            delete_expression((expression*)c->function_path);
             if(c->arguments!=NULL){
                 delete_expression((expression*)c->arguments);
             }
@@ -201,8 +221,10 @@ void delete_expression(expression* exp){
             break;
         }
         case _block:
+        case _table_literal:
+        case _path:
         {
-            block* b=(block*)exp;
+            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
             for (int i = 0; i < vector_total(&b->lines); i++){
                 delete_expression(vector_get(&b->lines, i));
             }

@@ -1,8 +1,8 @@
 ## TODO:
 - dot paths and square brackets syntax
-- delete execute_ast results
 - more comments
 - replace table with vector in function call
+- - parser.y 260 arguments seems to be undefined
 
 ## POINTERS:
 **&** - returns pointer to it's operand

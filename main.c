@@ -7,7 +7,7 @@ int main(){
         table* global_scope=new_table();
         global_scope->ref_count++;
         register_globals(global_scope);
-        //printf(stringify_expression(parsing_result, 0));
+        printf(stringify_expression(parsing_result, 0));
         printf("\nExecuting parsing result:\n");
         table* execution_result=execute_ast(parsing_result, global_scope);
         printf("Execution result:\n%s\n", stringify(execution_result));
@@ -17,6 +17,7 @@ int main(){
         delete_expression(parsing_result);
     ,
         printf(err_message);
+        int i=1/1;
         exit(-1);
     )
 }

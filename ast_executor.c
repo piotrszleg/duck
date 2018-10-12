@@ -50,6 +50,52 @@ void copy_table(table* source, table* destination){
     }
 }
 
+object* path_get(table scope, path p){
+    table current=scope;
+    int lines_count=vector_total(&p.lines);
+    for (int i = 0; i < lines_count; i++){
+        expression* e= vector_get(&p.lines, i);
+        if(e->type==_name){
+            name* as_name=(name*)e;
+            object* object_at_name=get(&current, as_name->value);
+            if(i==lines_count-1){
+                if(object_at_name->type==t_null){
+                    ERROR(INCORRECT_OBJECT_POINTER, "%s doesn't contain %s.", stringify(&current), as_name->value);
+                }
+                return object_at_name;
+            } else if(object_at_name->type==t_table) {
+                current=*(table*)object_at_name;
+            } else {
+                ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
+                return new_null();
+            }
+        }
+    }
+    return new_null();
+}
+
+void path_set(table* scope, path p, object* value){
+    table* current=scope;
+    int lines_count=vector_total(&p.lines);
+    for (int i = 0; i < lines_count; i++){
+        expression* e= vector_get(&p.lines, i);
+        if(e->type==_name){
+            name* as_name=(name*)e;
+            if(i==lines_count-1){
+                set(current, as_name->value, value);
+            } else{
+                object* object_at_name=get(current, as_name->value);
+                if(object_at_name->type==t_table) {
+                    current=(table*)object_at_name;
+                } else {
+                    ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
+                }
+            }
+        }
+    }
+    return new_null();
+}
+
 object* execute_ast(expression* exp, table* scope){
     if(exp==NULL){
         ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
@@ -75,27 +121,31 @@ object* execute_ast(expression* exp, table* scope){
             }
             break;
         }
+        case _table_literal:
+        {
+            block* b=(block*)exp;
+            table* new_scope=new_table();//TODO: scope inheritance
+            new_scope->ref_count++;
+            for (int i = 0; i < vector_total(&b->lines); i++){
+                result=execute_ast(vector_get(&b->lines, i), new_scope);
+            }
+            result=(object*)new_scope;
+            break;
+        }
         case _block:
         {
             block* b=(block*)exp;
             table* new_scope=new_table();//TODO: scope inheritance
             new_scope->ref_count++;
-            if(!b->is_table){
-                function* f=new_function();
-                f->pointer=&scope_get_override;
-                set(new_scope, "get", f);
-                set(new_scope, "base", scope);
-            }
+            function* f=new_function();
+            f->pointer=&scope_get_override;
+            set(new_scope, "get", f);
+            set(new_scope, "base", scope);
             for (int i = 0; i < vector_total(&b->lines); i++){
                 result=execute_ast(vector_get(&b->lines, i), new_scope);
             }
-            if(b->is_table){
-                result=(object*)new_scope;
-            } else {
-                // TODO: fix garbage collection
-                result->ref_count++;
-                object_delete(new_scope);
-            }
+            result->ref_count++;
+            object_delete(new_scope);
             break;
         }
         case _name:
@@ -107,7 +157,7 @@ object* execute_ast(expression* exp, table* scope){
         {
             assignment* a=(assignment*)exp;
             result=execute_ast(a->right, scope);
-            set((object*)scope, a->left->value, result);
+            path_set(scope, *a->left, result);
             break;
         }
         case _unary:
@@ -151,10 +201,7 @@ object* execute_ast(expression* exp, table* scope){
         {
             function_call* c=(function_call*)exp;
             table* function_scope=new_table();
-            function* f=(function*)get((object*)scope, c->function_name->value);
-            if(f->type==t_null){
-                ERROR(INCORRECT_OBJECT_POINTER, "No function named %s in the current scope.", c->function_name->value);
-            }
+            function* f=(function*)path_get(*scope, *c->function_path);
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
                 //char buf[16];
                 //itoa(i, buf, 10);
@@ -163,6 +210,12 @@ object* execute_ast(expression* exp, table* scope){
                 set((object*)function_scope, argument_name, argument_value);
             }
             result=(object*)call((object*)f, function_scope);
+            break;
+        }
+        case _path:
+        {
+            path* p=(path*)exp;
+            result=path_get(*scope, *p);
             break;
         }
         default:

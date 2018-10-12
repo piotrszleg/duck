@@ -50,6 +50,8 @@ void yyerror(const char *s);
 %token <ival> ELIF
 
 %type <exp> block;
+%type <exp> table;
+%type <exp> path;
 %type <exp> lines;
 %type <exp> line;
 %type <exp> expression;
@@ -78,14 +80,12 @@ lines:
 	}
 	| line	{
 		block* b=new_block();
-		b->is_table=0;
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
 	}
 	| expression {
 		block* b=new_block();
-		b->is_table=0;
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
@@ -98,19 +98,40 @@ line:
 	;
 block:
 	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { $$=$4; }
-	| OPT_ENDLS '[' OPT_ENDLS lines OPT_ENDLS ']' OPT_ENDLS { ((block*)$4)->is_table=1; $$=$4; }
+	;
+table:
+	OPT_ENDLS '[' OPT_ENDLS lines OPT_ENDLS ']' OPT_ENDLS { 
+		$$=$4; 
+		$$->type=_table_literal;// by default lines compile to block, so here it's casted to table literal
+	}
+	;
+path:
+	name {
+		path* p=new_path();
+		vector_init(&p->lines);
+		vector_add(&p->lines, $1);
+		$$=(expression*)p;
+	}
+	| path '.' name {
+		vector_add(&((path*)$1)->lines, $3);
+	}
+	| path '[' expression ']' {
+		vector_add(&((path*)$1)->lines, $3);
+	}
 	;
 expression:
 	'(' expression ')' {$$=$2;}
 	| literal
 	| block
-	| name
+	| table
+	| path
 	| assignment
 	| call
 	| function
 	| conditional
 	| unary
-	| prefix;
+	| prefix
+	;
 conditional:
 	IF '(' expression ')' expression  {	
 		conditional* c=new_conditional();
@@ -211,10 +232,10 @@ name:
 		$$=(expression*)n;
 	  } ;
 assignment:
-	name ASSIGN_UNARY_OPERATOR expression 
+	path ASSIGN_UNARY_OPERATOR expression 
 	{
 		assignment* a=new_assignment();
-		a->left=(name*)$1;
+		a->left=(path*)$1;
 		unary* u=new_unary();
 		u->left=$1;
 		u->op=strdup($2);
@@ -222,25 +243,24 @@ assignment:
 		a->right=(expression*)u;
 		$$=(expression*)a;
 	}
-	| name '=' expression 
+	| path '=' expression 
 	{
 		assignment* a=new_assignment();
-		a->left=(name*)$1;
+		a->left=(path*)$1;
 		a->right=$3;
 		$$=(expression*)a;
 	}
 	;
 call:
-	name '(' lines ')' {
+	path '(' lines ')' {
 		function_call* c=new_function_call();
-		c->function_name=(name*)$1;
+		c->function_path=(path*)$1;
 		c->arguments=(block*)$3;
-		c->arguments->is_table=1;
 		$$=(expression*)c;
 	}
-	| name '(' ')' {
+	| path '(' ')' {
 		function_call* c=new_function_call();
-		c->function_name=(name*)$1;
+		c->function_path=(path*)$1;
 		$$=(expression*)c;
 	}
 	;

@@ -10,6 +10,8 @@ typedef enum expression_type expression_type;
 enum expression_type{
     _empty,
     _block,
+    _table_literal,
+    _path,
     _literal,
     _name,
     _assignment,
@@ -36,7 +38,14 @@ struct expression {
 AST_OBJECT(empty,)
 
 AST_OBJECT(block, 
-    int is_table;
+    vector lines;
+)
+
+AST_OBJECT(table_literal, 
+    vector lines;
+)
+
+AST_OBJECT(path,
     vector lines;
 )
 
@@ -44,14 +53,13 @@ AST_OBJECT(name,
     char* value;
 )
 
-
 AST_OBJECT(assignment,
-    name* left;
+    path* left;
     expression* right;
 )
 
 AST_OBJECT(function_call,
-    name* function_name;
+    path* function_path;
     block* arguments;
 )
 
