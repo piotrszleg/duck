@@ -4,7 +4,7 @@ table=[
     a=-2 # a is 2
     b=3 # b is 3
 ]
-table.a=100
+table.a=10
 print(name)
 f=(a, b)-> {
     if(a>0){
@@ -14,7 +14,7 @@ f=(a, b)-> {
     }
 }
 callresult=f(1, 2)
-if(num==0.5&&num>0){
+if(num==0.5&&num>0&&table["a"]==10){
     print("we")
 } elif(2){
     print("are")

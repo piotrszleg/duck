@@ -50,25 +50,28 @@ void copy_table(table* source, table* destination){
     }
 }
 
-object* path_get(table scope, path p){
-    table current=scope;
+object* path_get(table* scope, path p){
+    table* current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
+        char* evaluated_to_string;
         if(e->type==_name){
-            name* as_name=(name*)e;
-            object* object_at_name=get(&current, as_name->value);
-            if(i==lines_count-1){
-                if(object_at_name->type==t_null){
-                    ERROR(INCORRECT_OBJECT_POINTER, "%s doesn't contain %s.", stringify(&current), as_name->value);
-                }
-                return object_at_name;
-            } else if(object_at_name->type==t_table) {
-                current=*(table*)object_at_name;
-            } else {
-                ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
-                return new_null();
+            evaluated_to_string=((name*)e)->value;
+        } else {
+            evaluated_to_string=stringify(execute_ast(e, scope));
+        }
+        object* object_at_name=get(current, evaluated_to_string);
+        if(i==lines_count-1){
+            if(object_at_name->type==t_null){
+                ERROR(INCORRECT_OBJECT_POINTER, "%s doesn't contain %s.", stringify(&current), evaluated_to_string);
             }
+            return object_at_name;
+        } else if(object_at_name->type==t_table) {
+            current=(table*)object_at_name;
+        } else {
+            ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
+            return new_null();
         }
     }
     return new_null();
@@ -79,17 +82,20 @@ void path_set(table* scope, path p, object* value){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
+        char* evaluated_to_string;
         if(e->type==_name){
-            name* as_name=(name*)e;
-            if(i==lines_count-1){
-                set(current, as_name->value, value);
-            } else{
-                object* object_at_name=get(current, as_name->value);
-                if(object_at_name->type==t_table) {
-                    current=(table*)object_at_name;
-                } else {
-                    ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
-                }
+            evaluated_to_string=((name*)e)->value;
+        } else {
+            evaluated_to_string=stringify(execute_ast(e, scope));
+        }
+        if(i==lines_count-1){
+            set(current, evaluated_to_string, value);
+        } else{
+            object* object_at_name=get(current, evaluated_to_string);
+            if(object_at_name->type==t_table) {
+                current=(table*)object_at_name;
+            } else {
+                ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
             }
         }
     }
@@ -201,7 +207,7 @@ object* execute_ast(expression* exp, table* scope){
         {
             function_call* c=(function_call*)exp;
             table* function_scope=new_table();
-            function* f=(function*)path_get(*scope, *c->function_path);
+            function* f=(function*)path_get(scope, *c->function_path);
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
                 //char buf[16];
                 //itoa(i, buf, 10);
@@ -215,7 +221,7 @@ object* execute_ast(expression* exp, table* scope){
         case _path:
         {
             path* p=(path*)exp;
-            result=path_get(*scope, *p);
+            result=path_get(scope, *p);
             break;
         }
         default:
