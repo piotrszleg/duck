@@ -1,8 +1,10 @@
 ## TODO:
-- dot paths and square brackets syntax
+- repl
+- tests
+- bytecode
 - more comments
 - replace table with vector in function call
-- - parser.y 260 arguments seems to be undefined
+- parser.y 260 arguments seems to be undefined
 
 ## POINTERS:
 **&** - returns pointer to it's operand
@@ -18,3 +20,4 @@
     and `*operand` becomes a deadly bug in your code if you're using `void`  pointers 
 
 [Linking libraries dynamically](https://github.com/alainfrisch/flexdll)
+[Assembly guide](http://www.cs.virginia.edu/~evans/cs216/guides/x86.html)

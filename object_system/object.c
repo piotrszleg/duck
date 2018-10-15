@@ -214,7 +214,7 @@ object* operator(object* a, object *b, char* op){
     if(strcmp(op, "!")==0){
         return create_number(is_falsy(a));
     }
-    if(strcmp(op, "-")==0){
+    if(strcmp(op, "-")==0 && b->type==t_null){
         number* a_as_number=(number*)cast(a, t_number);
         a_as_number->value=-a_as_number->value;
         return a_as_number;
@@ -285,6 +285,7 @@ char* stringify(object* o){
                 strcat(result, "[");
                 int first=1;
                 while ((key = map_next(&t->fields, &iter))) {
+                    object* value=*map_get(&t->fields, key);
                     if(first) {
                         first=0;
                     } else {
@@ -292,8 +293,11 @@ char* stringify(object* o){
                     }
                     strcat(result, key);
                     strcat(result, "=");
-                    strcat(result, stringify(*map_get(&t->fields, key)));
-                    
+                    if (value!=o){
+                        strcat(result, stringify(value));
+                    } else {
+                        strcat(result, "self");// cycling reference
+                    }
                 }
                 strcat(result, "]");
                 return result;
@@ -337,7 +341,6 @@ object* get(object* o, char* key){
                 // call function with arguments
                 object* result = call(*map_get_override, arguments);
                 object_delete(arguments);
-                object_delete(key_string);
                 return result;
             }
 

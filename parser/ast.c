@@ -88,7 +88,7 @@ char* stringify_expression(expression* exp, int indentation){
         case _prefix:
         {
             prefix* p=(prefix*)exp;
-            snprintf(result, result_size, "\n%sUNARY: \n%s-> sign: '%s' \n%s-> right: %s", 
+            snprintf(result, result_size, "\n%sPREFIX: \n%s-> sign: '%s' \n%s-> right: %s", 
                                         indentation_string,
                                         indentation_string, p->op,
                                         indentation_string, stringify_expression((expression*)p->right, indentation+1));

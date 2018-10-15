@@ -28,7 +28,7 @@ extern char err_message[1024];
     }
 
 #define ERROR(type, message, ...) \
-    sprintf(err_message, message, ##__VA_ARGS__); \
+    sprintf(err_message, "ERROR: %s, line %d\n" message, __FILE__, __LINE__, ##__VA_ARGS__); \
     err_type=type; \
     if(error_buf!=NULL){ longjmp(error_buf,1); }
 

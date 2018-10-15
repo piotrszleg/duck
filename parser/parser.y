@@ -273,12 +273,27 @@ unary:
 		u->right=$3;
 		$$=(expression*)u;
 	}
+	| expression '-' expression 
+	{
+		unary* u=new_unary();
+		u->left=$1;
+		u->op=strdup("-");
+		u->right=$3;
+		$$=(expression*)u;
+	}
 	;
 prefix:
-	PREFIX_OPERATOR expression 
+	'!' expression 
 	{
 		prefix* p=new_prefix();
-		p->op=strdup($1);
+		p->op=strdup("!");
+		p->right=$2;
+		$$=(expression*)p;
+	}
+	| '-' expression 
+	{
+		prefix* p=new_prefix();
+		p->op=strdup("-");
 		p->right=$2;
 		$$=(expression*)p;
 	}

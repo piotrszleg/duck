@@ -13,6 +13,24 @@ f=(a, b)-> {
         0
     }
 }
+fib=n->{
+    global.fibcalls=1+global.fibcalls
+    if(n==0){
+        0
+    }
+    elif(n==1){
+        1
+    }
+    else{
+        fib(n-1)+fib(n-2)
+    }
+}
+loop=(start, end ,f)->{
+    f(start)
+    if(start<end){
+        loop(start+1, end)
+    } 
+}
 callresult=f(1, 2)
 if(num==0.5&&num>0&&table["a"]==10){
     print("we")
@@ -21,4 +39,8 @@ if(num==0.5&&num>0&&table["a"]==10){
 } else {
     print("the dreamers of dreams")
 }
-table
+printplustwo=(start, nevermind)->{# functions need at least two arguments for now
+     print(start+2)
+}
+loop(1, 3, printplustwo)
+fib(10)

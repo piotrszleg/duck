@@ -149,6 +149,25 @@ void paths(){
     printf("test successful\n");
 }
 
+void function_declarations(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    parse_string("->1, a->a+2, (a, b)->a+b, (a, b, c)->(a+b)/c");
+    assert(parsing_result->type==_block);
+    block* as_block=(block*)parsing_result;
+    assert(vector_total(&as_block->lines)==4);
+
+    // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
+    for (int i = 0; i < vector_total(&as_block->lines); i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==_function_declaration);
+    }
+
+    delete_expression(parsing_result);
+    printf("test successful\n");
+}
+
+
 int main(){
     literals();
     operators();
@@ -156,6 +175,7 @@ int main(){
     assignment_operators();
     table_literals();
     paths();
+    function_declarations();
     // TODO: function calling, conditionals
     // function declarations
 }

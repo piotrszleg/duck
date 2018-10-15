@@ -12,7 +12,6 @@ void test_error_catching(){
         num1->value=1;
         call((object*)num1, (table*)num1);// try to call a number one, it should throw an error
     ,
-        printf(err_message);
         assert(err_type==WRONG_ARGUMENT_TYPE);
         object_delete((object*)num1);
         printf("test successful\n");
