@@ -1,8 +1,6 @@
-#include "parser/parser.h"
-#include "ast_executor.h"
-#include "stdio.h"
+#include "repl.h"
 
-int main(){
+void repl(){
     printf("Read eval print loop of the duck parser. \n---\nType in duck syntax to see it's AST representation. \nWrite \"quit\" to exit the program.\n");
     char input[128];
 
