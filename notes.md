@@ -1,6 +1,4 @@
 ## TODO:
-- repl
-- tests
 - bytecode
 - more comments
 - replace table with vector in function call
