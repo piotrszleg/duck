@@ -16,6 +16,7 @@ const char* OBJECT_TYPE_NAMES[]={
 RUNTIME_OBJECT_NEW(null,)
 RUNTIME_OBJECT_NEW(number,)
 RUNTIME_OBJECT_NEW(function,
+    instance->enclosing_scope=NULL;
     vector_init(&instance->argument_names);
 )
 RUNTIME_OBJECT_NEW(string,)
@@ -269,11 +270,11 @@ char* stringify(object* o){
         case t_number:
             {
                 float n=((number*)o)->value;
-                char buffer[100];
+                char* result=calloc(100, sizeof(char));
                 if(ceilf(n)==n){
-                    return itoa(n, buffer, 10);// display number as an integer
+                    return itoa(n, result, 10);// display number as an integer
                 } else{
-                    return gcvt(n, 3, buffer);
+                    return gcvt(n, 3, result);
                 }
             }
         case t_table:
