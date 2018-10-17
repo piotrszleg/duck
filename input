@@ -1,46 +1,15 @@
-name="John" # set name to john
-num=0.5 # set num to 0.5
-table=[
-    a=-2 # a is 2
-    b=3 # b is 3
-]
-table.a=10
-print(name)
-f=(a, b)-> {
-    if(a>0){
-        b*2
-    } else {
-        0
-    }
-}
-fib=n->{
-    global.fibcalls=1+global.fibcalls
-    if(n==0){
-        0
-    }
-    elif(n==1){
-        1
-    }
-    else{
-        fib(n-1)+fib(n-2)
-    }
-}
 loop=(start, end ,f)->{
     f(start)
     if(start<end){
-        loop(start+1, end)
+        loop(start+1, end, f)
     } 
 }
-callresult=f(1, 2)
-if(num==0.5&&num>0&&table["a"]==10){
-    print("we")
-} elif(2){
-    print("are")
-} else {
-    print("the dreamers of dreams")
+adder=toadd->{
+    n->n+toadd
 }
-printplustwo=(start, nevermind)->{# functions need at least two arguments for now
-     print(start+2)
+printplusfive=n->{
+    f=adder(5)
+    print(f(n))
 }
-loop(1, 3, printplustwo)
-fib(10)
+
+loop(1, 3, printplusfive)

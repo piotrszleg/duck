@@ -1,5 +1,7 @@
 #include "ast_executor.h"
 
+int current_line;
+
 object* ast_function_call(object* o, table* scope){
     function* as_function=(function*)o;
     return execute_ast((expression*)as_function->data, scope, 1);
@@ -61,7 +63,7 @@ object* path_get(table* scope, path p){
         } else {
             evaluated_to_string=stringify(execute_ast(e, scope, 0));
         }
-        object* object_at_name=get(current, evaluated_to_string);
+        object* object_at_name=get((object*)current, evaluated_to_string);
         if(i==lines_count-1){
             return object_at_name;
         } else if(object_at_name->type==t_table) {
@@ -72,7 +74,7 @@ object* path_get(table* scope, path p){
         }
     }
     return new_null();
-}
+} 
 
 void path_set(table* scope, path p, object* value){
     table* current=scope;
@@ -86,7 +88,7 @@ void path_set(table* scope, path p, object* value){
             evaluated_to_string=stringify(execute_ast(e, scope, 0));
         }
         if(i==lines_count-1){
-            set(current, evaluated_to_string, value);
+            set((object*)current, evaluated_to_string, value);
         } else{
             object* object_at_name=get(current, evaluated_to_string);
             if(object_at_name->type==t_table) {
@@ -96,7 +98,6 @@ void path_set(table* scope, path p, object* value){
             }
         }
     }
-    return new_null();
 }
 
 void setup_scope(object* scope, object* base){
@@ -117,6 +118,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
     if(exp==NULL){
         ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
+    current_line=exp->line;
     object* result=NULL;
     switch(exp->type){
         case _empty:
@@ -144,10 +146,17 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         case _table_literal:
         {
             block* b=(block*)exp;
-            table* new_scope=new_table();//TODO: scope inheritance
+            table* new_scope=new_table();
             new_scope->ref_count++;
             for (int i = 0; i < vector_total(&b->lines); i++){
-                result=execute_ast(vector_get(&b->lines, i), new_scope, 0);
+                expression* line=(expression*)vector_get(&b->lines, i);
+                if(line->type==_assignment){
+                    result=execute_ast(line, new_scope, 0);
+                } else {
+                    char buf[16];
+                    itoa(i, buf, 10);
+                    set(new_scope, buf, execute_ast(line, new_scope, 0));
+                }
             }
             result=(object*)new_scope;
             break;
@@ -161,14 +170,14 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
             } else {
                 block_scope=new_table();
                 block_scope->ref_count++;
-                setup_scope(block_scope, scope);
+                setup_scope((object*)block_scope, (object*)scope);
             }
             for (int i = 0; i < vector_total(&b->lines); i++){
                 result=execute_ast(vector_get(&b->lines, i), block_scope, 0);
             }
             result->ref_count++;
             if(!keep_scope){
-                object_delete(block_scope);
+                object_delete((object*)block_scope);
             }
             break;
         }
@@ -217,6 +226,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
             }
             f->data=(void*)d->body;
             f->enclosing_scope=scope;
+            scope->ref_count++;
             f->pointer=ast_function_call;
             result=(object*)f;
             break;
@@ -225,8 +235,15 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         {
             function_call* c=(function_call*)exp;
             table* function_scope=new_table();
-            setup_scope(function_scope, scope);
             function* f=(function*)path_get(scope, *c->function_path);
+            if(f->enclosing_scope!=NULL){
+                setup_scope((object*)function_scope, (object*)f->enclosing_scope);
+            } else {
+                setup_scope((object*)function_scope, (object*)scope);
+            }
+            if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
+                ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");
+            }
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
                 //char buf[16];
                 //itoa(i, buf, 10);

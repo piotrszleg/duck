@@ -1,4 +1,6 @@
 ## TODO:
+- preserve enviroment of function declaration
+- pass arguments array
 - bytecode
 - more comments
 - replace table with vector in function call

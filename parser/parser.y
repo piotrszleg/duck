@@ -80,12 +80,14 @@ lines:
 	}
 	| line	{
 		block* b=new_block();
+		b->line=line_num;
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
 	}
 	| expression {
 		block* b=new_block();
+		b->line=line_num;
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
@@ -108,6 +110,7 @@ table:
 path:
 	name {
 		path* p=new_path();
+		p->line=line_num;
 		vector_init(&p->lines);
 		vector_add(&p->lines, $1);
 		$$=(expression*)p;
@@ -135,6 +138,7 @@ expression:
 conditional:
 	IF '(' expression ')' expression  {	
 		conditional* c=new_conditional();
+		c->line=line_num;
 		c->condition=$3;
 		c->ontrue=$5;
 		c->onfalse=(expression*)new_empty();
@@ -142,6 +146,7 @@ conditional:
 	}
 	| IF '(' expression ')' expression conditional_else {
 		conditional* c=new_conditional();
+		c->line=line_num;
 		c->condition=$3;
 		c->ontrue=$5;
 		c->onfalse=$6;
@@ -154,6 +159,7 @@ conditional_else:
 	}
 	| ELIF '(' expression ')' expression conditional_else {
 		conditional* c=new_conditional();
+		c->line=line_num;
 		c->condition=$3;
 		c->ontrue=$5;
 		c->onfalse=$6;
@@ -161,6 +167,7 @@ conditional_else:
 	}
 	| ELIF '(' expression ')' expression {
 		conditional* c=new_conditional();
+		c->line=line_num;
 		c->condition=$3;
 		c->ontrue=$5;
 		c->onfalse=(expression*)new_empty();
@@ -182,12 +189,14 @@ arguments:
 function:
 	'(' arguments ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
+		f->line=line_num;
 		f->arguments=$2;
 		f->body=(block*)$5;
 		$$=(expression*)f;
 	} 
 	| name ARROW expression {
 		function_declaration* f=new_function_declaration();
+		f->line=line_num;
 		vector* args=malloc(sizeof(vector));
 		vector_init(args);
 		vector_add(args, $1);
@@ -199,6 +208,7 @@ function:
 		function_declaration* f=new_function_declaration();
 		vector* args=malloc(sizeof(vector));
 		vector_init(args);
+		f->line=line_num;
 		f->arguments=args;
 		f->body=(block*)$2;
 		$$=(expression*)f;
@@ -207,18 +217,21 @@ function:
 literal: 
 	INT { 
 		literal* l=new_literal();
+		l->line=line_num;
 		l->ival=$1;
 		l->ltype=_int;
 		$$=(expression*)l;
 	}
 	| FLOAT { 
 		literal* l=new_literal();
+		l->line=line_num;
 		l->fval=$1;
 		l->ltype=_float;
 		$$=(expression*)l;
 	}
 	| STRING { 
 		literal* l=new_literal();
+		l->line=line_num;
 		l->sval=strdup($1);
 		l->ltype=_string;
 		$$=(expression*)l;
@@ -227,6 +240,7 @@ literal:
 name:
 	NAME {
 		name* n=new_name();
+		n->line=line_num;
 		n->value=malloc(sizeof(char)*100);
 		strcpy(n->value, $1);
 		$$=(expression*)n;
@@ -235,8 +249,10 @@ assignment:
 	path ASSIGN_UNARY_OPERATOR expression 
 	{
 		assignment* a=new_assignment();
+		a->line=line_num;
 		a->left=(path*)$1;
 		unary* u=new_unary();
+		u->line=line_num;
 		u->left=$1;
 		u->op=strdup($2);
 		u->right=$3;
@@ -246,6 +262,7 @@ assignment:
 	| path '=' expression 
 	{
 		assignment* a=new_assignment();
+		a->line=line_num;
 		a->left=(path*)$1;
 		a->right=$3;
 		$$=(expression*)a;
@@ -254,12 +271,14 @@ assignment:
 call:
 	path '(' lines ')' {
 		function_call* c=new_function_call();
+		c->line=line_num;
 		c->function_path=(path*)$1;
 		c->arguments=(block*)$3;
 		$$=(expression*)c;
 	}
 	| path '(' ')' {
 		function_call* c=new_function_call();
+		c->line=line_num;
 		c->function_path=(path*)$1;
 		$$=(expression*)c;
 	}
@@ -268,6 +287,7 @@ unary:
 	expression UNARY_OPERATOR expression 
 	{
 		unary* u=new_unary();
+		u->line=line_num;
 		u->left=$1;
 		u->op=strdup($2);
 		u->right=$3;
@@ -276,6 +296,7 @@ unary:
 	| expression '-' expression 
 	{
 		unary* u=new_unary();
+		u->line=line_num;
 		u->left=$1;
 		u->op=strdup("-");
 		u->right=$3;
@@ -286,6 +307,7 @@ prefix:
 	'!' expression 
 	{
 		prefix* p=new_prefix();
+		p->line=line_num;
 		p->op=strdup("!");
 		p->right=$2;
 		$$=(expression*)p;
@@ -293,6 +315,7 @@ prefix:
 	| '-' expression 
 	{
 		prefix* p=new_prefix();
+		p->line=line_num;
 		p->op=strdup("-");
 		p->right=$2;
 		$$=(expression*)p;

@@ -22,18 +22,16 @@ enum expression_type{
     _conditional
 };
 
-typedef struct expression expression;
-struct expression {
-    expression_type type;
-};
-
 #define AST_OBJECT(t, body) \
     typedef struct t t; \
     struct t { \
         expression_type type; \
+        int line; \
         body \
     }; \
     t* new_ ## t(); \
+
+AST_OBJECT(expression,)
 
 AST_OBJECT(empty,)
 

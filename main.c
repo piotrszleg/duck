@@ -22,6 +22,7 @@ int main(int argc, char *argv[]){
             object_delete(execution_result);
             delete_expression(parsing_result);
         ,
+            printf("Error occured on line %i of parsed code:\n", current_line);
             printf(err_message);
             exit(-1);
         )

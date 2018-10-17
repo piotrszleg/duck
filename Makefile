@@ -1,4 +1,4 @@
-all: duck.exe
+all: duck.exe input
 	./duck.exe input
 
 repl: duck.exe

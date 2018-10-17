@@ -7,5 +7,6 @@
 
 object* execute_ast(expression* exp, table* scope, int create_block_subscope);
 void register_globals(table* scope);
+extern int current_line;
 
 #endif
