@@ -4,20 +4,24 @@
 
 extern expression* parsing_result;
 
+block* parse_block(char* code, int expected_lines_count){
+    parse_string(code);
+    assert(parsing_result->type==_block);
+    block* as_block=(block*)parsing_result;
+    assert(vector_total(&as_block->lines)==expected_lines_count);
+    return as_block;
+}
+
 void literals(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    parse_string("5, 0.5, \"text\"");
-    assert(parsing_result->type==_block);
-    block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==3);
+    block* as_block=parse_block("5, 0.5, \"text\"", 3);
 
     // check if each line contains literal of correct type and value
-
     assert( ((expression*)vector_get(&as_block->lines, 0))->type==_literal );
     literal* five=(literal*)vector_get(&as_block->lines, 0);
     assert(five->ival==5);
-
+    
     assert( ((expression*)vector_get(&as_block->lines, 1))->type==_literal );
     literal* half=(literal*)vector_get(&as_block->lines, 1);
     assert(half->fval==0.5);
@@ -44,11 +48,7 @@ void operators(){
         "!="
     };
 
-    parse_string("2+2, 5.0**2, a*b, 2*a, a*2, a`atan`b, a==b, a!=b");
-    assert(parsing_result->type==_block);
-    block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==8);
-
+    block* as_block=parse_block("2+2, 5.0**2, a*b, 2*a, a*2, a`atan`b, a==b, a!=b", 8);
     // compare unary operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
@@ -68,11 +68,7 @@ void assignment_operators(){
         "**",
     };
 
-    parse_string("a=2, a+=2, a**=2");
-    assert(parsing_result->type==_block);
-    block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==3);
-
+    block* as_block=parse_block("a=2, a+=2, a**=2", 3);
     // compare unary operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
@@ -97,11 +93,7 @@ void prefixes(){
         "!",
     };
 
-    parse_string("-1, !a");
-    assert(parsing_result->type==_block);
-    block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==2);
-
+    block* as_block=parse_block("-1, !a", 2);
     // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
@@ -116,29 +108,20 @@ void prefixes(){
 void table_literals(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    parse_string("[1, 2, \"John\"]");
-
-    // result of parsing always has root block expression on top
-    assert(parsing_result->type==_block);
-    block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==1);
-
+    block* as_block=parse_block("[1, 2, \"John\"]", 1);
     // first line should contain table_literal with 3 lines
     expression* first_line=vector_get(&as_block->lines, 0);
     assert(first_line->type==_table_literal);
     assert(vector_total(&((table_literal*)first_line)->lines)==3);
 
+    delete_expression(parsing_result);
     printf("test successful\n");
 }
 
 void paths(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    parse_string("base.call, options[\"volume\"], options[user.name], base.graphics[\"effects\"]");
-    assert(parsing_result->type==_block);
-    block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==4);
-
+    block* as_block=parse_block("base.call, options[\"volume\"], options[user.name], base.graphics[\"effects\"]", 4);
     // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
@@ -152,15 +135,30 @@ void paths(){
 void function_declarations(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    parse_string("->1, a->a+2, (a, b)->a+b, (a, b, c)->(a+b)/c");
-    assert(parsing_result->type==_block);
-    block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==4);
-
+    block* as_block=parse_block("->1, a->a+2, (a, b)->a+b, (a, b, c)->(a+b)/c", 4);
     // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
         assert(e->type==_function_declaration);
+    }
+
+    delete_expression(parsing_result);
+    printf("test successful\n");
+}
+
+void function_calls(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    int argument_counts[]={0, 1, 1, 2, 0, 1};
+    block* as_block=parse_block("call(), call(0), call(name), add(1, 2), player.jump(), player.jump(10)", 6);
+
+    // test if type of each expression is 'function_call' and number of arguments is correct
+    for (int i = 0; i < vector_total(&as_block->lines); i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==_function_call);
+        function_call* f=(function_call*)e;
+        // test number of arguments of each call
+        assert(vector_total(&f->arguments->lines)==argument_counts[i]);
     }
 
     delete_expression(parsing_result);
@@ -176,6 +174,6 @@ int main(){
     table_literals();
     paths();
     function_declarations();
-    // TODO: function calling, conditionals
-    // function declarations
+    function_calls();
+    // TODO: conditionals
 }

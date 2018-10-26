@@ -280,6 +280,8 @@ call:
 		function_call* c=new_function_call();
 		c->line=line_num;
 		c->function_path=(path*)$1;
+		c->arguments=new_block();
+		vector_init(&c->arguments->lines);
 		$$=(expression*)c;
 	}
 	;

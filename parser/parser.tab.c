@@ -470,8 +470,8 @@ static const yytype_uint16 yyrline[] =
      105,   111,   118,   121,   126,   127,   128,   129,   130,   131,
      132,   133,   134,   135,   136,   139,   147,   157,   160,   168,
      178,   182,   190,   197,   207,   218,   225,   232,   241,   249,
-     262,   272,   279,   287,   296,   307,   315,   325,   326,   328,
-     329
+     262,   272,   279,   289,   298,   309,   317,   327,   328,   330,
+     331
 };
 #endif
 
@@ -1773,6 +1773,8 @@ yyreduce:
 		function_call* c=new_function_call();
 		c->line=line_num;
 		c->function_path=(path*)(yyvsp[(1) - (3)].exp);
+		c->arguments=new_block();
+		vector_init(&c->arguments->lines);
 		(yyval.exp)=(expression*)c;
 	;}
     break;
@@ -1780,7 +1782,7 @@ yyreduce:
   case 43:
 
 /* Line 1455 of yacc.c  */
-#line 288 "parser.y"
+#line 290 "parser.y"
     {
 		unary* u=new_unary();
 		u->line=line_num;
@@ -1794,7 +1796,7 @@ yyreduce:
   case 44:
 
 /* Line 1455 of yacc.c  */
-#line 297 "parser.y"
+#line 299 "parser.y"
     {
 		unary* u=new_unary();
 		u->line=line_num;
@@ -1808,7 +1810,7 @@ yyreduce:
   case 45:
 
 /* Line 1455 of yacc.c  */
-#line 308 "parser.y"
+#line 310 "parser.y"
     {
 		prefix* p=new_prefix();
 		p->line=line_num;
@@ -1821,7 +1823,7 @@ yyreduce:
   case 46:
 
 /* Line 1455 of yacc.c  */
-#line 316 "parser.y"
+#line 318 "parser.y"
     {
 		prefix* p=new_prefix();
 		p->line=line_num;
@@ -1834,7 +1836,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 1838 "parser.tab.c"
+#line 1840 "parser.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2046,7 +2048,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 330 "parser.y"
+#line 332 "parser.y"
 
 
 void print_and_delete(expression* result){
