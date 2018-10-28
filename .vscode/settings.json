@@ -6,6 +6,16 @@
         "parser_tests.h": "c",
         "stdio.h": "c",
         "error.h": "c",
-        "parser.h": "c"
+        "parser.h": "c",
+        "system_error": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "istream": "c",
+        "memory": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "xlocnum": "c"
     }
 }

@@ -1,4 +1,5 @@
 ## TODO:
+- stringify functions cause memory leaks
 - preserve enviroment of function declaration
 - pass arguments array
 - bytecode

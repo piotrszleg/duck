@@ -262,7 +262,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         }
         default:
         {
-            printf("uncatched type: %i\n", exp->type);
+            printf("uncatched expression type: %i\n", exp->type);
             result=(object*)new_null();
         }
     }
