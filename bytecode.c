@@ -26,6 +26,7 @@ char* INSTRUCTION_NAMES[]={
 
 void init_stream(stream* s, size_t size){
     s->data=malloc(size);
+    CHECK_ALLOCATION(s->data);
     s->position=0;
 }
 
@@ -438,10 +439,8 @@ void stringify_instruction(char* destination, instruction inst){
 char* stringify_bytecode(instruction* code){
     int pointer=0;
     int string_end=0;
-    char* result=calloc(200, sizeof(char));
-    if(result==NULL){
-        ERROR(MEMORY_ALLOCATION_FAILURE, "Couldn't allocate char array for stringify_bytecode result.");
-    }
+    char* result=calloc(100, sizeof(char));
+    CHECK_ALLOCATION(result);
     while(code[pointer].type!=b_end){
         char stringified_instruction[50];
         stringify_instruction(&stringified_instruction, code[pointer]);

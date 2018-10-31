@@ -11,7 +11,6 @@ int instructions_equal(instruction a, instruction b){
 void assert_instruction_streams_equal(instruction* code1, instruction* code2){
     int pointer=0;
     int string_end=0;
-    char* result=calloc(200, sizeof(char));
     while(code1[pointer].type!=b_end && code2[pointer].type!=b_end){
         assert(instructions_equal(code1[pointer], code2[pointer]));
     }

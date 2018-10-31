@@ -1,6 +1,7 @@
 #include "object.h"
 
 #define GC_LOG 0
+#define STRINGIFY_BUFFER_SIZE 100
 
 const char* OBJECT_TYPE_NAMES[]={
     "null",
@@ -144,6 +145,7 @@ object* cast(object* o, object_type type){
         case t_string:
             {
                 char* buffer=malloc(sizeof(char)*1024);
+                CHECK_ALLOCATION(buffer);
                 strncpy(buffer, stringify(o), 1024);
                 string* result=new_string();
                 result->value=buffer;
@@ -213,12 +215,12 @@ object* operator(object* a, object *b, char* op){
         }
     }
     if(strcmp(op, "!")==0){
-        return create_number(is_falsy(a));
+        return (object*)create_number(is_falsy(a));
     }
     if(strcmp(op, "-")==0 && b->type==t_null){
         number* a_as_number=(number*)cast(a, t_number);
         a_as_number->value=-a_as_number->value;
-        return a_as_number;
+        return (object*)a_as_number;
     }
     if(a->type!=b->type){
         b=cast(b, a->type);
@@ -227,7 +229,7 @@ object* operator(object* a, object *b, char* op){
         case t_string:
             if(strcmp(op, "+")==0){
                 char* buffer=malloc(sizeof(char)*1024);
-                if(!buffer){ ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure"); }
+                CHECK_ALLOCATION(buffer);
                 strcpy(buffer, ((string*) a)->value);
                 strcat(buffer, ((string*) b)->value);
                 string* result=new_string();
@@ -270,38 +272,45 @@ char* stringify(object* o){
         case t_number:
             {
                 float n=((number*)o)->value;
-                char* result=calloc(100, sizeof(char));
+                char* buffer=calloc(STRINGIFY_BUFFER_SIZE, sizeof(char));
+                CHECK_ALLOCATION(buffer);
                 if(ceilf(n)==n){
-                    return itoa(n, result, 10);// display number as an integer
+                    itoa(n, buffer, 10);// display number as an integer
                 } else{
-                    return gcvt(n, 3, result);
+                    gcvt(n, 3, buffer);
                 }
+                char* buffer_truncated=strdup(buffer);
+                free(buffer);
+                return buffer_truncated;
             }
         case t_table:
             {
                 table* t=(table*)o;
-                char* result=calloc(100, sizeof(char));
+                char* buffer=calloc(STRINGIFY_BUFFER_SIZE, sizeof(char));
+                CHECK_ALLOCATION(buffer);
                 const char *key;
                 map_iter_t iter = map_iter(&m);
-                strcat(result, "[");
+                strcat(buffer, "[");
                 int first=1;
                 while ((key = map_next(&t->fields, &iter))) {
                     object* value=*map_get(&t->fields, key);
                     if(first) {
                         first=0;
                     } else {
-                        strcat(result, ", ");
+                        strcat(buffer, ", ");
                     }
-                    strcat(result, key);
-                    strcat(result, "=");
+                    strcat(buffer, key);
+                    strcat(buffer, "=");
                     if (value!=o){
-                        strcat(result, stringify(value));
+                        strcat(buffer, stringify(value));
                     } else {
-                        strcat(result, "self");// cycling reference
+                        strcat(buffer, "self");// cycling reference
                     }
                 }
-                strcat(result, "]");
-                return result;
+                strcat(buffer, "]");
+                char* buffer_truncated=strdup(buffer);
+                free(buffer);
+                return buffer_truncated;
             }
         case t_function:
             return "<function>";
@@ -338,10 +347,10 @@ object* get(object* o, char* key){
                 string* key_string=new_string();
                 key_string->value=strdup(key);
                 set((object*)arguments, "self", o);
-                set((object*)arguments, "key", key_string);
+                set((object*)arguments, "key", (object*)key_string);
                 // call function with arguments
                 object* result = call(*map_get_override, arguments);
-                object_delete(arguments);
+                garbage_collector_check((object*)arguments);
                 return result;
             }
 

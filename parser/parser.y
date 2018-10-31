@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "vector.h"
+#include "error.h"
 #include "ast.h"
 #include "parser.h"
 
@@ -69,7 +70,6 @@ void yyerror(const char *s);
 %%
 program:
 	lines { 
-		parsing_result=malloc(sizeof(expression));
 		parsing_result = $1;
 	}
 	;
@@ -181,6 +181,7 @@ arguments:
 	}
 	| name {
 		vector* args=malloc(sizeof(vector));
+		CHECK_ALLOCATION(args);
 		vector_init(args);
 		vector_add(args, $1);
 		$$=args;
@@ -198,6 +199,7 @@ function:
 		function_declaration* f=new_function_declaration();
 		f->line=line_num;
 		vector* args=malloc(sizeof(vector));
+		CHECK_ALLOCATION(args);
 		vector_init(args);
 		vector_add(args, $1);
 		f->arguments=args;
@@ -207,6 +209,7 @@ function:
 	| ARROW expression {
 		function_declaration* f=new_function_declaration();
 		vector* args=malloc(sizeof(vector));
+		CHECK_ALLOCATION(args);
 		vector_init(args);
 		f->line=line_num;
 		f->arguments=args;
@@ -241,8 +244,7 @@ name:
 	NAME {
 		name* n=new_name();
 		n->line=line_num;
-		n->value=malloc(sizeof(char)*100);
-		strcpy(n->value, $1);
+		n->value=strdup($1);
 		$$=(expression*)n;
 	  } ;
 assignment:

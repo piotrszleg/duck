@@ -36,6 +36,7 @@ struct object{// object interface, all objects in this file implement it
 #define RUNTIME_OBJECT_NEW(t, body) \
     t* new_ ## t(){  \
         t* instance=malloc(sizeof(t)); \
+        CHECK_ALLOCATION(instance); \
 		instance->type=t_ ## t; \
         instance->ref_count=0; \
         body \

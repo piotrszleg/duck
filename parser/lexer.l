@@ -2,6 +2,7 @@ snazzle.l
 %{
 #include <string.h>
 #include <stdio.h>
+#include "error.h"
 #include "parser.tab.h"
 int line_num = 1;
 
@@ -9,6 +10,7 @@ int line_num = 1;
 char* unquote(char* source){
 	int length=strlen(source)-2;
 	char* result=malloc(length);
+	CHECK_ALLOCATION(result);
 	strncpy(result, source+1, length);
 	result[length]='\0';
 	return result;
@@ -18,6 +20,7 @@ char* unquote(char* source){
 char* remove_last_character(char* source){
 	int length=strlen(source)-1;
 	char* result=malloc(length);
+	CHECK_ALLOCATION(result);
 	strncpy(result, source, length);
 	result[length]='\0';
 	return result;
