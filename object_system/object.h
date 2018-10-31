@@ -71,7 +71,7 @@ RUNTIME_OBJECT(function,
 
 char* stringify(object* o);
 
-void collect_garbage(table* scope);
+void garbage_collector_check(object* checked);
 
 void object_delete(object* o);
 

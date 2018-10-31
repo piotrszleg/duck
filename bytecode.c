@@ -7,11 +7,13 @@ int labels_count=0;
 
 char* INSTRUCTION_NAMES[]={
     "end",
+    "discard",
+    "swap",
     "load_string",
     "load_number",
     "table_literal",
     "function_literal",
-    "current_scope",
+    "get_scope",
     "set_scope",
     "label",
     "jump",
@@ -94,6 +96,11 @@ void bytecode_path_set(stream* code, stream* constants, path p){
     }
 } 
 
+void push_instruction(stream* code, instruction_type type, int value){
+    instruction instr={type, value};
+    stream_push(code, &instr, sizeof(instruction));
+}
+
 void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants, int keep_scope){
     switch(exp->type){
         case _empty:
@@ -128,19 +135,31 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
         case _table_literal:
         {
             block* b=(block*)exp;
-            int lines_count=vector_total(&b->lines);
-            for (int i = 0; i < lines_count; i++){
+            
+            push_instruction(code, b_get_scope, 0);
+            push_instruction(code, b_table_literal, 0);
+            push_instruction(code, b_set_scope, 0);
+
+            for (int i = 0; i < vector_total(&b->lines); i++){
                 ast_to_bytecode_recursive(vector_get(&b->lines, i), code, constants, 1);
+                push_instruction(code, b_discard, 0);
             }
-            instruction table_literal={b_table_literal, lines_count};
-            stream_push(code, &table_literal, sizeof(instruction));  
+
+            push_instruction(code, b_get_scope, 0);
+            push_instruction(code, b_swap, 0);
+            push_instruction(code, b_set_scope, 0);
+
             break;
         }
         case _block:
         {
             block* b=(block*)exp;
-            for (int i = 0; i < vector_total(&b->lines); i++){
+            int lines_count=vector_total(&b->lines);
+            for (int i = 0; i < lines_count; i++){
                 ast_to_bytecode_recursive(vector_get(&b->lines, i), code, constants, 1);
+                if(i!=lines_count-1){// leave only the last line on the stack
+                    push_instruction(code, b_discard, 0);
+                }
             }
             break;
         }
@@ -252,12 +271,14 @@ void* move_pointer(const void* pointer, int number_of_bytes){
 }
 
 void push(vm_stack* stack, object* o){
+    o->ref_count++;
     stack->items[stack->pointer]=o;
     stack->pointer++;
 }
 
 object* pop(vm_stack* stack){
     stack->pointer--;
+    stack->items[stack->pointer]->ref_count--;
     return stack->items[stack->pointer];
 }
 
@@ -280,6 +301,18 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
     while(code[pointer].type!=b_end){
         instruction instr=code[pointer];
         switch(instr.type){
+            case b_discard:
+                // remove item from the stack and delete it if it's not referenced
+                garbage_collector_check(pop(&stack));
+                break;
+            case b_swap:
+            {
+                object* a=pop(&stack);
+                object* b=pop(&stack);
+                push(&stack, a);
+                push(&stack, b);
+                break;
+            }
             case b_load_string:
             {
                 string* s=new_string();
@@ -292,6 +325,12 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 number* n=new_number();
                 n->value=*((float*)((char*)constants)+instr.argument/sizeof(char*));
                 push(&stack, n);
+                break;
+            }
+            case b_table_literal:
+            {
+                table* t=new_table();
+                push(&stack, t);
                 break;
             }
             case b_get:
@@ -314,13 +353,23 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 if(instr.argument){
                     object* indexed=pop(&stack);
                     set(indexed, stringify(key), value);
-                    object_delete(indexed);
+                    garbage_collector_check(indexed);
                 } else {
                     set(scope, stringify(key), value);
                 }
                 garbage_collector_check(key);
-                value->ref_count++;
                 push(&stack, value);
+                break;
+            }
+            case b_get_scope:
+            {
+                push(&stack, scope);
+                break;
+            }
+            case b_set_scope:
+            {
+                garbage_collector_check(scope);
+                scope=pop(&stack);
                 break;
             }
             case b_operator:
@@ -351,6 +400,27 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 }
                 break;
             }
+            case b_call:
+            {
+                table* function_scope=new_table();
+                function* f=pop(&stack);
+                /*if(f->enclosing_scope!=NULL){
+                    setup_scope((object*)function_scope, (object*)f->enclosing_scope);
+                } else {
+                    setup_scope((object*)function_scope, (object*)scope);
+                }
+                if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
+                    ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");
+                }*/
+                for (int i = 0; i < vector_total(&f->argument_names); i++){
+                    //char buf[16];
+                    //itoa(i, buf, 10);
+                    char* argument_name=vector_get(&f->argument_names, i);
+                    object* argument_value=pop(&stack);
+                    set((object*)function_scope, argument_name, argument_value);
+                }
+                push(&stack,  call((object*)f, function_scope));
+            }
             case b_label:
                 break;
             default:
@@ -369,6 +439,9 @@ char* stringify_bytecode(instruction* code){
     int pointer=0;
     int string_end=0;
     char* result=calloc(200, sizeof(char));
+    if(result==NULL){
+        ERROR(MEMORY_ALLOCATION_FAILURE, "Couldn't allocate char array for stringify_bytecode result.");
+    }
     while(code[pointer].type!=b_end){
         char stringified_instruction[50];
         stringify_instruction(&stringified_instruction, code[pointer]);

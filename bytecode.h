@@ -23,11 +23,13 @@ struct vm_stack {
 typedef enum instruction_type instruction_type;
 enum instruction_type {
     b_end,
+    b_discard,
+    b_swap,
     b_load_string,// position_in_constants
     b_load_number,// position_in_constants
     b_table_literal,
     b_function_literal,// beginning_label
-    b_current_scope,
+    b_get_scope,
     b_set_scope,
     b_label,
     b_jump,// position

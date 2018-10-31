@@ -17,7 +17,7 @@ int main(int argc, char *argv[]){
             table* global_scope=new_table();
             global_scope->ref_count++;
             register_globals(global_scope);
-            //printf(stringify_expression(parsing_result, 0));
+            printf(stringify_expression(parsing_result, 0));
             printf("\nExecuting parsing result:\n");
             object* execution_result;
             if(USE_BYTECODE){
