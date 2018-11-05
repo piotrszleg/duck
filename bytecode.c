@@ -1,7 +1,7 @@
 #include "bytecode.h"
 
-#define CODE_SIZE 100
-#define CONSTANTS_SIZE 100
+#define CODE_SIZE 200
+#define CONSTANTS_SIZE 200
 
 int labels_count=0;
 
@@ -28,6 +28,7 @@ void init_stream(stream* s, size_t size){
     s->data=malloc(size);
     CHECK_ALLOCATION(s->data);
     s->position=0;
+    s->size=size;
 }
 
 int stream_push(stream* s, void* data_pointer, size_t size){
@@ -44,15 +45,27 @@ int stream_push(stream* s, void* data_pointer, size_t size){
     return push_position;
 }
 
+void stream_truncate(stream* s){
+    s->data=realloc(s->data, s->position);
+    CHECK_ALLOCATION(s->data);
+}
+
 bytecode_program ast_to_bytecode(expression* exp, int keep_scope){
     stream constants;
     stream code;
     init_stream(&constants, CONSTANTS_SIZE);
     init_stream(&code, CODE_SIZE);
+    CHECK_ALLOCATION(malloc(8));
     ast_to_bytecode_recursive(exp, &code, &constants, keep_scope);
+    CHECK_ALLOCATION(malloc(8));
     instruction instr={b_end, 0};
     stream_push(&code, &instr, sizeof(instruction));
     bytecode_program prog;
+    CHECK_ALLOCATION(malloc(8));
+    stream_truncate(&code);
+    CHECK_ALLOCATION(malloc(8));
+    stream_truncate(&constants);
+    CHECK_ALLOCATION(malloc(8));
     prog.code=code.data;
     prog.constants=constants.data;
     return prog;
@@ -97,7 +110,7 @@ void bytecode_path_set(stream* code, stream* constants, path p){
     }
 } 
 
-void push_instruction(stream* code, instruction_type type, int value){
+void push_instruction(stream* code, instruction_type type, long value){
     instruction instr={type, value};
     stream_push(code, &instr, sizeof(instruction));
 }
@@ -112,17 +125,17 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             switch(l->ltype){
                 case _int:
                 {
-                    float to_float=(float)l->ival;
-                    int constant_position=stream_push(constants, &to_float, sizeof(float));
-                    instruction load={b_load_number, constant_position};
-                    stream_push(code, &load, sizeof(instruction));
+                    float casted=(float)l->ival;// all numbers in duck are floats, so int must be converted to float
+                    long argument;
+                    memcpy (&argument, &casted, sizeof argument);
+                    push_instruction(code, b_load_number, argument);
                     break;
                 }
                 case _float:
                 {
-                    int constant_position=stream_push(constants, &l->fval, sizeof(float));
-                    instruction load={b_load_number, constant_position};
-                    stream_push(code, &load, sizeof(instruction));                
+                    long argument;
+                    memcpy (&argument, &l->fval, sizeof argument);
+                    push_instruction(code, b_load_number, argument);
                     break;
                 }
                 case _string:
@@ -260,7 +273,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
         }
         default:
         {
-            printf("uncatched expression type: %i\n", exp->type);
+            ERROR(WRONG_ARGUMENT_TYPE, "Uncatched expression instruction type: %i\n", exp->type);
         }
     }
 }
@@ -324,7 +337,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             case b_load_number:
             {
                 number* n=new_number();
-                n->value=*((float*)((char*)constants)+instr.argument/sizeof(char*));
+                memcpy (&n->value, &instr.argument, sizeof n->value);
                 push(&stack, n);
                 break;
             }
@@ -425,7 +438,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             case b_label:
                 break;
             default:
-                printf("uncatched bytecode instruction type: %i\n", instr.type);
+                ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i\n", instr.type);
         }
         pointer++;
     }

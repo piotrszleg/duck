@@ -38,5 +38,4 @@ extern char err_message[1024];
         ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
     }
 
-
 #endif

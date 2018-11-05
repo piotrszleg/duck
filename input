@@ -1,3 +1,1 @@
-print("test123")
-print("test123")
-print("test123")
+print(0.5)

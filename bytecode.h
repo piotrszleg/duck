@@ -43,7 +43,7 @@ enum instruction_type {
 typedef struct instruction instruction;
 struct instruction {
     instruction_type type;
-    int argument;
+    long argument;// long type ensures that 4bit float will fit
 };
 
 typedef struct bytecode_program bytecode_program;
