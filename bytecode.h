@@ -54,6 +54,6 @@ struct bytecode_program {
 
 bytecode_program ast_to_bytecode(expression* exp, int keep_scope);
 object* execute_bytecode(instruction* code, void* constants, table* scope);
-char* stringify_bytecode(instruction* code);
+char* stringify_bytecode(bytecode_program);
 
 #endif

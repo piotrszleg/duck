@@ -55,26 +55,52 @@ bytecode_program ast_to_bytecode(expression* exp, int keep_scope){
     stream code;
     init_stream(&constants, CONSTANTS_SIZE);
     init_stream(&code, CODE_SIZE);
-    CHECK_ALLOCATION(malloc(8));
+
     ast_to_bytecode_recursive(exp, &code, &constants, keep_scope);
-    CHECK_ALLOCATION(malloc(8));
     instruction instr={b_end, 0};
     stream_push(&code, &instr, sizeof(instruction));
+
     bytecode_program prog;
-    CHECK_ALLOCATION(malloc(8));
     stream_truncate(&code);
-    CHECK_ALLOCATION(malloc(8));
     stream_truncate(&constants);
-    CHECK_ALLOCATION(malloc(8));
     prog.code=code.data;
     prog.constants=constants.data;
     return prog;
 }
 
+void push_instruction(stream* code, instruction_type type, long value){
+    instruction instr={type, value};
+    stream_push(code, &instr, sizeof(instruction));
+}
+
+char* stream_search_string(stream* s, char* str){
+    char* casted=(char*)s->data;
+    int casted_size=s->position/sizeof(char*);
+    for(int i=0; i<casted_size; i++){
+        char* stream_part=casted+i;
+        int correct=1;
+        
+        for(int j=0; str[j]!='\0'; j++){
+            if(i+j>=casted_size||stream_part[j]!=str[j]){
+                correct=0;
+                break;
+            }
+        }
+        if(correct){
+            return stream_part;
+        }
+    }
+    return NULL;
+}
+
 void push_string_load(stream* code, stream* constants, const char* string_constant){
-    int constant_position=stream_push(constants, string_constant, (strlen(string_constant)+1)*sizeof(char*));
-    instruction load={b_load_string, constant_position};
-    stream_push(code, &load, sizeof(instruction));
+    char* search_result=stream_search_string(constants, string_constant);
+    if(search_result){
+        push_instruction(code, b_load_string, (search_result-((char*)constants->data))*sizeof(char*));// use existing
+    } else {
+        int push_position=stream_push(constants, string_constant, (strlen(string_constant)+1)*sizeof(char*));
+        push_instruction(code, b_load_string, push_position);
+    }
 }
 
 void bytecode_path_get(stream* code, stream* constants, path p){
@@ -109,11 +135,6 @@ void bytecode_path_set(stream* code, stream* constants, path p){
         }
     }
 } 
-
-void push_instruction(stream* code, instruction_type type, long value){
-    instruction instr={type, value};
-    stream_push(code, &instr, sizeof(instruction));
-}
 
 void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants, int keep_scope){
     switch(exp->type){
@@ -438,26 +459,52 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             case b_label:
                 break;
             default:
-                ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i\n", instr.type);
+                ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, pointer);
         }
         pointer++;
     }
     return pop(&stack);
 }
 
-void stringify_instruction(char* destination, instruction inst){
-    snprintf(destination, 100, "%s %i\n", INSTRUCTION_NAMES[inst.type], inst.argument);
+void stringify_instruction(bytecode_program prog, char* destination, instruction instr, int buffer_count){
+    switch(instr.type){
+        case b_end:
+        case b_discard:
+        case b_swap:
+        case b_get_scope:
+        case b_set_scope:
+        case b_get:
+        case b_set:
+        case b_call:
+            snprintf(destination, buffer_count, "%s\n", INSTRUCTION_NAMES[instr.type]);
+            break;
+        case b_load_number:
+            snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
+            break;
+        case b_load_string:
+            snprintf(destination, buffer_count, "%s %i \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog.constants)+instr.argument);
+            break;
+        case b_operator:
+            if(instr.argument){
+                strncpy(destination, "prefix\n", buffer_count);
+            }else{
+                strncpy(destination, "operator\n", buffer_count);
+            }
+            break;
+        default:
+            snprintf(destination, buffer_count, "%s %i\n", INSTRUCTION_NAMES[instr.type], instr.argument);
+    }
 }
 
-char* stringify_bytecode(instruction* code){
+char* stringify_bytecode(bytecode_program prog){
     int pointer=0;
     int string_end=0;
     char* result=calloc(100, sizeof(char));
     CHECK_ALLOCATION(result);
-    while(code[pointer].type!=b_end){
+    while(prog.code[pointer].type!=b_end){
         char stringified_instruction[50];
-        stringify_instruction(&stringified_instruction, code[pointer]);
-        strcat(result, stringified_instruction);
+        stringify_instruction(prog, &stringified_instruction, prog.code[pointer], 50);
+        strncat(result, stringified_instruction, 100);
         string_end+=strlen(stringified_instruction);
         pointer++;
     }
