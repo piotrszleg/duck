@@ -1,7 +1,7 @@
 #include "bytecode.h"
 
-#define CODE_SIZE 200
-#define CONSTANTS_SIZE 200
+#define CODE_SIZE 50
+#define CONSTANTS_SIZE 50
 
 int labels_count=0;
 
@@ -24,6 +24,9 @@ char* INSTRUCTION_NAMES[]={
     "operator",
 };
 
+// creates string variable str, executes body and frees the string afterwards
+#define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
+
 void init_stream(stream* s, size_t size){
     s->data=malloc(size);
     CHECK_ALLOCATION(s->data);
@@ -32,8 +35,10 @@ void init_stream(stream* s, size_t size){
 }
 
 int stream_push(stream* s, void* data_pointer, size_t size){
-    if(size>s->size-s->position){
-        ERROR(BUFFER_TOO_SMALL, "stream_push: stream size is too small");
+    while(size>s->size-s->position){
+        s->data=realloc(s->data, s->size*2);
+        CHECK_ALLOCATION(s->data);
+        s->size*=2;
     }
     int push_position=s->position;
     // void pointers can't be incremented normally so they need to be casted
@@ -373,10 +378,12 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 object* key=pop(&stack);
                 if(instr.argument){
                     object* indexed=pop(&stack);
-                    push(&stack, get(indexed, stringify(key)));
-                    object_delete(indexed);
+                    USING_STRING(stringify(key),
+                        push(&stack, get(indexed, str)));
+                    garbage_collector_check(indexed);
                 } else {
-                    push(&stack, get(scope, stringify(key)));
+                    USING_STRING(stringify(key), 
+                        push(&stack, get(scope, str)));
                 }
                 garbage_collector_check(key);
                 break;
@@ -455,6 +462,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                     set((object*)function_scope, argument_name, argument_value);
                 }
                 push(&stack,  call((object*)f, function_scope));
+                garbage_collector_check(function_scope);
             }
             case b_label:
                 break;

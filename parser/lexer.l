@@ -38,7 +38,7 @@ elif                { return ELIF; }
 else                { return ELSE; }
 [0-9]+\.[0-9]+      { yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+              { yylval.ival = atoi(yytext); return INT; }
-\"[a-zA-Z0-9\. ]+\"    { yylval.sval = unquote(yytext); return STRING; }
+\"([^\\\"]|\\.)*\"    { yylval.sval = unquote(yytext); return STRING; }// god bless stack overflow
 [a-zA-Z_][a-zA-Z0-9_]*        { yylval.sval = strdup(yytext); return NAME; }
 ->                  { return ARROW; }
 !=					{ yylval.sval = strdup(yytext); return UNARY_OPERATOR; }

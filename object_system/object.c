@@ -1,6 +1,7 @@
 #include "object.h"
 
 #define GC_LOG 0
+#define ALLOC_LOG 0
 #define STRINGIFY_BUFFER_SIZE 100
 
 const char* OBJECT_TYPE_NAMES[]={
@@ -11,6 +12,8 @@ const char* OBJECT_TYPE_NAMES[]={
     "table"
 };
 
+// creates string variable str, executes body and frees the string afterwards
+#define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
 // all objects should be made and removed using these functions
 
@@ -29,7 +32,8 @@ RUNTIME_OBJECT_NEW(table,
 void garbage_collector_check(object* checked){
     if(checked->ref_count==0){
         if(GC_LOG){
-            printf("%s was garbage collected.\n", stringify(checked));
+            USING_STRING(stringify(checked),    
+                printf("%s was garbage collected.\n", str));
         }
         object_delete(checked);
     }
@@ -144,11 +148,8 @@ object* cast(object* o, object_type type){
     switch(type){
         case t_string:
             {
-                char* buffer=malloc(sizeof(char)*1024);
-                CHECK_ALLOCATION(buffer);
-                strncpy(buffer, stringify(o), 1024);
                 string* result=new_string();
-                result->value=buffer;
+                result->value=stringify(o);
                 return (object*)result;
             }
         case t_number:
@@ -268,16 +269,17 @@ char* stringify(object* o){
     CHECK_OBJECT(o);
     switch(o->type){
         case t_string:
-            return ((string*)o)->value;
+            return strdup(((string*)o)->value);
         case t_number:
             {
                 float n=((number*)o)->value;
                 char* buffer=calloc(STRINGIFY_BUFFER_SIZE, sizeof(char));
                 CHECK_ALLOCATION(buffer);
-                if(ceilf(n)==n){
-                    itoa(n, buffer, 10);// display number as an integer
+                int ceiled=n;
+                if(((float)ceiled)==n){
+                    sprintf(buffer,"%d",ceiled);// stringify number as an integer
                 } else{
-                    gcvt(n, 3, buffer);
+                    sprintf(buffer,"%f",n);// stringify number as an float
                 }
                 char* buffer_truncated=strdup(buffer);
                 free(buffer);
@@ -302,7 +304,8 @@ char* stringify(object* o){
                     strcat(buffer, key);
                     strcat(buffer, "=");
                     if (value!=o){
-                        strcat(buffer, stringify(value));
+                        USING_STRING(stringify(value), 
+                            strcat(buffer, str));
                     } else {
                         strcat(buffer, "self");// cycling reference
                     }
@@ -313,12 +316,12 @@ char* stringify(object* o){
                 return buffer_truncated;
             }
         case t_function:
-            return "<function>";
+            return strdup("<function>");
         case t_null:
-            return "<null>";
+            return strdup("<null>");
         default:
             ERROR(INCORRECT_OBJECT_POINTER, "Object at %#8x has no valid type value", (unsigned int)o);
-            return NULL;
+            return strdup("<INCORRECT_OBJECT_POINTER>");
     }
 }
 

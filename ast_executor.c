@@ -2,13 +2,17 @@
 
 int current_line;
 
+// creates string variable str, executes body and frees the string afterwards
+#define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
+
 object* ast_function_call(object* o, table* scope){
     function* as_function=(function*)o;
     return execute_ast((expression*)as_function->data, scope, 1);
 }
 
 object* native_print(object* o, table* scope){
-    printf("%s\n", stringify(get((object*)scope, "self")));
+    USING_STRING(stringify(get((object*)scope, "self")),
+        printf("%s\n", str));
     return (object*)new_null();
 }
 
@@ -154,7 +158,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                     result=execute_ast(line, new_scope, 0);
                 } else {
                     char buf[16];
-                    itoa(i, buf, 10);
+                    sprintf(buf,"%d",i);
                     set(new_scope, buf, execute_ast(line, new_scope, 0));
                 }
             }

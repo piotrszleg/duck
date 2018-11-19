@@ -16,6 +16,7 @@
         "tuple": "c",
         "type_traits": "c",
         "utility": "c",
-        "xlocnum": "c"
+        "xlocnum": "c",
+        "cmath": "c"
     }
 }

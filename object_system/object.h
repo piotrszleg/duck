@@ -38,6 +38,7 @@ struct object{// object interface, all objects in this file implement it
         t* instance=malloc(sizeof(t)); \
         CHECK_ALLOCATION(instance); \
 		instance->type=t_ ## t; \
+        if(ALLOC_LOG) printf("new " #t "\n");\
         instance->ref_count=0; \
         body \
         return instance; \

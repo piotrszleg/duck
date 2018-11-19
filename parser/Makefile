@@ -1,10 +1,17 @@
-all: parser.a
+archive-path := parser.a
+tests-path := tests.exe
+repl-path := repl.exe
+headers := parser.tab.h ast.h vector.h error.h
+source-files := parser.tab.c lex.yy.c ast.c vector.c error.c
+object-files := parser.tab.o lex.yy.o ast.o vector.o
 
-tests: tests.exe
-	./tests.exe
+all: $(archive-path)
 
-repl: repl.exe
-	./repl.exe
+tests: $(tests-path)
+	./$(tests-path)
+
+repl: $(repl-path)
+	./$(repl-path)
 
 # bison and lex
 parser.tab.c parser.tab.h: parser.y
@@ -14,22 +21,19 @@ lex.yy.c: lexer.l parser.tab.h
 	flex lexer.l
 
 # compile c files into objects
-parser.tab.o lex.yy.o ast.o vector.o: parser.tab.c parser.tab.h lex.yy.c ast.h ast.c vector.h vector.c error.c
-	gcc -g -Wall -c parser.tab.c lex.yy.c ast.c vector.c
+$(object-files): $(source-files) $(headers)
+	gcc -g -Wall -c $(source-files)
 
 # pack object files into archive
-parser.a: parser.tab.o lex.yy.o vector.o ast.o
-	ar cr parser.a parser.tab.o lex.yy.o vector.o ast.o
-	rm parser.tab.o lex.yy.o vector.o ast.o
+$(archive-path): $(object-files)
+	ar cr $(archive-path) $(object-files)
 
 # compile c files into exe
-tests.exe: parser.tab.c parser.tab.h lex.yy.c ast.h ast.c vector.h vector.c tests.c error.c
-	gcc -g -Wall -o tests.exe parser.tab.c lex.yy.c ast.c vector.c tests.c error.c
+$(tests-path): tests.c $(source-files) $(headers)
+	gcc -g -Wall -o $(tests-path) tests.c $(source-files)
 
-repl.exe: parser.tab.c parser.tab.h lex.yy.c ast.h ast.c vector.h vector.c repl.c error.c
-	gcc -g -Wall -o repl.exe parser.tab.c lex.yy.c ast.c vector.c repl.c error.c
+$(repl-path): repl.c $(source-files) $(headers)
+	gcc -g -Wall -o $(repl-path) repl.c $(source-files)
 
 clean:
-	rm parser.a
-	rm test.exe
-	rm parser.tab.o lex.yy.o vector.o ast.o
+	rm $(archive-path) $(tests-path) $(repl-path) $(object-files) parser.tab.c parser.tab.h lex.yy.c

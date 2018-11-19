@@ -1,21 +1,25 @@
-all: object_system.a
+archive-path := object_system.a
+tests-path := tests.exe
+headers := map.h object.h error.h vector.h
+source-files := error.c map.c object.c vector.c
+object-files := error.o map.o object.o vector.o
 
-tests: tests.exe
-	./tests.exe
+all: $(archive-path)
+
+tests: $(tests-path)
+	./$(tests-path)
 
 # compile c files into objects
-map.o object.o tests.o error.o: map.c map.h object.c object.h error.h error.c vector.h vector.c
-	gcc -g -c map.c object.c error.c vector.c
+$(object-files): $(source-files) $(headers)
+	gcc -g -c $(source-files)
 
-# pack object files into archive
-object_system.a: map.o object.o error.o vector.o
-	ar cr object_system.a map.o object.o error.o vector.o
+# pack object files into archive that can be added to main executable
+$(archive-path): $(object-files)
+	ar cr $(archive-path) $(object-files)
 
-# compile c files into exe
-tests.exe: map.c map.h object.c object.h tests.c error.h error.c vector.h vector.c
-	gcc -g -Wall -o tests.exe map.c object.c error.c tests.c vector.c
+# compile c files into exe with testing functions
+$(tests-path): tests.c $(source-files) $(headers)
+	gcc -g -Wall -o $(tests-path) tests.c $(source-files)
 
 clean:
-	rm object_system.a
-	rm error.o map.o object.o tests.o
-	rm test.exe
+	rm $(archive-path) $(tests-path) $(object-files)
