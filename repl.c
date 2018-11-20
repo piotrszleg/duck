@@ -1,12 +1,13 @@
 #include "repl.h"
+#include "builtins.h"
 
-void repl(){
+void repl(int use_bytecode){
     printf("Read eval print loop of the duck parser. \n---\nType in duck syntax to see it's AST representation. \nWrite \"quit\" to exit the program.\n");
     char input[128];
 
     table* global_scope=new_table();
     global_scope->ref_count++;
-    register_globals(global_scope);
+    register_builtins(global_scope);
 
     vector asts;
     vector_init(&asts);

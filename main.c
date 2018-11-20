@@ -1,24 +1,24 @@
+#include <string.h>
 #include "parser/parser.h"
 #include "ast_executor.h"
 #include "ast_executor.h"
 #include "repl.h"
 #include "bytecode.h"
-
-#define USE_BYTECODE 1
+#include "builtins.h"
 
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
-void execute_file(const char* file_name){
+void execute_file(const char* file_name, int use_bytecode){
     parse_file(file_name);
     table* global_scope=new_table();
     global_scope->ref_count++;
-    register_globals(global_scope);
+    register_builtins(global_scope);
     //USING_STRING(stringify_expression(parsing_result, 0),
     //    printf(str));
     printf("\nExecuting parsing result:\n");
     object* execution_result;
-    if(USE_BYTECODE){
+    if(use_bytecode){
         bytecode_program prog=ast_to_bytecode(parsing_result, 1);
         delete_expression(parsing_result);// at this point ast is useless and only wastes memory
 
@@ -42,17 +42,30 @@ void execute_file(const char* file_name){
 }
 
 int main(int argc, char *argv[]){
-    if(argc>2){
+    if(argc>3){
         printf("Too many arguments.");
-    } else if(argc<2){
-        repl();
     } else {
         TRY_CATCH(
-            execute_file(argv[1]);
+            int use_bytecode=strcmp(argv[argc-1], "-execute_ast")!=0;
+            if(!use_bytecode){
+                if(argc==3){
+                    execute_file(argv[1], use_bytecode);
+                } else {
+                    repl(use_bytecode);
+                }
+            } else {
+                if(argc>2){
+                    printf("Flags should be placed after the filename.");
+                } else if(argc==2){
+                    execute_file(argv[1], use_bytecode);
+                } else {
+                    repl(use_bytecode);
+                }
+            }
         ,
             printf("Error occured on line %i of parsed code:\n", current_line);
             printf(err_message);
             exit(-1);
-        )
+        );
     }
 }

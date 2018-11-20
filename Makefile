@@ -1,6 +1,6 @@
 submodules := object_system/object_system.a parser/parser.a
-headers := ast_executor.h
-source-files := bytecode.c ast_executor.c
+headers := builtins.h bytecode.h ast_executor.h
+source-files := builtins.c bytecode.c ast_executor.c
 executable-path := duck.exe
 tests-path := tests.exe
 

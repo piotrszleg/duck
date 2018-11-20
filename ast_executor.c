@@ -10,12 +10,6 @@ object* ast_function_call(object* o, table* scope){
     return execute_ast((expression*)as_function->data, scope, 1);
 }
 
-object* native_print(object* o, table* scope){
-    USING_STRING(stringify(get((object*)scope, "self")),
-        printf("%s\n", str));
-    return (object*)new_null();
-}
-
 object* scope_get_override(object* o, table* scope){
     object* self=get((object*)scope, "self");
     if(self->type!=t_table){
@@ -40,14 +34,6 @@ object* scope_get_override(object* o, table* scope){
     }
 }
 
-void register_globals(table* scope){
-    function* print_function=new_function();
-    vector_add(&print_function->argument_names, "self");
-    print_function->pointer=&native_print;
-
-    set((object*)scope, "print", (object*)print_function);
-}
-
 void copy_table(table* source, table* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
@@ -65,7 +51,8 @@ object* path_get(table* scope, path p){
         if(e->type==_name){
             evaluated_to_string=((name*)e)->value;
         } else {
-            evaluated_to_string=stringify(execute_ast(e, scope, 0));
+            USING_STRING(stringify(execute_ast(e, scope, 0)), 
+                evaluated_to_string=str);
         }
         object* object_at_name=get((object*)current, evaluated_to_string);
         if(i==lines_count-1){
@@ -73,7 +60,8 @@ object* path_get(table* scope, path p){
         } else if(object_at_name->type==t_table) {
             current=(table*)object_at_name;
         } else {
-            ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
+            USING_STRING(stringify(object_at_name), 
+                ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", str));
             return new_null();
         }
     }
@@ -89,7 +77,8 @@ void path_set(table* scope, path p, object* value){
         if(e->type==_name){
             evaluated_to_string=((name*)e)->value;
         } else {
-            evaluated_to_string=stringify(execute_ast(e, scope, 0));
+            USING_STRING(stringify(execute_ast(e, scope, 0)), 
+                evaluated_to_string=str);
         }
         if(i==lines_count-1){
             set((object*)current, evaluated_to_string, value);
@@ -98,7 +87,8 @@ void path_set(table* scope, path p, object* value){
             if(object_at_name->type==t_table) {
                 current=(table*)object_at_name;
             } else {
-                ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", stringify(object_at_name));
+                USING_STRING(stringify(object_at_name), 
+                    ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", str));
             }
         }
     }
@@ -142,7 +132,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                     break;
                 case _string:
                     result=(object*)new_string();
-                    ((string*)result)->value=l->sval;
+                    ((string*)result)->value=strdup(l->sval);
                     break;
             }
             break;
