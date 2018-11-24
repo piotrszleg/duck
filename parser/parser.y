@@ -235,7 +235,7 @@ literal:
 	| STRING { 
 		literal* l=new_literal();
 		l->line=line_num;
-		l->sval=strdup($1);
+		l->sval=$1;
 		l->ltype=_string;
 		$$=(expression*)l;
 	}
@@ -244,7 +244,7 @@ name:
 	NAME {
 		name* n=new_name();
 		n->line=line_num;
-		n->value=strdup($1);
+		n->value=$1;
 		$$=(expression*)n;
 	  } ;
 assignment:
@@ -256,7 +256,7 @@ assignment:
 		unary* u=new_unary();
 		u->line=line_num;
 		u->left=$1;
-		u->op=strdup($2);
+		u->op=$2;
 		u->right=$3;
 		a->right=(expression*)u;
 		$$=(expression*)a;
@@ -293,7 +293,7 @@ unary:
 		unary* u=new_unary();
 		u->line=line_num;
 		u->left=$1;
-		u->op=strdup($2);
+		u->op=$2;
 		u->right=$3;
 		$$=(expression*)u;
 	}

@@ -495,22 +495,22 @@ char *yytext;
 int line_num = 1;
 
 // removes first and last character from source
-char* unquote(char* source){
-	int length=strlen(source)-2;
+char* unquote(const char* source){
+	int length=strlen(source)-1;
 	char* result=malloc(length);
 	CHECK_ALLOCATION(result);
 	strncpy(result, source+1, length);
-	result[length]='\0';
+	result[length-1]='\0';
 	return result;
 }
 
 // removes last character from source
-char* remove_last_character(char* source){
-	int length=strlen(source)-1;
+char* remove_last_character(const char* source){
+	int length=strlen(source);
 	char* result=malloc(length);
 	CHECK_ALLOCATION(result);
 	strncpy(result, source, length);
-	result[length]='\0';
+	result[length-1]='\0';
 	return result;
 }
 
@@ -833,7 +833,7 @@ case 9:
 /* rule 9 can match eol */
 YY_RULE_SETUP
 #line 41 "lexer.l"
-{ yylval.sval = unquote(yytext); return STRING; }
+{ yylval.sval = unquote(yytext); return STRING; }// god bless stack overflow
 	YY_BREAK
 case 10:
 YY_RULE_SETUP

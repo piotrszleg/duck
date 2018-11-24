@@ -1705,7 +1705,7 @@ yyreduce:
     { 
 		literal* l=new_literal();
 		l->line=line_num;
-		l->sval=strdup((yyvsp[(1) - (1)].sval));
+		l->sval=(yyvsp[(1) - (1)].sval);
 		l->ltype=_string;
 		(yyval.exp)=(expression*)l;
 	;}
@@ -1718,7 +1718,7 @@ yyreduce:
     {
 		name* n=new_name();
 		n->line=line_num;
-		n->value=strdup((yyvsp[(1) - (1)].sval));
+		n->value=(yyvsp[(1) - (1)].sval);
 		(yyval.exp)=(expression*)n;
 	  ;}
     break;
@@ -1734,7 +1734,7 @@ yyreduce:
 		unary* u=new_unary();
 		u->line=line_num;
 		u->left=(yyvsp[(1) - (3)].exp);
-		u->op=strdup((yyvsp[(2) - (3)].sval));
+		u->op=(yyvsp[(2) - (3)].sval);
 		u->right=(yyvsp[(3) - (3)].exp);
 		a->right=(expression*)u;
 		(yyval.exp)=(expression*)a;
@@ -1789,7 +1789,7 @@ yyreduce:
 		unary* u=new_unary();
 		u->line=line_num;
 		u->left=(yyvsp[(1) - (3)].exp);
-		u->op=strdup((yyvsp[(2) - (3)].sval));
+		u->op=(yyvsp[(2) - (3)].sval);
 		u->right=(yyvsp[(3) - (3)].exp);
 		(yyval.exp)=(expression*)u;
 	;}

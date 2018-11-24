@@ -13,6 +13,8 @@ tests: $(tests-path)
 repl: $(repl-path)
 	./$(repl-path)
 
+bison: lex.yy.c parser.tab.c parser.tab.h
+
 # bison and lex
 parser.tab.c parser.tab.h: parser.y
 	bison -d parser.y

@@ -47,16 +47,24 @@ void object_delete(object* o){
         case t_string:
         {
             string* as_string=(string*)o;
-            free(as_string);
             free(as_string->value);
+            free(as_string);
             break;
         }
         case t_number:
             free((number*)o);
             break;
         case t_function:
-            free((table*)o);
+        {
+            function* as_function=(function*)o;
+            int arguments_count=vector_total(&as_function->argument_names);
+            for (int i = 0; i < arguments_count; i++){
+                free((char*)vector_get(&as_function->argument_names, i));
+            }
+            vector_free(&as_function->argument_names);
+            free(as_function);
             break;
+        }
         case t_table: 
         {
             table* as_table=(table*)o;

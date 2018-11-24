@@ -102,6 +102,7 @@ void setup_scope(object* scope, object* base){
         set(scope, "global", base_global);
     } else {
         set(scope, "global", base);
+        object_delete(base_global);// base_global is null so it can be safely deleted
     }
     set(scope, "scope", scope);
     set(scope, "get", f);
@@ -144,13 +145,13 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
             new_scope->ref_count++;
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=(expression*)vector_get(&b->lines, i);
-                if(line->type==_assignment){
-                    result=execute_ast(line, new_scope, 0);
-                } else {
+                object* line_result=execute_ast(line, new_scope, 0);
+                if(line->type!=_assignment){
                     char buf[16];
                     sprintf(buf,"%d",i);
-                    set(new_scope, buf, execute_ast(line, new_scope, 0));
+                    set(new_scope, buf, line_result);
                 }
+                garbage_collector_check(line_result);
             }
             result=(object*)new_scope;
             break;
@@ -163,15 +164,19 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                 block_scope=scope;
             } else {
                 block_scope=new_table();
-                block_scope->ref_count++;
                 setup_scope((object*)block_scope, (object*)scope);
             }
             for (int i = 0; i < vector_total(&b->lines); i++){
-                result=execute_ast(vector_get(&b->lines, i), block_scope, 0);
+                object* line_result=execute_ast(vector_get(&b->lines, i), block_scope, 0);
+                if(i == vector_total(&b->lines)-1){
+                    result=line_result;// last line is the result of evaluation of the entire block
+                    result->ref_count++;
+                } else {
+                    garbage_collector_check(line_result);
+                }
             }
-            result->ref_count++;
             if(!keep_scope){
-                object_delete((object*)block_scope);
+                garbage_collector_check((object*)block_scope);
             }
             break;
         }
@@ -190,15 +195,21 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         case _unary:
         {
             unary* u=(unary*)exp;
-            result=operator(execute_ast(u->left, scope, 0), execute_ast(u->right, scope, 0), u->op);
+            object* left=execute_ast(u->left, scope, 0);
+            object* right=execute_ast(u->right, scope, 0);
+            result=operator(left, right, u->op);
+            garbage_collector_check(left);
+            garbage_collector_check(right);
             break;
         }
         case _prefix:
         {
             prefix* p=(prefix*)exp;
-            object* null_object=new_null();
-            result=operator(execute_ast(p->right, scope, 0), null_object, p->op);
-            object_delete(null_object);
+            object* left=execute_ast(p->right, scope, 0);
+            object* right=new_null();
+            result=operator(left, right, p->op);
+            garbage_collector_check(left);
+            garbage_collector_check(right);
             break;
         }
         case _conditional:
@@ -246,6 +257,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                 set((object*)function_scope, argument_name, argument_value);
             }
             result=(object*)call((object*)f, function_scope);
+            garbage_collector_check(function_scope);
             break;
         }
         case _path:

@@ -31,7 +31,7 @@ void string_replace(char *s, char from, char to) {
 char* stringify_expression(expression* exp, int indentation){
 
     if(exp==NULL){
-        return "NULL";
+        return strdup("NULL");
     }
 
     char* result=calloc(STRINGIFY_BUFFER_SIZE+1, sizeof(char));

@@ -12,7 +12,7 @@ char* INSTRUCTION_NAMES[]={
     "load_string",
     "load_number",
     "table_literal",
-    "function_literal",
+    "function_declaration",
     "get_scope",
     "set_scope",
     "label",
@@ -84,9 +84,13 @@ char* stream_search_string(stream* s, char* str){
     for(int i=0; i<casted_size; i++){
         char* stream_part=casted+i;
         int correct=1;
+
+        
         
         for(int j=0; str[j]!='\0'; j++){
             if(i+j>=casted_size||stream_part[j]!=str[j]){
+                printf("\n\"%s\"=/=", str);
+                printf("\"%s\"\n", stream_part);
                 correct=0;
                 break;
             }
@@ -103,7 +107,7 @@ void push_string_load(stream* code, stream* constants, const char* string_consta
     if(search_result){
         push_instruction(code, b_load_string, (search_result-((char*)constants->data))*sizeof(char*));// use existing
     } else {
-        int push_position=stream_push(constants, string_constant, (strlen(string_constant)+1)*sizeof(char*));
+        int push_position=stream_push(constants, string_constant, (strlen(string_constant)+1));
         push_instruction(code, b_load_string, push_position);
     }
 }
@@ -275,7 +279,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
 
             instruction function_end={b_label, jmp.argument};
             stream_push(code, &function_end, sizeof(instruction));
-            instruction function_declaration={b_function_literal, function_beginning.argument};
+            instruction function_declaration={b_function_declaration, function_beginning.argument};
             stream_push(code, &function_declaration, sizeof(instruction));
             break;
         }
@@ -442,6 +446,14 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 }
                 break;
             }
+            case b_function_declaration:
+            {
+                function* f=new_function();
+                f->enclosing_scope=scope;
+                scope->ref_count++;// remember to check the enclosing scope in destructor
+                // f.native=false;
+                // f.data=(void*)f.argument;
+            }
             case b_call:
             {
                 table* function_scope=new_table();
@@ -507,12 +519,20 @@ void stringify_instruction(bytecode_program prog, char* destination, instruction
 char* stringify_bytecode(bytecode_program prog){
     int pointer=0;
     int string_end=0;
-    char* result=calloc(100, sizeof(char));
+    int result_size=64;
+    char* result=calloc(64, sizeof(char));
+    
     CHECK_ALLOCATION(result);
     while(prog.code[pointer].type!=b_end){
-        char stringified_instruction[50];
-        stringify_instruction(prog, &stringified_instruction, prog.code[pointer], 50);
-        strncat(result, stringified_instruction, 100);
+        char stringified_instruction[64];
+        stringify_instruction(prog, &stringified_instruction, prog.code[pointer], 64);
+        int stringified_length=strlen(stringified_instruction);
+
+        if(result_size-string_end<=stringified_length){
+            result_size*=2;
+            result=realloc(result, result_size);
+        }
+        strncat(result, stringified_instruction, result_size);
         string_end+=strlen(stringified_instruction);
         pointer++;
     }
