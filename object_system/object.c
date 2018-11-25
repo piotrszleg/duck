@@ -30,13 +30,13 @@ RUNTIME_OBJECT_NEW(table,
 )
 
 // check if object is referenced by anything if not delete it
-void garbage_collector_check(object* checked){
-    if(checked->ref_count==0){
+void delete_unreferenced(object* o){
+    if(o->ref_count==0){
         if(GC_LOG){
-            USING_STRING(stringify(checked),    
+            USING_STRING(stringify(o),    
                 printf("%s was garbage collected.\n", str));
         }
-        object_delete(checked);
+        object_delete(o);
     }
 }
 
@@ -74,7 +74,7 @@ void object_delete(object* o){
             while (key = map_next(&as_table->fields, &iter)) {
                 object* value=(*map_get(&as_table->fields, key));
                 value->ref_count--;// dereference contained object, so it can be garbage collected
-                garbage_collector_check(value);
+                delete_unreferenced(value);
             }
             map_deinit(&as_table->fields);
             free(as_table);
@@ -362,7 +362,7 @@ object* get(object* o, char* key){
                 set((object*)arguments, "key", (object*)key_string);
                 // call function with arguments
                 object* result = call(*map_get_override, arguments);
-                garbage_collector_check((object*)arguments);
+                delete_unreferenced((object*)arguments);
                 return result;
             }
 
@@ -387,7 +387,7 @@ void set(object* o, char*key, object* value){
             object** value_at_key = map_get(&((struct table*)o)->fields, key);
             if(value_at_key!=NULL){
                 (*value_at_key)->ref_count--;// table no longer holds a reference to this object
-                garbage_collector_check(*value_at_key);
+                delete_unreferenced(*value_at_key);
                 if(value->type==t_null){
                     map_remove(&((struct table*)o)->fields, key);// setting key to null removes it
                     return;

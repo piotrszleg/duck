@@ -343,7 +343,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
         switch(instr.type){
             case b_discard:
                 // remove item from the stack and delete it if it's not referenced
-                garbage_collector_check(pop(&object_stack));
+                delete_unreferenced(pop(&object_stack));
                 break;
             case b_swap:
             {
@@ -380,12 +380,12 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                     object* indexed=pop(&object_stack);
                     USING_STRING(stringify(key),
                         push(&object_stack, get(indexed, str)));
-                    garbage_collector_check(indexed);
+                    delete_unreferenced(indexed);
                 } else {
                     USING_STRING(stringify(key), 
                         push(&object_stack, get(scope, str)));
                 }
-                garbage_collector_check(key);
+                delete_unreferenced(key);
                 break;
             }
             case b_set:
@@ -395,11 +395,11 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 if(instr.argument){
                     object* indexed=pop(&object_stack);
                     set(indexed, stringify(key), value);
-                    garbage_collector_check(indexed);
+                    delete_unreferenced(indexed);
                 } else {
                     set(scope, stringify(key), value);
                 }
-                garbage_collector_check(key);
+                delete_unreferenced(key);
                 push(&object_stack, value);
                 break;
             }
@@ -410,7 +410,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             }
             case b_set_scope:
             {
-                garbage_collector_check(scope);
+                delete_unreferenced(scope);
                 scope=pop(&object_stack);
                 break;
             }
@@ -420,9 +420,9 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 object* a=pop(&object_stack);
                 object* b=pop(&object_stack); 
                 push(&object_stack, operator(a, b, stringify(op)));
-                garbage_collector_check(op);
-                garbage_collector_check(a);
-                garbage_collector_check(b);
+                delete_unreferenced(op);
+                delete_unreferenced(a);
+                delete_unreferenced(b);
                 break;
             }
             case b_prefix:
@@ -431,20 +431,20 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 object* a=pop(&object_stack);
                 object* b=new_null();// replace second argument with null
                 push(&object_stack, operator(a, b, stringify(op)));
-                garbage_collector_check(op);
-                garbage_collector_check(a);
+                delete_unreferenced(op);
+                delete_unreferenced(a);
                 // operator might store or return the second argument so it can't be simply removed
-                garbage_collector_check(b);
+                delete_unreferenced(b);
                 break;
             }
             case b_jump_not:
             {
                 object* condition=pop(&object_stack);
                 if(!is_falsy(condition)){
-                    garbage_collector_check(condition);
+                    delete_unreferenced(condition);
                     break;// go to the next line
                 }
-                garbage_collector_check(condition);
+                delete_unreferenced(condition);
                 // else go to case label underneath
             }
             case b_jump:
@@ -471,7 +471,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 for (int i = 0; i < arguments_count; i++){
                     object* argument=pop(&object_stack);
                     vector_add(&f->argument_names, stringify(argument));
-                    garbage_collector_check(argument);
+                    delete_unreferenced(argument);
                 }
                 f->is_native=0;
                 f->data=(void*)instr.argument;
@@ -502,7 +502,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                         set((object*)function_scope, argument_name, argument_value);
                     }
                     push(&object_stack,  call((object*)f, function_scope));
-                    garbage_collector_check(function_scope);
+                    delete_unreferenced(function_scope);
                 } else {
                     int destination=search_for_label(code, (int)f->data);
                     if(destination>0){

@@ -151,7 +151,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                     sprintf(buf,"%d",i);
                     set(new_scope, buf, line_result);
                 }
-                garbage_collector_check(line_result);
+                delete_unreferenced(line_result);
             }
             result=(object*)new_scope;
             break;
@@ -172,11 +172,11 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                     result=line_result;// last line is the result of evaluation of the entire block
                     result->ref_count++;
                 } else {
-                    garbage_collector_check(line_result);
+                    delete_unreferenced(line_result);
                 }
             }
             if(!keep_scope){
-                garbage_collector_check((object*)block_scope);
+                delete_unreferenced((object*)block_scope);
             }
             break;
         }
@@ -198,8 +198,8 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
             object* left=execute_ast(u->left, scope, 0);
             object* right=execute_ast(u->right, scope, 0);
             result=operator(left, right, u->op);
-            garbage_collector_check(left);
-            garbage_collector_check(right);
+            delete_unreferenced(left);
+            delete_unreferenced(right);
             break;
         }
         case _prefix:
@@ -208,8 +208,8 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
             object* left=execute_ast(p->right, scope, 0);
             object* right=new_null();
             result=operator(left, right, p->op);
-            garbage_collector_check(left);
-            garbage_collector_check(right);
+            delete_unreferenced(left);
+            delete_unreferenced(right);
             break;
         }
         case _conditional:
@@ -257,7 +257,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                 set((object*)function_scope, argument_name, argument_value);
             }
             result=(object*)call((object*)f, function_scope);
-            garbage_collector_check(function_scope);
+            delete_unreferenced(function_scope);
             break;
         }
         case _path:

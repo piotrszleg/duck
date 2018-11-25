@@ -74,7 +74,7 @@ RUNTIME_OBJECT(function,
 
 char* stringify(object* o);
 
-void garbage_collector_check(object* checked);
+void delete_unreferenced(object* checked);
 
 void object_delete(object* o);
 
