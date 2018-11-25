@@ -1,8 +1,5 @@
-print("tests")# comments are working
-print("tests")# comments are working
-# also at line begining
-n=1
-assert(n==1)
-assert(1+1==2)
-# assert((2*2)==4)
-# assert(("John"+" "+"Smith")=="John Smith")
+a=1
+print(a)
+print(a)
+print(a)
+a

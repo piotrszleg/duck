@@ -1,19 +1,8 @@
 ## TODO:
-- stringify functions cause memory leaks
+- recursive functions in bytecode
 - preserve enviroment of function declaration
-- pass arguments array
-- bytecode
 - more comments
 - replace table with vector in function call
-- parser.y 260 arguments seems to be undefined
-
-## Bytecode for table
-- create new table
-- push current scope
-- replace current scope with this table
-- evaluate subexpressions
-- if expression isn't assignment add set to index after it
-- set scope back
 
 ## POINTERS:
 **&** - returns pointer to it's operand

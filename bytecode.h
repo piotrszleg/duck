@@ -4,21 +4,8 @@
 #include "parser/ast.h"
 #include "object_system/object.h"
 #include "object_system/error.h"
-
-typedef struct stream stream;
-struct stream {
-    void* data;
-    size_t position;// position inside of data in bytes
-    size_t size;// size of the stream in bytes
-};
-
-#define STACK_SIZE 10
-
-typedef struct vm_stack vm_stack;
-struct vm_stack {
-    object* items[STACK_SIZE];
-    int pointer;
-};
+#include "datatypes/stream.h"
+#include "datatypes/stack.h"
 
 typedef enum instruction_type instruction_type;
 enum instruction_type {
@@ -26,18 +13,20 @@ enum instruction_type {
     b_discard,
     b_swap,
     b_load_string,// position_in_constants
-    b_load_number,// position_in_constants
+    b_load_number,
     b_table_literal,
-    b_function_literal,// beginning_label
+    b_function,// beginning_label
+    b_return,
     b_get_scope,
     b_set_scope,
     b_label,
     b_jump,// position
     b_jump_not,// position
-    b_get,
-    b_set,
+    b_get,// (key and table on the stack)
+    b_set,// (value, key and table on the stack)
     b_call,// (arguments and function on the stack)
-    b_operator,// is_prefix
+    b_unary,// (two arguments and operator on the stack)
+    b_prefix,// (one argument and operator on the stack)
 };
 
 typedef struct instruction instruction;

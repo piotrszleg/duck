@@ -12,7 +12,8 @@ char* INSTRUCTION_NAMES[]={
     "load_string",
     "load_number",
     "table_literal",
-    "function_declaration",
+    "function",
+    "return",
     "get_scope",
     "set_scope",
     "label",
@@ -21,39 +22,12 @@ char* INSTRUCTION_NAMES[]={
     "get",
     "set",
     "call",
-    "operator",
+    "unary",
+    "prefix"
 };
 
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
-
-void init_stream(stream* s, size_t size){
-    s->data=malloc(size);
-    CHECK_ALLOCATION(s->data);
-    s->position=0;
-    s->size=size;
-}
-
-int stream_push(stream* s, void* data_pointer, size_t size){
-    while(size>s->size-s->position){
-        s->data=realloc(s->data, s->size*2);
-        CHECK_ALLOCATION(s->data);
-        s->size*=2;
-    }
-    int push_position=s->position;
-    // void pointers can't be incremented normally so they need to be casted
-    char* destination=(char*)s->data;
-    destination+=push_position;
-
-    memcpy(destination, data_pointer, size);
-    s->position+=size;
-    return push_position;
-}
-
-void stream_truncate(stream* s){
-    s->data=realloc(s->data, s->position);
-    CHECK_ALLOCATION(s->data);
-}
 
 bytecode_program ast_to_bytecode(expression* exp, int keep_scope){
     stream constants;
@@ -80,22 +54,13 @@ void push_instruction(stream* code, instruction_type type, long value){
 
 char* stream_search_string(stream* s, char* str){
     char* casted=(char*)s->data;
-    int casted_size=s->position/sizeof(char*);
+    int casted_size=s->size/sizeof(char*);
     for(int i=0; i<casted_size; i++){
         char* stream_part=casted+i;
         int correct=1;
 
-        
-        
-        for(int j=0; str[j]!='\0'; j++){
-            if(i+j>=casted_size||stream_part[j]!=str[j]){
-                printf("\n\"%s\"=/=", str);
-                printf("\"%s\"\n", stream_part);
-                correct=0;
-                break;
-            }
-        }
-        if(correct){
+        if(strcmp(stream_part, str)==0){
+            printf("%s==%s\n", stream_part, str);
             return stream_part;
         }
     }
@@ -105,11 +70,19 @@ char* stream_search_string(stream* s, char* str){
 void push_string_load(stream* code, stream* constants, const char* string_constant){
     char* search_result=stream_search_string(constants, string_constant);
     if(search_result){
-        push_instruction(code, b_load_string, (search_result-((char*)constants->data))*sizeof(char*));// use existing
+        int relative_position=(search_result-((char*)constants->data));
+        push_instruction(code, b_load_string, relative_position/sizeof(char));// use existing
     } else {
         int push_position=stream_push(constants, string_constant, (strlen(string_constant)+1));
         push_instruction(code, b_load_string, push_position);
     }
+}
+
+void push_int_load(stream* code, stream* constants, int int_constant){
+    float casted=(float)int_constant;// all numbers in duck are floats, so int must be converted to float
+    long argument;
+    memcpy (&argument, &casted, sizeof argument);
+    push_instruction(code, b_load_number, argument);
 }
 
 void bytecode_path_get(stream* code, stream* constants, path p){
@@ -143,7 +116,7 @@ void bytecode_path_set(stream* code, stream* constants, path p){
             stream_push(code, &get, sizeof(instruction));
         }
     }
-} 
+}
 
 void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants, int keep_scope){
     switch(exp->type){
@@ -155,10 +128,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             switch(l->ltype){
                 case _int:
                 {
-                    float casted=(float)l->ival;// all numbers in duck are floats, so int must be converted to float
-                    long argument;
-                    memcpy (&argument, &casted, sizeof argument);
-                    push_instruction(code, b_load_number, argument);
+                    push_int_load(code, constants, l->ival);
                     break;
                 }
                 case _float:
@@ -231,8 +201,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             
 
             push_string_load(code, constants, u->op);
-            instruction unary={b_operator, 0};
-            stream_push(code, &unary, sizeof(instruction));
+            push_instruction(code, b_unary, 0);
             break;
         }
         case _prefix:
@@ -241,8 +210,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             ast_to_bytecode_recursive(p->right, code, constants, keep_scope);
 
             push_string_load(code, constants, p->op);
-            instruction unary={b_operator, 1};
-            stream_push(code, &unary, sizeof(instruction));
+            push_instruction(code, b_prefix, 0);
             break;
         }
         case _conditional:
@@ -270,22 +238,27 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
         {
             function_declaration* d=(function_declaration*)exp;
 
-            instruction jmp={b_jump, labels_count++};
-            stream_push(code, &jmp, sizeof(instruction));
-            instruction function_beginning={b_label, labels_count++};
-            stream_push(code, &function_beginning, sizeof(instruction));
+            int function_end=labels_count++;
+            int function_beginning=labels_count++;
+
+            push_instruction(code, b_jump, function_end);// jump over the function
+            push_instruction(code, b_label, function_beginning);// this is where function object will point
 
             ast_to_bytecode_recursive(d->body, code, constants, keep_scope);
 
-            instruction function_end={b_label, jmp.argument};
-            stream_push(code, &function_end, sizeof(instruction));
-            instruction function_declaration={b_function_declaration, function_beginning.argument};
-            stream_push(code, &function_declaration, sizeof(instruction));
+            push_instruction(code, b_return, 0);
+            push_instruction(code, b_label, function_end);
+
+            int arguments_count=vector_total(d->arguments);
+            for (int i = 0; i < arguments_count; i++){
+                push_string_load(code, constants, ((name*)vector_get(d->arguments, i))->value);
+            }
+            push_int_load(code, constants, arguments_count);
+            push_instruction(code, b_function, function_beginning);
             break;
         }
         case _function_call:
         {
-            // TODO: subscoping
             function_call* c=(function_call*)exp;
             int lines_count=vector_total(&c->arguments->lines);
             for (int i = 0; i < lines_count; i++){
@@ -308,24 +281,6 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
     }
 }
 
-void* move_pointer(const void* pointer, int number_of_bytes){
-    char* casted_pointer=(char*)pointer;
-    casted_pointer+=number_of_bytes/sizeof(char*);
-    return (void*)casted_pointer;
-}
-
-void push(vm_stack* stack, object* o){
-    o->ref_count++;
-    stack->items[stack->pointer]=o;
-    stack->pointer++;
-}
-
-object* pop(vm_stack* stack){
-    stack->pointer--;
-    stack->items[stack->pointer]->ref_count--;
-    return stack->items[stack->pointer];
-}
-
 int search_for_label(const instruction* code, int label_index){
     int pointer=0;
     while(code[pointer].type!=b_end){
@@ -337,105 +292,159 @@ int search_for_label(const instruction* code, int label_index){
     return -1;
 }
 
-object* execute_bytecode(instruction* code, void* constants, table* scope){
+void push(stack* stack, object* o){
+    o->ref_count++;
+    stack_push(stack, (void*)(&o));
+}
+
+object* pop(stack* stack){
+    void* pop_result=stack_pop(stack);
+    object* o=*((object**)pop_result);
+    o->ref_count--;
+    return o;
+}
+
+char* stringify_object_stack(const stack* s){
     int pointer=0;
-    vm_stack stack;
-    stack.pointer=0;
-    push(&stack, new_null());
+    int string_end=0;
+    int result_size=64;
+    char* result=calloc(64, sizeof(char));
+    CHECK_ALLOCATION(result);
+    
+    object** casted_items=(object**)s->items;
+    while(pointer<s->top){
+        char* stringified_item=stringify(*(casted_items+pointer));
+        int stringified_length=strlen(stringified_item);
+        if(result_size-string_end+2<=stringified_length){// +2 for separator
+            result_size*=2;
+            result=realloc(result, result_size);
+        }
+        strncat(result, stringified_item, result_size);
+        strncat(result, ", ", result_size);
+        string_end+=stringified_length+2;
+        pointer++;
+    }
+    result[string_end]='\0';
+    return result; 
+}
+
+object* execute_bytecode(instruction* code, void* constants, table* scope){
+    int pointer=0;// points to the current instruction
+
+    stack object_stack;
+    stack_init(&object_stack, sizeof(object*), 10);
+    push(&object_stack, new_null());
+
+    stack return_stack;
+    stack_init(&return_stack, sizeof(int), 10);
+
     while(code[pointer].type!=b_end){
         instruction instr=code[pointer];
         switch(instr.type){
             case b_discard:
                 // remove item from the stack and delete it if it's not referenced
-                garbage_collector_check(pop(&stack));
+                garbage_collector_check(pop(&object_stack));
                 break;
             case b_swap:
             {
-                object* a=pop(&stack);
-                object* b=pop(&stack);
-                push(&stack, a);
-                push(&stack, b);
+                object* a=pop(&object_stack);
+                object* b=pop(&object_stack);
+                push(&object_stack, a);
+                push(&object_stack, b);
                 break;
             }
             case b_load_string:
             {
                 string* s=new_string();
                 s->value=strdup(((char*)constants)+instr.argument);
-                push(&stack, s);
+                push(&object_stack, s);
                 break;
             }
             case b_load_number:
             {
                 number* n=new_number();
                 memcpy (&n->value, &instr.argument, sizeof n->value);
-                push(&stack, n);
+                push(&object_stack, n);
                 break;
             }
             case b_table_literal:
             {
                 table* t=new_table();
-                push(&stack, t);
+                push(&object_stack, t);
                 break;
             }
             case b_get:
             {
-                object* key=pop(&stack);
+                object* key=pop(&object_stack);
                 if(instr.argument){
-                    object* indexed=pop(&stack);
+                    object* indexed=pop(&object_stack);
                     USING_STRING(stringify(key),
-                        push(&stack, get(indexed, str)));
+                        push(&object_stack, get(indexed, str)));
                     garbage_collector_check(indexed);
                 } else {
                     USING_STRING(stringify(key), 
-                        push(&stack, get(scope, str)));
+                        push(&object_stack, get(scope, str)));
                 }
                 garbage_collector_check(key);
                 break;
             }
             case b_set:
             {
-                object* key=pop(&stack);
-                object* value=pop(&stack);
+                object* key=pop(&object_stack);
+                object* value=pop(&object_stack);
                 if(instr.argument){
-                    object* indexed=pop(&stack);
+                    object* indexed=pop(&object_stack);
                     set(indexed, stringify(key), value);
                     garbage_collector_check(indexed);
                 } else {
                     set(scope, stringify(key), value);
                 }
                 garbage_collector_check(key);
-                push(&stack, value);
+                push(&object_stack, value);
                 break;
             }
             case b_get_scope:
             {
-                push(&stack, scope);
+                push(&object_stack, scope);
                 break;
             }
             case b_set_scope:
             {
                 garbage_collector_check(scope);
-                scope=pop(&stack);
+                scope=pop(&object_stack);
                 break;
             }
-            case b_operator:
+            case b_unary:
             {
-                object* op=pop(&stack);
-                object* a=pop(&stack);
-                object* b=pop(&stack); 
-                push(&stack, operator(a, b, stringify(op)));
+                object* op=pop(&object_stack);
+                object* a=pop(&object_stack);
+                object* b=pop(&object_stack); 
+                push(&object_stack, operator(a, b, stringify(op)));
                 garbage_collector_check(op);
                 garbage_collector_check(a);
                 garbage_collector_check(b);
                 break;
             }
+            case b_prefix:
+            {
+                object* op=pop(&object_stack);
+                object* a=pop(&object_stack);
+                object* b=new_null();// replace second argument with null
+                push(&object_stack, operator(a, b, stringify(op)));
+                garbage_collector_check(op);
+                garbage_collector_check(a);
+                // operator might store or return the second argument so it can't be simply removed
+                garbage_collector_check(b);
+                break;
+            }
             case b_jump_not:
             {
-                
-                object* condition=pop(&stack);
+                object* condition=pop(&object_stack);
                 if(!is_falsy(condition)){
+                    garbage_collector_check(condition);
                     break;// go to the next line
                 }
+                garbage_collector_check(condition);
                 // else go to case label underneath
             }
             case b_jump:
@@ -443,21 +452,38 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 int destination=search_for_label(code, instr.argument);
                 if(destination>0){
                     pointer=destination;
+                } else {
+                    ERROR(WRONG_ARGUMENT_TYPE, "Incorrect jump label %i, number of instruction is: %i\n", instr.argument, pointer);
                 }
                 break;
             }
-            case b_function_declaration:
+            case b_function:
             {
                 function* f=new_function();
                 f->enclosing_scope=scope;
                 scope->ref_count++;// remember to check the enclosing scope in destructor
-                // f.native=false;
-                // f.data=(void*)f.argument;
+                object* arguments_count_object=pop(&object_stack);
+                if(arguments_count_object->type!=t_number){
+                    ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", pointer);
+                    break;
+                }
+                int arguments_count=(int)((number*)arguments_count_object)->value;
+                for (int i = 0; i < arguments_count; i++){
+                    object* argument=pop(&object_stack);
+                    vector_add(&f->argument_names, stringify(argument));
+                    garbage_collector_check(argument);
+                }
+                f->is_native=0;
+                f->data=(void*)instr.argument;
+                push(&object_stack, f);
+                break;
             }
             case b_call:
             {
-                table* function_scope=new_table();
-                function* f=pop(&stack);
+                function* f=pop(&object_stack);
+                if(f->type==t_null){
+                    ERROR(WRONG_ARGUMENT_TYPE, "Called function is null, number of instruction is: %i\n", pointer);
+                }
                 /*if(f->enclosing_scope!=NULL){
                     setup_scope((object*)function_scope, (object*)f->enclosing_scope);
                 } else {
@@ -466,16 +492,39 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
                     ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");
                 }*/
-                for (int i = 0; i < vector_total(&f->argument_names); i++){
-                    //char buf[16];
-                    //itoa(i, buf, 10);
-                    char* argument_name=vector_get(&f->argument_names, i);
-                    object* argument_value=pop(&stack);
-                    set((object*)function_scope, argument_name, argument_value);
-                }
-                push(&stack,  call((object*)f, function_scope));
-                garbage_collector_check(function_scope);
+                if(f->is_native){
+                    table* function_scope=new_table();
+                    for (int i = 0; i < vector_total(&f->argument_names); i++){
+                        //char buf[16];
+                        //itoa(i, buf, 10);
+                        char* argument_name=vector_get(&f->argument_names, i);
+                        object* argument_value=pop(&object_stack);
+                        set((object*)function_scope, argument_name, argument_value);
+                    }
+                    push(&object_stack,  call((object*)f, function_scope));
+                    garbage_collector_check(function_scope);
+                } else {
+                    int destination=search_for_label(code, (int)f->data);
+                    if(destination>0){
+                        stack_push(&return_stack, (void*)(&pointer));
+                        pointer=destination;
+                        // TODO: subscoping
+                        for (int i = 0; i < vector_total(&f->argument_names); i++){
+                            //char buf[16];
+                            //itoa(i, buf, 10);
+                            char* argument_name=vector_get(&f->argument_names, i);
+                            object* argument_value=pop(&object_stack);
+                            set((object*)scope, argument_name, argument_value);
+                        }
+                    } else {
+                        ERROR(WRONG_ARGUMENT_TYPE, "Incorrect function jump label %i, number of instruction is: %i\n", (int)f->data, pointer);
+                    }
+               }
+               break;
             }
+            case b_return:
+                pointer=*(int*)stack_pop(&return_stack);
+                break;
             case b_label:
                 break;
             default:
@@ -483,7 +532,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
         }
         pointer++;
     }
-    return pop(&stack);
+    return pop(&object_stack);
 }
 
 void stringify_instruction(bytecode_program prog, char* destination, instruction instr, int buffer_count){
@@ -496,20 +545,16 @@ void stringify_instruction(bytecode_program prog, char* destination, instruction
         case b_get:
         case b_set:
         case b_call:
-            snprintf(destination, buffer_count, "%s\n", INSTRUCTION_NAMES[instr.type]);
+        case b_return:
+        case b_unary:
+        case b_prefix:
+            snprintf(destination, buffer_count, "%s\n", INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
             break;
         case b_load_number:
             snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
             break;
         case b_load_string:
-            snprintf(destination, buffer_count, "%s %i \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog.constants)+instr.argument);
-            break;
-        case b_operator:
-            if(instr.argument){
-                strncpy(destination, "prefix\n", buffer_count);
-            }else{
-                strncpy(destination, "operator\n", buffer_count);
-            }
+            snprintf(destination, buffer_count, "%s %i \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog.constants)+instr.argument);// displays string value
             break;
         default:
             snprintf(destination, buffer_count, "%s %i\n", INSTRUCTION_NAMES[instr.type], instr.argument);
@@ -521,8 +566,8 @@ char* stringify_bytecode(bytecode_program prog){
     int string_end=0;
     int result_size=64;
     char* result=calloc(64, sizeof(char));
-    
     CHECK_ALLOCATION(result);
+
     while(prog.code[pointer].type!=b_end){
         char stringified_instruction[64];
         stringify_instruction(prog, &stringified_instruction, prog.code[pointer], 64);

@@ -195,6 +195,17 @@ function:
 		f->body=(block*)$5;
 		$$=(expression*)f;
 	} 
+	| '(' name ')' ARROW expression {
+		function_declaration* f=new_function_declaration();
+		f->line=line_num;
+		vector* args=malloc(sizeof(vector));
+		CHECK_ALLOCATION(args);
+		vector_init(args);
+		vector_add(args, $2);
+		f->arguments=args;
+		f->body=(block*)$5;
+		$$=(expression*)f;
+	}
 	| name ARROW expression {
 		function_declaration* f=new_function_declaration();
 		f->line=line_num;

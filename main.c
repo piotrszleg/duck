@@ -5,9 +5,7 @@
 #include "repl.h"
 #include "bytecode.h"
 #include "builtins.h"
-
-// creates string variable str, executes body and frees the string afterwards
-#define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
+#include "macros.h"
 
 void execute_file(const char* file_name, int use_bytecode){
     parse_file(file_name);
@@ -38,6 +36,7 @@ void execute_file(const char* file_name, int use_bytecode){
     USING_STRING(stringify(global_scope), 
         printf("Global scope:\n%s\n", str));
     
+    execution_result->ref_count++;// make sure that the execution_result isn't garbage collected along with global_scope
     object_delete(global_scope);
     object_delete(execution_result);
 }

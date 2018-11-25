@@ -21,6 +21,7 @@ RUNTIME_OBJECT_NEW(null,)
 RUNTIME_OBJECT_NEW(number,)
 RUNTIME_OBJECT_NEW(function,
     instance->enclosing_scope=NULL;
+    instance->is_native=1;
     vector_init(&instance->argument_names);
 )
 RUNTIME_OBJECT_NEW(string,)

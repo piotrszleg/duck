@@ -66,6 +66,7 @@ RUNTIME_OBJECT(table,
 
 RUNTIME_OBJECT(function,
     object* (*pointer)(object* o, table* scope);
+    int is_native;
     table* enclosing_scope;
     vector argument_names;
     void* data;
