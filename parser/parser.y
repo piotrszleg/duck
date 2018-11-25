@@ -354,7 +354,7 @@ extern int yyparse();
 extern YY_BUFFER_STATE yy_scan_string(char * str);
 extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
 
-void parse_string(char* s) {
+void parse_string(const char* s) {
 	// Set Flex to read from it instead of defaulting to STDIN:
 	YY_BUFFER_STATE buffer = yy_scan_string(s);
 
@@ -363,7 +363,7 @@ void parse_string(char* s) {
 	yy_delete_buffer(buffer);
 }
 
-void parse_file(char* file_name) {
+void parse_file(const char* file_name) {
 	// Open a file handle to a particular file:
 	FILE *myfile = fopen(file_name, "r");
 	// Make sure it is valid:

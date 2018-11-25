@@ -20,7 +20,7 @@ void repl(int use_bytecode){
         parse_string(input);
 
         TRY_CATCH(
-            table* execution_result=execute_ast(parsing_result, global_scope, 1);
+            object* execution_result=execute_ast(parsing_result, global_scope, 1);
             printf("%s\n", stringify(execution_result));
             if(execution_result->ref_count<=1){
                 object_delete(execution_result);
@@ -35,5 +35,5 @@ void repl(int use_bytecode){
     for (int i = 0; i < vector_total(&asts); i++){
         delete_expression(vector_get(&asts, i));
     }
-    object_delete(global_scope);
+    object_delete((object*)global_scope);
 }

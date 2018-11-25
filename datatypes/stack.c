@@ -6,7 +6,7 @@ void stack_init(stack* s, size_t item_size, int count){
     s->items=malloc(item_size*count);
 }
 
-void stack_push(stack* s, void* value){
+void stack_push(stack* s, const void* value){
     char* position=((char*)s->items) + s->top*s->item_size/sizeof(char);
     memcpy((void*)position, value, s->item_size);
     s->top++;

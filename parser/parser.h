@@ -5,7 +5,7 @@
 
 expression* parsing_result;
 
-void parse_string(char* s);
-void parse_file(char* file_name);
+void parse_string(const char* s);
+void parse_file(const char* file_name);
 
 #endif

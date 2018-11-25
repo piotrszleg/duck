@@ -29,6 +29,8 @@ char* INSTRUCTION_NAMES[]={
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
+void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants, int keep_scope);
+
 bytecode_program ast_to_bytecode(expression* exp, int keep_scope){
     stream constants;
     stream code;
@@ -52,15 +54,12 @@ void push_instruction(stream* code, instruction_type type, long value){
     stream_push(code, &instr, sizeof(instruction));
 }
 
-char* stream_search_string(stream* s, char* str){
+char* stream_search_string(stream* s, const char* str){
     char* casted=(char*)s->data;
     int casted_size=s->size/sizeof(char*);
     for(int i=0; i<casted_size; i++){
         char* stream_part=casted+i;
-        int correct=1;
-
         if(strcmp(stream_part, str)==0){
-            printf("%s==%s\n", stream_part, str);
             return stream_part;
         }
     }
@@ -73,15 +72,14 @@ void push_string_load(stream* code, stream* constants, const char* string_consta
         int relative_position=(search_result-((char*)constants->data));
         push_instruction(code, b_load_string, relative_position/sizeof(char));// use existing
     } else {
-        int push_position=stream_push(constants, string_constant, (strlen(string_constant)+1));
+        int push_position=stream_push(constants, (const void*)string_constant, (strlen(string_constant)+1));
         push_instruction(code, b_load_string, push_position);
     }
 }
 
-void push_int_load(stream* code, stream* constants, int int_constant){
-    float casted=(float)int_constant;// all numbers in duck are floats, so int must be converted to float
+void push_number_load(stream* code, float number_constant){
     long argument;
-    memcpy (&argument, &casted, sizeof argument);
+    memcpy (&argument, &number_constant, sizeof argument);
     push_instruction(code, b_load_number, argument);
 }
 
@@ -128,14 +126,13 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             switch(l->ltype){
                 case _int:
                 {
-                    push_int_load(code, constants, l->ival);
+                    // all numbers in duck are floats, so int must be converted to float
+                    push_number_load(code, (float)l->ival);
                     break;
                 }
                 case _float:
                 {
-                    long argument;
-                    memcpy (&argument, &l->fval, sizeof argument);
-                    push_instruction(code, b_load_number, argument);
+                    push_number_load(code, l->fval);
                     break;
                 }
                 case _string:
@@ -154,8 +151,16 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             push_instruction(code, b_table_literal, 0);
             push_instruction(code, b_set_scope, 0);
 
+            int last_index=0;
             for (int i = 0; i < vector_total(&b->lines); i++){
-                ast_to_bytecode_recursive(vector_get(&b->lines, i), code, constants, 1);
+                expression* line=vector_get(&b->lines, i);
+                ast_to_bytecode_recursive(line, code, constants, 1);
+                if(line->type!=_assignment){
+                    // if the expression isn't assignment use last index as a key
+                    // arr=[5, 4] => arr[0=5, 1=2]
+                    push_number_load(code, (float)last_index++);
+                    push_instruction(code, b_set, 0);
+                }
                 push_instruction(code, b_discard, 0);
             }
 
@@ -180,7 +185,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
         case _name:
         {
             name* n=(name*)exp;
-            push_string_load(code, constants, &n->value);
+            push_string_load(code, constants, n->value);
             instruction get={b_get, 0};
             stream_push(code, &get, sizeof(instruction));
             break;
@@ -244,7 +249,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             push_instruction(code, b_jump, function_end);// jump over the function
             push_instruction(code, b_label, function_beginning);// this is where function object will point
 
-            ast_to_bytecode_recursive(d->body, code, constants, keep_scope);
+            ast_to_bytecode_recursive((expression*)d->body, code, constants, keep_scope);
 
             push_instruction(code, b_return, 0);
             push_instruction(code, b_label, function_end);
@@ -253,7 +258,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             for (int i = 0; i < arguments_count; i++){
                 push_string_load(code, constants, ((name*)vector_get(d->arguments, i))->value);
             }
-            push_int_load(code, constants, arguments_count);
+            push_number_load(code, (float)arguments_count);
             push_instruction(code, b_function, function_beginning);
             break;
         }
@@ -294,7 +299,7 @@ int search_for_label(const instruction* code, int label_index){
 
 void push(stack* stack, object* o){
     o->ref_count++;
-    stack_push(stack, (void*)(&o));
+    stack_push(stack, (const void*)(&o));
 }
 
 object* pop(stack* stack){
@@ -332,11 +337,11 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
     int pointer=0;// points to the current instruction
 
     stack object_stack;
-    stack_init(&object_stack, sizeof(object*), 10);
-    push(&object_stack, new_null());
+    stack_init(&object_stack, sizeof(object*), STACK_SIZE);
+    push(&object_stack, (object*)new_null());
 
     stack return_stack;
-    stack_init(&return_stack, sizeof(int), 10);
+    stack_init(&return_stack, sizeof(table*), STACK_SIZE);
 
     while(code[pointer].type!=b_end){
         instruction instr=code[pointer];
@@ -357,20 +362,20 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             {
                 string* s=new_string();
                 s->value=strdup(((char*)constants)+instr.argument);
-                push(&object_stack, s);
+                push(&object_stack, (object*)s);
                 break;
             }
             case b_load_number:
             {
                 number* n=new_number();
                 memcpy (&n->value, &instr.argument, sizeof n->value);
-                push(&object_stack, n);
+                push(&object_stack, (object*)n);
                 break;
             }
             case b_table_literal:
             {
                 table* t=new_table();
-                push(&object_stack, t);
+                push(&object_stack, (object*)t);
                 break;
             }
             case b_get:
@@ -383,7 +388,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                     delete_unreferenced(indexed);
                 } else {
                     USING_STRING(stringify(key), 
-                        push(&object_stack, get(scope, str)));
+                        push(&object_stack, get((object*)scope, str)));
                 }
                 delete_unreferenced(key);
                 break;
@@ -397,7 +402,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                     set(indexed, stringify(key), value);
                     delete_unreferenced(indexed);
                 } else {
-                    set(scope, stringify(key), value);
+                    set((object*)scope, stringify(key), value);
                 }
                 delete_unreferenced(key);
                 push(&object_stack, value);
@@ -405,13 +410,19 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             }
             case b_get_scope:
             {
-                push(&object_stack, scope);
+                push(&object_stack, (object*)scope);
                 break;
             }
             case b_set_scope:
             {
-                delete_unreferenced(scope);
-                scope=pop(&object_stack);
+                delete_unreferenced((object*)scope);
+                object* o=pop(&object_stack);
+                if(o->type!=t_table){
+                    USING_STRING(stringify(o),
+                        ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, pointer));
+                } else {
+                    scope=(table*)o;
+                }
                 break;
             }
             case b_unary:
@@ -429,7 +440,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             {
                 object* op=pop(&object_stack);
                 object* a=pop(&object_stack);
-                object* b=new_null();// replace second argument with null
+                object* b=(object*)new_null();// replace second argument with null
                 push(&object_stack, operator(a, b, stringify(op)));
                 delete_unreferenced(op);
                 delete_unreferenced(a);
@@ -453,7 +464,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 if(destination>0){
                     pointer=destination;
                 } else {
-                    ERROR(WRONG_ARGUMENT_TYPE, "Incorrect jump label %i, number of instruction is: %i\n", instr.argument, pointer);
+                    ERROR(WRONG_ARGUMENT_TYPE, "Incorrect jump label %li, number of instruction is: %i\n", instr.argument, pointer);
                 }
                 break;
             }
@@ -475,15 +486,21 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 }
                 f->is_native=0;
                 f->data=(void*)instr.argument;
-                push(&object_stack, f);
+                push(&object_stack, (object*)f);
                 break;
             }
             case b_call:
             {
-                function* f=pop(&object_stack);
-                if(f->type==t_null){
+                object* o=pop(&object_stack);
+                if(o->type==t_null){
                     ERROR(WRONG_ARGUMENT_TYPE, "Called function is null, number of instruction is: %i\n", pointer);
+                    break;
+                } else if(o->type!=t_function){
+                    USING_STRING(stringify(o),
+                        ERROR(WRONG_ARGUMENT_TYPE, "Called object \"%s\" is not a function, number of instruction is: %i\n", str, pointer));
+                    break;
                 }
+                function* f=(function*)o;
                 /*if(f->enclosing_scope!=NULL){
                     setup_scope((object*)function_scope, (object*)f->enclosing_scope);
                 } else {
@@ -502,11 +519,11 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                         set((object*)function_scope, argument_name, argument_value);
                     }
                     push(&object_stack,  call((object*)f, function_scope));
-                    delete_unreferenced(function_scope);
+                    delete_unreferenced((object*)function_scope);
                 } else {
                     int destination=search_for_label(code, (int)f->data);
                     if(destination>0){
-                        stack_push(&return_stack, (void*)(&pointer));
+                        stack_push(&return_stack, (const void*)(&pointer));
                         pointer=destination;
                         // TODO: subscoping
                         for (int i = 0; i < vector_total(&f->argument_names); i++){
@@ -542,8 +559,6 @@ void stringify_instruction(bytecode_program prog, char* destination, instruction
         case b_swap:
         case b_get_scope:
         case b_set_scope:
-        case b_get:
-        case b_set:
         case b_call:
         case b_return:
         case b_unary:
@@ -554,10 +569,10 @@ void stringify_instruction(bytecode_program prog, char* destination, instruction
             snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
             break;
         case b_load_string:
-            snprintf(destination, buffer_count, "%s %i \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog.constants)+instr.argument);// displays string value
+            snprintf(destination, buffer_count, "%s %li \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog.constants)+instr.argument);// displays string value
             break;
         default:
-            snprintf(destination, buffer_count, "%s %i\n", INSTRUCTION_NAMES[instr.type], instr.argument);
+            snprintf(destination, buffer_count, "%s %li\n", INSTRUCTION_NAMES[instr.type], instr.argument);
     }
 }
 
@@ -570,7 +585,7 @@ char* stringify_bytecode(bytecode_program prog){
 
     while(prog.code[pointer].type!=b_end){
         char stringified_instruction[64];
-        stringify_instruction(prog, &stringified_instruction, prog.code[pointer], 64);
+        stringify_instruction(prog, (char*)&stringified_instruction, prog.code[pointer], 64);
         int stringified_length=strlen(stringified_instruction);
 
         if(result_size-string_end<=stringified_length){

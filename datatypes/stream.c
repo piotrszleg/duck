@@ -7,7 +7,7 @@ void init_stream(stream* s, size_t size){
     s->size=size;
 }
 
-int stream_push(stream* s, void* data_pointer, size_t size){
+int stream_push(stream* s, const void* data_pointer, size_t size){
     while(size>s->size-s->position){
         s->data=realloc(s->data, s->size*2);
         CHECK_ALLOCATION(s->data);

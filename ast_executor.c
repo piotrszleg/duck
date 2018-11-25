@@ -16,7 +16,7 @@ object* scope_get_override(object* o, table* scope){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect self argument.");
         return (object*)new_null();
     }
-    object* key=((string*)get((object*)scope, "key"));
+    object* key=get((object*)scope, "key");
     if(key->type!=t_string){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect key argument.");
         return (object*)new_null();
@@ -26,7 +26,7 @@ object* scope_get_override(object* o, table* scope){
     if(map_get_result!=NULL){
         return *map_get_result;
     } else{
-        object* base=((string*)get((object*)self, "base"));
+        object* base=get((object*)self, "base");
         if(base->type==t_table){
             return get(base, ((string*)key)->value);
         }
@@ -37,7 +37,7 @@ object* scope_get_override(object* o, table* scope){
 void copy_table(table* source, table* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
-    while (key = map_next(&source->fields, &iter)) {
+    while ((key = map_next(&source->fields, &iter))) {
         map_set(&destination->fields, key, (*map_get(&source->fields, key)));
     }
 }
@@ -62,10 +62,10 @@ object* path_get(table* scope, path p){
         } else {
             USING_STRING(stringify(object_at_name), 
                 ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", str));
-            return new_null();
+            return (object*)new_null();
         }
     }
-    return new_null();
+    return (object*)new_null();
 } 
 
 void path_set(table* scope, path p, object* value){
@@ -83,7 +83,7 @@ void path_set(table* scope, path p, object* value){
         if(i==lines_count-1){
             set((object*)current, evaluated_to_string, value);
         } else{
-            object* object_at_name=get(current, evaluated_to_string);
+            object* object_at_name=get((object*)current, evaluated_to_string);
             if(object_at_name->type==t_table) {
                 current=(table*)object_at_name;
             } else {
@@ -104,8 +104,8 @@ void setup_scope(object* scope, object* base){
         set(scope, "global", base);
         object_delete(base_global);// base_global is null so it can be safely deleted
     }
+    set(scope, "get", (object*)f);
     set(scope, "scope", scope);
-    set(scope, "get", f);
     set(scope, "base", base);
 }
 
@@ -149,7 +149,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                 if(line->type!=_assignment){
                     char buf[16];
                     sprintf(buf,"%d",i);
-                    set(new_scope, buf, line_result);
+                    set((object*)new_scope, buf, line_result);
                 }
                 delete_unreferenced(line_result);
             }
@@ -206,7 +206,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         {
             prefix* p=(prefix*)exp;
             object* left=execute_ast(p->right, scope, 0);
-            object* right=new_null();
+            object* right=(object*)new_null();
             result=operator(left, right, p->op);
             delete_unreferenced(left);
             delete_unreferenced(right);
@@ -257,7 +257,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                 set((object*)function_scope, argument_name, argument_value);
             }
             result=(object*)call((object*)f, function_scope);
-            delete_unreferenced(function_scope);
+            delete_unreferenced((object*)function_scope);
             break;
         }
         case _path:

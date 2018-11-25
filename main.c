@@ -33,11 +33,11 @@ void execute_file(const char* file_name, int use_bytecode){
     }
     USING_STRING(stringify(execution_result), 
         printf("Execution result:\n%s\n", str));
-    USING_STRING(stringify(global_scope), 
+    USING_STRING(stringify((object*)global_scope), 
         printf("Global scope:\n%s\n", str));
     
     execution_result->ref_count++;// make sure that the execution_result isn't garbage collected along with global_scope
-    object_delete(global_scope);
+    object_delete((object*)global_scope);
     object_delete(execution_result);
 }
 
