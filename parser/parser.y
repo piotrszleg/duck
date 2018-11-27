@@ -35,6 +35,11 @@ void yyerror(const char *s);
 
 // define the constant-string tokens:
 %token ENDL
+%token ARROW
+%token IF
+%token ELSE
+%token ELIF
+%token NULL_LITERAL
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
@@ -45,18 +50,16 @@ void yyerror(const char *s);
 %token <sval> ASSIGN_UNARY_OPERATOR
 %token <sval> UNARY_OPERATOR
 %token <sval> PREFIX_OPERATOR
-%token <ival> ARROW
-%token <ival> IF
-%token <ival> ELSE
-%token <ival> ELIF
 
 %type <exp> block;
 %type <exp> table;
+%type <exp> table_contents;
 %type <exp> path;
 %type <exp> lines;
 %type <exp> line;
 %type <exp> expression;
 %type <exp> literal;
+%type <exp> null;
 %type <exp> name;
 %type <exp> assignment;
 %type <exp> unary;
@@ -97,14 +100,33 @@ line:
 	expression ENDLS
 	| expression ','
 	| expression
+	| expression '!' OPT_ENDLS
+	{
+		function_return* r=new_function_return();
+		r->line=line_num;
+		r->value=$1;
+		$$=(expression*)r;
+	}
 	;
 block:
 	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { $$=$4; }
 	;
+table_contents:
+	lines {
+		$$=$1; 
+		$$->type=_table_literal;
+	}
+	| {
+		block* b=new_block();
+		b->line=line_num;
+		vector_init(&b->lines);
+		b->type=_table_literal;
+		$$=(expression*)b;
+	}
+	;
 table:
-	OPT_ENDLS '[' OPT_ENDLS lines OPT_ENDLS ']' OPT_ENDLS { 
-		$$=$4; 
-		$$->type=_table_literal;// by default lines compile to block, so here it's casted to table literal
+	OPT_ENDLS '[' OPT_ENDLS table_contents OPT_ENDLS ']' OPT_ENDLS { 
+		$$=$4;
 	}
 	;
 path:
@@ -134,6 +156,7 @@ expression:
 	| conditional
 	| unary
 	| prefix
+	| null
 	;
 conditional:
 	IF '(' expression ')' expression  {	
@@ -251,13 +274,21 @@ literal:
 		$$=(expression*)l;
 	}
 	;
+null:
+	NULL_LITERAL {
+		empty* e=new_empty();
+		e->line=line_num;
+		$$=(expression*)e;
+	}
+	;
 name:
 	NAME {
 		name* n=new_name();
 		n->line=line_num;
 		n->value=$1;
 		$$=(expression*)n;
-	  } ;
+	  }
+	  ;
 assignment:
 	path ASSIGN_UNARY_OPERATOR expression 
 	{
@@ -351,7 +382,7 @@ void print_and_delete(expression* result){
 
 typedef struct yy_buffer_state * YY_BUFFER_STATE;
 extern int yyparse();
-extern YY_BUFFER_STATE yy_scan_string(char * str);
+extern YY_BUFFER_STATE yy_scan_string(const char * str);
 extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
 
 void parse_string(const char* s) {

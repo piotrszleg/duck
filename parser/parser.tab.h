@@ -40,17 +40,18 @@
       know about them.  */
    enum yytokentype {
      ENDL = 258,
-     INT = 259,
-     FLOAT = 260,
-     STRING = 261,
-     NAME = 262,
-     ASSIGN_UNARY_OPERATOR = 263,
-     UNARY_OPERATOR = 264,
-     PREFIX_OPERATOR = 265,
-     ARROW = 266,
-     IF = 267,
-     ELSE = 268,
-     ELIF = 269
+     ARROW = 259,
+     IF = 260,
+     ELSE = 261,
+     ELIF = 262,
+     NULL_LITERAL = 263,
+     INT = 264,
+     FLOAT = 265,
+     STRING = 266,
+     NAME = 267,
+     ASSIGN_UNARY_OPERATOR = 268,
+     UNARY_OPERATOR = 269,
+     PREFIX_OPERATOR = 270
    };
 #endif
 
@@ -72,7 +73,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 76 "parser.tab.h"
+#line 77 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

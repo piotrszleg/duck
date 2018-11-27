@@ -1,8 +1,12 @@
 ## TODO:
-- recursive functions in bytecode
-- preserve enviroment of function declaration
-- more comments
+- implement return in ast_executor and bytecode
 - replace table with vector in function call
+- stringify override
+- move execution state into a struct
+- create coroutines
+- coroutines
+- more comments
+
 
 ## POINTERS:
 **&** - returns pointer to it's operand

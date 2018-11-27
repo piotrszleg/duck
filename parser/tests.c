@@ -107,12 +107,13 @@ void prefixes(){
 
 void table_literals(){
     printf("TEST: %s\n", __FUNCTION__);
-
-    block* as_block=parse_block("[1, 2, \"John\"]", 1);
+    
+    block* as_block=parse_block("[], [1, 2, \"John\"], [1, 2, 3, length=3]", 3);
     // first line should contain table_literal with 3 lines
-    expression* first_line=vector_get(&as_block->lines, 0);
-    assert(first_line->type==_table_literal);
-    assert(vector_total(&((table_literal*)first_line)->lines)==3);
+    for (int i = 0; i < vector_total(&as_block->lines); i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==_table_literal);
+    }
 
     delete_expression(parsing_result);
     printf("test successful\n");
@@ -165,6 +166,27 @@ void function_calls(){
     printf("test successful\n");
 }
 
+void function_returns(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    block* as_block=parse_block("2! value! {a=2\n a!\n a}", 3);
+
+    // test if type of each expression is 'function_return'
+    for (int i = 0; i < vector_total(&as_block->lines)-1; i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==_function_return);
+    }
+    // test return parsing in the block in the last line
+    expression* last_line_block=(expression*)vector_get(&as_block->lines, 2);
+    assert(last_line_block->type==_block);
+    // get the second line which should be a return statement
+    expression* second_line=(expression*)vector_get(&((block*)last_line_block)->lines, 1);
+    assert(second_line->type==_function_return);
+
+    delete_expression(parsing_result);
+    printf("test successful\n");
+}
+
 
 int main(){
     literals();
@@ -175,5 +197,6 @@ int main(){
     paths();
     function_declarations();
     function_calls();
+    function_returns();
     // TODO: conditionals
 }

@@ -501,16 +501,15 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                     break;
                 }
                 function* f=(function*)o;
-                /*if(f->enclosing_scope!=NULL){
+
+                table* function_scope=new_table();
+                if(f->enclosing_scope!=NULL){
                     setup_scope((object*)function_scope, (object*)f->enclosing_scope);
                 } else {
                     setup_scope((object*)function_scope, (object*)scope);
                 }
-                if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
-                    ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");
-                }*/
                 if(f->is_native){
-                    table* function_scope=new_table();
+                    
                     for (int i = 0; i < vector_total(&f->argument_names); i++){
                         //char buf[16];
                         //itoa(i, buf, 10);
@@ -523,9 +522,13 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 } else {
                     int destination=search_for_label(code, (int)f->data);
                     if(destination>0){
-                        stack_push(&return_stack, (const void*)(&pointer));
+                        number* return_point=new_number();
+                        return_point->value=pointer;
+                        set((object*)function_scope, "return_point", (object*)return_point);
+                        push(&return_stack, (object*)scope);
+                        
+                        scope=function_scope;
                         pointer=destination;
-                        // TODO: subscoping
                         for (int i = 0; i < vector_total(&f->argument_names); i++){
                             //char buf[16];
                             //itoa(i, buf, 10);
@@ -535,13 +538,30 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                         }
                     } else {
                         ERROR(WRONG_ARGUMENT_TYPE, "Incorrect function jump label %i, number of instruction is: %i\n", (int)f->data, pointer);
+                        delete_unreferenced((object*)function_scope);
                     }
                }
                break;
             }
             case b_return:
-                pointer=*(int*)stack_pop(&return_stack);
+            {
+                object* return_point=get((object*)scope, "return_point");
+                if(return_point->type!=t_number){
+                    USING_STRING(stringify(return_point), 
+                        ERROR(WRONG_ARGUMENT_TYPE, "Return point (%s) is not a number, number of instruction is: %i\n", str, pointer));
+                } else {
+                    pointer=((number*)return_point)->value;
+                    object* return_scope=pop(&return_stack);
+                    if(return_scope->type!=t_table){
+                        USING_STRING(stringify(return_scope), 
+                            ERROR(WRONG_ARGUMENT_TYPE, "Return scope (%s) is not a table, number of instruction is: %i\n", str, pointer));
+                    } else {
+                        delete_unreferenced((object*)scope);
+                        scope=(table*)return_scope;
+                    }
+                }
                 break;
+            }
             case b_label:
                 break;
             default:

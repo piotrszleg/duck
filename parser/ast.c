@@ -22,6 +22,7 @@ AST_OBJECT_NEW(unary)
 AST_OBJECT_NEW(prefix)
 AST_OBJECT_NEW(function_declaration)
 AST_OBJECT_NEW(conditional)
+AST_OBJECT_NEW(function_return)
 
 void string_replace(char *s, char from, char to) {
     while (*s == from)
@@ -159,6 +160,15 @@ char* stringify_expression(expression* exp, int indentation){
                                         );
             break;
         }
+        case _function_return:
+        {
+            function_return* r=(function_return*)exp;
+            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sFUNCTION_RETURN: \n%s-> value: %s", 
+                                        indentation_string,
+                                        indentation_string, stringify_expression((expression*)r->value, indentation+1)
+                                        );
+            break;
+        }
         default:
             strcat(result, "Undefined stringification");
     }
@@ -258,6 +268,13 @@ void delete_expression(expression* exp){
                 delete_expression((expression*)c->onfalse);
             }
             free(c);
+            break;
+        }
+        case _function_return:
+        {
+            function_return* r=(function_return*)exp;
+            delete_expression((expression*)r->value);
+            free(r);
             break;
         }
         default:

@@ -192,6 +192,9 @@ object* operator(object* a, object *b, char* op){
     if(strcmp(op, "==")==0){
         return (object*)create_number(compare(a, b)==0);
     }
+    if(strcmp(op, "!=")==0){
+        return (object*)create_number(compare(a, b)!=0);
+    }
     if(strcmp(op, ">")==0){
         return (object*)create_number(compare(a, b)==1);
     }

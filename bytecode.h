@@ -6,6 +6,7 @@
 #include "object_system/error.h"
 #include "datatypes/stream.h"
 #include "datatypes/stack.h"
+#include "builtins.h"
 
 typedef enum instruction_type instruction_type;
 enum instruction_type {

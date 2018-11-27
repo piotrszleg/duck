@@ -9,8 +9,8 @@ o.set_metatable(
 )
 
 # magic indexes
-o["+!"] = (self, b)->map(self, (e)->e+b)
-o["set!"] = -> Error("Read-only table.")
+o["+"] = (self, b)->map(self, (e)->e+b)
+o["set"] = -> Error("Read-only table.")
 
 # wrapping base types
 degree = (num)->{
@@ -23,15 +23,50 @@ degree = (num)->{
             result
         }
     }
+    d
 }
 
 # magic functions
-return!(0)
-yield!(0)
+yield(0)
+coroutine(f)
 
 arr=[1, 2, 3, name="John"]
 
 f=(a, b)->{
     c=a-b
     (a+b)/c
+}
+
+# return
+
+fib=n->{
+    if(n==0) 0.
+    elif(n==1) 1.
+    fib(n-1)+fib(n-2)
+}
+fib=n->{
+    if(n==0) 0 end
+    elif(n==1) 1 end
+    fib(n-1)+fib(n-2)
+}
+fib=n->{
+    if(n==0) 0 return
+    elif(n==1) 1 return
+    fib(n-1)+fib(n-2)
+}
+fib=n->{
+    if(n==0) 0!
+    elif(n==1) 1!
+    fib(n-1)+fib(n-2)
+}
+fib=n->{
+    if(n==0) 0 |
+    elif(n==1) 1 |
+    fib(n-1)+fib(n-2)
+}
+
+fib=n->{
+    if(n==0) 0 <-
+    elif(n==1) 1 <-
+    fib(n-1)+fib(n-2)
 }

@@ -1,13 +1,11 @@
 fib=n->{
-    global.fibcalls=1+global.fibcalls
+    # global.fibcalls=1+global.fibcalls
     if(n==0){
-        0
+        0!
     }
     elif(n==1){
-        1
+        1!
     }
-    else{
-        fib(n-1)+fib(n-2)
-    }
+    fib(n-1)+fib(n-2)
 }
 fib(10)

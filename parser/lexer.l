@@ -36,6 +36,7 @@ char* remove_last_character(const char* source){
 if                  { return IF; }
 elif                { return ELIF; }
 else                { return ELSE; }
+null				{ return NULL_LITERAL; }
 [0-9]+\.[0-9]+      { yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+              { yylval.ival = atoi(yytext); return INT; }
 \"([^\\\"]|\\.)*\"    { yylval.sval = unquote(yytext); return STRING; }// god bless stack overflow

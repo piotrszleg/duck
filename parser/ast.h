@@ -20,7 +20,8 @@ enum expression_type{
     _unary,
     _prefix,
     _function_declaration,
-    _conditional
+    _conditional,
+    _function_return
 };
 
 #define AST_OBJECT(t, body) \
@@ -82,6 +83,10 @@ AST_OBJECT(conditional,
     expression* condition;
     expression* ontrue;
     expression* onfalse;
+)
+
+AST_OBJECT(function_return,
+    expression* value;
 )
 
 typedef enum literal_type literal_type;

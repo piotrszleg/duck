@@ -31,3 +31,42 @@ void register_builtins(table* scope){
 
     set((object*)scope, "assert", (object*)assert_function);
 }
+
+object* scope_get_override(object* o, table* scope){
+    object* self=get((object*)scope, "self");
+    if(self->type!=t_table){
+        ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect self argument.");
+        return (object*)new_null();
+    }
+    object* key=get((object*)scope, "key");
+    if(key->type!=t_string){
+        ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect key argument.");
+        return (object*)new_null();
+    }
+    object** map_get_result=map_get(&((table*)self)->fields, ((string*)key)->value);
+
+    if(map_get_result!=NULL){
+        return *map_get_result;
+    } else{
+        object* base=get((object*)self, "base");
+        if(base->type==t_table){
+            return get(base, ((string*)key)->value);
+        }
+        return (object*)new_null();
+    }
+}
+
+void setup_scope(object* scope, object* base){
+    function* f=new_function();
+    f->pointer=&scope_get_override;
+    object* base_global=get(base, "global");
+    if(base_global->type!=t_null){
+        set(scope, "global", base_global);
+    } else {
+        set(scope, "global", base);
+        object_delete(base_global);// base_global is null so it can be safely deleted
+    }
+    set(scope, "get", (object*)f);
+    set(scope, "scope", scope);
+    set(scope, "base", base);
+}
