@@ -3,7 +3,7 @@
 
 #include "parser/ast.h"
 #include "object_system/object.h"
-#include "object_system/error.h"
+#include "error/error.h"
 #include "datatypes/stream.h"
 #include "datatypes/stack.h"
 #include "builtins.h"
@@ -16,6 +16,7 @@ enum instruction_type {
     b_load_string,// position_in_constants
     b_load_number,
     b_table_literal,
+    b_null,
     b_function,// beginning_label
     b_return,
     b_get_scope,

@@ -1,7 +1,7 @@
 #ifndef STACK_H
 #define STACK_H
 
-#define STACK_SIZE 10
+#define STACK_SIZE 20
 
 #include "string.h"
 #include "stdlib.h"

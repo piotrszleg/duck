@@ -74,7 +74,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "vector.h"
-#include "error.h"
+#include "../error/error.h"
 #include "ast.h"
 #include "parser.h"
 

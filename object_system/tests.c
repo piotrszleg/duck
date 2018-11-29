@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "object.h"
-#include "error.h"
+#include "../error/error.h"
 
 void assert_stringification(object* o, char* expected){
     assert(strcmp(stringify(o), expected)==0);

@@ -496,7 +496,7 @@ char *yytext;
 #line 3 "lexer.l"
 #include <string.h>
 #include <stdio.h>
-#include "error.h"
+#include "../error/error.h"
 #include "parser.tab.h"
 int line_num = 1;
 

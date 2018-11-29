@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "map.h"
-#include "error.h"
+#include "../error/error.h"
 #include <ctype.h>
 #include "vector.h"
 

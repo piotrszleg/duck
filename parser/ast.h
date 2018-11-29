@@ -3,7 +3,7 @@
 
 #include <string.h>
 #include "vector.h"
-#include "error.h"
+#include "../error/error.h"
 #include <stdlib.h>
 #include <stdio.h>
 

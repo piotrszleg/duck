@@ -12,6 +12,7 @@ char* INSTRUCTION_NAMES[]={
     "load_string",
     "load_number",
     "table_literal",
+    "null",
     "function",
     "return",
     "get_scope",
@@ -119,6 +120,7 @@ void bytecode_path_set(stream* code, stream* constants, path p){
 void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants, int keep_scope){
     switch(exp->type){
         case _empty:
+            push_instruction(code, b_null, 0);
             break;
         case _literal:
         {
@@ -221,21 +223,19 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
         case _conditional:
         {
             conditional* c=(conditional*)exp;
-            ast_to_bytecode_recursive(c->condition, code, constants, keep_scope);
+            int conditional_end=labels_count++;
+            int on_false=labels_count++;
 
-            instruction jmp_not={b_jump_not, labels_count++};
-            stream_push(code, &jmp_not, sizeof(instruction));
+            ast_to_bytecode_recursive(c->condition, code, constants, keep_scope);
+            push_instruction(code, b_jump_not, on_false);// if condition is false jump to on_false label
 
             ast_to_bytecode_recursive(c->ontrue, code, constants, keep_scope);
-            instruction jmp_after_ontrue={b_jump, labels_count++};
-            stream_push(code, &jmp_after_ontrue, sizeof(instruction));
+            push_instruction(code, b_jump, conditional_end);// jump over the on_false block to the end of conditional
 
-            instruction jmp_not_label={b_label, jmp_not.argument};
-            stream_push(code, &jmp_not_label, sizeof(instruction));
+            push_instruction(code, b_label, on_false);
             ast_to_bytecode_recursive(c->onfalse, code, constants, keep_scope);
 
-            instruction label_after_conditional={b_label, jmp_after_ontrue.argument};
-            stream_push(code, &label_after_conditional, sizeof(instruction));
+            push_instruction(code, b_label, conditional_end);
 
             break;
         }
@@ -270,8 +270,14 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
                 ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), code, constants, keep_scope);
             }
             bytecode_path_get(code, constants, *c->function_path);
-            instruction call_instr={b_call, lines_count};
-            stream_push(code, &call_instr, sizeof(instruction));
+            push_instruction(code, b_call, lines_count);
+            break;
+        }
+        case _function_return:
+        {
+            function_return* r=(function_return*)exp;
+            ast_to_bytecode_recursive((expression*)r->value, code, constants, keep_scope);
+            push_instruction(code, b_return, 0);
             break;
         }
         case _path:
@@ -376,6 +382,12 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             {
                 table* t=new_table();
                 push(&object_stack, (object*)t);
+                break;
+            }
+            case b_null:
+            {
+                null* n=new_null();
+                push(&object_stack, (object*)n);
                 break;
             }
             case b_get:
@@ -557,7 +569,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                             ERROR(WRONG_ARGUMENT_TYPE, "Return scope (%s) is not a table, number of instruction is: %i\n", str, pointer));
                     } else {
                         delete_unreferenced((object*)scope);
-                        scope=(table*)return_scope;
+                        scope=(table*)return_scope;     
                     }
                 }
                 break;
@@ -572,7 +584,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
     return pop(&object_stack);
 }
 
-void stringify_instruction(bytecode_program prog, char* destination, instruction instr, int buffer_count){
+void stringify_instruction(bytecode_program prog, char* destination, instruction instr, int index, int buffer_count){
     switch(instr.type){
         case b_end:
         case b_discard:
@@ -580,19 +592,20 @@ void stringify_instruction(bytecode_program prog, char* destination, instruction
         case b_get_scope:
         case b_set_scope:
         case b_call:
+        case b_null:
         case b_return:
         case b_unary:
         case b_prefix:
-            snprintf(destination, buffer_count, "%s\n", INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
+            snprintf(destination, buffer_count, "%i: %s\n", index, INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
             break;
         case b_load_number:
-            snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
+            snprintf(destination, buffer_count, "%i: %s %f\n", index, INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
             break;
         case b_load_string:
-            snprintf(destination, buffer_count, "%s %li \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog.constants)+instr.argument);// displays string value
+            snprintf(destination, buffer_count, "%i: %s %li \"%s\"\n", index, INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog.constants)+instr.argument);// displays string value
             break;
         default:
-            snprintf(destination, buffer_count, "%s %li\n", INSTRUCTION_NAMES[instr.type], instr.argument);
+            snprintf(destination, buffer_count, "%i: %s %li\n", index, INSTRUCTION_NAMES[instr.type], instr.argument);
     }
 }
 
@@ -605,7 +618,7 @@ char* stringify_bytecode(bytecode_program prog){
 
     while(prog.code[pointer].type!=b_end){
         char stringified_instruction[64];
-        stringify_instruction(prog, (char*)&stringified_instruction, prog.code[pointer], 64);
+        stringify_instruction(prog, (char*)&stringified_instruction, prog.code[pointer], pointer, 64);
         int stringified_length=strlen(stringified_instruction);
 
         if(result_size-string_end<=stringified_length){
