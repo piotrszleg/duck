@@ -14,7 +14,8 @@ void test_error_catching(){
     TRY_CATCH(
         num1=new_number();
         num1->value=1;
-        call((object*)num1, (table*)num1);// try to call a number one, it should throw an error
+        object* casted=cast((object*)num1, t_function);// try to call a number one, it should throw an error
+        object_delete((object*)casted);
     ,
         // TODO fix error type
         // assert(err_type==WRONG_ARGUMENT_TYPE);
@@ -32,7 +33,7 @@ void adding_numbers(){// tests whether 1+2=3
     num1->value=1;
     number* num2=new_number();
     num2->value=2;
-    assert_stringification(stringify(operator((object*)num1, (object*)num2, "+")), "3");
+    assert_stringification(operator((object*)num1, (object*)num2, "+"), "3");
 
     object_delete((object*)num1);
     object_delete((object*)num2);
@@ -53,10 +54,10 @@ void adding_strings(){// tests whether "Hello "+"Cruel World"="Hello Cruel World
     printf("test successful\n");
 }
 
-object* add_three(object* o, table* scope){
+object* add_three(vector arguments){
     number* three=new_number();
     three->value=3;
-    object* result= operator(get((object*)scope, "1"), (object*)three, "+");
+    object* result= operator(vector_get(&arguments, 0), (object*)three, "+");
     object_delete((object*)three);
     return result;
 }
@@ -66,13 +67,17 @@ void function_call(){// tests whether f(5)==8 where f(x)=x+3
 
     function* f=new_function();
     f->pointer=add_three;
+    f->type=f_native;
+    f->arguments_count=1;
 
     number* five=new_number();
     five->value=5;
-    table* arguments=new_table();
-    set((object*)arguments, "1", (object*)five);
 
-    assert_stringification((call((object*)f, arguments)), "8");
+    vector arguments;
+    vector_init(&arguments);
+    vector_add(&arguments, (object*)five);
+
+    assert_stringification(f->pointer(arguments), "8");
 
     object_delete((object*)f);
     object_delete((object*)five);

@@ -5,11 +5,6 @@ int current_line;
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
-object* ast_function_call(object* o, table* scope){
-    function* as_function=(function*)o;
-    return execute_ast((expression*)as_function->data, scope, 1);
-}
-
 void copy_table(table* source, table* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
@@ -187,39 +182,62 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         {
             function_declaration* d=(function_declaration*)exp;
             function* f=(function*)new_function();
+            vector_init(&f->argument_names);
             for (int i = 0; i < vector_total(d->arguments); i++){
                 vector_add(&f->argument_names, ((name*)vector_get(d->arguments, i))->value);
             }
-            f->data=(void*)d->body;
+            f->f_type=f_ast;
+            f->ast_pointer=(void*)d->body;
             f->enclosing_scope=scope;
             scope->ref_count++;
-            f->pointer=ast_function_call;
             result=(object*)f;
             break;
         }
         case _function_call:
         {
             function_call* c=(function_call*)exp;
-            table* function_scope=new_table();
+            
             function* f=(function*)path_get(scope, *c->function_path);
-            if(f->enclosing_scope!=NULL){
-                setup_scope((object*)function_scope, (object*)f->enclosing_scope);
-            } else {
-                setup_scope((object*)function_scope, (object*)scope);
+            switch(f->f_type){
+                case f_native:
+                {
+                    vector arguments;
+                    vector_init(&arguments);
+                    for (int i = 0; i < vector_total(&c->arguments->lines); i++){
+                        object* argument_value=execute_ast(vector_get(&c->arguments->lines, i), scope, 0);
+                        vector_add(&arguments, argument_value);
+                    }
+                    result=f->pointer(arguments);
+                    vector_free(&arguments);
+                }
+                break;
+                case f_ast:
+                {
+                    table* function_scope=new_table();
+                    if(f->enclosing_scope!=NULL){
+                        setup_scope((object*)function_scope, (object*)f->enclosing_scope);
+                    } else {
+                        setup_scope((object*)function_scope, (object*)scope);
+                    }
+                    if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
+                        ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");
+                    }
+                    for (int i = 0; i < vector_total(&c->arguments->lines); i++){
+                        //char buf[16];
+                        //itoa(i, buf, 10);
+                        char* argument_name=vector_get(&f->argument_names, i);
+                        object* argument_value=execute_ast(vector_get(&c->arguments->lines, i), scope, 0);
+                        set((object*)function_scope, argument_name, argument_value);
+                    }
+                    result=execute_ast(f->ast_pointer, function_scope, 1);
+                    result->ref_count++;
+                    delete_unreferenced((object*)function_scope);
+                    break;
+                }
+                case f_bytecode:
+                    ERROR(NOT_IMPLEMENTED, "Can't call ast function from bytecode\n");
+                    break;
             }
-            if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
-                ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");
-            }
-            for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                //char buf[16];
-                //itoa(i, buf, 10);
-                char* argument_name=vector_get(&f->argument_names, i);
-                object* argument_value=execute_ast(vector_get(&c->arguments->lines, i), scope, 0);
-                set((object*)function_scope, argument_name, argument_value);
-            }
-            result=(object*)call((object*)f, function_scope);
-            delete_unreferenced((object*)function_scope);
-            break;
         }
         case _path:
         {

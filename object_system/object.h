@@ -64,12 +64,23 @@ RUNTIME_OBJECT(table,
     object_map_t fields;
 )
 
+typedef enum function_type function_type;
+enum function_type{
+    f_native,
+    f_ast,
+    f_bytecode
+};
 RUNTIME_OBJECT(function,
-    object* (*pointer)(object* o, table* scope);
-    int is_native;
-    table* enclosing_scope;
+    function_type f_type;
+    union {
+        object* (*pointer)(vector arguments);
+        // void* should be expression* but I don't want to create cross dependency here
+        void* ast_pointer;
+        int label;
+    };
     vector argument_names;
-    void* data;
+    int arguments_count;
+    table* enclosing_scope;
 );
 
 char* stringify(object* o);
@@ -82,7 +93,7 @@ int is_falsy(object* o);
 
 object* operator(object* a, object* b, char* op);
 
-object* call(object* o, table* arguments);
+object* cast(object* o, object_type type);
 
 object* get(object* o, char*key);
 void set(object* o, char*key, object* value);

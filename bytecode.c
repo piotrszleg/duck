@@ -242,22 +242,29 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
         case _function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
+            int arguments_count=vector_total(d->arguments);
 
             int function_end=labels_count++;
             int function_beginning=labels_count++;
 
             push_instruction(code, b_jump, function_end);// jump over the function
             push_instruction(code, b_label, function_beginning);// this is where function object will point
+            
+            // arguments need to be in reverse because of the way stack works
+            for (int i = 0; i < arguments_count; i++){
+                push_string_load(code, constants, ((name*)vector_get(d->arguments, arguments_count-1-i))->value);
+                push_instruction(code, b_set, 0);
+                push_instruction(code, b_discard, 0);
+            }
 
             ast_to_bytecode_recursive((expression*)d->body, code, constants, keep_scope);
 
             push_instruction(code, b_return, 0);
             push_instruction(code, b_label, function_end);
 
-            int arguments_count=vector_total(d->arguments);
-            for (int i = 0; i < arguments_count; i++){
+            /*for (int i = 0; i < arguments_count; i++){
                 push_string_load(code, constants, ((name*)vector_get(d->arguments, i))->value);
-            }
+            }*/
             push_number_load(code, (float)arguments_count);
             push_instruction(code, b_function, function_beginning);
             break;
@@ -490,49 +497,33 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                     ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", pointer);
                     break;
                 }
-                int arguments_count=(int)((number*)arguments_count_object)->value;
-                for (int i = 0; i < arguments_count; i++){
-                    object* argument=pop(&object_stack);
-                    vector_add(&f->argument_names, stringify(argument));
-                    delete_unreferenced(argument);
-                }
-                f->is_native=0;
-                f->data=(void*)instr.argument;
+                f->arguments_count=(int)((number*)arguments_count_object)->value;
+                f->f_type=f_bytecode;
+                f->label=instr.argument;
                 push(&object_stack, (object*)f);
                 break;
             }
             case b_call:
             {
                 object* o=pop(&object_stack);
-                if(o->type==t_null){
-                    ERROR(WRONG_ARGUMENT_TYPE, "Called function is null, number of instruction is: %i\n", pointer);
-                    break;
-                } else if(o->type!=t_function){
-                    USING_STRING(stringify(o),
-                        ERROR(WRONG_ARGUMENT_TYPE, "Called object \"%s\" is not a function, number of instruction is: %i\n", str, pointer));
-                    break;
-                }
-                function* f=(function*)o;
-
-                table* function_scope=new_table();
-                if(f->enclosing_scope!=NULL){
-                    setup_scope((object*)function_scope, (object*)f->enclosing_scope);
-                } else {
-                    setup_scope((object*)function_scope, (object*)scope);
-                }
-                if(f->is_native){
-                    
-                    for (int i = 0; i < vector_total(&f->argument_names); i++){
-                        //char buf[16];
-                        //itoa(i, buf, 10);
-                        char* argument_name=vector_get(&f->argument_names, i);
-                        object* argument_value=pop(&object_stack);
-                        set((object*)function_scope, argument_name, argument_value);
+                function* f=(function*)cast(o, t_function);
+                
+                if(f->f_type==f_native){
+                    vector arguments;
+                    vector_init(&arguments);
+                    for (int i = 0; i < f->arguments_count; i++){
+                        vector_add(&arguments, pop(&object_stack));
                     }
-                    push(&object_stack,  call((object*)f, function_scope));
-                    delete_unreferenced((object*)function_scope);
-                } else {
-                    int destination=search_for_label(code, (int)f->data);
+                    push(&object_stack, f->pointer(arguments));
+                    vector_free(&arguments);
+                } else if(f->f_type==f_bytecode){
+                    table* function_scope=new_table();
+                    if(f->enclosing_scope!=NULL){
+                        setup_scope((object*)function_scope, (object*)f->enclosing_scope);
+                    } else {
+                        setup_scope((object*)function_scope, (object*)scope);
+                    }
+                    int destination=search_for_label(code, f->label);
                     if(destination>0){
                         number* return_point=new_number();
                         return_point->value=pointer;
@@ -541,17 +532,13 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                         
                         scope=function_scope;
                         pointer=destination;
-                        for (int i = 0; i < vector_total(&f->argument_names); i++){
-                            //char buf[16];
-                            //itoa(i, buf, 10);
-                            char* argument_name=vector_get(&f->argument_names, i);
-                            object* argument_value=pop(&object_stack);
-                            set((object*)scope, argument_name, argument_value);
-                        }
                     } else {
-                        ERROR(WRONG_ARGUMENT_TYPE, "Incorrect function jump label %i, number of instruction is: %i\n", (int)f->data, pointer);
-                        delete_unreferenced((object*)function_scope);
+                        ERROR(WRONG_ARGUMENT_TYPE, "Incorrect function jump label %i, number of instruction is: %i\n", f->label, pointer);
                     }
+               } else if(f->f_type==f_ast) {
+                   ERROR(NOT_IMPLEMENTED, "Can't call ast function from bytecode, number of instruction is: %i\n", pointer);
+               } else {
+                    ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", pointer);
                }
                break;
             }

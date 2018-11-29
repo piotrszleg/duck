@@ -3,14 +3,14 @@
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
-object* builtin_print(object* o, table* scope){
-    USING_STRING(stringify(get((object*)scope, "self")),
+object* builtin_print(vector arguments){
+    USING_STRING(stringify(vector_get(&arguments, 0)),
         printf("%s\n", str));
     return (object*)new_null();
 }
 
-object* builtin_assert(object* o, table* scope){
-    object* self=get((object*)scope, "self");
+object* builtin_assert(vector arguments){
+    object* self=vector_get(&arguments, 0);
     if(is_falsy(self)){
         USING_STRING(stringify(self), 
             ERROR(MEMORY_ALLOCATION_FAILURE, "Assertion failed, %s is falsy.", str));
@@ -20,25 +20,25 @@ object* builtin_assert(object* o, table* scope){
 
 void register_builtins(table* scope){
     function* print_function=new_function();
-    vector_add(&print_function->argument_names, strdup("self"));
+    print_function->arguments_count=1;
     print_function->pointer=&builtin_print;
 
     set((object*)scope, "print", (object*)print_function);
 
     function* assert_function=new_function();
-    vector_add(&assert_function->argument_names, strdup("self"));
+    assert_function->arguments_count=1;
     assert_function->pointer=&builtin_assert;
 
     set((object*)scope, "assert", (object*)assert_function);
 }
 
-object* scope_get_override(object* o, table* scope){
-    object* self=get((object*)scope, "self");
+object* scope_get_override(vector arguments){
+    object* self=vector_get(&arguments, 0);
     if(self->type!=t_table){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect self argument.");
         return (object*)new_null();
     }
-    object* key=get((object*)scope, "key");
+    object* key=vector_get(&arguments, 1);
     if(key->type!=t_string){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect key argument.");
         return (object*)new_null();

@@ -1,5 +1,6 @@
 fib=n->{
     # global.fibcalls=1+global.fibcalls
+    print(n)
     if(n==0){
         0!
     }

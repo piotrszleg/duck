@@ -20,9 +20,10 @@ const char* OBJECT_TYPE_NAMES[]={
 RUNTIME_OBJECT_NEW(null,)
 RUNTIME_OBJECT_NEW(number,)
 RUNTIME_OBJECT_NEW(function,
+    instance->arguments_count=0;
+    instance->f_type=f_native;
+    instance->argument_names;
     instance->enclosing_scope=NULL;
-    instance->is_native=1;
-    vector_init(&instance->argument_names);
 )
 RUNTIME_OBJECT_NEW(string,)
 RUNTIME_OBJECT_NEW(table,
@@ -58,11 +59,9 @@ void object_delete(object* o){
         case t_function:
         {
             function* as_function=(function*)o;
-            int arguments_count=vector_total(&as_function->argument_names);
-            for (int i = 0; i < arguments_count; i++){
-                free((char*)vector_get(&as_function->argument_names, i));
+            if(as_function->enclosing_scope!=NULL){
+                delete_unreferenced((object*)as_function->enclosing_scope);
             }
-            vector_free(&as_function->argument_names);
             free(as_function);
             break;
         }
@@ -71,7 +70,7 @@ void object_delete(object* o){
             table* as_table=(table*)o;
             const char *key;
             map_iter_t iter = map_iter(&as_table->fields);
-            while (key = map_next(&as_table->fields, &iter)) {
+            while ((key = map_next(&as_table->fields, &iter))) {
                 object* value=(*map_get(&as_table->fields, key));
                 value->ref_count--;// dereference contained object, so it can be garbage collected
                 delete_unreferenced(value);
@@ -156,22 +155,32 @@ object* cast(object* o, object_type type){
     }
     switch(type){
         case t_string:
-            {
-                string* result=new_string();
-                result->value=stringify(o);
+        {
+            string* result=new_string();
+            result->value=stringify(o);
+            return (object*)result;
+        }
+        case t_number:
+        {
+            number* result=new_number();
+            if(o->type==t_null){
+                result->value=0;// null is zero
+                return (object*)result;
+            } else if(o->type==t_string && is_number(((string*)o)->value)){
+                result->value=atoi(((string*)o)->value);// convert string to int if it contains number
                 return (object*)result;
             }
-        case t_number:
-            {
-                number* result=new_number();
-                if(o->type==t_null){
-                    result->value=0;// null is zero
-                    return (object*)result;
-                } else if(o->type==t_string && is_number(((string*)o)->value)){
-                    result->value=atoi(((string*)o)->value);// convert string to int if it contains number
-                    return (object*)result;
-                }
-            }
+        }
+        case t_function:
+        {
+            object* called=o;
+            do{
+                // recursively search for object of type function under key "call" inside of 'o' object structure
+                called=get(called, "call");
+                // get will fail at some point so it shouldn't create an infinite loop
+            } while(called->type!=t_function);
+            return called;
+        }
         default:
             ERROR(TYPE_CONVERSION_FAILURE, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o->type], OBJECT_TYPE_NAMES[type]);
             return (object*)new_null();// conversion can't be performed
@@ -337,18 +346,6 @@ char* stringify(object* o){
     }
 }
 
-object* call(object* o, table* arguments){
-    CHECK_OBJECT(o);
-    CHECK_OBJECT(arguments);
-    switch(o->type){
-        case t_function:
-            return ((struct function*)o)->pointer(o, arguments);
-        default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Object of type <%s> is not callable", OBJECT_TYPE_NAMES[o->type]);
-            return NULL;
-    }
-}
-
 object* get(object* o, char* key){
     CHECK_OBJECT(o);
     switch(o->type){
@@ -358,15 +355,25 @@ object* get(object* o, char* key){
             object** map_get_override=map_get(&((struct table*)o)->fields, "get");
             if(map_get_override!=NULL){
                 // create arguments for the function
-                table* arguments=new_table();
-                string* key_string=new_string();
-                key_string->value=strdup(key);
-                set((object*)arguments, "self", o);
-                set((object*)arguments, "key", (object*)key_string);
-                // call function with arguments
-                object* result = call(*map_get_override, arguments);
-                delete_unreferenced((object*)arguments);
-                return result;
+                function* get_function=(function*)cast(*map_get_override, t_function);
+                if(get_function->f_type==f_native){
+                    vector arguments;
+                    vector_init(&arguments);
+
+                    // call get_function with o and key as arguments
+                    vector_add(&arguments, o);
+                    string* key_string=new_string();
+                    key_string->value=strdup(key);
+                    vector_add(&arguments, (object*)key_string);
+
+                    object* result=get_function->pointer(arguments);
+                    delete_unreferenced((object*)key_string);
+                    vector_free(&arguments);
+                    return result;
+                } else {
+                    ERROR(NOT_IMPLEMENTED, "Only native functions can be used as get override for now.");
+                    return (object*)new_null();
+                }
             }
 
             object** map_get_result=map_get(&((struct table*)o)->fields, key);
@@ -378,7 +385,7 @@ object* get(object* o, char* key){
         }
         default:
             ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
-            return NULL;
+            return (object*)new_null();
     }
 }
 

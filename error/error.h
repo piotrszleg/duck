@@ -9,7 +9,8 @@ enum error_type{
     WRONG_ARGUMENT_TYPE,
     TYPE_CONVERSION_FAILURE,
     INCORRECT_OBJECT_POINTER,
-    BUFFER_TOO_SMALL
+    BUFFER_TOO_SMALL,
+    NOT_IMPLEMENTED
 };
 
 extern jmp_buf error_buf;
