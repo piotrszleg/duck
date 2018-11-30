@@ -136,13 +136,17 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             case b_set:
             {
                 object* key=pop(&object_stack);
-                object* value=pop(&object_stack);
+                object* indexed;
                 if(instr.argument){
-                    object* indexed=pop(&object_stack);
-                    set(indexed, stringify(key), value);
-                    delete_unreferenced(indexed);
+                    indexed=pop(&object_stack);
                 } else {
-                    set((object*)scope, stringify(key), value);
+                    indexed=(object*)scope;
+                }
+                object* value=pop(&object_stack);
+                set(indexed, stringify(key), value);
+                if(instr.argument){
+                    // delete indexed if it isn't the scope
+                    delete_unreferenced(indexed);
                 }
                 delete_unreferenced(key);
                 push(&object_stack, value);

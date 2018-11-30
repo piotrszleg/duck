@@ -1,35 +1,40 @@
 #include "builtins.h"
 
-// creates string variable str, executes body and frees the string afterwards
-#define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
-
 object* builtin_print(vector arguments){
+    BUILTIN_ARGUMENTS_CHECK(1);
     USING_STRING(stringify(vector_get(&arguments, 0)),
         printf("%s\n", str));
     return (object*)new_null();
 }
 
 object* builtin_assert(vector arguments){
+    BUILTIN_ARGUMENTS_CHECK(1);
     object* self=vector_get(&arguments, 0);
     if(is_falsy(self)){
         USING_STRING(stringify(self), 
-            ERROR(MEMORY_ALLOCATION_FAILURE, "Assertion failed, %s is falsy.", str));
+            ERROR(ASSERTION_FAILED, "Assertion failed, %s is falsy.", str));
     }
     return (object*)new_null();
 }
 
+object* builtin_typeof(vector arguments){
+    BUILTIN_ARGUMENTS_CHECK(1);
+    object* self=vector_get(&arguments, 0);
+    string* type_name=new_string();
+    type_name->value=strdup(OBJECT_TYPE_NAMES[self->type]);
+    return (object*)type_name;
+}
+
 void register_builtins(table* scope){
-    function* print_function=new_function();
-    print_function->arguments_count=1;
-    print_function->pointer=&builtin_print;
-
-    set((object*)scope, "print", (object*)print_function);
-
-    function* assert_function=new_function();
-    assert_function->arguments_count=1;
-    assert_function->pointer=&builtin_assert;
-
-    set((object*)scope, "assert", (object*)assert_function);
+    #define REGISTER_FUNCTION(f, args_count) \
+        function* f##_function=new_function(); \
+        f##_function->arguments_count=args_count; \
+        f##_function->pointer=&builtin_##f; \
+        set((object*)scope, #f, (object*)f##_function);
+    
+    REGISTER_FUNCTION(print, 1);
+    REGISTER_FUNCTION(assert, 1);
+    REGISTER_FUNCTION(typeof, 1);
 }
 
 object* scope_get_override(vector arguments){

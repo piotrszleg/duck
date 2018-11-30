@@ -1,12 +1,2 @@
-fib=n->{
-    # global.fibcalls=1+global.fibcalls
-    # print(n)
-    if(n==0){
-        0!
-    }
-    elif(n==1){
-        1!
-    }
-    fib(n-1)+fib(n-2)
-}
-fib(10)
+a=[]
+typeof(a)=="table"
