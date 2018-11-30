@@ -22,3 +22,10 @@ assert(add(2, 5)==7)
 double=n->n*2
 assert(double(5)==10)
 print("test successful")
+
+test=(name, assertion)->{
+    print("TEST: "+name)
+    assert(assertion)
+    print("test successful")
+}
+test("test helper function", 1)

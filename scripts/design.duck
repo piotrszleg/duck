@@ -70,3 +70,21 @@ fib=n->{
     elif(n==1) 1 <-
     fib(n-1)+fib(n-2)
 }
+
+call=(self, arguments){
+    if(typeof(self)==function){
+        self(arguments)
+    } elif(table.call!=null){
+        table.call(arguments)
+    } else {
+        error("Can' index object "+self)
+    }
+}
+
+table.get=(table, key)->{
+    if(table.get!=null){
+        table.get(key)
+    } else {
+        get_native(table, key)
+    }
+}

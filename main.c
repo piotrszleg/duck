@@ -4,6 +4,8 @@
 #include "ast_executor.h"
 #include "repl.h"
 #include "bytecode.h"
+#include "ast_to_bytecode.h"
+#include "execute_bytecode.h"
 #include "builtins.h"
 #include "macros.h"
 

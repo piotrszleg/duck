@@ -1,34 +1,32 @@
 #ifndef BYTECODE_H
 #define BYTECODE_H
 
-#include "parser/ast.h"
-#include "object_system/object.h"
-#include "error/error.h"
-#include "datatypes/stream.h"
-#include "datatypes/stack.h"
-#include "builtins.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include "macros.h"
 
 typedef enum instruction_type instruction_type;
 enum instruction_type {
-    b_end,
-    b_discard,
-    b_swap,
-    b_load_string,// position_in_constants
-    b_load_number,
+    b_end,// denotes the end of the program
+    b_discard,// stack: [value_to_discard] - removes one value from the stack
+    b_swap,// stack: [a, b] - swaps two values at the top of the stack
+    b_load_string,// argument: position_in_constants
+    b_load_number,// argument: bits of float value
     b_table_literal,
     b_null,
-    b_function,// beginning_label
+    b_function,// argument: beginning_label, stack: [arguments_count]
     b_return,
     b_get_scope,
     b_set_scope,
     b_label,
-    b_jump,// position
-    b_jump_not,// position
-    b_get,// (key and table on the stack)
-    b_set,// (value, key and table on the stack)
-    b_call,// (arguments and function on the stack)
-    b_unary,// (two arguments and operator on the stack)
-    b_prefix,// (one argument and operator on the stack)
+    b_jump,// argument: position
+    b_jump_not,// argument: position
+    b_get,// stack: [key, ?indexed_object] - if argument is zero use scope as indexed object
+    b_set,// stack: [value, key, ?indexed_object] - if argument is zero use scope as indexed object, pushes the value back to the stack
+    b_call,// stack: [function, arguments...]
+    b_unary,// stack: [a, b, operator]
+    b_prefix,// stack: [a, operator]
 };
 
 typedef struct instruction instruction;
@@ -43,8 +41,6 @@ struct bytecode_program {
     void* constants;
 };
 
-bytecode_program ast_to_bytecode(expression* exp, int keep_scope);
-object* execute_bytecode(instruction* code, void* constants, table* scope);
 char* stringify_bytecode(bytecode_program);
 
 #endif
