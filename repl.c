@@ -20,7 +20,8 @@ void repl(int use_bytecode){
         parse_string(input);
 
         TRY_CATCH(
-            object* execution_result=execute_ast(parsing_result, global_scope, 1);
+            ast_executor_state state;
+            object* execution_result=execute_ast(&state, parsing_result, global_scope, 1);
             printf("%s\n", stringify(execution_result));
             if(execution_result->ref_count<=1){
                 object_delete(execution_result);

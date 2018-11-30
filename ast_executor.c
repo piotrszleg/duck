@@ -1,7 +1,5 @@
 #include "ast_executor.h"
 
-int current_line;
-
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
@@ -13,7 +11,7 @@ void copy_table(table* source, table* destination){
     }
 }
 
-object* path_get(table* scope, path p){
+object* path_get(ast_executor_state* state, table* scope, path p){
     table* current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
@@ -22,7 +20,7 @@ object* path_get(table* scope, path p){
         if(e->type==_name){
             evaluated_to_string=((name*)e)->value;
         } else {
-            USING_STRING(stringify(execute_ast(e, scope, 0)), 
+            USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
                 evaluated_to_string=str);
         }
         object* object_at_name=get((object*)current, evaluated_to_string);
@@ -39,7 +37,7 @@ object* path_get(table* scope, path p){
     return (object*)new_null();
 } 
 
-void path_set(table* scope, path p, object* value){
+void path_set(ast_executor_state* state, table* scope, path p, object* value){
     table* current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
@@ -48,7 +46,7 @@ void path_set(table* scope, path p, object* value){
         if(e->type==_name){
             evaluated_to_string=((name*)e)->value;
         } else {
-            USING_STRING(stringify(execute_ast(e, scope, 0)), 
+            USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
                 evaluated_to_string=str);
         }
         if(i==lines_count-1){
@@ -65,11 +63,11 @@ void path_set(table* scope, path p, object* value){
     }
 }
 
-object* execute_ast(expression* exp, table* scope, int keep_scope){
+object* execute_ast(ast_executor_state* state, expression* exp, table* scope, int keep_scope){
     if(exp==NULL){
         ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
-    current_line=exp->line;
+    state->line=exp->line;
     object* result=NULL;
     switch(exp->type){
         case _empty:
@@ -101,7 +99,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
             new_scope->ref_count++;
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=(expression*)vector_get(&b->lines, i);
-                object* line_result=execute_ast(line, new_scope, 0);
+                object* line_result=execute_ast(state, line, new_scope, 0);
                 if(line->type!=_assignment){
                     char buf[16];
                     sprintf(buf,"%d",i);
@@ -123,7 +121,12 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                 setup_scope((object*)block_scope, (object*)scope);
             }
             for (int i = 0; i < vector_total(&b->lines); i++){
-                object* line_result=execute_ast(vector_get(&b->lines, i), block_scope, 0);
+                object* line_result=execute_ast(state, vector_get(&b->lines, i), block_scope, 0);
+                if(state->returning){
+                    result=line_result;
+                    result->ref_count++;
+                    break;
+                }
                 if(i == vector_total(&b->lines)-1){
                     result=line_result;// last line is the result of evaluation of the entire block
                     result->ref_count++;
@@ -144,15 +147,15 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         case _assignment:
         {
             assignment* a=(assignment*)exp;
-            result=execute_ast(a->right, scope, 0);
-            path_set(scope, *a->left, result);
+            result=execute_ast(state, a->right, scope, 0);
+            path_set(state, scope, *a->left, result);
             break;
         }
         case _unary:
         {
             unary* u=(unary*)exp;
-            object* left=execute_ast(u->left, scope, 0);
-            object* right=execute_ast(u->right, scope, 0);
+            object* left=execute_ast(state, u->left, scope, 0);
+            object* right=execute_ast(state, u->right, scope, 0);
             result=operator(left, right, u->op);
             delete_unreferenced(left);
             delete_unreferenced(right);
@@ -161,7 +164,7 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         case _prefix:
         {
             prefix* p=(prefix*)exp;
-            object* left=execute_ast(p->right, scope, 0);
+            object* left=execute_ast(state, p->right, scope, 0);
             object* right=(object*)new_null();
             result=operator(left, right, p->op);
             delete_unreferenced(left);
@@ -171,10 +174,10 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         case _conditional:
         {
             conditional* c=(conditional*)exp;
-            if(is_falsy(execute_ast(c->condition, scope, 0))){
-                result=execute_ast((expression*)c->onfalse, scope, 0);
+            if(is_falsy(execute_ast(state, c->condition, scope, 0))){
+                result=execute_ast(state, (expression*)c->onfalse, scope, 0);
             } else{
-                result=execute_ast((expression*)c->ontrue, scope, 0);
+                result=execute_ast(state, (expression*)c->ontrue, scope, 0);
             }
             break;
         }
@@ -197,20 +200,20 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
         {
             function_call* c=(function_call*)exp;
             
-            function* f=(function*)path_get(scope, *c->function_path);
+            function* f=(function*)path_get(state, scope, *c->function_path);
             switch(f->f_type){
                 case f_native:
                 {
                     vector arguments;
                     vector_init(&arguments);
                     for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                        object* argument_value=execute_ast(vector_get(&c->arguments->lines, i), scope, 0);
+                        object* argument_value=execute_ast(state, vector_get(&c->arguments->lines, i), scope, 0);
                         vector_add(&arguments, argument_value);
                     }
                     result=f->pointer(arguments);
                     vector_free(&arguments);
+                    break;
                 }
-                break;
                 case f_ast:
                 {
                     table* function_scope=new_table();
@@ -226,10 +229,11 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                         //char buf[16];
                         //itoa(i, buf, 10);
                         char* argument_name=vector_get(&f->argument_names, i);
-                        object* argument_value=execute_ast(vector_get(&c->arguments->lines, i), scope, 0);
+                        object* argument_value=execute_ast(state, vector_get(&c->arguments->lines, i), scope, 0);
                         set((object*)function_scope, argument_name, argument_value);
                     }
-                    result=execute_ast(f->ast_pointer, function_scope, 1);
+                    result=execute_ast(state, f->ast_pointer, function_scope, 1);
+                    state->returning=false;
                     result->ref_count++;
                     delete_unreferenced((object*)function_scope);
                     break;
@@ -238,11 +242,19 @@ object* execute_ast(expression* exp, table* scope, int keep_scope){
                     ERROR(NOT_IMPLEMENTED, "Can't call ast function from bytecode\n");
                     break;
             }
+            break;
         }
         case _path:
         {
             path* p=(path*)exp;
-            result=path_get(scope, *p);
+            result=path_get(state, scope, *p);
+            break;
+        }
+        case _function_return:
+        {
+            function_return* r=(function_return*)exp;
+            result=execute_ast(state, r->value, scope, 0);
+            state->returning=true;
             break;
         }
         default:

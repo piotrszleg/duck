@@ -5,8 +5,13 @@
 #include "object_system/object.h"
 #include "error/error.h"
 #include "builtins.h"
+#include "stdbool.h"
 
-object* execute_ast(expression* exp, table* scope, int create_block_subscope);
-extern int current_line;
+typedef struct {
+    int line;
+    bool returning;
+} ast_executor_state;
+
+object* execute_ast(ast_executor_state* state, expression* exp, table* scope, int keep_scope);
 
 #endif

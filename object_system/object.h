@@ -95,6 +95,8 @@ object* operator(object* a, object* b, char* op);
 
 object* cast(object* o, object_type type);
 
+object* call(function* f, vector arguments);// this should be implemented by higher level module
+
 object* get(object* o, char*key);
 void set(object* o, char*key, object* value);
 
