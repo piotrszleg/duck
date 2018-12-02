@@ -47,63 +47,69 @@ char* stringify_object_stack(const stack* s){
     return result; 
 }
 
-object* execute_bytecode(instruction* code, void* constants, table* scope){
-    int pointer=0;// points to the current instruction
+void bytecode_enviroment_init(bytecode_environment* e){
+    stack_init(&e->object_stack, sizeof(object*), STACK_SIZE);
+    push(&e->object_stack, (object*)new_null());
+    stack_init(&e->return_stack, sizeof(table*), STACK_SIZE);
+}
 
-    stack object_stack;
-    stack_init(&object_stack, sizeof(object*), STACK_SIZE);
-    push(&object_stack, (object*)new_null());
+object* execute_bytecode(bytecode_environment* environment, table* scope){
+    int* pointer=&environment->pointer;// points to the current instruction
 
-    stack return_stack;
-    stack_init(&return_stack, sizeof(table*), STACK_SIZE);
+    stack* object_stack=&environment->object_stack;
+    stack* return_stack=&environment->return_stack;
 
-    while(code[pointer].type!=b_end){
-        instruction instr=code[pointer];
+    instruction* code=environment->code;
+    void* constants=environment->constants;
+
+    while(code[*pointer].type!=b_end){
+        instruction instr=code[*pointer];
+        environment->line=*pointer;
         switch(instr.type){
             case b_discard:
                 // remove item from the stack and delete it if it's not referenced
-                delete_unreferenced(pop(&object_stack));
+                delete_unreferenced(pop(object_stack));
                 break;
             case b_swap:
             {
-                object* a=pop(&object_stack);
-                object* b=pop(&object_stack);
-                push(&object_stack, a);
-                push(&object_stack, b);
+                object* a=pop(object_stack);
+                object* b=pop(object_stack);
+                push(object_stack, a);
+                push(object_stack, b);
                 break;
             }
             case b_load_string:
             {
                 string* s=new_string();
                 s->value=strdup(((char*)constants)+instr.argument);
-                push(&object_stack, (object*)s);
+                push(object_stack, (object*)s);
                 break;
             }
             case b_load_number:
             {
                 number* n=new_number();
                 memcpy (&n->value, &instr.argument, sizeof n->value);
-                push(&object_stack, (object*)n);
+                push(object_stack, (object*)n);
                 break;
             }
             case b_table_literal:
             {
                 table* t=new_table();
-                push(&object_stack, (object*)t);
+                push(object_stack, (object*)t);
                 break;
             }
             case b_null:
             {
                 null* n=new_null();
-                push(&object_stack, (object*)n);
+                push(object_stack, (object*)n);
                 break;
             }
             case b_get:
             {
-                object* key=pop(&object_stack);
+                object* key=pop(object_stack);
                 object* indexed;
                 if(instr.argument){
-                    indexed=pop(&object_stack);
+                    indexed=pop(object_stack);
                 } else {
                     indexed=(object*)scope;
                 }
@@ -111,7 +117,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                 if(get_override->type!=t_null){
                     if(get_override->type==t_function){
                         function* f=(function*)get_override;
-                        if(f->f_type==f_bytecode){
+                        if(f->ftype==f_bytecode){
                             //move pointer to the label
                             //return position is this line
                         }
@@ -125,7 +131,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
                     }
                 }*/
                 USING_STRING(stringify(key), 
-                        push(&object_stack, get(indexed, str)));
+                        push(object_stack, get(indexed, str)));
                 if(instr.argument){
                     // delete indexed if it isn't the scope
                     delete_unreferenced(indexed);
@@ -135,35 +141,35 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             }
             case b_set:
             {
-                object* key=pop(&object_stack);
+                object* key=pop(object_stack);
                 object* indexed;
                 if(instr.argument){
-                    indexed=pop(&object_stack);
+                    indexed=pop(object_stack);
                 } else {
                     indexed=(object*)scope;
                 }
-                object* value=pop(&object_stack);
+                object* value=pop(object_stack);
                 set(indexed, stringify(key), value);
                 if(instr.argument){
                     // delete indexed if it isn't the scope
                     delete_unreferenced(indexed);
                 }
                 delete_unreferenced(key);
-                push(&object_stack, value);
+                push(object_stack, value);
                 break;
             }
             case b_get_scope:
             {
-                push(&object_stack, (object*)scope);
+                push(object_stack, (object*)scope);
                 break;
             }
             case b_set_scope:
             {
                 delete_unreferenced((object*)scope);
-                object* o=pop(&object_stack);
+                object* o=pop(object_stack);
                 if(o->type!=t_table){
                     USING_STRING(stringify(o),
-                        ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, pointer));
+                        ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, *pointer));
                 } else {
                     scope=(table*)o;
                 }
@@ -171,10 +177,10 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             }
             case b_unary:
             {
-                object* op=pop(&object_stack);
-                object* a=pop(&object_stack);
-                object* b=pop(&object_stack); 
-                push(&object_stack, operator(a, b, stringify(op)));
+                object* op=pop(object_stack);
+                object* a=pop(object_stack);
+                object* b=pop(object_stack); 
+                push(object_stack, operator(a, b, stringify(op)));
                 delete_unreferenced(op);
                 delete_unreferenced(a);
                 delete_unreferenced(b);
@@ -182,10 +188,10 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             }
             case b_prefix:
             {
-                object* op=pop(&object_stack);
-                object* a=pop(&object_stack);
+                object* op=pop(object_stack);
+                object* a=pop(object_stack);
                 object* b=(object*)new_null();// replace second argument with null
-                push(&object_stack, operator(a, b, stringify(op)));
+                push(object_stack, operator(a, b, stringify(op)));
                 delete_unreferenced(op);
                 delete_unreferenced(a);
                 // operator might store or return the second argument so it can't be simply removed
@@ -194,7 +200,7 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             }
             case b_jump_not:
             {
-                object* condition=pop(&object_stack);
+                object* condition=pop(object_stack);
                 if(!is_falsy(condition)){
                     delete_unreferenced(condition);
                     break;// go to the next line
@@ -206,9 +212,9 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             {
                 int destination=search_for_label(code, instr.argument);
                 if(destination>0){
-                    pointer=destination;
+                    *pointer=destination;
                 } else {
-                    ERROR(WRONG_ARGUMENT_TYPE, "Incorrect jump label %li, number of instruction is: %i\n", instr.argument, pointer);
+                    ERROR(WRONG_ARGUMENT_TYPE, "Incorrect jump label %li, number of instruction is: %i\n", instr.argument, *pointer);
                 }
                 break;
             }
@@ -216,72 +222,86 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             {
                 function* f=new_function();
                 f->enclosing_scope=scope;
+                f->enviroment=(void*)environment;
                 scope->ref_count++;// remember to check the enclosing scope in destructor
-                object* arguments_count_object=pop(&object_stack);
+                object* arguments_count_object=pop(object_stack);
                 if(arguments_count_object->type!=t_number){
-                    ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", pointer);
+                    ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", *pointer);
                     break;
                 }
                 f->arguments_count=(int)((number*)arguments_count_object)->value;
-                f->f_type=f_bytecode;
+                f->ftype=f_bytecode;
                 f->label=instr.argument;
-                push(&object_stack, (object*)f);
+                push(object_stack, (object*)f);
                 break;
             }
             case b_call:
             {
-                object* o=pop(&object_stack);
+                object* o=pop(object_stack);
+                if(o->type!=t_function){
+                    ERROR(NOT_IMPLEMENTED, "Calling object is not implemented.");
+                    /*vector arguments;
+                    vector_init(&arguments);
+                    for (int i = 0; i < f->arguments_count; i++){
+                        vector_add(&arguments, pop(object_stack));
+                    }
+                    push(call(o, arguments));*/
+                }
                 function* f=(function*)cast(o, t_function);
-                
-                if(f->f_type==f_native){
+                if(f->ftype==f_native){
                     vector arguments;
                     vector_init(&arguments);
                     for (int i = 0; i < f->arguments_count; i++){
-                        vector_add(&arguments, pop(&object_stack));
+                        vector_add(&arguments, pop(object_stack));
                     }
-                    push(&object_stack, f->pointer(arguments));
+                    vector_reverse(&arguments);
+                    push(object_stack, f->pointer(arguments));
                     vector_free(&arguments);
-                } else if(f->f_type==f_bytecode){
+                } else if(f->ftype==f_bytecode){
                     table* function_scope=new_table();
                     if(f->enclosing_scope!=NULL){
-                        setup_scope((object*)function_scope, (object*)f->enclosing_scope);
+                        inherit_scope((object*)function_scope, (object*)f->enclosing_scope);
                     } else {
-                        setup_scope((object*)function_scope, (object*)scope);
+                        inherit_scope((object*)function_scope, (object*)scope);
                     }
                     int destination=search_for_label(code, f->label);
                     if(destination>0){
                         number* return_point=new_number();
-                        return_point->value=pointer;
+                        return_point->value=*pointer;
                         set((object*)function_scope, "return_point", (object*)return_point);
-                        push(&return_stack, (object*)scope);
+                        push(return_stack, (object*)scope);
                         
                         scope=function_scope;
-                        pointer=destination;
+                        *pointer=destination;
                     } else {
-                        ERROR(WRONG_ARGUMENT_TYPE, "Incorrect function jump label %i, number of instruction is: %i\n", f->label, pointer);
+                        ERROR(WRONG_ARGUMENT_TYPE, "Incorrect function jump label %i, number of instruction is: %i\n", f->label, *pointer);
                     }
-               } else if(f->f_type==f_ast) {
-                   ERROR(NOT_IMPLEMENTED, "Can't call ast function from bytecode, number of instruction is: %i\n", pointer);
+               } else if(f->ftype==f_ast) {
+                   ERROR(NOT_IMPLEMENTED, "Can't call ast function from bytecode, number of instruction is: %i\n", *pointer);
                } else {
-                    ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", pointer);
+                    ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", *pointer);
                }
                break;
             }
             case b_return:
             {
-                object* return_point=get((object*)scope, "return_point");
-                if(return_point->type!=t_number){
-                    USING_STRING(stringify(return_point), 
-                        ERROR(WRONG_ARGUMENT_TYPE, "Return point (%s) is not a number, number of instruction is: %i\n", str, pointer));
+                if(return_stack->top==0){
+                    return pop(object_stack);
                 } else {
-                    pointer=((number*)return_point)->value;
-                    object* return_scope=pop(&return_stack);
-                    if(return_scope->type!=t_table){
-                        USING_STRING(stringify(return_scope), 
-                            ERROR(WRONG_ARGUMENT_TYPE, "Return scope (%s) is not a table, number of instruction is: %i\n", str, pointer));
+                    object* return_point=get((object*)scope, "return_point");
+                    if(return_point->type!=t_number){
+                        USING_STRING(stringify(return_point), 
+                            ERROR(WRONG_ARGUMENT_TYPE, "Return point (%s) is not a number, number of instruction is: %i\n", str, *pointer));
                     } else {
-                        delete_unreferenced((object*)scope);
-                        scope=(table*)return_scope;     
+                        *pointer=((number*)return_point)->value;
+                        object* return_scope=pop(return_stack);
+                        if(return_scope->type!=t_table){
+                            USING_STRING(stringify(return_scope), 
+                                ERROR(WRONG_ARGUMENT_TYPE, "Return scope (%s) is not a table, number of instruction is: %i\n", str, *pointer));
+                        } else {
+                            delete_unreferenced((object*)scope);
+                            scope=(table*)return_scope;     
+                        }
                     }
                 }
                 break;
@@ -289,9 +309,9 @@ object* execute_bytecode(instruction* code, void* constants, table* scope){
             case b_label:
                 break;
             default:
-                ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, pointer);
+                ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, *pointer);
         }
-        pointer++;
+        (*pointer)++;
     }
-    return pop(&object_stack);
+    return pop(object_stack);
 }

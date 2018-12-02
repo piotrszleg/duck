@@ -1,6 +1,4 @@
 ## TODO:
-- implement return in ast_executor
-- replace table with vector in function call
 - resize stack
 - stringify override
 - move execution state into a struct

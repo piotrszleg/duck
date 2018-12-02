@@ -24,7 +24,7 @@ enum instruction_type {
     b_jump_not,// argument: position
     b_get,// stack: [key, ?indexed_object] - if argument is zero use scope as indexed object
     b_set,// stack: [value, key, ?indexed_object] - if argument is zero use scope as indexed object, pushes the value back to the stack
-    b_call,// stack: [function, arguments...]
+    b_call,// argument: number_of_arguments, stack: [function, arguments...]
     b_unary,// stack: [a, b, operator]
     b_prefix,// stack: [a, operator]
 };
@@ -35,12 +35,11 @@ struct instruction {
     long argument;// long type ensures that 4bit float will fit
 };
 
-typedef struct bytecode_program bytecode_program;
-struct bytecode_program {
+typedef struct {
     instruction* code;
     void* constants;
-};
+} bytecode_program;
 
-char* stringify_bytecode(bytecode_program);
+char* stringify_bytecode(bytecode_program program);
 
 #endif

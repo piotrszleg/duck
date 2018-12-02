@@ -68,6 +68,16 @@ void vector_delete(vector *v, int index)
         vector_resize(v, v->capacity / 2);
 }
 
+void vector_reverse(vector *v)
+{
+    void** reversed_items=malloc(sizeof(void *) * v->capacity);
+    for (int i = 0; i < v->total; i++) {
+        reversed_items[v->total-1-i] = v->items[i];
+    }
+    free(v->items);
+    v->items=reversed_items;
+}
+
 void vector_free(vector *v)
 {
     free(v->items);

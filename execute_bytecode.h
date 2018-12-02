@@ -7,7 +7,21 @@
 #include "builtins.h"
 #include "bytecode.h"
 #include "macros.h"
+#include "bytecode.h"
 
-object* execute_bytecode(instruction* code, void* constants, table* scope);
+typedef struct {
+    instruction* code;
+    void* constants;
+    int pointer;
+    int line;
+    stack object_stack;
+    stack return_stack;
+} bytecode_environment;
+
+void bytecode_enviroment_init(bytecode_environment* e);
+
+void push(stack* stack, object* o);
+object* execute_bytecode(bytecode_environment* environment, table* scope);
+int search_for_label(const instruction* code, int label_index);
 
 #endif

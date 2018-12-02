@@ -3,6 +3,15 @@
 #include "object.h"
 #include "../error/error.h"
 
+object* call_function(function* f, vector arguments){
+    if(f->ftype==f_native){
+        return f->pointer(arguments);
+    } else {
+        ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
+        return (object*)new_null();
+    }
+}
+
 void assert_stringification(object* o, char* expected){
     assert(strcmp(stringify(o), expected)==0);
 }

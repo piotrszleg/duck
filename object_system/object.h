@@ -71,13 +71,14 @@ enum function_type{
     f_bytecode
 };
 RUNTIME_OBJECT(function,
-    function_type f_type;
+    function_type ftype;
     union {
         object* (*pointer)(vector arguments);
         // void* should be expression* but I don't want to create cross dependency here
         void* ast_pointer;
         int label;
     };
+    void* enviroment;
     vector argument_names;
     int arguments_count;
     table* enclosing_scope;
@@ -95,7 +96,11 @@ object* operator(object* a, object* b, char* op);
 
 object* cast(object* o, object_type type);
 
-object* call(function* f, vector arguments);// this should be implemented by higher level module
+object* call(object* o, vector arguments);
+
+// object_system doesn't know how to execute code other than native, 
+// so this function should be implemented in higher level module
+object* call_function(function* f, vector arguments);
 
 object* get(object* o, char*key);
 void set(object* o, char*key, object* value);

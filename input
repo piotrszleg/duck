@@ -1,2 +1,2 @@
-a=[]
-typeof(a)=="table"
+a=x->x*2
+native_call(a, 5)

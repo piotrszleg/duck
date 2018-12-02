@@ -118,7 +118,7 @@ object* execute_ast(ast_executor_state* state, expression* exp, table* scope, in
                 block_scope=scope;
             } else {
                 block_scope=new_table();
-                setup_scope((object*)block_scope, (object*)scope);
+                inherit_scope((object*)block_scope, (object*)scope);
             }
             for (int i = 0; i < vector_total(&b->lines); i++){
                 object* line_result=execute_ast(state, vector_get(&b->lines, i), block_scope, 0);
@@ -189,7 +189,7 @@ object* execute_ast(ast_executor_state* state, expression* exp, table* scope, in
             for (int i = 0; i < vector_total(d->arguments); i++){
                 vector_add(&f->argument_names, ((name*)vector_get(d->arguments, i))->value);
             }
-            f->f_type=f_ast;
+            f->ftype=f_ast;
             f->ast_pointer=(void*)d->body;
             f->enclosing_scope=scope;
             scope->ref_count++;
@@ -201,7 +201,7 @@ object* execute_ast(ast_executor_state* state, expression* exp, table* scope, in
             function_call* c=(function_call*)exp;
             
             function* f=(function*)path_get(state, scope, *c->function_path);
-            switch(f->f_type){
+            switch(f->ftype){
                 case f_native:
                 {
                     vector arguments;
@@ -218,9 +218,9 @@ object* execute_ast(ast_executor_state* state, expression* exp, table* scope, in
                 {
                     table* function_scope=new_table();
                     if(f->enclosing_scope!=NULL){
-                        setup_scope((object*)function_scope, (object*)f->enclosing_scope);
+                        inherit_scope((object*)function_scope, (object*)f->enclosing_scope);
                     } else {
-                        setup_scope((object*)function_scope, (object*)scope);
+                        inherit_scope((object*)function_scope, (object*)scope);
                     }
                     if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
                         ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");

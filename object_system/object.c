@@ -21,8 +21,7 @@ RUNTIME_OBJECT_NEW(null,)
 RUNTIME_OBJECT_NEW(number,)
 RUNTIME_OBJECT_NEW(function,
     instance->arguments_count=0;
-    instance->f_type=f_native;
-    instance->argument_names;
+    instance->ftype=f_native;
     instance->enclosing_scope=NULL;
 )
 RUNTIME_OBJECT_NEW(string,)
@@ -356,7 +355,7 @@ object* get(object* o, char* key){
             if(map_get_override!=NULL){
                 // create arguments for the function
                 function* get_function=(function*)cast(*map_get_override, t_function);
-                if(get_function->f_type==f_native){
+                if(get_function->ftype==f_native){
                     vector arguments;
                     vector_init(&arguments);
 
@@ -409,5 +408,22 @@ void set(object* o, char*key, object* value){
         }
         default:
             ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
+    }
+}
+
+object* call(object* o, vector arguments){
+    switch(o->type){
+        case t_function:
+        {
+            return call_function((function*)o, arguments);
+        }
+        case t_table:
+        {
+            object* call_field=get(o, "call");
+            return call(call_field, arguments);
+        }
+        default:
+            ERROR(WRONG_ARGUMENT_TYPE, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
+            return (object*)new_null();
     }
 }

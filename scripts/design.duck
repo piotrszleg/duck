@@ -81,9 +81,22 @@ call=(self, arguments){
     }
 }
 
+get_override=(self, key)->{
+    if(key=="full_name"){
+        self.name+self.surname
+    } else {
+        get_native(self, key)
+    }
+}
+
+call_override(self, arguments)-{
+    self.call_count++
+    native_call(self.contained_function, arguments)
+}
+
 table.get=(table, key)->{
     if(table.get!=null){
-        table.get(key)
+        table.get(table, key)
     } else {
         get_native(table, key)
     }
