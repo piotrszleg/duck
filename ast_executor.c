@@ -191,6 +191,7 @@ object* execute_ast(ast_executor_state* state, expression* exp, table* scope, in
             }
             f->ftype=f_ast;
             f->ast_pointer=(void*)d->body;
+            f->enviroment=(void*)state;
             f->enclosing_scope=scope;
             scope->ref_count++;
             result=(object*)f;

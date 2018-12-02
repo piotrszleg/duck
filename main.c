@@ -64,7 +64,11 @@ object* call_function(function* f, vector arguments){
             inherit_scope((object*)function_scope, (object*)f->enclosing_scope);
         }
         if(f->ftype==f_ast){
-            return execute_ast((ast_executor_state*)f->enviroment, parsing_result, function_scope, 1);
+            int arguments_count=vector_total(&arguments);
+            for(int i=0; i<arguments_count; i++){
+                set((object*)function_scope, vector_get(&f->argument_names, i), vector_get(&arguments, i));
+            }
+            return execute_ast((ast_executor_state*)f->enviroment, (expression*)f->ast_pointer, function_scope, 1);
         } else if(f->ftype==f_bytecode){
             bytecode_environment* environment=(bytecode_environment*)f->enviroment;
             int previous_pointer=environment->pointer;
