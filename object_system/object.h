@@ -84,6 +84,7 @@ RUNTIME_OBJECT(function,
     table* enclosing_scope;
 );
 
+char* stringify_object(object* o);
 char* stringify(object* o);
 
 void delete_unreferenced(object* checked);
@@ -104,6 +105,7 @@ object* call_function(function* f, vector arguments);
 
 object* get_table(table* t, char* key);
 object* get(object* o, char*key);
+void set_table(table* t, char*key, object* value);
 void set(object* o, char*key, object* value);
 
 #endif

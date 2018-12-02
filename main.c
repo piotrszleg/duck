@@ -31,6 +31,11 @@ void execute_file(const char* file_name, int use_bytecode){
         environment.code=prog.code;
         environment.constants=prog.constants;
         execution_result=execute_bytecode(&environment, global_scope);
+
+        USING_STRING(stringify(execution_result), 
+            printf("Execution result:\n%s\n", str));
+        USING_STRING(stringify((object*)global_scope), 
+            printf("Global scope:\n%s\n", str));
         
         free(prog.code);
         free((char*)prog.constants);
@@ -38,6 +43,10 @@ void execute_file(const char* file_name, int use_bytecode){
         ast_executor_state state;
         TRY_CATCH(
             execution_result=execute_ast(&state, parsing_result, global_scope, 1);
+            USING_STRING(stringify(execution_result), 
+                printf("Execution result:\n%s\n", str));
+            USING_STRING(stringify((object*)global_scope), 
+                printf("Global scope:\n%s\n", str));
         ,
             printf("Error occured on line %i of source code:\n", state.line);
             printf(err_message);
@@ -45,10 +54,7 @@ void execute_file(const char* file_name, int use_bytecode){
         );
         delete_expression(parsing_result);
     }
-    USING_STRING(stringify(execution_result), 
-        printf("Execution result:\n%s\n", str));
-    USING_STRING(stringify((object*)global_scope), 
-        printf("Global scope:\n%s\n", str));
+    
     
     execution_result->ref_count++;// make sure that the execution_result isn't garbage collected along with global_scope
     object_delete((object*)global_scope);

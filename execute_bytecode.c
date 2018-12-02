@@ -238,20 +238,24 @@ object* execute_bytecode(bytecode_environment* environment, table* scope){
             case b_call:
             {
                 object* o=pop(object_stack);
+                int arguments_count=instr.argument;
+                if(o->type==t_null){
+                    ERROR(WRONG_ARGUMENT_TYPE, "Called function is null.");
+                }
                 if(o->type!=t_function){
-                    ERROR(NOT_IMPLEMENTED, "Calling object is not implemented.");
-                    /*vector arguments;
+                    ERROR(NOT_IMPLEMENTED, "Calling object is not implemented, object is %s.", stringify(o));
+                    vector arguments;
                     vector_init(&arguments);
-                    for (int i = 0; i < f->arguments_count; i++){
+                    for (int i = 0; i < arguments_count; i++){
                         vector_add(&arguments, pop(object_stack));
                     }
-                    push(call(o, arguments));*/
+                    push(object_stack, call(o, arguments));
                 }
                 function* f=(function*)cast(o, t_function);
                 if(f->ftype==f_native){
                     vector arguments;
                     vector_init(&arguments);
-                    for (int i = 0; i < f->arguments_count; i++){
+                    for (int i = 0; i < arguments_count; i++){
                         vector_add(&arguments, pop(object_stack));
                     }
                     vector_reverse(&arguments);

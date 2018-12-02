@@ -132,7 +132,7 @@ int compare(object* a, object *b){
     switch(a->type){
         case t_string:
             if(a->type==b->type){
-                return sign(strlen(((string*)a)->value)-strlen(((string*)b)->value));
+                return strcmp(((string*)a)->value, ((string*)b)->value);
             }
         case t_number:
             if(a->type==b->type){
@@ -197,6 +197,18 @@ number* create_number(int value){
 object* operator(object* a, object *b, char* op){
     CHECK_OBJECT(a);
     CHECK_OBJECT(b);
+    if(a->type==t_table){
+        object* get_function=get(a, op);
+
+        // call get_function a and b as arguments
+        vector arguments;
+        vector_init(&arguments);
+        vector_add(&arguments, a);
+        vector_add(&arguments, b);
+        object* result=call(get_function, arguments);
+        vector_free(&arguments);
+        return result;
+    }
     if(strcmp(op, "==")==0){
         return (object*)create_number(compare(a, b)==0);
     }
@@ -286,6 +298,21 @@ object* operator(object* a, object *b, char* op){
 }
 
 char* stringify(object* o){
+    if(o->type==t_table){
+        object* stringify_override=get(o, "stringify");
+        if(stringify_override->type!=t_null){
+            vector arguments;
+            vector_init(&arguments);
+            vector_add(&arguments, o);
+            object* result=call(stringify_override, arguments);
+            vector_free(&arguments);
+            return stringify_object(result);
+        }
+    }
+    return stringify_object(o);
+}
+
+char* stringify_object(object* o){
     CHECK_OBJECT(o);
     switch(o->type){
         case t_string:
@@ -356,59 +383,77 @@ object* get_table(table* t, char* key){
 
 object* get(object* o, char* key){
     CHECK_OBJECT(o);
-    switch(o->type){
-        case t_table:
-        {
-            // try to get "get" operator overriding function from the table and use it
-            object** map_get_override=map_get(&((struct table*)o)->fields, "get");
-            if(map_get_override!=NULL){
-                // create arguments for the function
-                function* get_function=(function*)cast(*map_get_override, t_function);
-                vector arguments;
-                vector_init(&arguments);
-                // call get_function with o and key as arguments
-                vector_add(&arguments, o);
-                string* key_string=new_string();
-                key_string->value=strdup(key);
-                vector_add(&arguments, (object*)key_string);
-                object* result;
-                if(get_function->ftype==f_native){
-                    result=get_function->pointer(arguments);
-                } else {
-                    result=call_function(get_function, arguments);
-                }
-                delete_unreferenced((object*)key_string);
-                vector_free(&arguments);
-                return result;
-            }
+    if(o->type==t_table){
+        // try to get "get" operator overriding function from the table and use it
+        object** map_get_override=map_get(&((struct table*)o)->fields, "get");
+        if(map_get_override!=NULL){
+            // create arguments for the function
+            function* get_function=(function*)cast(*map_get_override, t_function);
+            vector arguments;
+            vector_init(&arguments);
+            // call get_function with o and key as arguments
+            vector_add(&arguments, o);
+            string* key_string=new_string();
+            key_string->value=strdup(key);
+            vector_add(&arguments, (object*)key_string);
+            object* result;
+            result=call_function(get_function, arguments);
+            delete_unreferenced((object*)key_string);
+            vector_free(&arguments);
+            return result;
+        } else {
+            // simply get key from table's map
             return get_table((table*)o, key);
         }
-        default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
-            return (object*)new_null();
+    } else {
+        ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
+        return (object*)new_null();
     }
 }
 
-void set(object* o, char*key, object* value){
-    CHECK_OBJECT(o);
-    switch(o->type){
-        case t_table:
-        {
-            object** value_at_key = map_get(&((struct table*)o)->fields, key);
-            if(value_at_key!=NULL){
-                (*value_at_key)->ref_count--;// table no longer holds a reference to this object
-                delete_unreferenced(*value_at_key);
-                if(value->type==t_null){
-                    map_remove(&((struct table*)o)->fields, key);// setting key to null removes it
-                    return;
-                }
-            }
-            value->ref_count++;// now the value is referenced by table
-            map_set(&((struct table*)o)->fields, key, value);// key is empty so it only needs to be set to point to value
-            break;
+void set_table(table* t, char* key, object* value){
+    object_map_t* fields=&((struct table*)t)->fields;
+    object** value_at_key = map_get(fields, key);
+    if(value_at_key!=NULL){
+        (*value_at_key)->ref_count--;// table no longer holds a reference to this object
+        delete_unreferenced(*value_at_key);
+        if(value->type==t_null){
+            map_remove(fields, key);// setting key to null removes it
+            return;
         }
-        default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
+    }
+    value->ref_count++;// now the value is referenced by table
+    map_set(fields, key, value);// key is empty so it only needs to be set to point to value
+}
+
+void set(object* o, char* key, object* value){
+    CHECK_OBJECT(o);
+    if(o->type==t_table){
+        // try to get "get" operator overriding function from the table and use it
+        object** map_set_override=map_get(&((struct table*)o)->fields, "set");
+        if(map_set_override!=NULL){
+            // create arguments for the function
+            function* set_function=(function*)cast(*map_set_override, t_function);
+            vector arguments;
+            vector_init(&arguments);
+            // call get_function with o and key and value as arguments
+            vector_add(&arguments, o);
+
+            string* key_string=new_string();
+            key_string->value=strdup(key);
+            vector_add(&arguments, (object*)key_string);
+
+            vector_add(&arguments, value);
+
+            object* result;
+            call_function(set_function, arguments);
+            delete_unreferenced((object*)key_string);
+            vector_free(&arguments);
+        } else {
+            set_table((table*)o, key, value);
+        }
+    } else {
+        ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
     }
 }
 

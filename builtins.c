@@ -30,9 +30,31 @@ object* builtin_native_get(vector arguments){
     object* self=vector_get(&arguments, 0);
     object* key=vector_get(&arguments, 1);
     if(self->type!=t_table){
-        ERROR(WRONG_ARGUMENT_TYPE, "Get function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self->type]);
+        ERROR(WRONG_ARGUMENT_TYPE, "Native get function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self->type]);
+        return (object*)new_null();
     }
     return get_table((table*)self, stringify(key));
+}
+
+object* builtin_native_set(vector arguments){
+    BUILTIN_ARGUMENTS_CHECK(3);
+    object* self=vector_get(&arguments, 0);
+    object* key=vector_get(&arguments, 1);
+    object* value=vector_get(&arguments, 2);
+    if(self->type!=t_table){
+        ERROR(WRONG_ARGUMENT_TYPE, "Native set function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self->type]);
+        return (object*)new_null();
+    }
+    set_table((table*)self, stringify(key), value);
+    return value;
+}
+
+object* builtin_native_stringify(vector arguments){
+    BUILTIN_ARGUMENTS_CHECK(1);
+    object* self=vector_get(&arguments, 0);
+    string* result=new_string();
+    result->value=stringify_object(self);
+    return (object*)result;
 }
 
 object* builtin_native_call(vector arguments){
@@ -68,7 +90,10 @@ void register_builtins(table* scope){
     REGISTER_FUNCTION(typeof, 1);
     REGISTER_FUNCTION(native_get, 2);
     REGISTER_FUNCTION(native_call, 2);
+    REGISTER_FUNCTION(native_stringify, 1);
     //REGISTER_FUNCTION(test, 2);
+
+    #undef REGISTER_FUNCTION
 }
 
 object* scope_get_override(vector arguments){

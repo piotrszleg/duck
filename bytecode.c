@@ -29,7 +29,6 @@ void stringify_instruction(bytecode_program prog, char* destination, instruction
         case b_swap:
         case b_get_scope:
         case b_set_scope:
-        case b_call:
         case b_null:
         case b_return:
         case b_unary:
