@@ -2,7 +2,7 @@
 
 #define GC_LOG 0
 #define ALLOC_LOG 0
-#define STRINGIFY_BUFFER_SIZE 100
+#define STRINGIFY_BUFFER_SIZE 200
 
 const char* OBJECT_TYPE_NAMES[]={
     "null",
@@ -345,6 +345,15 @@ char* stringify(object* o){
     }
 }
 
+object* get_table(table* t, char* key){
+    object** map_get_result=map_get(&t->fields, key);
+    if(map_get_result==NULL){// there's no object at this key
+        return (object*)new_null();
+    }else {
+        return *map_get_result;
+    }
+}
+
 object* get(object* o, char* key){
     CHECK_OBJECT(o);
     switch(o->type){
@@ -355,32 +364,24 @@ object* get(object* o, char* key){
             if(map_get_override!=NULL){
                 // create arguments for the function
                 function* get_function=(function*)cast(*map_get_override, t_function);
+                vector arguments;
+                vector_init(&arguments);
+                // call get_function with o and key as arguments
+                vector_add(&arguments, o);
+                string* key_string=new_string();
+                key_string->value=strdup(key);
+                vector_add(&arguments, (object*)key_string);
+                object* result;
                 if(get_function->ftype==f_native){
-                    vector arguments;
-                    vector_init(&arguments);
-
-                    // call get_function with o and key as arguments
-                    vector_add(&arguments, o);
-                    string* key_string=new_string();
-                    key_string->value=strdup(key);
-                    vector_add(&arguments, (object*)key_string);
-
-                    object* result=get_function->pointer(arguments);
-                    delete_unreferenced((object*)key_string);
-                    vector_free(&arguments);
-                    return result;
+                    result=get_function->pointer(arguments);
                 } else {
-                    ERROR(NOT_IMPLEMENTED, "Only native functions can be used as get override for now.");
-                    return (object*)new_null();
+                    result=call_function(get_function, arguments);
                 }
+                delete_unreferenced((object*)key_string);
+                vector_free(&arguments);
+                return result;
             }
-
-            object** map_get_result=map_get(&((struct table*)o)->fields, key);
-            if(map_get_result==NULL){// there's no object at this key
-                return (object*)new_null();
-            }else {
-                return *map_get_result;
-            }
+            return get_table((table*)o, key);
         }
         default:
             ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);

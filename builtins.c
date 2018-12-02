@@ -25,11 +25,14 @@ object* builtin_typeof(vector arguments){
     return (object*)type_name;
 }
 
-object* native_get(vector arguments){
+object* builtin_native_get(vector arguments){
     BUILTIN_ARGUMENTS_CHECK(2);
     object* self=vector_get(&arguments, 0);
     object* key=vector_get(&arguments, 1);
-    return get(self, stringify(key));
+    if(self->type!=t_table){
+        ERROR(WRONG_ARGUMENT_TYPE, "Get function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self->type]);
+    }
+    return get_table((table*)self, stringify(key));
 }
 
 object* builtin_native_call(vector arguments){
@@ -63,11 +66,13 @@ void register_builtins(table* scope){
     REGISTER_FUNCTION(print, 1);
     REGISTER_FUNCTION(assert, 1);
     REGISTER_FUNCTION(typeof, 1);
+    REGISTER_FUNCTION(native_get, 2);
     REGISTER_FUNCTION(native_call, 2);
     //REGISTER_FUNCTION(test, 2);
 }
 
 object* scope_get_override(vector arguments){
+    BUILTIN_ARGUMENTS_CHECK(2);
     object* self=vector_get(&arguments, 0);
     if(self->type!=t_table){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect self argument.");
@@ -94,6 +99,7 @@ object* scope_get_override(vector arguments){
 void inherit_scope(object* scope, object* base){
     function* f=new_function();
     f->pointer=&scope_get_override;
+    f->arguments_count=2;
     object* base_global=get(base, "global");
     if(base_global->type!=t_null){
         set(scope, "global", base_global);

@@ -17,6 +17,7 @@
         "type_traits": "c",
         "utility": "c",
         "xlocnum": "c",
-        "cmath": "c"
+        "cmath": "c",
+        "error.h\u0000error.h": "c"
     }
 }

@@ -102,6 +102,7 @@ object* call(object* o, vector arguments);
 // so this function should be implemented in higher level module
 object* call_function(function* f, vector arguments);
 
+object* get_table(table* t, char* key);
 object* get(object* o, char*key);
 void set(object* o, char*key, object* value);
 

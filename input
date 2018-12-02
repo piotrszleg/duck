@@ -1,2 +1,10 @@
-a=x->x*2
-native_call(a, 5)
+a=[b=2, c=3]
+a.get=(self, key)->{
+    get_result=native_get(self, key)
+    if(get_result==null){
+        "nothing"
+    } else {
+        get_result
+    }
+}
+a.f
