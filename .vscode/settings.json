@@ -19,6 +19,7 @@
         "xlocnum": "c",
         "cmath": "c",
         "error.h\u0000error.h": "c",
-        "error_object.h": "c"
+        "error_object.h": "c",
+        "assert.h": "c"
     }
 }

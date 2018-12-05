@@ -2,7 +2,6 @@
 
 #define GC_LOG 0
 #define ALLOC_LOG 0
-#define STRINGIFY_BUFFER_SIZE 200
 
 const char* OBJECT_TYPE_NAMES[]={
     "null",
@@ -12,491 +11,76 @@ const char* OBJECT_TYPE_NAMES[]={
     "table"
 };
 
-// creates string variable str, executes body and frees the string afterwards
-#define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
-
-// all objects should be made and removed using these functions
-
-RUNTIME_OBJECT_NEW(null,)
-RUNTIME_OBJECT_NEW(number,)
-RUNTIME_OBJECT_NEW(function,
-    instance->arguments_count=0;
-    instance->ftype=f_native;
-    instance->enclosing_scope=NULL;
+OBJECT_INIT_NEW(null,)
+OBJECT_INIT_NEW(number,)
+OBJECT_INIT_NEW(function,
+    o->fp=malloc(sizeof(function_));
+    o->fp->arguments_count=0;
+    o->fp->ftype=f_native;
+    o->fp->enclosing_scope=NULL;
 )
-RUNTIME_OBJECT_NEW(string,)
-RUNTIME_OBJECT_NEW(table,
-    map_init(&((table*)instance)->fields);
+OBJECT_INIT_NEW(string,)
+OBJECT_INIT_NEW(table,
+    o->tp=malloc(sizeof(table_));
+    map_init(&o->tp->fields);
 )
+
+void reference(object* o){
+    if(o->type==t_table){
+        o->tp->ref_count++;
+    }
+}
+
+void dereference(object* o){
+    if(o->type==t_table){
+        o->tp->ref_count--;
+    }
+}
 
 // check if object is referenced by anything if not delete it
 void delete_unreferenced(object* o){
-    if(o->ref_count==0){
+    if(o->type!=t_table || o->tp->ref_count==0){// if object isn't a table or it is a table and it's ref_count is zero
         if(GC_LOG){
-            USING_STRING(stringify(o),    
+            USING_STRING(stringify(*o),
                 printf("%s was garbage collected.\n", str));
         }
         object_delete(o);
     }
 }
 
-// TODO free pointers
-void object_delete(object* o){
+void object_deinit(object* o){
     CHECK_OBJECT(o);
 
     switch(o->type){
         case t_string:
         {
-            string* as_string=(string*)o;
-            free(as_string->value);
-            free(as_string);
+            free(o->text);
             break;
         }
-        case t_number:
-            free((number*)o);
-            break;
         case t_function:
         {
-            function* as_function=(function*)o;
-            if(as_function->enclosing_scope!=NULL){
-                delete_unreferenced((object*)as_function->enclosing_scope);
+            if(o->fp->enclosing_scope!=NULL){
+                delete_unreferenced(o->fp->enclosing_scope);
             }
-            free(as_function);
             break;
         }
         case t_table: 
         {
-            table* as_table=(table*)o;
             const char *key;
-            map_iter_t iter = map_iter(&as_table->fields);
-            while ((key = map_next(&as_table->fields, &iter))) {
-                object* value=(*map_get(&as_table->fields, key));
-                value->ref_count--;// dereference contained object, so it can be garbage collected
-                delete_unreferenced(value);
+            map_iter_t iter = map_iter(&o->tp->fields);
+            while ((key = map_next(&o->tp->fields, &iter))) {
+                object value=(*map_get(&o->tp->fields, key));
+                dereference(o);// dereference contained object, so it can be garbage collected
+                object_deinit(&value);
             }
-            map_deinit(&as_table->fields);
-            free(as_table);
+            map_deinit(&o->tp->fields);
             break;
         }
-        default:
-            free(o);
+        default:;
     }
 }
 
-int is_number(const char *s)
-{
-    while (*s) {
-        if (isdigit(*s++) == 0) return 0;
-    }
-    return 1;
-}
-
-// TODO:  write tests
-int is_falsy(object* o){
-    CHECK_OBJECT(o);
-
-    switch(o->type){
-        case t_null:
-            return 1;// null is falsy
-        case t_function:
-            return 0;// every function isn't falsy
-        case t_string:
-            return strlen(((string*)o)->value)==0;// "" (string of length 0) is falsy
-        case t_number:
-            return ((number*)o)->value==0;// 0 is falsy
-        case t_table:
-            return ((table*)o)->fields.base.nnodes==0;// empty table is falsy
-        default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Incorrect object pointer passed to is_falsy function.");
-    }
-}
-
-int sign(int x){
-    return (x > 0) - (x < 0);
-}
-
-// if a>b returns 1 if a<b returns -1, if a==b returns 0
-int compare(object* a, object *b){
-    CHECK_OBJECT(a);
-    CHECK_OBJECT(b);
-    // null is always less than anything
-    if(a->type!=t_null && b->type==t_null){
-        return 1;
-    }
-    if(b->type!=t_null && a->type==t_null){
-        return -1;
-    }
-    if(b->type==t_null && a->type==t_null){
-        return 0;
-    }
-    switch(a->type){
-        case t_string:
-            if(a->type==b->type){
-                return strcmp(((string*)a)->value, ((string*)b)->value);
-            }
-        case t_number:
-            if(a->type==b->type){
-                return sign(((number*)a)->value-((number*)b)->value);
-            }
-        case t_table:
-            if(a->type==b->type){
-                return sign(((table*)a)->fields.base.nnodes-((table*)b)->fields.base.nnodes);
-            }
-        default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Can't compare <%s> to <%s>", OBJECT_TYPE_NAMES[a->type], OBJECT_TYPE_NAMES[b->type]);
-    }
-}
-
-object* cast(object* o, object_type type){
-    CHECK_OBJECT(o);
-    if(o->type==type){
-        return o;
-    }
-    switch(type){
-        case t_string:
-        {
-            string* result=new_string();
-            result->value=stringify(o);
-            return (object*)result;
-        }
-        case t_number:
-        {
-            number* result=new_number();
-            if(o->type==t_null){
-                result->value=0;// null is zero
-                return (object*)result;
-            } else if(o->type==t_string && is_number(((string*)o)->value)){
-                result->value=atoi(((string*)o)->value);// convert string to int if it contains number
-                return (object*)result;
-            }
-        }
-        case t_function:
-        {
-            object* called=o;
-            do{
-                // recursively search for object of type function under key "call" inside of 'o' object structure
-                called=get(called, "call");
-                // get will fail at some point so it shouldn't create an infinite loop
-            } while(called->type!=t_function);
-            return called;
-        }
-        default:
-            RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o->type], OBJECT_TYPE_NAMES[type]);
-    }
-}
-
-number* create_number(int value){
-    number* n=new_number();
-    n->value=value;
-    return n;
-}
-
-object* find_call_function(object* o){
-    if(o->type==t_function){
-        return (object*)o;
-    } else if(o->type==t_table){
-        object* call_field=get(o, "call");
-        return find_call_function(call_field);
-    } else {
-        return (object*)new_null();
-    }
-}
-
-object* find_function(object* o, char* function_name){
-    return find_call_function(get(o, function_name));
-}
-
-// TODO replace create_number with new_number with value argument
-// replace ifs with a switch
-object* operator(object* a, object *b, char* op){
-    CHECK_OBJECT(a);
-    CHECK_OBJECT(b);
-    if(a->type==t_table){
-        object* operator_function=find_function(a, op);
-        if(operator_function->type!=t_null){
-            // call get_function a and b as arguments
-            vector arguments;
-            vector_init(&arguments);
-            vector_add(&arguments, a);
-            vector_add(&arguments, b);
-            object* result=call(operator_function, arguments);
-            vector_free(&arguments);
-            return result;
-        }
-    }
-    if(strcmp(op, "==")==0){
-        return (object*)create_number(compare(a, b)==0);
-    }
-    if(strcmp(op, "!=")==0){
-        return (object*)create_number(compare(a, b)!=0);
-    }
-    if(strcmp(op, ">")==0){
-        return (object*)create_number(compare(a, b)==1);
-    }
-    if(strcmp(op, "<")==0){
-        return (object*)create_number(compare(a, b)==-1);
-    }
-    if(strcmp(op, ">=")==0){
-        int comparison_result=compare(a, b);
-        return (object*)create_number(comparison_result==1||comparison_result==0);
-    }
-    if(strcmp(op, "<=")==0){
-        int comparison_result=compare(a, b);
-        return (object*)create_number(comparison_result==-1||comparison_result==0);
-    }
-    if(strcmp(op, "||")==0){
-        if(!is_falsy(a)){
-            return a;
-        } else if (!is_falsy(b)){
-            return b;
-        } else {
-            return (object*)new_null();
-        }
-    }
-    if(strcmp(op, "&&")==0){
-        if(is_falsy(a)){
-            return a;
-        } else if (is_falsy(b)){
-            return b;
-        } else{
-            return b;
-        }
-    }
-    if(strcmp(op, "!")==0){
-        return (object*)create_number(is_falsy(a));
-    }
-    if(strcmp(op, "-")==0 && b->type==t_null){
-        number* a_as_number=(number*)cast(a, t_number);
-        a_as_number->value=-a_as_number->value;
-        return (object*)a_as_number;
-    }
-    
-    if(a->type==t_string){
-        if(a->type!=b->type){
-            b=cast(b, a->type);
-        }
-        if(strcmp(op, "+")==0){
-            char* buffer=malloc(sizeof(char)*1024);
-            CHECK_ALLOCATION(buffer);
-            strcpy(buffer, ((string*) a)->value);
-            strcat(buffer, ((string*) b)->value);
-            string* result=new_string();
-            result->value=buffer;
-            return (object*)result;
-        }
-    } else if(a->type==t_number){
-        if(a->type!=b->type){
-                b=cast(b, a->type);
-        }
-        number* result=new_number();
-        if(strcmp(op, "+")==0){
-            result->value=((number*) a)->value + ((number*) b)->value;
-            return (object*)result;
-        }
-        if(strcmp(op, "-")==0){
-            result->value=((number*) a)->value - ((number*) b)->value;
-            return (object*)result;
-        }
-        if(strcmp(op, "*")==0){
-            result->value=((number*) a)->value * ((number*) b)->value;
-            return (object*)result;
-        }
-        if(strcmp(op, "/")==0){
-            result->value=((number*) a)->value / ((number*) b)->value;
-            return (object*)result;
-        }
-    } else {
-        RETURN_ERROR("WRONG_ARGUMENT_TYPE", a, "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a->type], OBJECT_TYPE_NAMES[b->type]);
-    }
-}
-
-char* stringify(object* o){
-    if(o->type==t_table){
-        object* stringify_override=find_function(o, "stringify");
-        if(stringify_override->type!=t_null){
-            vector arguments;
-            vector_init(&arguments);
-            vector_add(&arguments, o);
-            object* result=call(stringify_override, arguments);
-            vector_free(&arguments);
-            return stringify_object(result);
-        }
-    }
-    return stringify_object(o);
-}
-
-char* stringify_object(object* o){
-    CHECK_OBJECT(o);
-    switch(o->type){
-        case t_string:
-            return strdup(((string*)o)->value);
-        case t_number:
-            {
-                float n=((number*)o)->value;
-                char* buffer=calloc(STRINGIFY_BUFFER_SIZE, sizeof(char));
-                CHECK_ALLOCATION(buffer);
-                int ceiled=n;
-                if(((float)ceiled)==n){
-                    sprintf(buffer,"%d",ceiled);// stringify number as an integer
-                } else{
-                    sprintf(buffer,"%f",n);// stringify number as an float
-                }
-                char* buffer_truncated=strdup(buffer);
-                free(buffer);
-                return buffer_truncated;
-            }
-        case t_table:
-            {
-                table* t=(table*)o;
-                char* buffer=calloc(STRINGIFY_BUFFER_SIZE, sizeof(char));
-                CHECK_ALLOCATION(buffer);
-                const char *key;
-                map_iter_t iter = map_iter(&m);
-                strcat(buffer, "[");
-                int first=1;
-                while ((key = map_next(&t->fields, &iter))) {
-                    object* value=*map_get(&t->fields, key);
-                    if(first) {
-                        first=0;
-                    } else {
-                        strcat(buffer, ", ");
-                    }
-                    strcat(buffer, key);
-                    strcat(buffer, "=");
-                    if (value!=o){
-                        USING_STRING(stringify(value), 
-                            strcat(buffer, str));
-                    } else {
-                        strcat(buffer, "self");// cycling reference
-                    }
-                }
-                strcat(buffer, "]");
-                char* buffer_truncated=strdup(buffer);
-                free(buffer);
-                return buffer_truncated;
-            }
-        case t_function:
-            return strdup("<function>");
-        case t_null:
-            return strdup("<null>");
-        default:
-            ERROR(INCORRECT_OBJECT_POINTER, "Object at %#8x has no valid type value", (unsigned int)o);
-            return strdup("<INCORRECT_OBJECT_POINTER>");
-    }
-}
-
-object* get_table(table* t, char* key){
-    object** map_get_result=map_get(&t->fields, key);
-    if(map_get_result==NULL){// there's no object at this key
-        return (object*)new_null();
-    }else {
-        return *map_get_result;
-    }
-}
-
-object* get(object* o, char* key){
-    CHECK_OBJECT(o);
-    if(o->type==t_table){
-        // try to get "get" operator overriding function from the table and use it
-        object** map_get_override=map_get(&((struct table*)o)->fields, "get");
-        if(map_get_override!=NULL && (*map_get_override)->type==t_function){
-            // create arguments for the function
-            function* get_function=(function*)(*map_get_override);
-            vector arguments;
-            vector_init(&arguments);
-            // call get_function with o and key as arguments
-            vector_add(&arguments, o);
-            string* key_string=new_string();
-            key_string->value=strdup(key);
-            vector_add(&arguments, (object*)key_string);
-            object* result;
-            result=call_function(get_function, arguments);
-            delete_unreferenced((object*)key_string);
-            vector_free(&arguments);
-            return result;
-        } else {
-            // simply get key from table's map
-            return get_table((table*)o, key);
-        }
-    } else {
-        RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
-    }
-}
-
-void set_table(table* t, char* key, object* value){
-    object_map_t* fields=&((struct table*)t)->fields;
-    object** value_at_key = map_get(fields, key);
-    if(value_at_key!=NULL){
-        (*value_at_key)->ref_count--;// table no longer holds a reference to this object
-        delete_unreferenced(*value_at_key);
-        if(value->type==t_null){
-            map_remove(fields, key);// setting key to null removes it
-            return;
-        }
-    }
-    value->ref_count++;// now the value is referenced by table
-    map_set(fields, key, value);// key is empty so it only needs to be set to point to value
-}
-
-void set(object* o, char* key, object* value){
-    CHECK_OBJECT(o);
-    if(o->type==t_table){
-        // try to get "get" operator overriding function from the table and use it
-        object* set_override=find_function(o, "stringify");
-        if(set_override->type!=t_null){
-            // create arguments for the function
-            vector arguments;
-            vector_init(&arguments);
-            // call get_function with o and key and value as arguments
-            vector_add(&arguments, o);
-
-            string* key_string=new_string();
-            key_string->value=strdup(key);
-            vector_add(&arguments, (object*)key_string);
-
-            vector_add(&arguments, value);
-
-            object* result;
-            call(set_override, arguments);
-            delete_unreferenced((object*)key_string);
-            vector_free(&arguments);
-        } else {
-            set_table((table*)o, key, value);
-        }
-    } else {
-        ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
-    }
-}
-
-object* call(object* o, vector arguments){
-    switch(o->type){
-        case t_function:
-        {
-            return call_function((function*)o, arguments);
-        }
-        case t_table:
-        {
-            object* call_field=find_function(o, "call");
-            if(call_field->type!=t_null){
-                return call(call_field, arguments);
-            }// else go to default label
-        }
-        default:
-            RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
-    }
-}
-
-object* new_error(char* type, object* cause, char* message){
-    object* err=(object*)new_table();
-    string* err_type=new_string();
-    err_type->value=type;
-    set(err, "type", (object*)err_type);
-    string* err_message=new_string();
-    err_message->value=message;
-    set(err, "message", (object*)err_message);
-    number* one=new_number();
-    one->value=1;
-    set(err, "is_error", (object*)one);
-    set(err, "cause", cause);
-    return err;
+void object_delete(object* o){
+    object_deinit(o);
+    free(o);
 }

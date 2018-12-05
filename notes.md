@@ -5,6 +5,9 @@
 - create coroutines
 - more comments
 
+## WHILE REWRITING OBJECT SYSTEM
+- argument_names vector isn't freed correctly
+
 ## POINTERS:
 **&** - returns pointer to it's operand
     `operand` becomes `operand*`
