@@ -113,7 +113,7 @@ object* scope_get_override(vector arguments){
     if(map_get_result!=NULL){
         return *map_get_result;
     } else{
-        object* base=get((object*)self, "base");
+        object* base=get_table((table*)self, "base");
         if(base->type==t_table){
             return get(base, ((string*)key)->value);
         }

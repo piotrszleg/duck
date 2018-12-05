@@ -6,7 +6,7 @@ a.get=(self, key)->{
     }
     native_get(self, key)
 }
-a["+"]=(self, added)->self.b+added
+# a["+"]=(self, added)->self.b+added
 a.stringify=self->"$"+native_stringify(self)
 a.set=(self, key, value)->print("NO CHANGING STATE!")
-a+10
+a--1

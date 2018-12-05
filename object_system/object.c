@@ -181,8 +181,7 @@ object* cast(object* o, object_type type){
             return called;
         }
         default:
-            ERROR(TYPE_CONVERSION_FAILURE, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o->type], OBJECT_TYPE_NAMES[type]);
-            return (object*)new_null();// conversion can't be performed
+            RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o->type], OBJECT_TYPE_NAMES[type]);
     }
 }
 
@@ -192,22 +191,38 @@ number* create_number(int value){
     return n;
 }
 
+object* find_call_function(object* o){
+    if(o->type==t_function){
+        return (object*)o;
+    } else if(o->type==t_table){
+        object* call_field=get(o, "call");
+        return find_call_function(call_field);
+    } else {
+        return (object*)new_null();
+    }
+}
+
+object* find_function(object* o, char* function_name){
+    return find_call_function(get(o, function_name));
+}
+
 // TODO replace create_number with new_number with value argument
 // replace ifs with a switch
 object* operator(object* a, object *b, char* op){
     CHECK_OBJECT(a);
     CHECK_OBJECT(b);
     if(a->type==t_table){
-        object* get_function=get(a, op);
-
-        // call get_function a and b as arguments
-        vector arguments;
-        vector_init(&arguments);
-        vector_add(&arguments, a);
-        vector_add(&arguments, b);
-        object* result=call(get_function, arguments);
-        vector_free(&arguments);
-        return result;
+        object* operator_function=find_function(a, op);
+        if(operator_function->type!=t_null){
+            // call get_function a and b as arguments
+            vector arguments;
+            vector_init(&arguments);
+            vector_add(&arguments, a);
+            vector_add(&arguments, b);
+            object* result=call(operator_function, arguments);
+            vector_free(&arguments);
+            return result;
+        }
     }
     if(strcmp(op, "==")==0){
         return (object*)create_number(compare(a, b)==0);
@@ -255,51 +270,49 @@ object* operator(object* a, object *b, char* op){
         a_as_number->value=-a_as_number->value;
         return (object*)a_as_number;
     }
-    if(a->type!=b->type){
-        b=cast(b, a->type);
-    }
-    switch(a->type){
-        case t_string:
-            if(strcmp(op, "+")==0){
-                char* buffer=malloc(sizeof(char)*1024);
-                CHECK_ALLOCATION(buffer);
-                strcpy(buffer, ((string*) a)->value);
-                strcat(buffer, ((string*) b)->value);
-                string* result=new_string();
-                result->value=buffer;
-                return (object*)result;
-            }
-
-        case t_number:
-            {
-                number* result=new_number();
-                if(strcmp(op, "+")==0){
-                    result->value=((number*) a)->value + ((number*) b)->value;
-                    return (object*)result;
-                }
-                if(strcmp(op, "-")==0){
-                    result->value=((number*) a)->value - ((number*) b)->value;
-                    return (object*)result;
-                }
-                if(strcmp(op, "*")==0){
-                    result->value=((number*) a)->value * ((number*) b)->value;
-                    return (object*)result;
-                }
-                if(strcmp(op, "/")==0){
-                    result->value=((number*) a)->value / ((number*) b)->value;
-                    return (object*)result;
-                }
-            }
-        default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a->type], OBJECT_TYPE_NAMES[b->type]);
-            return (object*)new_null();
-
+    
+    if(a->type==t_string){
+        if(a->type!=b->type){
+            b=cast(b, a->type);
+        }
+        if(strcmp(op, "+")==0){
+            char* buffer=malloc(sizeof(char)*1024);
+            CHECK_ALLOCATION(buffer);
+            strcpy(buffer, ((string*) a)->value);
+            strcat(buffer, ((string*) b)->value);
+            string* result=new_string();
+            result->value=buffer;
+            return (object*)result;
+        }
+    } else if(a->type==t_number){
+        if(a->type!=b->type){
+                b=cast(b, a->type);
+        }
+        number* result=new_number();
+        if(strcmp(op, "+")==0){
+            result->value=((number*) a)->value + ((number*) b)->value;
+            return (object*)result;
+        }
+        if(strcmp(op, "-")==0){
+            result->value=((number*) a)->value - ((number*) b)->value;
+            return (object*)result;
+        }
+        if(strcmp(op, "*")==0){
+            result->value=((number*) a)->value * ((number*) b)->value;
+            return (object*)result;
+        }
+        if(strcmp(op, "/")==0){
+            result->value=((number*) a)->value / ((number*) b)->value;
+            return (object*)result;
+        }
+    } else {
+        RETURN_ERROR("WRONG_ARGUMENT_TYPE", a, "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a->type], OBJECT_TYPE_NAMES[b->type]);
     }
 }
 
 char* stringify(object* o){
     if(o->type==t_table){
-        object* stringify_override=get(o, "stringify");
+        object* stringify_override=find_function(o, "stringify");
         if(stringify_override->type!=t_null){
             vector arguments;
             vector_init(&arguments);
@@ -386,9 +399,9 @@ object* get(object* o, char* key){
     if(o->type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object** map_get_override=map_get(&((struct table*)o)->fields, "get");
-        if(map_get_override!=NULL){
+        if(map_get_override!=NULL && (*map_get_override)->type==t_function){
             // create arguments for the function
-            function* get_function=(function*)cast(*map_get_override, t_function);
+            function* get_function=(function*)(*map_get_override);
             vector arguments;
             vector_init(&arguments);
             // call get_function with o and key as arguments
@@ -406,8 +419,7 @@ object* get(object* o, char* key){
             return get_table((table*)o, key);
         }
     } else {
-        ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
-        return (object*)new_null();
+        RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
     }
 }
 
@@ -430,10 +442,9 @@ void set(object* o, char* key, object* value){
     CHECK_OBJECT(o);
     if(o->type==t_table){
         // try to get "get" operator overriding function from the table and use it
-        object** map_set_override=map_get(&((struct table*)o)->fields, "set");
-        if(map_set_override!=NULL){
+        object* set_override=find_function(o, "stringify");
+        if(set_override->type!=t_null){
             // create arguments for the function
-            function* set_function=(function*)cast(*map_set_override, t_function);
             vector arguments;
             vector_init(&arguments);
             // call get_function with o and key and value as arguments
@@ -446,7 +457,7 @@ void set(object* o, char* key, object* value){
             vector_add(&arguments, value);
 
             object* result;
-            call_function(set_function, arguments);
+            call(set_override, arguments);
             delete_unreferenced((object*)key_string);
             vector_free(&arguments);
         } else {
@@ -465,11 +476,27 @@ object* call(object* o, vector arguments){
         }
         case t_table:
         {
-            object* call_field=get(o, "call");
-            return call(call_field, arguments);
+            object* call_field=find_function(o, "call");
+            if(call_field->type!=t_null){
+                return call(call_field, arguments);
+            }// else go to default label
         }
         default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
-            return (object*)new_null();
+            RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o->type]);
     }
+}
+
+object* new_error(char* type, object* cause, char* message){
+    object* err=(object*)new_table();
+    string* err_type=new_string();
+    err_type->value=type;
+    set(err, "type", (object*)err_type);
+    string* err_message=new_string();
+    err_message->value=message;
+    set(err, "message", (object*)err_message);
+    number* one=new_number();
+    one->value=1;
+    set(err, "is_error", (object*)one);
+    set(err, "cause", cause);
+    return err;
 }
