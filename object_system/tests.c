@@ -9,8 +9,7 @@ object call_function(function_* f, vector arguments){
         return f->pointer(arguments);
     } else {
         ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
-        object n={t_null};
-        return n;
+        return null_const;
     }
 }
 

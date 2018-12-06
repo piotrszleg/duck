@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include "object_system/object.h"
+#include "object_system/object_operations.h"
 #include "error/error.h"
 #include "macros.h"
 
@@ -11,7 +12,7 @@
         ERROR(NOT_ENOUGH_ARGUMENTS, "Not enough arguments, expected %i arguments.", arguments_count); \
     }
 
-void register_builtins(table* scope);
-void inherit_scope(object* scope, object* base);
+void register_builtins(object scope);
+void inherit_scope(object scope, object base);
 
 #endif

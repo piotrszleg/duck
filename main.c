@@ -8,17 +8,19 @@
 #include "execute_bytecode.h"
 #include "builtins.h"
 #include "macros.h"
+#include "object_system/object_operations.h"
 
 void execute_file(const char* file_name, int use_bytecode){
     parse_file(file_name);
-    table* global_scope=new_table();
-    global_scope->ref_count++;
+    object global_scope;
+    table_init(&global_scope);
+    reference(&global_scope);
     register_builtins(global_scope);
     // chokes on bigger source trees
     //USING_STRING(stringify_expression(parsing_result, 0),
     //    printf(str));
     printf("\nExecuting parsing result:\n");
-    object* execution_result;
+    object execution_result;
     if(use_bytecode){
         bytecode_program prog=ast_to_bytecode(parsing_result, 1);
         delete_expression(parsing_result);// at this point ast is useless and only wastes memory
@@ -34,7 +36,7 @@ void execute_file(const char* file_name, int use_bytecode){
 
         USING_STRING(stringify(execution_result), 
             printf("Execution result:\n%s\n", str));
-        USING_STRING(stringify((object*)global_scope), 
+        USING_STRING(stringify(global_scope), 
             printf("Global scope:\n%s\n", str));
         
         free(prog.code);
@@ -45,7 +47,7 @@ void execute_file(const char* file_name, int use_bytecode){
             execution_result=execute_ast(&state, parsing_result, global_scope, 1);
             USING_STRING(stringify(execution_result), 
                 printf("Execution result:\n%s\n", str));
-            USING_STRING(stringify((object*)global_scope), 
+            USING_STRING(stringify(global_scope), 
                 printf("Global scope:\n%s\n", str));
         ,
             printf("Error occured on line %i of source code:\n", state.line);
@@ -55,24 +57,24 @@ void execute_file(const char* file_name, int use_bytecode){
         delete_expression(parsing_result);
     }
     
-    
-    execution_result->ref_count++;// make sure that the execution_result isn't garbage collected along with global_scope
-    object_delete((object*)global_scope);
-    object_delete(execution_result);
+    reference(&execution_result);// make sure that the execution_result isn't garbage collected along with global_scope
+    object_deinit(&global_scope);
+    object_deinit(&execution_result);
 }
 
-object* call_function(function* f, vector arguments){
+object call_function(function_* f, vector arguments){
     if(f->ftype==f_native){
         return f->pointer(arguments);
     } else {
-        table* function_scope=new_table();
+        object function_scope;
+        table_init(&function_scope);
         if(f->enclosing_scope!=NULL){
-            inherit_scope((object*)function_scope, (object*)f->enclosing_scope);
+            inherit_scope(function_scope, *f->enclosing_scope);
         }
         if(f->ftype==f_ast){
             int arguments_count=vector_total(&arguments);
             for(int i=0; i<arguments_count; i++){
-                set((object*)function_scope, vector_get(&f->argument_names, i), vector_get(&arguments, i));
+                set(function_scope, vector_get(&f->argument_names, i), *(object*)vector_get(&arguments, i));
             }
             return execute_ast((ast_executor_state*)f->enviroment, (expression*)f->ast_pointer, function_scope, 1);
         } else if(f->ftype==f_bytecode){
@@ -81,14 +83,17 @@ object* call_function(function* f, vector arguments){
             environment->pointer=search_for_label(environment->code, f->label);// move to function's label
             int arguments_count=vector_total(&arguments);
             for(int i=0; i<arguments_count; i++){
-                push(&environment->object_stack, vector_get(&arguments, i));
+                object* argument=vector_get(&arguments, i);
+                push(&environment->object_stack, *argument);
             }
-            object* result=execute_bytecode(environment, function_scope);
+            object result=execute_bytecode(environment, function_scope);
             environment->pointer=previous_pointer;
             return result;
         } else {
             ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
-            return (object*)new_null();
+            object n;
+            null_init(&n);
+            return n;
         }
     }
 }

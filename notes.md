@@ -7,6 +7,7 @@
 
 ## WHILE REWRITING OBJECT SYSTEM
 - argument_names vector isn't freed correctly
+- vector should contain object instead of object* type
 
 ## POINTERS:
 **&** - returns pointer to it's operand

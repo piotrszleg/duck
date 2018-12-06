@@ -25,6 +25,8 @@ OBJECT_INIT_NEW(table,
     map_init(&o->tp->fields);
 )
 
+object null_const={t_null};
+
 void reference(object* o){
     if(o->type==t_table){
         o->tp->ref_count++;
@@ -66,14 +68,16 @@ void object_deinit(object* o){
         }
         case t_table: 
         {
-            const char *key;
-            map_iter_t iter = map_iter(&o->tp->fields);
-            while ((key = map_next(&o->tp->fields, &iter))) {
-                object value=(*map_get(&o->tp->fields, key));
-                dereference(o);// dereference contained object, so it can be garbage collected
-                object_deinit(&value);
+            if(o->tp->ref_count==0){
+                const char *key;
+                map_iter_t iter = map_iter(&o->tp->fields);
+                while ((key = map_next(&o->tp->fields, &iter))) {
+                    object value=(*map_get(&o->tp->fields, key));
+                    dereference(o);// dereference contained object, so it can be garbage collected
+                    object_deinit(&value);
+                }
+                map_deinit(&o->tp->fields);
             }
-            map_deinit(&o->tp->fields);
             break;
         }
         default:;

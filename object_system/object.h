@@ -33,6 +33,8 @@ struct object{
     };
 };
 
+extern object null_const;
+
 #define OBJECT_NEW(t, body) \
     object* new_##t(){  \
         object* o=malloc(sizeof(object)); \
@@ -96,15 +98,6 @@ struct function_ {
     object* enclosing_scope;
 };
 
-object new_error(char* type, object* cause, char* message);
-#define RETURN_ERROR(type, cause, message, ...) \
-    { char error_message[200]; \
-    sprintf(error_message, message, ##__VA_ARGS__); \
-    return new_error(type, cause, error_message); }
-
-char* stringify_object(object o);
-char* stringify(object o);
-
 void reference(object* o);
 
 void dereference(object* o);
@@ -114,5 +107,8 @@ void object_init(object* o, object_type type);
 
 void object_deinit(object* o);
 void object_delete(object* o);
+
+char* stringify_object(object o);
+char* stringify(object o);
 
 #endif

@@ -8,6 +8,7 @@
 #include "bytecode.h"
 #include "macros.h"
 #include "bytecode.h"
+#include "object_system/object_operations.h"
 
 typedef struct {
     instruction* code;
@@ -20,8 +21,8 @@ typedef struct {
 
 void bytecode_enviroment_init(bytecode_environment* e);
 
-void push(stack* stack, object* o);
-object* execute_bytecode(bytecode_environment* environment, table* scope);
+void push(stack* stack, object o);
+object execute_bytecode(bytecode_environment* environment, object scope);
 int search_for_label(const instruction* code, int label_index);
 
 #endif

@@ -5,8 +5,9 @@ void repl(int use_bytecode){
     printf("Read eval print loop of the duck parser. \n---\nType in duck syntax to see it's AST representation. \nWrite \"quit\" to exit the program.\n");
     char input[128];
 
-    table* global_scope=new_table();
-    global_scope->ref_count++;
+    object global_scope;
+    table_init(&global_scope);
+    reference(&global_scope);
     register_builtins(global_scope);
 
     vector asts;
@@ -21,11 +22,9 @@ void repl(int use_bytecode){
 
         TRY_CATCH(
             ast_executor_state state;
-            object* execution_result=execute_ast(&state, parsing_result, global_scope, 1);
+            object execution_result=execute_ast(&state, parsing_result, global_scope, 1);
             printf("%s\n", stringify(execution_result));
-            if(execution_result->ref_count<=1){
-                object_delete(execution_result);
-            }
+            object_deinit(&execution_result);
             vector_add(&asts, parsing_result);
         ,
             printf("%s\n", err_message);
@@ -36,5 +35,5 @@ void repl(int use_bytecode){
     for (int i = 0; i < vector_total(&asts); i++){
         delete_expression(vector_get(&asts, i));
     }
-    object_delete((object*)global_scope);
+    object_deinit(&global_scope);
 }

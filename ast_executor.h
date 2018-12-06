@@ -12,6 +12,6 @@ typedef struct {
     bool returning;
 } ast_executor_state;
 
-object* execute_ast(ast_executor_state* state, expression* exp, table* scope, int keep_scope);
+object execute_ast(ast_executor_state* state, expression* exp, object scope, int keep_scope);
 
 #endif

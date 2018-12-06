@@ -3,7 +3,11 @@
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
-void copy_table(table* source, table* destination){
+object execute_ast(ast_executor_state* state, expression* exp, object scope, int keep_scope){
+    return null_const;
+}
+
+/*void copy_table(table* source, table* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
     while ((key = map_next(&source->fields, &iter))) {
@@ -265,4 +269,4 @@ object* execute_ast(ast_executor_state* state, expression* exp, table* scope, in
         }
     }
     return result;
-}
+}*/

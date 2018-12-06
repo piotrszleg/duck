@@ -22,4 +22,14 @@ object get(object o, char*key);
 void set_table(table_* t, char*key, object value);
 void set(object o, char*key, object value);
 
+object new_error(char* type, object* cause, char* message);
+
+char* stringify_object(object o);
+char* stringify(object o);
+
+#define RETURN_ERROR(type, cause, message, ...) \
+    { char* error_message=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char)); \
+    sprintf(error_message, message, ##__VA_ARGS__); \
+    return new_error(type, cause, error_message); }
+
 #endif
