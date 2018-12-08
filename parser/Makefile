@@ -1,8 +1,8 @@
 archive-path := parser.a
 tests-path := tests.exe
 repl-path := repl.exe
-headers := parser.tab.h ast.h vector.h ../error/error.h
-source-files := parser.tab.c lex.yy.c ast.c vector.c ../error/error.c
+headers := parser.tab.h ast.h ../datatypes/vector.h ../error/error.h
+source-files := parser.tab.c lex.yy.c ast.c ../datatypes/vector.c ../error/error.c
 object-files := parser.tab.o lex.yy.o ast.o vector.o
 
 all: $(archive-path)

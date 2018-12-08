@@ -1,81 +1,67 @@
 #include "builtins.h"
 
-object builtin_print(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(1);
-    USING_STRING(stringify(*(object*)vector_get(&arguments, 0)),
+object builtin_print(object* arguments, int arguments_count){
+    USING_STRING(stringify(arguments[0]),
         printf("%s\n", str));
     return null_const;
 }
 
-object builtin_assert(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(1);
-    object* self=vector_get(&arguments, 0);
-    if(is_falsy(*self)){
-        USING_STRING(stringify(*self), 
+object builtin_assert(object* arguments, int arguments_count){
+    object self=arguments[0];
+    if(is_falsy(self)){
+        USING_STRING(stringify(self), 
             ERROR(ASSERTION_FAILED, "Assertion failed, %s is falsy.", str));
     }
     return null_const;
 }
 
-object builtin_typeof(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(1);
-    object* self=vector_get(&arguments, 0);
+object builtin_typeof(object* arguments, int arguments_count){
+    object self=arguments[0];
     object type_name;
     string_init(&type_name);
-    type_name.text=strdup(OBJECT_TYPE_NAMES[self->type]);
+    type_name.text=strdup(OBJECT_TYPE_NAMES[self.type]);
     return type_name;
 }
 
-object builtin_native_get(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(2);
-    object* self=vector_get(&arguments, 0);
-    object* key=vector_get(&arguments, 1);
-    if(self->type!=t_table){
-        ERROR(WRONG_ARGUMENT_TYPE, "Native get function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self->type]);
+object builtin_native_get(object* arguments, int arguments_count){
+    object self=arguments[0];
+    object key =arguments[1];
+    if(self.type!=t_table){
+        ERROR(WRONG_ARGUMENT_TYPE, "Native get function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self.type]);
         return null_const;
     }
-    return get_table(self->tp, stringify(*key));
+    return get_table(self.tp, stringify(key));
 }
 
-object builtin_native_set(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(3);
-    object* self=vector_get(&arguments, 0);
-    object* key=vector_get(&arguments, 1);
-    object* value=vector_get(&arguments, 2);
-    if(self->type!=t_table){
-        ERROR(WRONG_ARGUMENT_TYPE, "Native set function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self->type]);
+object builtin_native_set(object* arguments, int arguments_count){
+    object self =arguments[2];
+    object key  =arguments[1]; 
+    object value=arguments[2];
+    if(self.type!=t_table){
+        ERROR(WRONG_ARGUMENT_TYPE, "Native set function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self.type]);
         return null_const;
     }
-    set_table(self->tp, stringify(*key), *value);
-    return *value;
+    set_table(self.tp, stringify(key), value);
+    return value;
 }
 
-object builtin_native_stringify(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(1);
-    object* self=vector_get(&arguments, 0);
+object builtin_native_stringify(object* arguments, int arguments_count){
     object result;
     string_init(&result);
-    result.text=stringify_object(*self);
+    result.text=stringify_object(arguments[0]);
     return result;
 }
 
-object builtin_native_call(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(2);
-    object* self=vector_get(&arguments, 0);
-    vector function_arguments;
-    vector_init(&function_arguments);
-    int arguments_count=vector_total(&arguments);
-    for(int i=1; i<arguments_count; i++){
-        vector_add(&function_arguments, vector_get(&arguments, i));
-    }
-    return call(*self, function_arguments);
+object builtin_native_call(object* arguments, int arguments_count){
+    object self=arguments[0];
+    // call function omitting the first argument, because it was function object itself
+    return call(self, arguments+1, arguments_count-1);
 }
 
-object builtin_test(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(2);
-    int arguments_count=vector_total(&arguments);
+object builtin_test(object* arguments, int arguments_count){
     for(int i=0; i<arguments_count; i++){
-        printf("<%s>, ", stringify(*(object*)vector_get(&arguments, i)));
+        USING_STRING(stringify_object(arguments[i]),
+            printf("<%s>, ", str));
     }
     return null_const;
 }
@@ -99,26 +85,25 @@ void register_builtins(object scope){
     #undef REGISTER_FUNCTION
 }
 
-object scope_get_override(vector arguments){
-    BUILTIN_ARGUMENTS_CHECK(2);
-    object* self=vector_get(&arguments, 0);
-    if(self->type!=t_table){
+object scope_get_override(object* arguments, int arguments_count){
+    object self=arguments[0];
+    if(self.type!=t_table){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect self argument.");
         return null_const;
     }
-    object* key=vector_get(&arguments, 1);
-    if(key->type!=t_string){
+    object key=arguments[1];
+    if(key.type!=t_string){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect key argument.");
         return null_const;
     }
-    object map_get_result=get_table(self->tp, key->text);
+    object map_get_result=get_table(self.tp, key.text);
 
     if(map_get_result.type!=t_null){
         return map_get_result;
     } else{
-        object base=get_table(self->tp, "base");
+        object base=get_table(self.tp, "base");
         if(base.type==t_table){
-            return get(base, key->text);
+            return get(base, key.text);
         }
         return null_const;
     }

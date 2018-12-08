@@ -21,6 +21,10 @@
         "error.h\u0000error.h": "c",
         "error_object.h": "c",
         "assert.h": "c",
-        "bytecode.h": "c"
+        "bytecode.h": "c",
+        "vector.h": "c",
+        "vector.h\u0000ector.h": "c",
+        "vector.h\u0000vector.h": "c",
+        "object_operations.h": "c"
     }
 }

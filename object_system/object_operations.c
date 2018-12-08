@@ -1,5 +1,6 @@
 #include "object_operations.h"
 
+#define INITIAL_BUFFER_SIZE 8
 #define STRINGIFY_BUFFER_SIZE 200
 
 int is_number(const char *s)
@@ -97,7 +98,7 @@ object cast(object o, object_type type){
             return called;
         }
         default:
-            RETURN_ERROR("TYPE_CONVERSION_FAILURE", /*o*/new_null(), "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
+            RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
     }
 }
 
@@ -129,12 +130,8 @@ object operator(object a, object b, char* op){
         object operator_function=find_function(a, op);
         if(operator_function.type!=t_null){
             // call get_function a and b as arguments
-            vector arguments;
-            vector_init(&arguments);
-            vector_add(&arguments, &a);
-            vector_add(&arguments, &b);
-            object result=call(operator_function, arguments);
-            vector_free(&arguments);
+            object arguments[]={a, b};
+            object result=call(operator_function, arguments, 2);
             return result;
         }
     }
@@ -218,69 +215,102 @@ object operator(object a, object b, char* op){
             return create_number(a.value/b.value);
         }
     }
-    RETURN_ERROR("WRONG_ARGUMENT_TYPE", /*a*/new_null(), "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+    RETURN_ERROR("WRONG_ARGUMENT_TYPE", a, "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
 }
 
 char* stringify(object o){
     if(o.type==t_table){
         object stringify_override=find_function(o, "stringify");
         if(stringify_override.type!=t_null){
-            vector arguments;
-            vector_init(&arguments);
-            vector_add(&arguments, &o);
-            object result=call(stringify_override, arguments);
-            vector_free(&arguments);
+            object arguments[]={o};
+            object result=call(stringify_override, arguments, 1);
             return stringify_object(result);
         }
     }
     return stringify_object(o);
 }
 
+#define CALL_SNPRINTF(buffer, format, ...) \
+    buffer=malloc(INITIAL_BUFFER_SIZE*sizeof(char)); \
+    int buffer_size=INITIAL_BUFFER_SIZE; \
+    CHECK_ALLOCATION(buffer); \
+    while(1) { /* repeatedly call snprintf until buffer is big enough to hold formatted string */ \
+        int snprintf_result=snprintf(buffer, buffer_size, format, __VA_ARGS__); \
+        if(snprintf_result<buffer_size){ \
+            break; /*success*/ \
+        } \
+        if(snprintf_result<0){ \
+            free(buffer); \
+            ERROR(STRINGIFICATION_ERROR, "Error while calling snprintf(\"%s\")", format); \
+            buffer=strdup("<ERROR>"); \
+            break; \
+        } \
+        /*double buffer size*/ \
+        buffer_size*=2; \
+        buffer=realloc(buffer, buffer_size*sizeof(char)); \
+        CHECK_ALLOCATION(buffer); \
+    }
+
 char* stringify_object(object o){
     switch(o.type){
         case t_string:
             return strdup(o.text);
         case t_number:
-            {
-                float n=o.value;
-                char* buffer=calloc(STRINGIFY_BUFFER_SIZE, sizeof(char));
-                CHECK_ALLOCATION(buffer);
-                int ceiled=n;
-                if(((float)ceiled)==n){
-                    sprintf(buffer,"%d",ceiled);// stringify number as an integer
-                } else{
-                    sprintf(buffer,"%f",n);// stringify number as an float
-                }
-                char* buffer_truncated=strdup(buffer);
-                free(buffer);
-                return buffer_truncated;
+        {
+            char* buffer;
+            int ceiled=o.value;
+            if(((float)ceiled)==o.value){
+                CALL_SNPRINTF(buffer, "%d", ceiled);
+            } else {
+                CALL_SNPRINTF(buffer, "%f", o.value);
             }
+            return buffer;
+        }
         case t_table:
             {
                 table_* t=o.tp;
-                char* buffer=calloc(STRINGIFY_BUFFER_SIZE, sizeof(char));
+                char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
                 CHECK_ALLOCATION(buffer);
+                int buffer_size=STRINGIFY_BUFFER_SIZE;
+                buffer[0]='[';
+                buffer[1]='\0';
+                int buffer_filled=1;// how many characters were written to the buffer
                 const char *key;
-                map_iter_t iter = map_iter(&m);
-                strcat(buffer, "[");
+               
                 int first=1;
+                map_iter_t iter = map_iter(&m);
                 while ((key = map_next(&t->fields, &iter))) {
                     object value=*map_get(&t->fields, key);
-                    if(first) {
-                        first=0;
-                    } else {
-                        strcat(buffer, ", ");
+                    int self_reference=value.tp==t;
+                    char* value_stringified= stringify(value);
+
+                    int formatted_count=strlen(key)+1+strlen(value_stringified)+1;
+                    if(!first){ 
+                        formatted_count+=2;
                     }
-                    strcat(buffer, key);
-                    strcat(buffer, "=");
-                    if (value.tp==t){
-                        strcat(buffer, "self");// cycling reference
+                    char* pair_buffer=malloc(formatted_count*sizeof(char));
+                    if(first){
+                        snprintf(pair_buffer, formatted_count, "%s=%s", key, value_stringified);
                     } else {
-                        USING_STRING(stringify(value), 
-                            strcat(buffer, str));
+                        snprintf(pair_buffer, formatted_count, ", %s=%s", key, value_stringified);
                     }
+                    // if buffer isn't big enough to hold the pair double it
+                    while(buffer_size<=(buffer_filled+formatted_count)*sizeof(char)){
+                        buffer_size*=2;
+                        buffer=realloc(buffer, buffer_size*sizeof(char));
+                    }
+                    strncat(buffer, pair_buffer, buffer_size);
+                    buffer_filled+=formatted_count;
+                    first=0;
                 }
-                strcat(buffer, "]");
+                // check if buffer can hold additional ']' character
+                if(buffer_size<=buffer_filled+1){
+                    buffer_size*=2;
+                    buffer=realloc(buffer, buffer_size*sizeof(char));
+                }
+                strncat(buffer, "]", buffer_size);
+                buffer[buffer_size-1]='\0';// to make sure that the string won't overflow
+
                 char* buffer_truncated=strdup(buffer);
                 free(buffer);
                 return buffer_truncated;
@@ -297,8 +327,7 @@ char* stringify_object(object o){
 object get_table(table_* t, char* key){
     object* map_get_result=map_get(&t->fields, key);
     if(map_get_result==NULL){// there's no object at this key
-        object n={t_null};
-        return n;
+        return null_const;
     }else {
         return *map_get_result;
     }
@@ -309,25 +338,23 @@ object get(object o, char* key){
         // try to get "get" operator overriding function from the table and use it
         object* map_get_override=map_get(&o.tp->fields, "get");
         if(map_get_override!=NULL && map_get_override->type==t_function){
-            // create arguments for the function
-            object get_function=*map_get_override;
-            vector arguments;
-            vector_init(&arguments);
-            // call get_function with o and key as arguments
-            vector_add(&arguments, &o);
-            object* key_string=new_string();
-            key_string->text=strdup(key);
-            vector_add(&arguments, (object*)key_string);
-            object result=call_function(get_function.fp, arguments);
-            delete_unreferenced((object*)key_string);
-            vector_free(&arguments);
+
+            // create object to hold key value
+            object key_string;
+            string_init(&key_string);
+            key_string.text=strdup(key);
+
+            object arguments[]={o, key_string};
+
+            object result=call_function(map_get_override->fp, arguments, 2);
+            object_deinit(&key_string);
             return result;
         } else {
             // simply get key from table's map
             return get_table(o.tp, key);
         }
     } else {
-        RETURN_ERROR("WRONG_ARGUMENT_TYPE", new_null()/*o*/, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+        RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
     }
 }
 
@@ -351,21 +378,14 @@ void set(object o, char* key, object value){
         // try to get "get" operator overriding function from the table and use it
         object set_override=find_function(o, "stringify");
         if(set_override.type!=t_null){
-            // create arguments for the function
-            vector arguments;
-            vector_init(&arguments);
-            // call get_function with o and key and value as arguments
-            vector_add(&arguments, &o);
+            // create object to hold key value
+            object key_string;
+            string_init(&key_string);
+            key_string.text=strdup(key);
 
-            object* key_string=new_string();
-            key_string->text=strdup(key);
-            vector_add(&arguments, (object*)key_string);
-
-            vector_add(&arguments, &value);
-
-            call(set_override, arguments);
-            delete_unreferenced((object*)key_string);
-            vector_free(&arguments);
+            object arguments[]={o, key_string, value};
+            call(set_override, arguments, 3);
+            object_deinit(&key_string);
         } else {
             set_table(o.tp, key, value);
         }
@@ -374,36 +394,44 @@ void set(object o, char* key, object value){
     }
 }
 
-object call(object o, vector arguments){
+object call(object o, object* arguments, int arguments_count) {
     switch(o.type){
         case t_function:
         {
-            return call_function(o.fp, arguments);
+            return call_function(o.fp, arguments, arguments_count);
         }
         case t_table:
         {
             object call_field=find_function(o, "call");
             if(call_field.type!=t_null){
-                return call(call_field, arguments);
+                return call(call_field, arguments, arguments_count);
             }// else go to default label
         }
         default:
-            RETURN_ERROR("WRONG_ARGUMENT_TYPE", new_null()/*o*/, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+            RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
     }
 }
 
-object new_error(char* type, object* cause, char* message){
+object new_error(char* type, object cause, char* message){
     object err;
     table_init(&err);
-    object* err_type=new_string();
-    err_type->text=type;
-    set(err, "type", *err_type);
-    object* err_message=new_string();
-    err_message->text=message;
-    set(err, "message", *err_message);
-    object* one=new_number();
-    one->value=1;
-    set(err, "is_error", *one);
-    set(err, "cause", *cause);
+
+    object err_type;
+    string_init(&err_type);
+    err_type.text=type;
+    set(err, "type", err_type);
+
+    object err_message;
+    string_init(&err_message);
+    err_message.text=message;
+    set(err, "message", err_message);
+
+    object one;
+    number_init(&one);
+    one.value=1;
+    set(err, "is_error", one);
+
+    set(err, "cause", cause);
+
     return err;
 }

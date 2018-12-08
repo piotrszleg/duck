@@ -2,7 +2,7 @@
 #define AST_H
 
 #include <string.h>
-#include "vector.h"
+#include "../datatypes/vector.h"
 #include "../error/error.h"
 #include <stdlib.h>
 #include <stdio.h>

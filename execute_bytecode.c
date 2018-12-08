@@ -207,7 +207,8 @@ object execute_bytecode(bytecode_environment* environment, object scope){
             {
                 object f;
                 function_init(&f);
-                f.fp->enclosing_scope=&scope;
+                f.fp->enclosing_scope=malloc(sizeof(scope));
+                memcpy(f.fp->enclosing_scope, &scope, sizeof(scope));
                 f.fp->enviroment=(void*)environment;
                 reference(&scope);// remember to check the enclosing scope in destructor
                 object arguments_count_object=pop(object_stack);
@@ -229,26 +230,22 @@ object execute_bytecode(bytecode_environment* environment, object scope){
                     ERROR(WRONG_ARGUMENT_TYPE, "Called function is null.");
                 }
                 if(o.type!=t_function){
-                    ERROR(NOT_IMPLEMENTED, "Calling object is not implemented, object is %s.", stringify(o));
-                    vector arguments;
-                    vector_init(&arguments);
+                    object* arguments=malloc(sizeof(object)*arguments_count);
                     for (int i = 0; i < arguments_count; i++){
-                        object argument=pop(object_stack);
-                        vector_add(&arguments, &argument);
+                        arguments[i]=pop(object_stack);
                     }
-                    push(object_stack, call(o, arguments));
+                    push(object_stack, call(o, arguments, arguments_count));
+                    free(arguments);
                 }
                 object f=cast(o, t_function);
                 if(f.fp->ftype==f_native){
-                    vector arguments;
-                    vector_init(&arguments);
-                    for (int i = 0; i < arguments_count; i++){
-                        object argument=pop(object_stack);
-                        vector_add(&arguments, &argument);
+                    object* arguments=malloc(sizeof(object)*arguments_count);
+                    // items are on stack in reverse order, but native function expect them to be in normal order
+                    for (int i = arguments_count-1; i >= 0; i--){
+                        arguments[i]=pop(object_stack);
                     }
-                    vector_reverse(&arguments);
-                    push(object_stack, f.fp->pointer(arguments));
-                    vector_free(&arguments);
+                    push(object_stack, f.fp->pointer(arguments, arguments_count));
+                    free(arguments);
                 } else if(f.fp->ftype==f_bytecode){
                     object function_scope;
                     table_init(&function_scope);

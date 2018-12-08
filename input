@@ -1,12 +1,12 @@
 a=[b=2, c=3]
-# a.get=(self, key)->{
-#     print("object."+key)
-#     if(key=="0"){
-#         "zero"!
-#     }
-#     native_get(self, key)
-# }
-# a["+"]=(self, added)->self.b+added
-# a.stringify=self->"$"+native_stringify(self)
+b=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+a.get=(self, key)->{
+    if(key=="0"){
+        "zero"!
+    }
+    native_get(self, key)
+}
+a["+"]=(self, added)->self.b+added
+a.stringify=self->"$"+native_stringify(self)
 a.set=(self, key, value)->print("NO CHANGING STATE!")
-a--1
+a+10

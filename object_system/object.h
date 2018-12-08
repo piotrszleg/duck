@@ -6,7 +6,7 @@
 #include "../error/error.h"
 #include "..\macros.h"
 #include <ctype.h>
-#include "vector.h"
+#include "../datatypes/vector.h"
 
 typedef enum object_type object_type;
 enum object_type{
@@ -87,7 +87,7 @@ typedef struct function_ function_;
 struct function_ {
     function_type ftype;
     union {
-        object (*pointer)(vector arguments);
+        object (*pointer)(object* arguments, int arguments_count);
         // void* should be expression* but I don't want to create cross dependency here
         void* ast_pointer;
         int label;

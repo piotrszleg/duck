@@ -11,18 +11,18 @@ object operator(object a, object b, char* op);
 
 object cast(object o, object_type type);
 
-object call(object o, vector arguments);
+object call(object o, object* arguments, int arguments_count);
 
 // object_system doesn't know how to execute code other than native, 
 // so this function should be implemented in higher level module
-object call_function(function_* f, vector arguments);
+object call_function(function_* f, object* arguments, int arguments_count);
 
 object get_table(table_* t, char* key);
 object get(object o, char*key);
 void set_table(table_* t, char*key, object value);
 void set(object o, char*key, object value);
 
-object new_error(char* type, object* cause, char* message);
+object new_error(char* type, object cause, char* message);
 
 char* stringify_object(object o);
 char* stringify(object o);

@@ -3,11 +3,7 @@
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
-object execute_ast(ast_executor_state* state, expression* exp, object scope, int keep_scope){
-    return null_const;
-}
-
-/*void copy_table(table* source, table* destination){
+void copy_table(table_* source, table_* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
     while ((key = map_next(&source->fields, &iter))) {
@@ -15,8 +11,8 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
     }
 }
 
-object* path_get(ast_executor_state* state, table* scope, path p){
-    table* current=scope;
+object path_get(ast_executor_state* state, object scope, path p){
+    object current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
@@ -27,22 +23,18 @@ object* path_get(ast_executor_state* state, table* scope, path p){
             USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
                 evaluated_to_string=str);
         }
-        object* object_at_name=get((object*)current, evaluated_to_string);
+        object object_at_name=get(current, evaluated_to_string);
         if(i==lines_count-1){
             return object_at_name;
-        } else if(object_at_name->type==t_table) {
-            current=(table*)object_at_name;
         } else {
-            USING_STRING(stringify(object_at_name), 
-                ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", str));
-            return (object*)new_null();
+            current=object_at_name;
         }
     }
-    return (object*)new_null();
+    return null_const;
 } 
 
-void path_set(ast_executor_state* state, table* scope, path p, object* value){
-    table* current=scope;
+void path_set(ast_executor_state* state, object scope, path p, object value){
+    object current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
@@ -54,219 +46,171 @@ void path_set(ast_executor_state* state, table* scope, path p, object* value){
                 evaluated_to_string=str);
         }
         if(i==lines_count-1){
-            set((object*)current, evaluated_to_string, value);
+            set(current, evaluated_to_string, value);
         } else{
-            object* object_at_name=get((object*)current, evaluated_to_string);
-            if(object_at_name->type==t_table) {
-                current=(table*)object_at_name;
-            } else {
-                USING_STRING(stringify(object_at_name), 
-                    ERROR(INCORRECT_OBJECT_POINTER, "%s is not a table.", str));
-            }
+            object object_at_name=get(current, evaluated_to_string);
+            current=object_at_name;
         }
     }
 }
 
-object* execute_ast(ast_executor_state* state, expression* exp, table* scope, int keep_scope){
+object execute_ast(ast_executor_state* state, expression* exp, object scope, int keep_scope){
     if(exp==NULL){
         ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
     state->line=exp->line;
-    object* result=NULL;
     switch(exp->type){
         case _empty:
-            result=(object*)new_null();
-            break;
+            return null_const;
         case _literal:
         {
             literal* l=(literal*)exp;
+            object result;
             switch(l->ltype){
                 case _int:
-                    result=(object*)new_number();
-                    ((number*)result)->value=l->ival;
+                    number_init(&result);
+                    result.value=l->ival;
                     break;
                 case _float:
-                    result=(object*)new_number();
-                    ((number*)result)->value=l->fval;
+                    number_init(&result);
+                    result.value=l->fval;
                     break;
                 case _string:
-                    result=(object*)new_string();
-                    ((string*)result)->value=strdup(l->sval);
+                    string_init(&result);
+                    result.text=l->sval;
                     break;
             }
-            break;
+            return result;
         }
         case _table_literal:
         {
             block* b=(block*)exp;
-            table* new_scope=new_table();
-            new_scope->ref_count++;
+            object table_scope;
+            table_init(&table_scope);
+            reference(&table_scope);
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=(expression*)vector_get(&b->lines, i);
-                object* line_result=execute_ast(state, line, new_scope, 0);
+                object line_result=execute_ast(state, line, table_scope, 0);
                 if(line->type!=_assignment){
                     char buf[16];
                     sprintf(buf,"%d",i);
-                    set((object*)new_scope, buf, line_result);
+                    set(table_scope, buf, line_result);
                 }
-                delete_unreferenced(line_result);
+                object_deinit(&line_result);
             }
-            result=(object*)new_scope;
-            break;
+            return table_scope;
         }
         case _block:
         {
             block* b=(block*)exp;
-            table* block_scope;
+            object block_scope;
             if(keep_scope){
                 block_scope=scope;
             } else {
-                block_scope=new_table();
-                inherit_scope((object*)block_scope, (object*)scope);
+                table_init(&block_scope);
+                inherit_scope(block_scope, scope);
             }
+            object result;
             for (int i = 0; i < vector_total(&b->lines); i++){
-                object* line_result=execute_ast(state, vector_get(&b->lines, i), block_scope, 0);
-                if(state->returning){
+                object line_result=execute_ast(state, vector_get(&b->lines, i), block_scope, 0);
+                if(state->returning || i == vector_total(&b->lines)-1){
+                    reference(&line_result);
                     result=line_result;
-                    result->ref_count++;
                     break;
-                }
-                if(i == vector_total(&b->lines)-1){
-                    result=line_result;// last line is the result of evaluation of the entire block
-                    result->ref_count++;
                 } else {
-                    delete_unreferenced(line_result);
+                    object_deinit(&line_result);
                 }
             }
             if(!keep_scope){
-                delete_unreferenced((object*)block_scope);
+                object_deinit(&block_scope);
             }
-            break;
+            return result;
         }
         case _name:
         {
-            result=get((object*)scope, ((name*)exp)->value);
-            break;
+            return get(scope, ((name*)exp)->value);
         }
         case _assignment:
         {
             assignment* a=(assignment*)exp;
-            result=execute_ast(state, a->right, scope, 0);
+            object result=execute_ast(state, a->right, scope, 0);
             path_set(state, scope, *a->left, result);
-            break;
+            return result;
         }
         case _unary:
         {
             unary* u=(unary*)exp;
-            object* left=execute_ast(state, u->left, scope, 0);
-            object* right=execute_ast(state, u->right, scope, 0);
-            result=operator(left, right, u->op);
-            delete_unreferenced(left);
-            delete_unreferenced(right);
-            break;
+            object left=execute_ast(state, u->left, scope, 0);
+            object right=execute_ast(state, u->right, scope, 0);
+            object result=operator(left, right, u->op);
+            object_deinit(&left);
+            object_deinit(&right);
+            return result;
         }
         case _prefix:
         {
             prefix* p=(prefix*)exp;
-            object* left=execute_ast(state, p->right, scope, 0);
-            object* right=(object*)new_null();
-            result=operator(left, right, p->op);
-            delete_unreferenced(left);
-            delete_unreferenced(right);
-            break;
+            object left=execute_ast(state, p->right, scope, 0);
+            object right=null_const;
+            object result=operator(left, right, p->op);
+            object_deinit(&left);
+            return result;
         }
         case _conditional:
         {
             conditional* c=(conditional*)exp;
             if(is_falsy(execute_ast(state, c->condition, scope, 0))){
-                result=execute_ast(state, (expression*)c->onfalse, scope, 0);
+                return execute_ast(state, (expression*)c->onfalse, scope, 0);
             } else{
-                result=execute_ast(state, (expression*)c->ontrue, scope, 0);
+                return execute_ast(state, (expression*)c->ontrue, scope, 0);
             }
-            break;
         }
         case _function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
-            function* f=(function*)new_function();
-            vector_init(&f->argument_names);
+            object f;
+            function_init(&f);
+            vector_init(&f.fp->argument_names);
             for (int i = 0; i < vector_total(d->arguments); i++){
-                vector_add(&f->argument_names, ((name*)vector_get(d->arguments, i))->value);
+                vector_add(&f.fp->argument_names, ((name*)vector_get(d->arguments, i))->value);
             }
-            f->ftype=f_ast;
-            f->ast_pointer=(void*)d->body;
-            f->enviroment=(void*)state;
-            f->enclosing_scope=scope;
-            scope->ref_count++;
-            result=(object*)f;
-            break;
+            f.fp->ftype=f_ast;
+            f.fp->ast_pointer=(void*)d->body;
+            f.fp->enviroment=(void*)state;
+            f.fp->enclosing_scope=malloc(sizeof(scope));
+            memcpy(f.fp->enclosing_scope, &scope, sizeof(scope));
+            reference(f.fp->enclosing_scope);
+            return f;
         }
         case _function_call:
         {
             function_call* c=(function_call*)exp;
             
-            function* f=(function*)path_get(state, scope, *c->function_path);
-            switch(f->ftype){
-                case f_native:
-                {
-                    vector arguments;
-                    vector_init(&arguments);
-                    for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                        object* argument_value=execute_ast(state, vector_get(&c->arguments->lines, i), scope, 0);
-                        vector_add(&arguments, argument_value);
-                    }
-                    result=f->pointer(arguments);
-                    vector_free(&arguments);
-                    break;
-                }
-                case f_ast:
-                {
-                    table* function_scope=new_table();
-                    if(f->enclosing_scope!=NULL){
-                        inherit_scope((object*)function_scope, (object*)f->enclosing_scope);
-                    } else {
-                        inherit_scope((object*)function_scope, (object*)scope);
-                    }
-                    if(vector_total(&c->arguments->lines)<vector_total(&f->argument_names)){
-                        ERROR(WRONG_ARGUMENT_TYPE, "Not enough arguments in function call.");
-                    }
-                    for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                        //char buf[16];
-                        //itoa(i, buf, 10);
-                        char* argument_name=vector_get(&f->argument_names, i);
-                        object* argument_value=execute_ast(state, vector_get(&c->arguments->lines, i), scope, 0);
-                        set((object*)function_scope, argument_name, argument_value);
-                    }
-                    result=execute_ast(state, f->ast_pointer, function_scope, 1);
-                    state->returning=false;
-                    result->ref_count++;
-                    delete_unreferenced((object*)function_scope);
-                    break;
-                }
-                case f_bytecode:
-                    ERROR(NOT_IMPLEMENTED, "Can't call ast function from bytecode\n");
-                    break;
+            object f=path_get(state, scope, *c->function_path);
+            int arguments_count=vector_total(&c->arguments->lines);
+            object* arguments=malloc(arguments_count*sizeof(object));
+            for (int i = 0; i < vector_total(&c->arguments->lines); i++){
+                object argument_value=execute_ast(state, vector_get(&c->arguments->lines, i), scope, 0);
+                arguments[i]=argument_value;
             }
-            break;
+            call(f, arguments, arguments_count);
+            free(arguments);
         }
         case _path:
         {
-            path* p=(path*)exp;
-            result=path_get(state, scope, *p);
-            break;
+            return path_get(state, scope, *(path*)exp);
         }
         case _function_return:
         {
             function_return* r=(function_return*)exp;
-            result=execute_ast(state, r->value, scope, 0);
+            object result=execute_ast(state, r->value, scope, 0);
             state->returning=true;
-            break;
+            return result;
         }
         default:
         {
             printf("uncatched expression type: %i\n", exp->type);
-            result=(object*)new_null();
+            return null_const;
         }
     }
-    return result;
-}*/
+}

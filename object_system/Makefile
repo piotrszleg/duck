@@ -1,7 +1,7 @@
 archive-path := object_system.a
 tests-path := tests.exe
-headers := map.h object.h ../error/error.h vector.h object_operations.h
-source-files := ../error/error.c map.c object.c vector.c object_operations.c
+headers := map.h object.h ../error/error.h ../datatypes/vector.h object_operations.h
+source-files := ../error/error.c map.c object.c ../datatypes/vector.c object_operations.c
 object-files := error.o map.o object.o vector.o object_operations.o
 
 all: $(archive-path)

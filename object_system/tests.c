@@ -94,7 +94,7 @@ void function_call(){// tests whether f(5)==8 where f(x)=x+3
     five.value=5;
 
     vector arguments;
-    vector_init(&arguments);
+    vector_init(&arguments, sizeof(object));
     vector_add(&arguments, &five);
 
     assert_stringification(f.fp->pointer(arguments), "8");

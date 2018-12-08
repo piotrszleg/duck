@@ -1,4 +1,6 @@
 ## TODO:
+- change type of enclosing_scope to object instead of object*
+- setting fields doesn't work in ast mode
 - resize stack
 - stringify override
 - move execution state into a struct

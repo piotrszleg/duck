@@ -12,7 +12,8 @@ enum error_type{
     BUFFER_TOO_SMALL,
     NOT_IMPLEMENTED,
     ASSERTION_FAILED,
-    NOT_ENOUGH_ARGUMENTS
+    NOT_ENOUGH_ARGUMENTS,
+    STRINGIFICATION_ERROR
 };
 
 extern jmp_buf error_buf;

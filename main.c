@@ -62,9 +62,9 @@ void execute_file(const char* file_name, int use_bytecode){
     object_deinit(&execution_result);
 }
 
-object call_function(function_* f, vector arguments){
+object call_function(function_* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
-        return f->pointer(arguments);
+        return f->pointer(arguments, arguments_count);
     } else {
         object function_scope;
         table_init(&function_scope);
@@ -72,28 +72,27 @@ object call_function(function_* f, vector arguments){
             inherit_scope(function_scope, *f->enclosing_scope);
         }
         if(f->ftype==f_ast){
-            int arguments_count=vector_total(&arguments);
+            if(vector_total(&f->argument_names)<arguments_count){
+                ERROR(NOT_ENOUGH_ARGUMENTS, "Too many arguments in ast function call.");
+                return null_const;
+            }
             for(int i=0; i<arguments_count; i++){
-                set(function_scope, vector_get(&f->argument_names, i), *(object*)vector_get(&arguments, i));
+                set(function_scope, vector_get(&f->argument_names, i), arguments[i]);
             }
             return execute_ast((ast_executor_state*)f->enviroment, (expression*)f->ast_pointer, function_scope, 1);
         } else if(f->ftype==f_bytecode){
             bytecode_environment* environment=(bytecode_environment*)f->enviroment;
             int previous_pointer=environment->pointer;
             environment->pointer=search_for_label(environment->code, f->label);// move to function's label
-            int arguments_count=vector_total(&arguments);
             for(int i=0; i<arguments_count; i++){
-                object* argument=vector_get(&arguments, i);
-                push(&environment->object_stack, *argument);
+                push(&environment->object_stack, arguments[i]);
             }
             object result=execute_bytecode(environment, function_scope);
             environment->pointer=previous_pointer;
             return result;
         } else {
             ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
-            object n;
-            null_init(&n);
-            return n;
+            return null_const;
         }
     }
 }

@@ -7,11 +7,6 @@
 #include "error/error.h"
 #include "macros.h"
 
-#define BUILTIN_ARGUMENTS_CHECK(arguments_count) \
-    if(vector_total(&arguments)<arguments_count){ \
-        ERROR(NOT_ENOUGH_ARGUMENTS, "Not enough arguments, expected %i arguments.", arguments_count); \
-    }
-
 void register_builtins(object scope);
 void inherit_scope(object scope, object base);
 

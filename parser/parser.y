@@ -1,10 +1,4 @@
 %{
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "vector.h"
-#include "../error/error.h"
-#include "ast.h"
 #include "parser.h"
 
 // Declare stuff from Flex that Bison needs to know about:
