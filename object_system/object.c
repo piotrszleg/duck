@@ -15,6 +15,7 @@ OBJECT_INIT_NEW(null,)
 OBJECT_INIT_NEW(number,)
 OBJECT_INIT_NEW(function,
     o->fp=malloc(sizeof(function_));
+    o->fp->argument_names.items=NULL;
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
     o->fp->enclosing_scope=NULL;
@@ -30,6 +31,10 @@ object null_const={t_null};
 void reference(object* o){
     if(o->type==t_table){
         o->tp->ref_count++;
+    } else if(o->type==t_string){
+        // maybe it is a dirty hack, will find out later
+        // other option would be a copy function
+        o->text=strdup(o->text);
     }
 }
 
