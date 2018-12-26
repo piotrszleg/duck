@@ -10,7 +10,8 @@ typedef enum instruction_type instruction_type;
 enum instruction_type {
     b_end,// denotes the end of the program
     b_discard,// stack: [value_to_discard] - removes one value from the stack
-    b_swap,// stack: [a, b] - swaps two values at the top of the stack
+    b_swap,// performs argument number of swaps starting from stack.top-argument
+    b_double,// creates a copy of topmost stack item
     b_load_string,// argument: position_in_constants
     b_load_number,// argument: bits of float value
     b_table_literal,
@@ -40,6 +41,6 @@ typedef struct {
     void* constants;
 } bytecode_program;
 
-char* stringify_bytecode(bytecode_program program);
+char* stringify_bytecode(const bytecode_program* program);
 
 #endif

@@ -274,3 +274,153 @@ bytecode_program ast_to_bytecode(expression* exp, int keep_scope){
     prog.constants=constants.data;
     return prog;
 }
+
+#define X(i) || instr==i
+bool pushes_to_stack(instruction_type instr){
+    return !(false
+    X(b_end)
+    X(b_discard)
+    X(b_get_scope)
+    X(b_label)
+    X(b_jump)
+    X(b_jump_not)
+    );
+}
+bool changes_flow(instruction_type instr){
+    return false
+    X(b_return)
+    X(b_label)
+    X(b_jump)
+    X(b_jump_not);
+}
+#undef X
+
+#define X(t, result) case t: return result;
+int gets_from_stack(instruction instr){
+    switch(instr.type){
+        X(b_end, 0)
+        X(b_discard, 1)
+        X(b_swap, 1)
+        X(b_load_string, 0)
+        X(b_load_number, 0)
+        X(b_table_literal, 0)
+        X(b_null, 0)
+        X(b_function, 1 )
+        X(b_return, 1)
+        X(b_get_scope, 0)
+        X(b_set_scope, 1)
+        X(b_label, 0)
+        X(b_jump, 0)
+        X(b_jump_not, 0 )
+        X(b_get, instr.argument+1)
+        X(b_set, instr.argument+2)
+        X(b_call, instr.argument+1)
+        X(b_unary, 3)
+        X(b_prefix, 2)
+        default: return 0;
+    }
+}
+#undef X
+
+bool is_path_part(instruction instr){
+    return (instr.type==b_get && instr.argument!=0) || instr.type==b_load_string;
+}
+
+int path_length(const instruction* code,  int path_start){
+    int p=1;
+    for(; is_path_part(code[path_start-p]); p++);
+    return p;
+}
+
+bool instructions_equal(instruction a, instruction b){
+    return a.type==b.type && a.argument == b.argument;
+}
+
+bool paths_equal(const instruction* code, int path1, int path2){
+    int p=0;
+    while(is_path_part(code[path1+p]) && is_path_part(code[path2+p])){
+        if(!instructions_equal(code[path1+p], code[path2+p])){
+            return false;
+        }
+        p--;
+    }
+    return true;
+}
+
+int count_instructions(instruction* code){
+    int p=0;
+    for(; code[p].type!=b_end; p++);
+    return p;
+}
+
+void move_instructions(bytecode_program* prog, int starting_index, int movement){
+    int initial_count=count_instructions(prog->code);
+    int moved_count=initial_count+movement;
+    instruction* new_code=malloc((moved_count+1)*sizeof(instruction));
+
+    //printf("move_instructions(%i, %i)\n", starting_index, movement);
+
+    for(int i=0; i<moved_count; i++){
+        if(i<=starting_index+movement){
+            new_code[i]=prog->code[i];
+        } else {
+            new_code[i]=prog->code[i-movement];
+        }
+    }
+    instruction end_instruction={b_end, 0};
+    new_code[moved_count]=end_instruction;
+    prog->code=new_code;
+}
+
+/*
+What this function does is:
+If there is an operation that pushes to stack and the operation that gets the value pushed by it is not before "end"
+then a swap instruction must be added before end so the top of the stack is still same as before "start"
+returns if swap operation was added
+*/
+bool keep_stack_top_unchanged(bytecode_program* prog, int start, int end){
+    // count how many objects are pushed to the stack and how many are taken from it
+    int counter=0;
+    for(int pointer=start; pointer<end; pointer++){
+        counter+=pushes_to_stack(prog->code[pointer].type);
+        counter-=gets_from_stack(prog->code[pointer]);
+    }
+    if(counter>0){
+        // add swap instruction that swaps "counter" amount of items
+        move_instructions(prog, end-1, 1);
+        instruction instr={b_swap, counter};
+        prog->code[end]=instr;
+        USING_STRING(stringify_bytecode(prog),
+            printf("added swap:\n%s\n", str));
+        return true;
+    } else{
+        return false;
+    }
+}
+
+void optimise_bytecode(bytecode_program* prog){
+    for(int pointer=count_instructions(prog->code); pointer>=0; pointer--){
+        if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard){
+            printf("I found a set instruction: %i\n", pointer);
+            for(int search_pointer=pointer+2; prog->code[search_pointer].type!=b_end; search_pointer++){
+                if(changes_flow(prog->code[search_pointer].type)){
+                    printf("but it has a flow changing flow instruction: %i\n", pointer);
+                    // this optimisation won't work if the flow changes in any way
+                    break;
+                }
+                if(prog->code[search_pointer].type==b_get && paths_equal(prog->code, pointer-1, search_pointer-1)){
+                    int get_path_length=path_length(prog->code, search_pointer);
+
+                    if(keep_stack_top_unchanged(prog, pointer+2, search_pointer+1-get_path_length)){
+                        search_pointer++;// if swap instruction was added search needs to be moved by one to point at the correct instruction
+                    }
+                    move_instructions(prog, search_pointer, -get_path_length);// remove get path instructions
+                    move_instructions(prog, pointer+1, -1);// remove discard instruction
+                    USING_STRING(stringify_bytecode(prog),
+                        printf("removed get and discard instructions:\n%s\n", str));
+                    break;// for now only one such optimisation can happen     
+                }
+            }
+        }
+    }
+}

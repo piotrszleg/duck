@@ -77,7 +77,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
                     break;
                 case _string:
                     string_init(&result);
-                    result.text=l->sval;
+                    result.text=strdup(l->sval);
                     break;
             }
             return result;
@@ -193,8 +193,10 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
                 object argument_value=execute_ast(state, vector_get(&c->arguments->lines, i), scope, 0);
                 arguments[i]=argument_value;
             }
-            call(f, arguments, arguments_count);
+            object result=call(f, arguments, arguments_count);
+            state->returning=false;
             free(arguments);
+            return result;
         }
         case _path:
         {

@@ -75,10 +75,13 @@ object execute_bytecode(bytecode_environment* environment, object scope){
             }
             case b_swap:
             {
-                object a=pop(object_stack);
-                object b=pop(object_stack);
-                push(object_stack, a);
-                push(object_stack, b);
+                #define INDEX_STACK(index) ((object*)object_stack->items)[object_stack->top-1-(index)]
+                for(int i=instr.argument-1; i>=0; i--){
+                    object swap_temporary=INDEX_STACK(i);
+                    INDEX_STACK(i)=INDEX_STACK(i+1);
+                    INDEX_STACK(i+1)=swap_temporary;
+                }
+                #undef INDEX_STACK
                 break;
             }
             case b_load_string:

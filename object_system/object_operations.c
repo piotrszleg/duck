@@ -271,14 +271,23 @@ char* stringify_object(object o){
                 table_* t=o.tp;
                 char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
                 CHECK_ALLOCATION(buffer);
+                buffer[0]='\0';
                 int buffer_size=STRINGIFY_BUFFER_SIZE;
-                buffer[0]='[';
-                buffer[1]='\0';
-                int buffer_filled=1;// how many characters were written to the buffer
-                const char *key;
+                int buffer_filled=0;// how many characters were written to the buffer
+                
+                // if buffer isn't big enough to hold the added string characters double its size
+                #define BUFFER_WRITE(string, count) \
+                    while(buffer_size<=buffer_filled+count){ \
+                        buffer_size*=2; \
+                        buffer=realloc(buffer, buffer_size*sizeof(char)); \
+                    } \
+                    strncat(buffer, string, buffer_size); \
+                    buffer_filled+=count;
                
+                BUFFER_WRITE("[", 1);
                 int first=1;
                 map_iter_t iter = map_iter(&m);
+                const char *key;
                 while ((key = map_next(&t->fields, &iter))) {
                     object value=*map_get(&t->fields, key);
                     int self_reference=value.tp==t;
@@ -294,21 +303,13 @@ char* stringify_object(object o){
                     } else {
                         snprintf(pair_buffer, formatted_count, ", %s=%s", key, value_stringified);
                     }
-                    // if buffer isn't big enough to hold the pair double it
-                    while(buffer_size<=(buffer_filled+formatted_count)*sizeof(char)){
-                        buffer_size*=2;
-                        buffer=realloc(buffer, buffer_size*sizeof(char));
-                    }
-                    strncat(buffer, pair_buffer, buffer_size);
-                    buffer_filled+=formatted_count;
+                    BUFFER_WRITE(pair_buffer, formatted_count);
+                    free(pair_buffer);
+                    
                     first=0;
                 }
-                // check if buffer can hold additional ']' character
-                if(buffer_size<=buffer_filled+1){
-                    buffer_size*=2;
-                    buffer=realloc(buffer, buffer_size*sizeof(char));
-                }
-                strncat(buffer, "]", buffer_size);
+                BUFFER_WRITE("]", 1);
+
                 buffer[buffer_size-1]='\0';// to make sure that the string won't overflow
 
                 char* buffer_truncated=strdup(buffer);
@@ -316,7 +317,52 @@ char* stringify_object(object o){
                 return buffer_truncated;
             }
         case t_function:
-            return strdup("<function>");
+        {
+            function_* f=o.fp;
+            if(f->argument_names.items!=NULL){
+                char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
+                CHECK_ALLOCATION(buffer);
+                buffer[0]='\0';
+                int buffer_size=STRINGIFY_BUFFER_SIZE;
+                int buffer_filled=0;// how many characters were written to the buffer
+                
+                // if buffer isn't big enough to hold the added string characters double its size
+                #define BUFFER_WRITE(string, count) \
+                    while(buffer_size<=buffer_filled+count){ \
+                        buffer_size*=2; \
+                        buffer=realloc(buffer, buffer_size*sizeof(char)); \
+                    } \
+                    strncat(buffer, string, buffer_size); \
+                    buffer_filled+=count;
+                
+                BUFFER_WRITE("function(", 9);
+                int first=1;
+                for (int i = 0; i < vector_total(&f->argument_names); i++){
+                    char* argument_name=vector_get(&f->argument_names, i);
+                    int character_count=strlen(argument_name);
+
+                    if(first){
+                        BUFFER_WRITE(argument_name, character_count);
+                        first=0;
+                    } else {
+                        int formatted_count=3+character_count;
+                        char* argument_buffer=malloc(formatted_count*sizeof(char));
+                        snprintf(argument_buffer, formatted_count, ", %s", argument_name);
+                        BUFFER_WRITE(argument_buffer, formatted_count);
+                        free(argument_buffer);
+                    }
+                }
+                BUFFER_WRITE(")", 1);
+                
+                buffer[buffer_size-1]='\0';// to make sure that the string won't overflow
+
+                char* buffer_truncated=strdup(buffer);
+                free(buffer);
+                return buffer_truncated;
+            } else {
+                return strdup("function()");
+            }
+        }
         case t_null:
             return strdup("<null>");
         default:

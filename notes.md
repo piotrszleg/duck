@@ -1,9 +1,8 @@
+"Speed is a social construct." - Mattias Petter Johansson 2018
+
 ## TODO:
-- change type of enclosing_scope to object instead of object*
-- setting fields doesn't work in ast mode
+- fix functions calling and stringifying ast functions
 - resize stack
-- stringify override
-- move execution state into a struct
 - create coroutines
 - more comments
 
