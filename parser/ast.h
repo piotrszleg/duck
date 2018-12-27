@@ -60,7 +60,7 @@ AST_OBJECT(assignment,
 
 AST_OBJECT(function_call,
     path* function_path;
-    block* arguments;
+    table_literal* arguments;
 )
 
 AST_OBJECT(unary,

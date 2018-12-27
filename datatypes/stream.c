@@ -24,6 +24,11 @@ int stream_push(stream* s, const void* data_pointer, size_t size){
 }
 
 void stream_truncate(stream* s){
-    s->data=realloc(s->data, s->position);
-    CHECK_ALLOCATION(s->data);
+    if(s->position>0){
+        s->data=realloc(s->data, s->position);
+        CHECK_ALLOCATION(s->data);
+    } else {
+        free(s->data);
+        s->data=NULL;
+    }
 }

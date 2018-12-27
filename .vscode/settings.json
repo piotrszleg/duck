@@ -25,6 +25,7 @@
         "vector.h": "c",
         "vector.h\u0000ector.h": "c",
         "vector.h\u0000vector.h": "c",
-        "object_operations.h": "c"
+        "object_operations.h": "c",
+        "ast_visitor.h": "c"
     }
 }

@@ -311,14 +311,15 @@ call:
 		function_call* c=new_function_call();
 		c->line=line_num;
 		c->function_path=(path*)$1;
-		c->arguments=(block*)$3;
+		c->arguments=(table_literal*)$3;
+		c->arguments->type=_table_literal;
 		$$=(expression*)c;
 	}
 	| path '(' ')' {
 		function_call* c=new_function_call();
 		c->line=line_num;
 		c->function_path=(path*)$1;
-		c->arguments=new_block();
+		c->arguments=(table_literal)new_block();
 		vector_init(&c->arguments->lines);
 		$$=(expression*)c;
 	}

@@ -1,7 +1,8 @@
 #ifndef AST_VISITOR_H
 #define AST_VISITOR_H
 
-#include <ast.h>
+#include <stdbool.h>
+#include "parser/ast.h"
 
 typedef enum move_request move_request;
 enum move_request{
@@ -10,8 +11,14 @@ enum move_request{
     up,
 };
 
-typedef move_request (*visitor_function)(expression*, void*);
+typedef struct ast_visitor_request ast_visitor_request;
+struct ast_visitor_request{
+    move_request move;
+    expression* replacement;
+};
 
-move_request visit_ast(expression*, visitor_function f, void*);
+typedef ast_visitor_request (*visitor_function)(expression*, void*);
+
+ast_visitor_request visit_ast(expression*, visitor_function f, void*);
 
 #endif

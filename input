@@ -1,2 +1,2 @@
-add=(a, b)->a+b
-add(1, 5)
+a=2+2+10
+print(a)

@@ -1,9 +1,17 @@
 "Speed is a social construct." - Mattias Petter Johansson 2018
 
-## TODO:
-- fix functions calling and stringifying ast functions
+# TOFIX:
+- pass all the tests
+- garbage collection of functions
+- fix functions calling in ast
+- valgrind
 - resize stack
-- create coroutines
+
+## TODO:
+- empty and variadic arguments
+- show number of arguments in stringified bytecode functions
+- call and destroy override
+- coroutines
 - more comments
 
 ## WHILE REWRITING OBJECT SYSTEM

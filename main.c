@@ -6,6 +6,7 @@
 #include "bytecode.h"
 #include "ast_to_bytecode.h"
 #include "execute_bytecode.h"
+#include "ast_optimisations.h"
 #include "builtins.h"
 #include "macros.h"
 #include "object_system/object_operations.h"
@@ -17,20 +18,19 @@ void execute_file(const char* file_name, int use_bytecode){
     reference(&global_scope);
     register_builtins(global_scope);
     // chokes on bigger source trees
-    //USING_STRING(stringify_expression(parsing_result, 0),
-    //    printf(str));
+    /*USING_STRING(stringify_expression(parsing_result, 0),
+        printf(str));*/
+    optimise_ast(parsing_result);
+    /*USING_STRING(stringify_expression(parsing_result, 0),
+        printf("\nAFTER OPTIMISATIONS %s", str));*/
     printf("\nExecuting parsing result:\n");
     object execution_result;
     if(use_bytecode){
         bytecode_program prog=ast_to_bytecode(parsing_result, 1);
         delete_expression(parsing_result);// at this point ast is useless and only wastes memory
-
-        USING_STRING(stringify_bytecode(&prog), 
-           printf("Unoptimised bytecode:\n%s\n", str));
-        
         optimise_bytecode(&prog);
-        USING_STRING(stringify_bytecode(&prog), 
-           printf("Optimised bytecode:\n%s\n", str));
+        /*USING_STRING(stringify_bytecode(&prog),
+            printf("Bytecode:\n%s\n", str));*/
         
         bytecode_environment environment;
         bytecode_enviroment_init(&environment);

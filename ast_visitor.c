@@ -1,10 +1,11 @@
 #include "ast_visitor.h"
 
-  visit_ast(expression* exp, visitor_function f, void* data){
-    move_request request=f(exp, data);
-    if(request!=down){
+ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
+    ast_visitor_request request=f(exp, data);
+    if(request.move!=down){
         return request;
     }
+
     switch(exp->type){
         case _block:
         case _table_literal:
@@ -14,7 +15,13 @@
             
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=vector_get(&b->lines, i);
-                if(visit_ast_recursive(line, f, data)==up){
+                ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                if(subexpression_request.replacement){
+                    printf("\nreplacing:\n[%s]\n with:\n[%s]", stringify_expression(line, 0), stringify_expression(subexpression_request.replacement, 0));
+                    delete_expression(line);
+                    vector_set(&b->lines, i, subexpression_request.replacement);
+                }
+                if(subexpression_request.move==up){
                     break;// skip rest of the lines
                 }
             }
@@ -27,55 +34,66 @@
             int lines_count=vector_total(&c->arguments->lines);
             for (int i = 0; i < lines_count; i++){
                 expression* line=vector_get(&c->arguments->lines, i);
-                if(visit_ast_recursive(line, f, data)==up){
-                    break;
+                ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                if(subexpression_request.replacement){
+                    printf("replacing\n:[%s] with:\n[%s]", stringify_expression(line, 0), stringify_expression(subexpression_request.replacement, 0));
+                    delete_expression(line);
+                    vector_set(&c->arguments->lines, i, subexpression_request.replacement);
+                }
+                if(subexpression_request.move==up){
+                    break;// skip rest of the lines
                 }
             }
             break;
         }
+        #define SUBEXPRESSION(e) \
+            {ast_visitor_request subexpression_request=visit_ast((expression*)e, f, data); \
+            if(subexpression_request.replacement) e=subexpression_request.replacement; }
         case _assignment:
         {
             assignment* a=(assignment*)exp;
-
-            visit_ast_recursive(a->right, f, data);
-            visit_ast_recursive(a->left, f, data);
+            
+            visit_ast((expression*)a->left, f, data);// left hand of assignment can't be changed
+            SUBEXPRESSION(a->right)
             break;
         }
         case _unary:
         {
             unary* u=(unary*)exp;
 
-            visit_ast_recursive(u->right, f, data);
-            visit_ast_recursive(u->left, f, data);
+            SUBEXPRESSION(u->right)
+            SUBEXPRESSION(u->left)
             break;
         }
         case _prefix:
         {
             prefix* p=(prefix*)exp;
-            visit_ast_recursive(p->right, f, data);
+            SUBEXPRESSION(p->right)
             break;
         }
         case _conditional:
         {
             conditional* c=(conditional*)exp;
 
-            visit_ast_recursive(c->condition, f, data);
-            visit_ast_recursive(c->ontrue, f, data);
-            visit_ast_recursive(c->onfalse, f, data);
+            SUBEXPRESSION(c->condition)
+            SUBEXPRESSION(c->ontrue)
+            SUBEXPRESSION(c->onfalse)
             break;
         }
         case _function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
-            visit_ast_recursive((expression*)d->body, f, data);
+            SUBEXPRESSION(d->body)
             break;
         }
         case _function_return:
         {
             function_return* r=(function_return*)exp;
-            visit_ast_recursive(r->value, f, data);
+            SUBEXPRESSION(r->value)
             break;
         }
+        #undef SUBEXPRESSION
         default: ;
     }
+    return request;
 }
