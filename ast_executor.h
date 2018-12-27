@@ -8,7 +8,8 @@
 #include "stdbool.h"
 
 typedef struct {
-    int line;
+    int line_number;
+    int column_number;
     bool returning;
 } ast_executor_state;
 

@@ -58,7 +58,8 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
     if(exp==NULL){
         ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
-    state->line=exp->line;
+    state->line_number=exp->line_number;
+    state->column_number=exp->column_number;
     switch(exp->type){
         case _empty:
             return null_const;

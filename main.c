@@ -55,7 +55,7 @@ void execute_file(const char* file_name, int use_bytecode){
             USING_STRING(stringify(global_scope), 
                 printf("Global scope:\n%s\n", str));
         ,
-            printf("Error occured on line %i of source code:\n", state.line);
+            printf("Error occured on line %i, column %i of source code:\n", state.line_number, state.column_number);
             printf(err_message);
             exit(-1);
         );

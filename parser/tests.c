@@ -15,20 +15,24 @@ block* parse_block(char* code, int expected_lines_count){
 void literals(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    block* as_block=parse_block("5, 0.5, \"text\"", 3);
+    block* as_block=parse_block("5, 0.5, \"text text\", 'text_text", 4);
 
     // check if each line contains literal of correct type and value
-    assert( ((expression*)vector_get(&as_block->lines, 0))->type==_literal );
     literal* five=(literal*)vector_get(&as_block->lines, 0);
+    assert(five->type==_literal);
     assert(five->ival==5);
     
-    assert( ((expression*)vector_get(&as_block->lines, 1))->type==_literal );
     literal* half=(literal*)vector_get(&as_block->lines, 1);
+    assert( half->type==_literal );
     assert(half->fval==0.5);
 
-    assert( ((expression*)vector_get(&as_block->lines, 2))->type==_literal );
-    literal* text=(literal*)vector_get(&as_block->lines, 2);
-    assert(strcmp(text->sval, "text")==0);
+    literal* text1=(literal*)vector_get(&as_block->lines, 2);
+    assert( text1->type==_literal );
+    assert(strcmp(text1->sval, "text text")==0);
+
+    literal* text2=(literal*)vector_get(&as_block->lines, 3);
+    assert( text2->type==_literal );
+    assert(strcmp(text2->sval, "text_text")==0);
 
     delete_expression(parsing_result);
     printf("test successful\n");
@@ -187,6 +191,24 @@ void function_returns(){
     printf("test successful\n");
 }
 
+void conditionals(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    block* as_block=parse_block(
+    "if(1) 1\n"
+    "if(1) 1 else 2\n"
+    "if(1) 1 elif(2) 2 else 3\n"
+    "if(1)\n 1 \nelif(2) 2 else 3\n"
+    "if(1){\n 1 \n}\nelif(2){\n 2 \n}\nelse{\n 3\n}"
+    , 5);
+
+    for (int i = 0; i < vector_total(&as_block->lines); i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==_conditional);
+    }
+
+    printf("test successful\n");
+}
 
 int main(){
     literals();
@@ -198,5 +220,6 @@ int main(){
     function_declarations();
     function_calls();
     function_returns();
+    conditionals();
     // TODO: conditionals
 }

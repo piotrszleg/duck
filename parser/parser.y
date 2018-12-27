@@ -5,11 +5,14 @@
 extern int yylex();
 extern int yyparse();
 extern FILE *yyin;
-extern int line_num;
+extern int line_number;
+extern int column_number;
 
 expression* parsing_result;
  
 void yyerror(const char *s);
+
+#define ADD_DEBUG_INFO(exp) exp->line_number=line_number; exp->column_number=column_number;
 
 #define YYERROR_VERBOSE 1
 %}
@@ -77,14 +80,14 @@ lines:
 	}
 	| line	{
 		block* b=new_block();
-		b->line=line_num;
+		ADD_DEBUG_INFO(b)
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
 	}
 	| expression {
 		block* b=new_block();
-		b->line=line_num;
+		ADD_DEBUG_INFO(b)
 		vector_init(&b->lines);
 		vector_add(&b->lines, $1);
 		$$=(expression*)b;
@@ -97,7 +100,7 @@ line:
 	| expression '!' OPT_ENDLS
 	{
 		function_return* r=new_function_return();
-		r->line=line_num;
+		ADD_DEBUG_INFO(r)
 		r->value=$1;
 		$$=(expression*)r;
 	}
@@ -112,7 +115,7 @@ table_contents:
 	}
 	| {
 		block* b=new_block();
-		b->line=line_num;
+		ADD_DEBUG_INFO(b)
 		vector_init(&b->lines);
 		b->type=_table_literal;
 		$$=(expression*)b;
@@ -126,7 +129,7 @@ table:
 path:
 	name {
 		path* p=new_path();
-		p->line=line_num;
+		ADD_DEBUG_INFO(p)
 		vector_init(&p->lines);
 		vector_add(&p->lines, $1);
 		$$=(expression*)p;
@@ -153,20 +156,20 @@ expression:
 	| null
 	;
 conditional:
-	IF '(' expression ')' expression  {	
+	IF '(' expression ')' OPT_ENDLS line  {	
 		conditional* c=new_conditional();
-		c->line=line_num;
+		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$5;
+		c->ontrue=$6;
 		c->onfalse=(expression*)new_empty();
 		$$=(expression*)c;
 	}
-	| IF '(' expression ')' expression conditional_else {
+	| IF '(' expression ')' OPT_ENDLS line conditional_else {
 		conditional* c=new_conditional();
-		c->line=line_num;
+		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$5;
-		c->onfalse=$6;
+		c->ontrue=$6;
+		c->onfalse=$7;
 		$$=(expression*)c;
 	}
 	;
@@ -174,19 +177,19 @@ conditional_else:
 	ELSE expression {
 		$$=$2
 	}
-	| ELIF '(' expression ')' expression conditional_else {
+	| ELIF '(' expression ')' OPT_ENDLS line conditional_else {
 		conditional* c=new_conditional();
-		c->line=line_num;
+		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$5;
-		c->onfalse=$6;
+		c->ontrue=$6;
+		c->onfalse=$7;
 		$$=(expression*)c;
 	}
-	| ELIF '(' expression ')' expression {
+	| ELIF '(' expression ')' OPT_ENDLS line {
 		conditional* c=new_conditional();
-		c->line=line_num;
+		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$5;
+		c->ontrue=$6;
 		c->onfalse=(expression*)new_empty();
 		$$=(expression*)c;
 	} 
@@ -207,14 +210,14 @@ arguments:
 function:
 	'(' arguments ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
-		f->line=line_num;
+		ADD_DEBUG_INFO(f)
 		f->arguments=$2;
 		f->body=(block*)$5;
 		$$=(expression*)f;
 	} 
 	| '(' name ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
-		f->line=line_num;
+		ADD_DEBUG_INFO(f)
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
 		vector_init(args);
@@ -225,7 +228,7 @@ function:
 	}
 	| name ARROW expression {
 		function_declaration* f=new_function_declaration();
-		f->line=line_num;
+		ADD_DEBUG_INFO(f)
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
 		vector_init(args);
@@ -239,7 +242,7 @@ function:
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
 		vector_init(args);
-		f->line=line_num;
+		ADD_DEBUG_INFO(f)
 		f->arguments=args;
 		f->body=(block*)$2;
 		$$=(expression*)f;
@@ -248,21 +251,21 @@ function:
 literal: 
 	INT { 
 		literal* l=new_literal();
-		l->line=line_num;
+		ADD_DEBUG_INFO(l)
 		l->ival=$1;
 		l->ltype=_int;
 		$$=(expression*)l;
 	}
 	| FLOAT { 
 		literal* l=new_literal();
-		l->line=line_num;
+		ADD_DEBUG_INFO(l)
 		l->fval=$1;
 		l->ltype=_float;
 		$$=(expression*)l;
 	}
 	| STRING { 
 		literal* l=new_literal();
-		l->line=line_num;
+		ADD_DEBUG_INFO(l)
 		l->sval=$1;
 		l->ltype=_string;
 		$$=(expression*)l;
@@ -271,14 +274,14 @@ literal:
 null:
 	NULL_LITERAL {
 		empty* e=new_empty();
-		e->line=line_num;
+		ADD_DEBUG_INFO(e)
 		$$=(expression*)e;
 	}
 	;
 name:
 	NAME {
 		name* n=new_name();
-		n->line=line_num;
+		ADD_DEBUG_INFO(n)
 		n->value=$1;
 		$$=(expression*)n;
 	  }
@@ -287,10 +290,10 @@ assignment:
 	path ASSIGN_UNARY_OPERATOR expression 
 	{
 		assignment* a=new_assignment();
-		a->line=line_num;
+		ADD_DEBUG_INFO(a)
 		a->left=(path*)$1;
 		unary* u=new_unary();
-		u->line=line_num;
+		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=$2;
 		u->right=$3;
@@ -300,7 +303,7 @@ assignment:
 	| path '=' expression 
 	{
 		assignment* a=new_assignment();
-		a->line=line_num;
+		ADD_DEBUG_INFO(a)
 		a->left=(path*)$1;
 		a->right=$3;
 		$$=(expression*)a;
@@ -309,7 +312,7 @@ assignment:
 call:
 	path '(' lines ')' {
 		function_call* c=new_function_call();
-		c->line=line_num;
+		ADD_DEBUG_INFO(c)
 		c->function_path=(path*)$1;
 		c->arguments=(table_literal*)$3;
 		c->arguments->type=_table_literal;
@@ -317,9 +320,9 @@ call:
 	}
 	| path '(' ')' {
 		function_call* c=new_function_call();
-		c->line=line_num;
+		ADD_DEBUG_INFO(c)
 		c->function_path=(path*)$1;
-		c->arguments=(table_literal)new_block();
+		c->arguments=(table_literal*)new_block();
 		vector_init(&c->arguments->lines);
 		$$=(expression*)c;
 	}
@@ -328,7 +331,7 @@ unary:
 	expression UNARY_OPERATOR expression 
 	{
 		unary* u=new_unary();
-		u->line=line_num;
+		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=$2;
 		u->right=$3;
@@ -337,7 +340,7 @@ unary:
 	| expression '-' expression 
 	{
 		unary* u=new_unary();
-		u->line=line_num;
+		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=strdup("-");
 		u->right=$3;
@@ -348,7 +351,7 @@ prefix:
 	'!' expression 
 	{
 		prefix* p=new_prefix();
-		p->line=line_num;
+		ADD_DEBUG_INFO(p)
 		p->op=strdup("!");
 		p->right=$2;
 		$$=(expression*)p;
@@ -356,7 +359,7 @@ prefix:
 	| '-' expression 
 	{
 		prefix* p=new_prefix();
-		p->line=line_num;
+		ADD_DEBUG_INFO(p)
 		p->op=strdup("-");
 		p->right=$2;
 		$$=(expression*)p;
@@ -381,6 +384,9 @@ extern YY_BUFFER_STATE yy_scan_string(const char * str);
 extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
 
 void parse_string(const char* s) {
+	line_number=0;
+	column_number=0;
+
 	// Set Flex to read from it instead of defaulting to STDIN:
 	YY_BUFFER_STATE buffer = yy_scan_string(s);
 
@@ -390,9 +396,11 @@ void parse_string(const char* s) {
 }
 
 void parse_file(const char* file_name) {
+	line_number=0;
+	column_number=0;
+
 	// Open a file handle to a particular file:
 	FILE *myfile = fopen(file_name, "r");
-	// Make sure it is valid:
 	if (!myfile) {
 		printf("I can't open the file!\n");
 		return;
@@ -405,6 +413,6 @@ void parse_file(const char* file_name) {
 }
 
 void yyerror(const char *s) {
-	printf("Parse error on line %i!  Message: %s\n", line_num, s);
+	printf("Parse error on line %i, column %i\nMessage: %s\n", line_number, column_number, s);
 	exit(-1);
 }

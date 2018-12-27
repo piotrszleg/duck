@@ -28,7 +28,8 @@ enum expression_type{
     typedef struct t t; \
     struct t { \
         expression_type type; \
-        int line; \
+        int line_number; \
+        int column_number; \
         body \
     }; \
     t* new_ ## t(); \
