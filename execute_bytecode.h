@@ -13,6 +13,7 @@
 typedef struct {
     instruction* code;
     void* constants;
+    int* labels;
     int pointer;
     int line;
     stack object_stack;
@@ -23,6 +24,5 @@ void bytecode_enviroment_init(bytecode_environment* e);
 
 void push(stack* stack, object o);
 object execute_bytecode(bytecode_environment* environment, object scope);
-int search_for_label(const instruction* code, int label_index);
 
 #endif

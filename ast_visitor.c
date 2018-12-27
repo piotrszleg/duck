@@ -47,8 +47,11 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             break;
         }
         #define SUBEXPRESSION(e) \
-            {ast_visitor_request subexpression_request=visit_ast((expression*)e, f, data); \
-            if(subexpression_request.replacement) e=subexpression_request.replacement; }
+        { \
+            ast_visitor_request subexpression_request=visit_ast((expression*)e, f, data); \
+            if(subexpression_request.replacement) \
+                e=subexpression_request.replacement; \
+        }
         case _assignment:
         {
             assignment* a=(assignment*)exp;

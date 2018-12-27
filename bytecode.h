@@ -36,10 +36,18 @@ struct instruction {
     long argument;// long type ensures that 4bit float will fit
 };
 
-typedef struct {
+typedef struct debugging_info debugging_info;
+struct debugging_info {
+    int line;
+    int column;
+};
+
+typedef struct bytecode_program bytecode_program;
+struct bytecode_program {
     instruction* code;
+    debugging_info* debug;
     void* constants;
-} bytecode_program;
+};
 
 char* stringify_bytecode(const bytecode_program* program);
 

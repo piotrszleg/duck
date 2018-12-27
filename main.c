@@ -33,10 +33,10 @@ void execute_file(const char* file_name, int use_bytecode){
             printf("Bytecode:\n%s\n", str));*/
         
         bytecode_environment environment;
-        bytecode_enviroment_init(&environment);
         environment.pointer=0;
         environment.code=prog.code;
         environment.constants=prog.constants;
+        bytecode_enviroment_init(&environment);
         execution_result=execute_bytecode(&environment, global_scope);
 
         USING_STRING(stringify(execution_result), 
@@ -88,7 +88,7 @@ object call_function(function_* f, object* arguments, int arguments_count){
         } else if(f->ftype==f_bytecode){
             bytecode_environment* environment=(bytecode_environment*)f->enviroment;
             int previous_pointer=environment->pointer;
-            environment->pointer=search_for_label(environment->code, f->label);// move to function's label
+            environment->pointer=environment->labels[f->label];// move to function's label
             for(int i=0; i<arguments_count; i++){
                 push(&environment->object_stack, arguments[i]);
             }

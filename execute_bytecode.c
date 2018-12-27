@@ -1,16 +1,5 @@
 #include "execute_bytecode.h"
 
-int search_for_label(const instruction* code, int label_index){
-    int pointer=0;
-    while(code[pointer].type!=b_end){
-        if(code[pointer].type==b_label && code[pointer].argument==label_index){
-            return pointer;
-        }
-        pointer++;
-    }
-    return -1;
-}
-
 void push(stack* stack, object o){
     reference(&o);
     stack_push(stack, (const void*)(&o));
@@ -47,7 +36,26 @@ char* stringify_object_stack(const stack* s){
     return result; 
 }
 
+#define INITIAL_LABELS_COUNT 4
+int* list_labels(instruction* code){
+    int* labels=malloc(INITIAL_LABELS_COUNT*sizeof(int));
+    int labels_count=INITIAL_LABELS_COUNT;
+    int pointer=0;
+    while(code[pointer].type!=b_end){
+        if(code[pointer].type==b_label){
+            while(code[pointer].argument>labels_count){
+                labels_count*=2;
+                labels=realloc(labels, labels_count*sizeof(int));
+            }
+            labels[code[pointer].argument]=pointer;
+        }
+        pointer++;
+    }
+    return labels;
+}
+
 void bytecode_enviroment_init(bytecode_environment* e){
+    e->labels=list_labels(e->code);
     stack_init(&e->object_stack, sizeof(object), STACK_SIZE);
     push(&e->object_stack, null_const);
     stack_init(&e->return_stack, sizeof(object), STACK_SIZE);
@@ -204,7 +212,7 @@ object execute_bytecode(bytecode_environment* environment, object scope){
             }
             case b_jump:
             {
-                int destination=search_for_label(code, instr.argument);
+                int destination=environment->labels[instr.argument];
                 if(destination>0){
                     *pointer=destination;
                 } else {
@@ -263,7 +271,7 @@ object execute_bytecode(bytecode_environment* environment, object scope){
                     } else {
                         inherit_scope(function_scope, scope);
                     }
-                    int destination=search_for_label(code, f.fp->label);
+                    int destination=environment->labels[f.fp->label];
                     if(destination>0){
                         object return_point;
                         number_init(&return_point);
