@@ -212,7 +212,7 @@ function:
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		f->arguments=$2;
-		f->body=(block*)$5;
+		f->body=$5;
 		$$=(expression*)f;
 	} 
 	| '(' name ')' ARROW expression {
@@ -223,7 +223,7 @@ function:
 		vector_init(args);
 		vector_add(args, $2);
 		f->arguments=args;
-		f->body=(block*)$5;
+		f->body=$5;
 		$$=(expression*)f;
 	}
 	| name ARROW expression {
@@ -234,7 +234,7 @@ function:
 		vector_init(args);
 		vector_add(args, $1);
 		f->arguments=args;
-		f->body=(block*)$3;
+		f->body=$3;
 		$$=(expression*)f;
 	}
 	| ARROW expression {
@@ -244,7 +244,7 @@ function:
 		vector_init(args);
 		ADD_DEBUG_INFO(f)
 		f->arguments=args;
-		f->body=(block*)$2;
+		f->body=$2;
 		$$=(expression*)f;
 	}
 	;

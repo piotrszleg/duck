@@ -1685,7 +1685,7 @@ yyreduce:
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		f->arguments=(yyvsp[(2) - (5)].args);
-		f->body=(block*)(yyvsp[(5) - (5)].exp);
+		f->body=(yyvsp[(5) - (5)].exp);
 		(yyval.exp)=(expression*)f;
 	;}
     break;
@@ -1702,7 +1702,7 @@ yyreduce:
 		vector_init(args);
 		vector_add(args, (yyvsp[(2) - (5)].exp));
 		f->arguments=args;
-		f->body=(block*)(yyvsp[(5) - (5)].exp);
+		f->body=(yyvsp[(5) - (5)].exp);
 		(yyval.exp)=(expression*)f;
 	;}
     break;
@@ -1719,7 +1719,7 @@ yyreduce:
 		vector_init(args);
 		vector_add(args, (yyvsp[(1) - (3)].exp));
 		f->arguments=args;
-		f->body=(block*)(yyvsp[(3) - (3)].exp);
+		f->body=(yyvsp[(3) - (3)].exp);
 		(yyval.exp)=(expression*)f;
 	;}
     break;
@@ -1735,7 +1735,7 @@ yyreduce:
 		vector_init(args);
 		ADD_DEBUG_INFO(f)
 		f->arguments=args;
-		f->body=(block*)(yyvsp[(2) - (2)].exp);
+		f->body=(yyvsp[(2) - (2)].exp);
 		(yyval.exp)=(expression*)f;
 	;}
     break;

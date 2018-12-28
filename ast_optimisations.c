@@ -21,7 +21,7 @@ bool is_constant(expression* exp){
 
 expression* to_literal(object o){
     if(o.type==t_null){
-        return (expression*)newe_empty();
+        return (expression*)new_empty();
     }
     
     switch(o.type){
@@ -40,7 +40,7 @@ expression* to_literal(object o){
             return (expression*)l;
         }
         case t_null:
-            return (expression*)newe_empty();
+            return (expression*)new_empty();
         default:
             return NULL;
     }

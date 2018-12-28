@@ -77,7 +77,7 @@ AST_OBJECT(prefix,
 
 AST_OBJECT(function_declaration,
     vector* arguments;
-    block* body;
+    expression* body;
 )
 
 AST_OBJECT(conditional,
