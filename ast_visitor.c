@@ -51,6 +51,8 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             ast_visitor_request subexpression_request=visit_ast((expression*)e, f, data); \
             if(subexpression_request.replacement) \
                 e=subexpression_request.replacement; \
+            if(subexpression_request.move==up) \
+                break; \
         }
         case e_assignment:
         {
