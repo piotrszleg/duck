@@ -2,7 +2,7 @@
     "files.associations": {
         "tests.h": "c",
         "object.h": "c",
-        "ast_executor.h": "c",
+        "execute_ast.h": "c",
         "parser_tests.h": "c",
         "stdio.h": "c",
         "error.h": "c",

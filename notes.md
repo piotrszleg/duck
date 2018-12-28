@@ -8,6 +8,7 @@
 
 ## TODO:
 - get execution info for error objects
+- include(file) function, binding code to functions
 - empty and variadic arguments
 - show number of arguments in stringified bytecode functions
 - call and destroy override

@@ -1,4 +1,4 @@
-#include "ast_executor.h"
+#include "execute_ast.h"
 
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }

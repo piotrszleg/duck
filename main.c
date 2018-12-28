@@ -1,7 +1,7 @@
 #include <string.h>
 #include "parser/parser.h"
-#include "ast_executor.h"
-#include "ast_executor.h"
+#include "execute_ast.h"
+#include "execute_ast.h"
 #include "repl.h"
 #include "bytecode.h"
 #include "ast_to_bytecode.h"
