@@ -6,7 +6,7 @@
     t* new_ ## t(){  \
         t* instance=malloc(sizeof(t)); \
         CHECK_ALLOCATION(instance); \
-		instance->type=_ ## t; \
+		instance->type=e_ ## t; \
         return instance; \
     }
 
@@ -47,13 +47,13 @@ char* stringify_expression(expression* exp, int indentation){
     }
 
     switch(exp->type){
-        case _empty:
+        case e_empty:
             strcat(result, "EMPTY\0");// "EMPTY" will always smaller than STRINGIFY_BUFFER_SIZE
             break;
-        case _name:
+        case e_name:
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sNAME: %s", indentation_string, ((name*)exp)->value);
             break;
-        case _literal:
+        case e_literal:
         {
             literal* l=(literal*)exp;
             switch(l->ltype){
@@ -69,7 +69,7 @@ char* stringify_expression(expression* exp, int indentation){
             }
             break;
         }
-        case _assignment:
+        case e_assignment:
         {
             assignment* a=(assignment*)exp;
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sASSIGNMENT: \n%s-> left: %s \n%s-> sign: '=' \n%s-> right: %s", 
@@ -79,7 +79,7 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)a->right, indentation+1));
             break;
         }
-        case _unary:
+        case e_unary:
         {
             unary* u=(unary*)exp;
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sUNARY: \n%s-> left: %s \n%s-> sign: '%s' \n%s-> right: %s", 
@@ -89,7 +89,7 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)u->right, indentation+1));
             break;
         }
-        case _prefix:
+        case e_prefix:
         {
             prefix* p=(prefix*)exp;
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sPREFIX: \n%s-> sign: '%s' \n%s-> right: %s", 
@@ -98,7 +98,7 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)p->right, indentation+1));
             break;
         }
-        case _function_call:
+        case e_function_call:
         {
             function_call* c=(function_call*)exp;
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sCALL: \n%s-> name: %s \n%s-> arguments: %s", 
@@ -107,7 +107,7 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)c->arguments, indentation+1));
             break;
         }
-        case _block:
+        case e_block:
         {
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sBLOCK: ", indentation_string);
             block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
@@ -116,7 +116,7 @@ char* stringify_expression(expression* exp, int indentation){
             }
             break;
         }
-        case _table_literal:
+        case e_table_literal:
         {
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sTABLE_LITERAL: ", indentation_string);
             block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
@@ -125,7 +125,7 @@ char* stringify_expression(expression* exp, int indentation){
             }
             break;
         }
-        case _path:
+        case e_path:
         {
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sPATH: ", indentation_string);
             block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
@@ -134,7 +134,7 @@ char* stringify_expression(expression* exp, int indentation){
             }
             break;
         }
-        case _function_declaration:
+        case e_function_declaration:
         {
             function_declaration* f=(function_declaration*)exp;
             char* stringified_arguments=calloc(STRINGIFY_BUFFER_SIZE+1, sizeof(char));
@@ -149,7 +149,7 @@ char* stringify_expression(expression* exp, int indentation){
             free(stringified_arguments);
             break;
         }
-        case _conditional:
+        case e_conditional:
         {
             conditional* c=(conditional*)exp;
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sCONDITIONAL: \n%s-> condition: %s \n%s-> ontrue: %s \n%s-> onfalse: %s", 
@@ -160,7 +160,7 @@ char* stringify_expression(expression* exp, int indentation){
                                         );
             break;
         }
-        case _function_return:
+        case e_function_return:
         {
             function_return* r=(function_return*)exp;
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sFUNCTION_RETURN: \n%s-> value: %s", 
@@ -185,14 +185,14 @@ void delete_expression(expression* exp){
     }
 
     switch(exp->type){
-        case _empty:
+        case e_empty:
             free((empty*)exp);
             break;
-        case _name:
+        case e_name:
             free(((name*)exp)->value);
             free(((name*)exp));
             break;
-        case _literal:
+        case e_literal:
         {
             literal* l=(literal*)exp;
             if(l->ltype==_string){
@@ -201,7 +201,7 @@ void delete_expression(expression* exp){
             free(l);
             break;
         }
-        case _assignment:
+        case e_assignment:
         {
             assignment* a=(assignment*)exp;
             delete_expression((expression*)a->left);
@@ -209,7 +209,7 @@ void delete_expression(expression* exp){
             free(a);
             break;
         }
-        case _unary:
+        case e_unary:
         {
             unary* u=(unary*)exp;
             delete_expression((expression*)u->left);
@@ -218,7 +218,7 @@ void delete_expression(expression* exp){
             free(u);
             break;
         }
-        case _prefix:
+        case e_prefix:
         {
             prefix* p=(prefix*)exp;
             delete_expression((expression*)p->right);
@@ -226,7 +226,7 @@ void delete_expression(expression* exp){
             free(p);
             break;
         }
-        case _function_call:
+        case e_function_call:
         {
             function_call* c=(function_call*)exp;
             delete_expression((expression*)c->function_path);
@@ -236,9 +236,9 @@ void delete_expression(expression* exp){
             free(c);
             break;
         }
-        case _block:
-        case _table_literal:
-        case _path:
+        case e_block:
+        case e_table_literal:
+        case e_path:
         {
             block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
             for (int i = 0; i < vector_total(&b->lines); i++){
@@ -248,7 +248,7 @@ void delete_expression(expression* exp){
             free(b);
             break;
         }
-        case _function_declaration:
+        case e_function_declaration:
         {
             function_declaration* f=(function_declaration*)exp;
             for (int i = 0; i < vector_total(f->arguments); i++){
@@ -259,7 +259,7 @@ void delete_expression(expression* exp){
             free(f);
             break;
         }
-        case _conditional:
+        case e_conditional:
         {
             conditional* c=(conditional*)exp;
             delete_expression((expression*)c->condition);
@@ -270,7 +270,7 @@ void delete_expression(expression* exp){
             free(c);
             break;
         }
-        case _function_return:
+        case e_function_return:
         {
             function_return* r=(function_return*)exp;
             delete_expression((expression*)r->value);

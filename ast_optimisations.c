@@ -2,14 +2,14 @@
 
 bool is_constant(expression* exp){
     switch(exp->type){
-        case _literal:
+        case e_literal:
             return true;
-        case _unary:
+        case e_unary:
         {
             unary* u=(unary*)exp;
             return is_constant(u->left) && is_constant(u->right);
         }
-        case _prefix:
+        case e_prefix:
         {
             prefix* p=(prefix*)exp;
             return is_constant(p->right);
@@ -21,7 +21,7 @@ bool is_constant(expression* exp){
 
 expression* to_literal(object o){
     if(o.type==t_null){
-        return (expression*)new_empty();
+        return (expression*)newe_empty();
     }
     
     switch(o.type){
@@ -40,7 +40,7 @@ expression* to_literal(object o){
             return (expression*)l;
         }
         case t_null:
-            return (expression*)new_empty();
+            return (expression*)newe_empty();
         default:
             return NULL;
     }
@@ -48,7 +48,7 @@ expression* to_literal(object o){
 
 ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
     // remove statements that have no side effects and whose result isn't used anywhere
-    if(exp->type==_block){
+    if(exp->type==e_block){
         block* b=(block*)exp;
         for (int i = 0; i < vector_total(&b->lines)-1; i++){// last line isn't optimised because it is a result of the block
             if(is_constant(vector_get(&b->lines, i))){
@@ -57,7 +57,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
         }
     }
     // constants folding
-    if(exp->type!=_literal && is_constant(exp)){
+    if(exp->type!=e_literal && is_constant(exp)){
         ast_executor_state state;
         object scope;
         table_init(&scope);

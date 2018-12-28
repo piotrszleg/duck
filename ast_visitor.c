@@ -7,9 +7,9 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
     }
 
     switch(exp->type){
-        case _block:
-        case _table_literal:
-        case _path:
+        case e_block:
+        case e_table_literal:
+        case e_path:
         {
             block* b=(block*)exp;
             
@@ -27,7 +27,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             }
             break;
         }
-        case _function_call:
+        case e_function_call:
         {
             function_call* c=(function_call*)exp;
 
@@ -52,7 +52,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             if(subexpression_request.replacement) \
                 e=subexpression_request.replacement; \
         }
-        case _assignment:
+        case e_assignment:
         {
             assignment* a=(assignment*)exp;
             
@@ -60,7 +60,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             SUBEXPRESSION(a->right)
             break;
         }
-        case _unary:
+        case e_unary:
         {
             unary* u=(unary*)exp;
 
@@ -68,13 +68,13 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             SUBEXPRESSION(u->left)
             break;
         }
-        case _prefix:
+        case e_prefix:
         {
             prefix* p=(prefix*)exp;
             SUBEXPRESSION(p->right)
             break;
         }
-        case _conditional:
+        case e_conditional:
         {
             conditional* c=(conditional*)exp;
 
@@ -83,13 +83,13 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             SUBEXPRESSION(c->onfalse)
             break;
         }
-        case _function_declaration:
+        case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
             SUBEXPRESSION(d->body)
             break;
         }
-        case _function_return:
+        case e_function_return:
         {
             function_return* r=(function_return*)exp;
             SUBEXPRESSION(r->value)

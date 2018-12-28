@@ -1525,7 +1525,7 @@ yyreduce:
 #line 112 "parser.y"
     {
 		(yyval.exp)=(yyvsp[(1) - (1)].exp); 
-		(yyval.exp)->type=_table_literal;
+		(yyval.exp)->type=e_table_literal;
 	;}
     break;
 
@@ -1537,7 +1537,7 @@ yyreduce:
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
 		vector_init(&b->lines);
-		b->type=_table_literal;
+		b->type=e_table_literal;
 		(yyval.exp)=(expression*)b;
 	;}
     break;
@@ -1842,7 +1842,7 @@ yyreduce:
 		ADD_DEBUG_INFO(c)
 		c->function_path=(path*)(yyvsp[(1) - (4)].exp);
 		c->arguments=(table_literal*)(yyvsp[(3) - (4)].exp);
-		c->arguments->type=_table_literal;
+		c->arguments->type=e_table_literal;
 		(yyval.exp)=(expression*)c;
 	;}
     break;

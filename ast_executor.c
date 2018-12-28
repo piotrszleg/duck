@@ -17,7 +17,7 @@ object path_get(ast_executor_state* state, object scope, path p){
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
         char* evaluated_to_string;
-        if(e->type==_name){
+        if(e->type==e_name){
             evaluated_to_string=((name*)e)->value;
         } else {
             USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
@@ -39,7 +39,7 @@ void path_set(ast_executor_state* state, object scope, path p, object value){
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
         char* evaluated_to_string;
-        if(e->type==_name){
+        if(e->type==e_name){
             evaluated_to_string=((name*)e)->value;
         } else {
             USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
@@ -61,9 +61,9 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
     state->line_number=exp->line_number;
     state->column_number=exp->column_number;
     switch(exp->type){
-        case _empty:
+        case e_empty:
             return null_const;
-        case _literal:
+        case e_literal:
         {
             literal* l=(literal*)exp;
             object result;
@@ -83,7 +83,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             }
             return result;
         }
-        case _table_literal:
+        case e_table_literal:
         {
             block* b=(block*)exp;
             object table_scope;
@@ -92,7 +92,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=(expression*)vector_get(&b->lines, i);
                 object line_result=execute_ast(state, line, table_scope, 0);
-                if(line->type!=_assignment){
+                if(line->type!=e_assignment){
                     char buf[16];
                     sprintf(buf,"%d",i);
                     set(table_scope, buf, line_result);
@@ -101,7 +101,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             }
             return table_scope;
         }
-        case _block:
+        case e_block:
         {
             block* b=(block*)exp;
             object block_scope;
@@ -127,18 +127,18 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             }
             return result;
         }
-        case _name:
+        case e_name:
         {
             return get(scope, ((name*)exp)->value);
         }
-        case _assignment:
+        case e_assignment:
         {
             assignment* a=(assignment*)exp;
             object result=execute_ast(state, a->right, scope, 0);
             path_set(state, scope, *a->left, result);
             return result;
         }
-        case _unary:
+        case e_unary:
         {
             unary* u=(unary*)exp;
             object left=execute_ast(state, u->left, scope, 0);
@@ -148,7 +148,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             object_deinit(&right);
             return result;
         }
-        case _prefix:
+        case e_prefix:
         {
             prefix* p=(prefix*)exp;
             object left=execute_ast(state, p->right, scope, 0);
@@ -157,7 +157,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             object_deinit(&left);
             return result;
         }
-        case _conditional:
+        case e_conditional:
         {
             conditional* c=(conditional*)exp;
             if(is_falsy(execute_ast(state, c->condition, scope, 0))){
@@ -166,7 +166,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
                 return execute_ast(state, (expression*)c->ontrue, scope, 0);
             }
         }
-        case _function_declaration:
+        case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
             object f;
@@ -183,7 +183,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             reference(f.fp->enclosing_scope);
             return f;
         }
-        case _function_call:
+        case e_function_call:
         {
             function_call* c=(function_call*)exp;
             
@@ -199,11 +199,11 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             free(arguments);
             return result;
         }
-        case _path:
+        case e_path:
         {
             return path_get(state, scope, *(path*)exp);
         }
-        case _function_return:
+        case e_function_return:
         {
             function_return* r=(function_return*)exp;
             object result=execute_ast(state, r->value, scope, 0);

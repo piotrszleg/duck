@@ -111,13 +111,13 @@ block:
 table_contents:
 	lines {
 		$$=$1; 
-		$$->type=_table_literal;
+		$$->type=e_table_literal;
 	}
 	| {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
 		vector_init(&b->lines);
-		b->type=_table_literal;
+		b->type=e_table_literal;
 		$$=(expression*)b;
 	}
 	;
@@ -315,7 +315,7 @@ call:
 		ADD_DEBUG_INFO(c)
 		c->function_path=(path*)$1;
 		c->arguments=(table_literal*)$3;
-		c->arguments->type=_table_literal;
+		c->arguments->type=e_table_literal;
 		$$=(expression*)c;
 	}
 	| path '(' ')' {

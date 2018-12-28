@@ -1,22 +1,18 @@
 "Speed is a social construct." - Mattias Petter Johansson 2018
 
 # TOFIX:
-- pass all the tests
 - garbage collection of functions
 - fix functions calling in ast
 - valgrind
 - resize stack
 
 ## TODO:
+- get execution info for error objects
 - empty and variadic arguments
 - show number of arguments in stringified bytecode functions
 - call and destroy override
 - coroutines
 - more comments
-
-## WHILE REWRITING OBJECT SYSTEM
-- argument_names vector isn't freed correctly
-- vector should contain object instead of object* type
 
 ## POINTERS:
 **&** - returns pointer to it's operand

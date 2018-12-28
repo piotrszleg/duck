@@ -9,19 +9,19 @@
 
 typedef enum expression_type expression_type;
 enum expression_type{
-    _empty,
-    _block,
-    _table_literal,
-    _path,
-    _literal,
-    _name,
-    _assignment,
-    _function_call,
-    _unary,
-    _prefix,
-    _function_declaration,
-    _conditional,
-    _function_return
+    e_empty,
+    e_block,
+    e_table_literal,
+    e_path,
+    e_literal,
+    e_name,
+    e_assignment,
+    e_function_call,
+    e_unary,
+    e_prefix,
+    e_function_declaration,
+    e_conditional,
+    e_function_return
 };
 
 #define AST_OBJECT(t, body) \

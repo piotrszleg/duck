@@ -45,7 +45,7 @@ void bytecode_path_get(stream* code, stream* constants, path p){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
-        if(e->type==_name){
+        if(e->type==e_name){
             push_string_load(code, constants, ((name*)e)->value);
         } else{
             ast_to_bytecode_recursive(e, code, constants, 0);
@@ -59,7 +59,7 @@ void bytecode_path_set(stream* code, stream* constants, path p){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
-        if(e->type==_name){
+        if(e->type==e_name){
             push_string_load(code, constants, ((name*)e)->value);
         } else{
             ast_to_bytecode_recursive(e, code, constants, 0);
@@ -77,10 +77,10 @@ void bytecode_path_set(stream* code, stream* constants, path p){
 
 void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants, int keep_scope){
     switch(exp->type){
-        case _empty:
+        case e_empty:
             push_instruction(code, b_null, 0);
             break;
-        case _literal:
+        case e_literal:
         {
             literal* l=(literal*)exp;
             switch(l->ltype){
@@ -97,7 +97,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             }
             break;
         }
-        case _table_literal:
+        case e_table_literal:
         {
             block* b=(block*)exp;
             
@@ -109,7 +109,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=vector_get(&b->lines, i);
                 ast_to_bytecode_recursive(line, code, constants, 1);
-                if(line->type!=_assignment){
+                if(line->type!=e_assignment){
                     // if the expression isn't assignment use last index as a key
                     // arr=[5, 4] => arr[0=5, 1=2]
                     push_number_load(code, (float)last_index++);
@@ -124,7 +124,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
 
             break;
         }
-        case _block:
+        case e_block:
         {
             block* b=(block*)exp;
             int lines_count=vector_total(&b->lines);
@@ -136,7 +136,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             }
             break;
         }
-        case _name:
+        case e_name:
         {
             name* n=(name*)exp;
             push_string_load(code, constants, n->value);
@@ -144,14 +144,14 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             stream_push(code, &get, sizeof(instruction));
             break;
         }
-        case _assignment:
+        case e_assignment:
         {
             assignment* a=(assignment*)exp;
             ast_to_bytecode_recursive(a->right, code, constants, keep_scope);
             bytecode_path_set(code, constants, *a->left);
             break;
         }
-        case _unary:
+        case e_unary:
         {
             unary* u=(unary*)exp;
 
@@ -162,7 +162,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             push_instruction(code, b_unary, 0);
             break;
         }
-        case _prefix:
+        case e_prefix:
         {
             prefix* p=(prefix*)exp;
             ast_to_bytecode_recursive(p->right, code, constants, keep_scope);
@@ -171,7 +171,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             push_instruction(code, b_prefix, 0);
             break;
         }
-        case _conditional:
+        case e_conditional:
         {
             conditional* c=(conditional*)exp;
             int conditional_end=labels_count++;
@@ -190,7 +190,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
 
             break;
         }
-        case _function_declaration:
+        case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
             int arguments_count=vector_total(d->arguments);
@@ -220,7 +220,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             push_instruction(code, b_function, function_beginning);
             break;
         }
-        case _function_call:
+        case e_function_call:
         {
             function_call* c=(function_call*)exp;
             int lines_count=vector_total(&c->arguments->lines);
@@ -231,14 +231,14 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* constants,
             push_instruction(code, b_call, lines_count);
             break;
         }
-        case _function_return:
+        case e_function_return:
         {
             function_return* r=(function_return*)exp;
             ast_to_bytecode_recursive((expression*)r->value, code, constants, keep_scope);
             push_instruction(code, b_return, 0);
             break;
         }
-        case _path:
+        case e_path:
         {
             bytecode_path_get(code, constants, *((path*)exp));
             break;
