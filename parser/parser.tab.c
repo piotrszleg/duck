@@ -1748,7 +1748,7 @@ yyreduce:
 		literal* l=new_literal();
 		ADD_DEBUG_INFO(l)
 		l->ival=(yyvsp[(1) - (1)].ival);
-		l->ltype=_int;
+		l->ltype=l_int;
 		(yyval.exp)=(expression*)l;
 	;}
     break;
@@ -1761,7 +1761,7 @@ yyreduce:
 		literal* l=new_literal();
 		ADD_DEBUG_INFO(l)
 		l->fval=(yyvsp[(1) - (1)].fval);
-		l->ltype=_float;
+		l->ltype=l_float;
 		(yyval.exp)=(expression*)l;
 	;}
     break;
@@ -1774,7 +1774,7 @@ yyreduce:
 		literal* l=new_literal();
 		ADD_DEBUG_INFO(l)
 		l->sval=(yyvsp[(1) - (1)].sval);
-		l->ltype=_string;
+		l->ltype=l_string;
 		(yyval.exp)=(expression*)l;
 	;}
     break;

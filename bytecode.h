@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include "macros.h"
 
 typedef enum instruction_type instruction_type;
@@ -50,5 +51,10 @@ struct bytecode_program {
 };
 
 char* stringify_bytecode(const bytecode_program* program);
+
+int gets_from_stack(instruction instr);
+bool pushes_to_stack(instruction_type instr);
+bool changes_flow(instruction_type instr);
+bool changes_scope(instruction_type instr);
 
 #endif

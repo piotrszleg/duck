@@ -6,7 +6,8 @@
 #include "bytecode.h"
 #include "ast_to_bytecode.h"
 #include "execute_bytecode.h"
-#include "ast_optimisations.h"
+#include "optimisations/ast_optimisations.h"
+#include "optimisations/bytecode_optimisations.h"
 #include "builtins.h"
 #include "macros.h"
 #include "object_system/object_operations.h"
@@ -18,11 +19,11 @@ void execute_file(const char* file_name, int use_bytecode){
     reference(&global_scope);
     register_builtins(global_scope);
     // chokes on bigger source trees
-    /*USING_STRING(stringify_expression(parsing_result, 0),
-        printf(str));*/
+    USING_STRING(stringify_expression(parsing_result, 0),
+        printf(str));
     optimise_ast(parsing_result);
-    /*USING_STRING(stringify_expression(parsing_result, 0),
-        printf("\nAFTER OPTIMISATIONS %s", str));*/
+    USING_STRING(stringify_expression(parsing_result, 0),
+        printf("\nAFTER OPTIMISATIONS %s", str));
     printf("\nExecuting parsing result:\n");
     object execution_result;
     if(use_bytecode){

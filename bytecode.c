@@ -69,3 +69,47 @@ char* stringify_bytecode(const bytecode_program* prog){
     result[string_end]='\0';
     return result; 
 }
+
+#define X(t, result) case t: return result;
+int gets_from_stack(instruction instr){
+    switch(instr.type){
+        X(b_discard, 1)
+        X(b_swap, 1)
+        X(b_function, 1 )
+        X(b_return, 1)
+        X(b_set_scope, 1)
+        X(b_get, instr.argument+1)
+        X(b_set, instr.argument+2)
+        X(b_call, instr.argument+1)
+        X(b_unary, 3)
+        X(b_prefix, 2)
+        default: return 0;
+    }
+}
+#undef X
+
+#define X(i) || instr==i
+bool pushes_to_stack(instruction_type instr){
+    return !(false
+    X(b_end)
+    X(b_discard)
+    X(b_get_scope)
+    X(b_label)
+    X(b_jump)
+    X(b_jump_not)
+    );
+}
+bool changes_flow(instruction_type instr){
+    return false
+    X(b_return)
+    X(b_label)
+    X(b_jump)
+    X(b_jump_not);
+}
+bool changes_scope(instruction_type instr){
+    return false
+    X(b_return)
+    X(b_get_scope)
+    X(b_set_scope);
+}
+#undef X

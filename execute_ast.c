@@ -68,15 +68,15 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             literal* l=(literal*)exp;
             object result;
             switch(l->ltype){
-                case _int:
+                case l_int:
                     number_init(&result);
                     result.value=l->ival;
                     break;
-                case _float:
+                case l_float:
                     number_init(&result);
                     result.value=l->fval;
                     break;
-                case _string:
+                case l_string:
                     string_init(&result);
                     result.text=strdup(l->sval);
                     break;

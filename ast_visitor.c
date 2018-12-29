@@ -2,6 +2,17 @@
 
 ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
     ast_visitor_request request=f(exp, data);
+    // we want to pass the last replacement that isn't NULL
+    expression* replacement=request.replacement;
+    while(request.replacement){
+        // call visitor function on replacing expression
+        request=f(request.replacement, data);
+        if(request.replacement!=NULL){
+            replacement=request.replacement;
+        }
+    }
+    request.replacement=replacement;
+
     if(request.move!=down){
         return request;
     }
@@ -17,7 +28,6 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
                 expression* line=vector_get(&b->lines, i);
                 ast_visitor_request subexpression_request=visit_ast(line, f, data);
                 if(subexpression_request.replacement){
-                    printf("\nreplacing:\n[%s]\n with:\n[%s]", stringify_expression(line, 0), stringify_expression(subexpression_request.replacement, 0));
                     delete_expression(line);
                     vector_set(&b->lines, i, subexpression_request.replacement);
                 }
@@ -36,7 +46,6 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
                 expression* line=vector_get(&c->arguments->lines, i);
                 ast_visitor_request subexpression_request=visit_ast(line, f, data);
                 if(subexpression_request.replacement){
-                    printf("replacing\n:[%s] with:\n[%s]", stringify_expression(line, 0), stringify_expression(subexpression_request.replacement, 0));
                     delete_expression(line);
                     vector_set(&c->arguments->lines, i, subexpression_request.replacement);
                 }

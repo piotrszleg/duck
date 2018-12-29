@@ -2,27 +2,15 @@
 
 #define STRINGIFY_BUFFER_SIZE 1024
 
-#define AST_OBJECT_NEW(t) \
+#define X(t) \
     t* new_ ## t(){  \
         t* instance=malloc(sizeof(t)); \
         CHECK_ALLOCATION(instance); \
 		instance->type=e_ ## t; \
         return instance; \
     }
-
-AST_OBJECT_NEW(empty)
-AST_OBJECT_NEW(block)
-AST_OBJECT_NEW(table_literal)
-AST_OBJECT_NEW(path)
-AST_OBJECT_NEW(literal)
-AST_OBJECT_NEW(name)
-AST_OBJECT_NEW(assignment)
-AST_OBJECT_NEW(function_call)
-AST_OBJECT_NEW(unary)
-AST_OBJECT_NEW(prefix)
-AST_OBJECT_NEW(function_declaration)
-AST_OBJECT_NEW(conditional)
-AST_OBJECT_NEW(function_return)
+    EXPRESSION_TYPES
+#undef X
 
 void string_replace(char *s, char from, char to) {
     while (*s == from)
@@ -57,13 +45,13 @@ char* stringify_expression(expression* exp, int indentation){
         {
             literal* l=(literal*)exp;
             switch(l->ltype){
-                case _int:
+                case l_int:
                     snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sLITERAL: %i", indentation_string, l->ival);
                     break;
-                case _float:
+                case l_float:
                     snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sLITERAL: %f", indentation_string, l->fval);
                     break;
-                case _string:
+                case l_string:
                     snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sLITERAL: %s", indentation_string, l->sval);
                     break;
             }
@@ -107,33 +95,30 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)c->arguments, indentation+1));
             break;
         }
+        #define STRINGIFY_LINES \
+            block* b=(block*)exp; \
+            for (int i = 0; i < vector_total(&b->lines); i++){ \
+                strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1)); \
+            }
         case e_block:
         {
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sBLOCK: ", indentation_string);
-            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
-            for (int i = 0; i < vector_total(&b->lines); i++){
-                strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1));
-            }
+            STRINGIFY_LINES
             break;
         }
         case e_table_literal:
         {
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sTABLE_LITERAL: ", indentation_string);
-            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
-            for (int i = 0; i < vector_total(&b->lines); i++){
-                strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1));
-            }
+            STRINGIFY_LINES
             break;
         }
         case e_path:
         {
-            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sPATH: ", indentation_string);
-            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
-            for (int i = 0; i < vector_total(&b->lines); i++){
-                strcat(result, stringify_expression(vector_get(&b->lines, i), indentation+1));
-            }
+            if(exp->type==e_path)snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sPATH: ", indentation_string);
+            STRINGIFY_LINES
             break;
         }
+        #undef STRINGIFY_LINES
         case e_function_declaration:
         {
             function_declaration* f=(function_declaration*)exp;
@@ -195,7 +180,7 @@ void delete_expression(expression* exp){
         case e_literal:
         {
             literal* l=(literal*)exp;
-            if(l->ltype==_string){
+            if(l->ltype==l_string){
                 free(l->sval);// only char array pointer needs freeing
             }
             free(l);
@@ -280,5 +265,122 @@ void delete_expression(expression* exp){
         default:
             printf("Deletion of this type (%i) was not implemented", exp->type);
             break;
+    }
+}
+
+expression* copy_expression(expression* exp){
+    if(exp==NULL){
+        printf("copy_expression argument is null.");
+    }
+
+    switch(exp->type){
+        case e_empty:
+            return (expression*)new_empty();
+        case e_name:
+        {
+            name* copy=new_name();
+            ((name*)exp)->value=strdup(((name*)exp)->value);
+            return (expression*)copy;
+        }
+        case e_literal:
+        {
+            literal* l=(literal*)exp;
+            literal* copy=new_literal();
+            copy->ltype=l->ltype;
+            switch(l->ltype){
+                case l_string:
+                    copy->sval=strdup(l->sval);// only char array pointer needs freeing
+                    break;
+                case l_float:
+                    copy->fval=l->fval;
+                    break;
+                case l_int:
+                    copy->ival=l->ival;
+                    break;
+            }
+            return (expression*)copy;
+        }
+        case e_assignment:
+        {
+            assignment* a=(assignment*)exp;
+            assignment* copy=new_assignment();
+            copy->left=(path*)copy_expression((expression*)a->left);
+            copy->right=copy_expression(a->right);
+            return (expression*)copy;
+        }
+        case e_unary:
+        {
+            unary* u=(unary*)exp;
+            unary* copy=new_unary();
+
+            copy->left=copy_expression(u->left);
+            copy->right=copy_expression(u->right);
+            copy->op=strdup(u->op);
+            return (expression*)copy;
+        }
+        case e_prefix:
+        {
+            prefix* p=(prefix*)exp;
+            prefix* copy=new_prefix();
+
+            copy->right=copy_expression(p->right);
+            copy->op=strdup(p->op);
+            return (expression*)copy;
+        }
+        case e_function_call:
+        {
+            function_call* c=(function_call*)exp;
+            function_call* copy=new_function_call();
+
+            copy->function_path=(path*)copy_expression((expression*)c->function_path);
+            if(c->arguments!=NULL){
+                copy->arguments=(table_literal*)copy_expression((expression*)c->arguments);
+            }
+            return (expression*)copy;
+        }
+        case e_block:
+        case e_table_literal:
+        case e_path:
+        {
+            block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
+            block* copy=new_block();
+            for (int i = 0; i < vector_total(&b->lines); i++){
+                vector_set(&copy->lines, i, copy_expression(vector_get(&b->lines, i)));
+            }
+            return (expression*)copy;
+        }
+        case e_function_declaration:
+        {
+            function_declaration* f=(function_declaration*)exp;
+            function_declaration* copy=new_function_declaration();
+            for (int i = 0; i < vector_total(f->arguments); i++){
+                vector_set(copy->arguments, i, copy_expression(vector_get(f->arguments, i)));
+            }
+            copy->body=copy_expression(f->body);
+            return (expression*)copy;
+        }
+        case e_conditional:
+        {
+            conditional* c=(conditional*)exp;
+            conditional* copy=new_conditional();
+
+            copy->condition=copy_expression(c->condition);
+            copy->ontrue=copy_expression(c->ontrue);
+            
+            if(c->onfalse!=NULL){
+                copy->onfalse=copy_expression(c->onfalse);
+            }
+            return (expression*)copy;
+        }
+        case e_function_return:
+        {
+            function_return* r=(function_return*)exp;
+            function_return* copy=new_function_return();
+            copy->value=copy_expression(r->value);
+            return (expression*)copy;
+        }
+        default:
+            printf("Copying of this type (%i) was not implemented", exp->type);
+            return NULL;
     }
 }

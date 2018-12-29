@@ -7,21 +7,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define EXPRESSION_TYPES_COUNT 13
+#define EXPRESSION_TYPES \
+    X(empty) \
+    X(block) \
+    X(table_literal) \
+    X(path) \
+    X(literal) \
+    X(name) \
+    X(assignment) \
+    X(function_call) \
+    X(unary) \
+    X(prefix) \
+    X(function_declaration) \
+    X(conditional) \
+    X(function_return) \
+
+// generate enum of expression types, each value is prepended with "e_"
 typedef enum expression_type expression_type;
 enum expression_type{
-    e_empty,
-    e_block,
-    e_table_literal,
-    e_path,
-    e_literal,
-    e_name,
-    e_assignment,
-    e_function_call,
-    e_unary,
-    e_prefix,
-    e_function_declaration,
-    e_conditional,
-    e_function_return
+    #define X(t) e_##t,
+    EXPRESSION_TYPES
+    #undef X
 };
 
 #define AST_OBJECT(t, body) \
@@ -91,7 +98,7 @@ AST_OBJECT(function_return,
 )
 
 typedef enum literal_type literal_type;
-enum literal_type{ _int, _float, _string };
+enum literal_type{ l_int, l_float, l_string };
 
 AST_OBJECT(literal,
     literal_type ltype;
@@ -104,5 +111,6 @@ AST_OBJECT(literal,
 
 char* stringify_expression(expression*, int);
 void delete_expression(expression*);
+expression* copy_expression(expression*);
 
 #endif

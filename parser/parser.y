@@ -253,21 +253,21 @@ literal:
 		literal* l=new_literal();
 		ADD_DEBUG_INFO(l)
 		l->ival=$1;
-		l->ltype=_int;
+		l->ltype=l_int;
 		$$=(expression*)l;
 	}
 	| FLOAT { 
 		literal* l=new_literal();
 		ADD_DEBUG_INFO(l)
 		l->fval=$1;
-		l->ltype=_float;
+		l->ltype=l_float;
 		$$=(expression*)l;
 	}
 	| STRING { 
 		literal* l=new_literal();
 		ADD_DEBUG_INFO(l)
 		l->sval=$1;
-		l->ltype=_string;
+		l->ltype=l_string;
 		$$=(expression*)l;
 	}
 	;
