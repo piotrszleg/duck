@@ -3,16 +3,16 @@
 #define INITIAL_BUFFER_SIZE 8
 #define STRINGIFY_BUFFER_SIZE 200
 
-int is_number(const char *s)
+bool is_number(const char *s)
 {
     while (*s) {
-        if (isdigit(*s++) == 0) return 0;
+        if (isdigit(*s++) == 0) return false;
     }
-    return 1;
+    return true;
 }
 
 // TODO:  write tests
-int is_falsy(object o){
+bool is_falsy(object o){
     switch(o.type){
         case t_null:
             return 1;// null is falsy
@@ -121,11 +121,11 @@ object find_call_function(object o){
     }
 }
 
-object find_function(object o, char* function_name){
+object find_function(object o, const char* function_name){
     return find_call_function(get(o, function_name));
 }
 
-object operator(object a, object b, char* op){
+object operator(object a, object b, const char* op){
     if(a.type==t_table){
         object operator_function=find_function(a, op);
         if(operator_function.type!=t_null){
@@ -254,7 +254,13 @@ char* stringify(object o){
 char* stringify_object(object o){
     switch(o.type){
         case t_string:
+        {
+            /*int length=strlen(o.text+3);
+            char* buffer=malloc(length*sizeof(char));
+            snprintf(buffer, length, "\"%s\"", o.text);
+            return buffer;*/
             return strdup(o.text);
+        }
         case t_number:
         {
             char* buffer;
@@ -268,7 +274,7 @@ char* stringify_object(object o){
         }
         case t_table:
             {
-                table_* t=o.tp;
+                table* t=o.tp;
                 char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
                 CHECK_ALLOCATION(buffer);
                 buffer[0]='\0';
@@ -290,8 +296,13 @@ char* stringify_object(object o){
                 const char *key;
                 while ((key = map_next(&t->fields, &iter))) {
                     object value=*map_get(&t->fields, key);
-                    int self_reference=value.tp==t;
-                    char* value_stringified= stringify(value);
+                    bool self_reference=value.type==t_table && value.tp==t;
+                    char* value_stringified;
+                    if(self_reference){
+                        value_stringified="self";
+                    } else {
+                        value_stringified = stringify(value);
+                    }
 
                     int formatted_count=strlen(key)+1+strlen(value_stringified)+1;
                     if(!first){ 
@@ -305,6 +316,10 @@ char* stringify_object(object o){
                     }
                     BUFFER_WRITE(pair_buffer, formatted_count);
                     free(pair_buffer);
+
+                    if(!self_reference){
+                        free(value_stringified);
+                    }
                     
                     first=0;
                 }
@@ -318,7 +333,7 @@ char* stringify_object(object o){
             }
         case t_function:
         {
-            function_* f=o.fp;
+            function* f=o.fp;
             if(f->argument_names.items!=NULL){
                 char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
                 CHECK_ALLOCATION(buffer);
@@ -370,7 +385,7 @@ char* stringify_object(object o){
     }
 }
 
-object get_table(table_* t, char* key){
+object get_table(table* t, const char* key){
     object* map_get_result=map_get(&t->fields, key);
     if(map_get_result==NULL){// there's no object at this key
         return null_const;
@@ -379,7 +394,7 @@ object get_table(table_* t, char* key){
     }
 }
 
-object get(object o, char* key){
+object get(object o, const char* key){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object* map_get_override=map_get(&o.tp->fields, "get");
@@ -404,12 +419,11 @@ object get(object o, char* key){
     }
 }
 
-void set_table(table_* t, char* key, object value){
+void set_table(table* t, const char* key, object value){
     object_map_t* fields=&t->fields;
     object* value_at_key = map_get(fields, key);
     if(value_at_key!=NULL){
         dereference(value_at_key);// table no longer holds a reference to this object
-        delete_unreferenced(value_at_key);
         if(value.type==t_null){
             map_remove(fields, key);// setting key to null removes it
             return;
@@ -419,7 +433,7 @@ void set_table(table_* t, char* key, object value){
     map_set(fields, key, value);// key is empty so it only needs to be set to point to value
 }
 
-void set(object o, char* key, object value){
+void set(object o, const char* key, object value){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object set_override=find_function(o, "stringify");
@@ -458,24 +472,54 @@ object call(object o, object* arguments, int arguments_count) {
     }
 }
 
-object new_error(char* type, object cause, char* message){
+void set_string_field(object t, const char* field_name, char* string){
+    object string_object;
+    string_init(&string_object);
+    string_object.text=string;
+    set(t, field_name, string_object);
+}
+
+char* get_and_stringify(object t, const char* key){
+    object at_key=get(t, key);
+    return stringify(at_key);
+}
+
+object stringify_error(object* arguments, int arguments_count){
+    char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
+    object self=arguments[0];
+    char* type=get_and_stringify(self, "type");
+    char* message=get_and_stringify(self, "message");
+    char* location=get_and_stringify(self, "location");
+    char* cause=get_and_stringify(self, "cause");
+    snprintf(buffer, STRINGIFY_BUFFER_SIZE, "%s: %s\n%s\ncaused by:\n%s", type, message, location, cause);
+    free(type);
+    free(message);
+    free(location);
+    free(cause);
+    object result;
+    string_init(&result);
+    result.text=buffer;
+    return result;
+}
+
+object new_error(char* type, object cause, char* message, char* location){
     object err;
     table_init(&err);
 
-    object err_type;
-    string_init(&err_type);
-    err_type.text=type;
-    set(err, "type", err_type);
-
-    object err_message;
-    string_init(&err_message);
-    err_message.text=message;
-    set(err, "message", err_message);
+    set_string_field(err, "type", type);
+    set_string_field(err, "message", message);
+    set_string_field(err, "location", location);
 
     object one;
     number_init(&one);
     one.value=1;
     set(err, "is_error", one);
+
+    object stringify_f;
+    function_init(&stringify_f);
+    stringify_f.fp->arguments_count=1;
+    stringify_f.fp->pointer=stringify_error;
+    set(err, "stringify", stringify_f);
 
     set(err, "cause", cause);
 

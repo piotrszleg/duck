@@ -6,7 +6,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
     expression* replacement=request.replacement;
     while(request.replacement){
         // call visitor function on replacing expression
-        request=f(request.replacement, data);
+        request=visit_ast(request.replacement, f, data);
         if(request.replacement!=NULL){
             replacement=request.replacement;
         }

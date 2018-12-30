@@ -19,8 +19,8 @@ enum object_type{
 
 extern const char* OBJECT_TYPE_NAMES[];// array mapping enum object_type to their names as strings
 
-typedef struct table_ table_;
-typedef struct function_ function_;
+typedef struct table table;
+typedef struct function function;
 
 typedef struct object object;
 struct object{
@@ -28,8 +28,8 @@ struct object{
     union {
         float value;
         char* text;
-        function_* fp;
-        table_* tp;
+        function* fp;
+        table* tp;
     };
 };
 
@@ -71,10 +71,10 @@ OBJECT_INIT_NEW_DECLARATIONS(table)
 
 typedef map_t(object) object_map_t;
 
-typedef struct table_ table_;
-struct table_ {
-    object_map_t fields;
+typedef struct table table;
+struct table {
     int ref_count;
+    object_map_t fields;
 };
 
 typedef enum function_type function_type;
@@ -83,8 +83,9 @@ enum function_type {
     f_ast,
     f_bytecode
 };
-typedef struct function_ function_;
-struct function_ {
+typedef struct function function;
+struct function {
+    int ref_count;
     function_type ftype;
     union {
         object (*pointer)(object* arguments, int arguments_count);
@@ -95,7 +96,7 @@ struct function_ {
     void* enviroment;
     vector argument_names;
     int arguments_count;
-    object* enclosing_scope;
+    object enclosing_scope;
 };
 
 void reference(object* o);

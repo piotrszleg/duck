@@ -11,9 +11,11 @@
 #include "builtins.h"
 #include "macros.h"
 #include "object_system/object_operations.h"
+#include "error/execution_state.h"
 
 void execute_file(const char* file_name, int use_bytecode){
     parse_file(file_name);
+    exec_state.file=file_name;
     object global_scope;
     table_init(&global_scope);
     reference(&global_scope);
@@ -36,6 +38,7 @@ void execute_file(const char* file_name, int use_bytecode){
         bytecode_environment environment;
         environment.pointer=0;
         environment.code=prog.code;
+        environment.information=prog.information;
         environment.constants=prog.constants;
         bytecode_enviroment_init(&environment);
         execution_result=execute_bytecode(&environment, global_scope);
@@ -49,6 +52,7 @@ void execute_file(const char* file_name, int use_bytecode){
         free((char*)prog.constants);
     } else {
         ast_executor_state state;
+        state.returning=false;
         TRY_CATCH(
             execution_result=execute_ast(&state, parsing_result, global_scope, 1);
             USING_STRING(stringify(execution_result), 
@@ -68,14 +72,14 @@ void execute_file(const char* file_name, int use_bytecode){
     object_deinit(&execution_result);
 }
 
-object call_function(function_* f, object* arguments, int arguments_count){
+object call_function(function* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
         return f->pointer(arguments, arguments_count);
     } else {
         object function_scope;
         table_init(&function_scope);
-        if(f->enclosing_scope!=NULL){
-            inherit_scope(function_scope, *f->enclosing_scope);
+        if(f->enclosing_scope.type!=t_null){
+            inherit_scope(function_scope, f->enclosing_scope);
         }
         if(f->ftype==f_ast){
             if(vector_total(&f->argument_names)<arguments_count){

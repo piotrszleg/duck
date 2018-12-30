@@ -101,3 +101,19 @@ table.get=(table, key)->{
         get_native(table, key)
     }
 }
+
+OperatorError: Can't add objects of type <number> and <table>
+at:  (tests.duck:10:5)
+src: (object.c:100:11)
+caused by:
+5
+IndexingError: Indexed object doesn't have key "count"
+at:  (tests.duck:10:3)
+src: (object.c:10:15)
+caused by:
+[1, 2, 3]
+
+trace()
+Traceback:
+tests.duck:20: test_tracing()
+tests.duck:25: init_tests()

@@ -9,13 +9,14 @@
 #include "macros.h"
 #include "bytecode.h"
 #include "object_system/object_operations.h"
+#include "error/execution_state.h"
 
 typedef struct {
     instruction* code;
-    void* constants;
+    instruction_information* information;
+    char* constants;
     int* labels;
     int pointer;
-    int line;
     stack object_stack;
     stack return_stack;
 } bytecode_environment;

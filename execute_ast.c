@@ -3,7 +3,7 @@
 // creates string variable str, executes body and frees the string afterwards
 #define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
 
-void copy_table(table_* source, table_* destination){
+void copy_table(table* source, table* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
     while ((key = map_next(&source->fields, &iter))) {
@@ -58,8 +58,8 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
     if(exp==NULL){
         ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
-    state->line_number=exp->line_number;
-    state->column_number=exp->column_number;
+    exec_state.line=exp->line_number;
+    exec_state.column=exp->column_number;
     switch(exp->type){
         case e_empty:
             return null_const;
@@ -178,9 +178,8 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             f.fp->ftype=f_ast;
             f.fp->ast_pointer=(void*)d->body;
             f.fp->enviroment=(void*)state;
-            f.fp->enclosing_scope=malloc(sizeof(scope));
-            memcpy(f.fp->enclosing_scope, &scope, sizeof(scope));
-            reference(f.fp->enclosing_scope);
+            f.fp->enclosing_scope=scope;
+            reference(&scope);
             return f;
         }
         case e_function_call:

@@ -31,23 +31,25 @@ enum instruction_type {
     b_prefix,// stack: [a, operator]
 };
 
+typedef struct instruction_information instruction_information;
+struct instruction_information {
+    unsigned line;
+    unsigned column;
+    unsigned file;// position in constants containing file name string
+    unsigned comment;
+};
+
 typedef struct instruction instruction;
 struct instruction {
     instruction_type type;
     long argument;// long type ensures that 4bit float will fit
 };
 
-typedef struct debugging_info debugging_info;
-struct debugging_info {
-    int line;
-    int column;
-};
-
 typedef struct bytecode_program bytecode_program;
 struct bytecode_program {
     instruction* code;
-    debugging_info* debug;
-    void* constants;
+    instruction_information* information;
+    char* constants;
 };
 
 char* stringify_bytecode(const bytecode_program* program);

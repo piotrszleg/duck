@@ -22,6 +22,7 @@ void repl(int use_bytecode){
 
         TRY_CATCH(
             ast_executor_state state;
+            state.returning=false;
             object execution_result=execute_ast(&state, parsing_result, global_scope, 1);
             printf("%s\n", stringify(execution_result));
             object_deinit(&execution_result);

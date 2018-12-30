@@ -6,6 +6,7 @@
 #include "error/error.h"
 #include "builtins.h"
 #include "stdbool.h"
+#include "error/execution_state.h"
 
 typedef struct {
     int line_number;

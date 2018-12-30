@@ -72,7 +72,8 @@ object execute_bytecode(bytecode_environment* environment, object scope){
 
     while(code[*pointer].type!=b_end){
         instruction instr=code[*pointer];
-        environment->line=*pointer;
+        exec_state.line=environment->information[*pointer].line;
+        exec_state.column=environment->information[*pointer].column;
         switch(instr.type){
             case b_discard:
             {
@@ -224,8 +225,8 @@ object execute_bytecode(bytecode_environment* environment, object scope){
             {
                 object f;
                 function_init(&f);
-                f.fp->enclosing_scope=malloc(sizeof(scope));
-                memcpy(f.fp->enclosing_scope, &scope, sizeof(scope));
+                f.fp->enclosing_scope=scope;
+                reference(&scope);
                 f.fp->enviroment=(void*)environment;
                 reference(&scope);// remember to check the enclosing scope in destructor
                 object arguments_count_object=pop(object_stack);
@@ -266,8 +267,8 @@ object execute_bytecode(bytecode_environment* environment, object scope){
                 } else if(f.fp->ftype==f_bytecode){
                     object function_scope;
                     table_init(&function_scope);
-                    if(f.fp->enclosing_scope!=NULL){
-                        inherit_scope(function_scope, *f.fp->enclosing_scope);
+                    if(f.fp->enclosing_scope.type!=t_null){
+                        inherit_scope(function_scope, f.fp->enclosing_scope);
                     } else {
                         inherit_scope(function_scope, scope);
                     }

@@ -4,13 +4,17 @@
 #include "object_operations.h"
 #include "../error/error.h"
 
-object call_function(function_* f, vector arguments){
+object call_function(function* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
-        return f->pointer(arguments);
+        return f->pointer(arguments, arguments_count);
     } else {
         ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
         return null_const;
     }
+}
+
+void get_execution_info(char* buffer, int buffer_count){
+    strcat(buffer, "object_system testing unit");
 }
 
 void assert_stringification(object o, char* expected){
@@ -71,11 +75,12 @@ void adding_strings(){// tests whether "Hello "+"Cruel World"="Hello Cruel World
     printf("test successful\n");
 }
 
-object add_three(vector arguments){
+object add_three(object* arguments, int arguments_count){
+    assert(arguments_count==1);
     object three;
     number_init(&three);
     three.value=3;
-    object result= operator(*(object*)vector_get(&arguments, 0), three, "+");
+    object result= operator(arguments[0], three, "+");
     object_deinit(&three);
     return result;
 }
@@ -93,11 +98,9 @@ void function_call(){// tests whether f(5)==8 where f(x)=x+3
     number_init(&five);
     five.value=5;
 
-    vector arguments;
-    vector_init(&arguments, sizeof(object));
-    vector_add(&arguments, &five);
+    object arguments[]={five};
 
-    assert_stringification(f.fp->pointer(arguments), "8");
+    assert_stringification(call(f, arguments, 1), "8");
 
     object_deinit(&f);
     object_deinit(&five);

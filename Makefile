@@ -1,7 +1,7 @@
 submodules := object_system/object_system.a parser/parser.a
-headers := builtins.h bytecode.h ast_to_bytecode.h execute_bytecode.h execute_ast.h \
+headers := builtins.h bytecode.h ast_to_bytecode.h execute_bytecode.h execute_ast.h error/execution_state.h \
 optimisations/ast_optimisations.h optimisations/bytecode_optimisations.h ast_visitor.h datatypes/stream.h datatypes/stack.h
-source-files := builtins.c bytecode.c ast_to_bytecode.c execute_bytecode.c execute_ast.c \
+source-files := builtins.c bytecode.c ast_to_bytecode.c execute_bytecode.c execute_ast.c error/execution_state.c \
 optimisations/ast_optimisations.c optimisations/bytecode_optimisations.c  ast_visitor.c datatypes/stream.c datatypes/stack.c
 executable-path := duck.exe
 tests-path := tests.duck

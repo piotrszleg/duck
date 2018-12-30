@@ -14,15 +14,15 @@ const char* OBJECT_TYPE_NAMES[]={
 OBJECT_INIT_NEW(null,)
 OBJECT_INIT_NEW(number,)
 OBJECT_INIT_NEW(function,
-    o->fp=malloc(sizeof(function_));
+    o->fp=malloc(sizeof(function));
     o->fp->argument_names.items=NULL;
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
-    o->fp->enclosing_scope=NULL;
+    o->fp->enclosing_scope=null_const;
 )
 OBJECT_INIT_NEW(string,)
 OBJECT_INIT_NEW(table,
-    o->tp=malloc(sizeof(table_));
+    o->tp=malloc(sizeof(table));
     map_init(&o->tp->fields);
 )
 
@@ -31,6 +31,8 @@ object null_const={t_null};
 void reference(object* o){
     if(o->type==t_table){
         o->tp->ref_count++;
+    } else if(o->type==t_function){
+        o->fp->ref_count++;
     } else if(o->type==t_string){
         // maybe it is a dirty hack, will find out later
         // other option would be a copy function
@@ -41,17 +43,8 @@ void reference(object* o){
 void dereference(object* o){
     if(o->type==t_table){
         o->tp->ref_count--;
-    }
-}
-
-// check if object is referenced by anything if not delete it
-void delete_unreferenced(object* o){
-    if(o->type!=t_table || o->tp->ref_count==0){// if object isn't a table or it is a table and it's ref_count is zero
-        if(GC_LOG){
-            USING_STRING(stringify(*o),
-                printf("%s was garbage collected.\n", str));
-        }
-        object_delete(o);
+    } else if(o->type==t_function){
+        o->fp->ref_count--;
     }
 }
 
@@ -66,8 +59,9 @@ void object_deinit(object* o){
         }
         case t_function:
         {
-            if(o->fp->enclosing_scope!=NULL){
-                delete_unreferenced(o->fp->enclosing_scope);
+            object_deinit(&o->fp->enclosing_scope);
+            if(o->fp->argument_names.items!=NULL){
+                vector_free(&o->fp->argument_names);
             }
             break;
         }

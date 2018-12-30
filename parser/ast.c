@@ -273,19 +273,24 @@ expression* copy_expression(expression* exp){
         printf("copy_expression argument is null.");
     }
 
+    #define COPY_LOCATION copy->line_number=exp->line_number; copy->column_number=exp->column_number;
+
     switch(exp->type){
         case e_empty:
             return (expression*)new_empty();
         case e_name:
         {
             name* copy=new_name();
-            ((name*)exp)->value=strdup(((name*)exp)->value);
+            COPY_LOCATION
+            copy->line_number=exp->line_number;
+            ((name*)copy)->value=strdup(((name*)exp)->value);
             return (expression*)copy;
         }
         case e_literal:
         {
             literal* l=(literal*)exp;
             literal* copy=new_literal();
+            COPY_LOCATION
             copy->ltype=l->ltype;
             switch(l->ltype){
                 case l_string:
@@ -304,6 +309,7 @@ expression* copy_expression(expression* exp){
         {
             assignment* a=(assignment*)exp;
             assignment* copy=new_assignment();
+            COPY_LOCATION
             copy->left=(path*)copy_expression((expression*)a->left);
             copy->right=copy_expression(a->right);
             return (expression*)copy;
@@ -312,6 +318,7 @@ expression* copy_expression(expression* exp){
         {
             unary* u=(unary*)exp;
             unary* copy=new_unary();
+            COPY_LOCATION
 
             copy->left=copy_expression(u->left);
             copy->right=copy_expression(u->right);
@@ -322,6 +329,7 @@ expression* copy_expression(expression* exp){
         {
             prefix* p=(prefix*)exp;
             prefix* copy=new_prefix();
+            COPY_LOCATION
 
             copy->right=copy_expression(p->right);
             copy->op=strdup(p->op);
@@ -331,6 +339,7 @@ expression* copy_expression(expression* exp){
         {
             function_call* c=(function_call*)exp;
             function_call* copy=new_function_call();
+            COPY_LOCATION
 
             copy->function_path=(path*)copy_expression((expression*)c->function_path);
             if(c->arguments!=NULL){
@@ -344,8 +353,10 @@ expression* copy_expression(expression* exp){
         {
             block* b=(block*)exp;// block, table_literal and path have the same memory layout, the only difference is type tag
             block* copy=new_block();
+            COPY_LOCATION
+            vector_init(&copy->lines);
             for (int i = 0; i < vector_total(&b->lines); i++){
-                vector_set(&copy->lines, i, copy_expression(vector_get(&b->lines, i)));
+                vector_add(&copy->lines, copy_expression(vector_get(&b->lines, i)));
             }
             return (expression*)copy;
         }
@@ -353,8 +364,10 @@ expression* copy_expression(expression* exp){
         {
             function_declaration* f=(function_declaration*)exp;
             function_declaration* copy=new_function_declaration();
+            COPY_LOCATION
+            vector_init(copy->arguments);
             for (int i = 0; i < vector_total(f->arguments); i++){
-                vector_set(copy->arguments, i, copy_expression(vector_get(f->arguments, i)));
+                vector_add(copy->arguments, copy_expression(vector_get(f->arguments, i)));
             }
             copy->body=copy_expression(f->body);
             return (expression*)copy;
@@ -363,6 +376,7 @@ expression* copy_expression(expression* exp){
         {
             conditional* c=(conditional*)exp;
             conditional* copy=new_conditional();
+            COPY_LOCATION
 
             copy->condition=copy_expression(c->condition);
             copy->ontrue=copy_expression(c->ontrue);
@@ -376,6 +390,7 @@ expression* copy_expression(expression* exp){
         {
             function_return* r=(function_return*)exp;
             function_return* copy=new_function_return();
+            COPY_LOCATION
             copy->value=copy_expression(r->value);
             return (expression*)copy;
         }
