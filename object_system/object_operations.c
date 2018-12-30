@@ -198,7 +198,7 @@ object operator(object a, object b, const char* op){
         }
     } else if(a.type==t_number){
         if(a.type!=b.type){
-                b=cast(b, a.type);
+            b=cast(b, a.type);
         }
         object result;
         number_init(&result);
@@ -215,7 +215,8 @@ object operator(object a, object b, const char* op){
             return create_number(a.value/b.value);
         }
     }
-    RETURN_ERROR("WRONG_ARGUMENT_TYPE", a, "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+    object causes[]={a, b};
+    RETURN_ERROR("OperatorError", multiple_causes(causes, 2), "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
 }
 
 char* stringify(object o){
@@ -436,7 +437,7 @@ void set_table(table* t, const char* key, object value){
 void set(object o, const char* key, object value){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
-        object set_override=find_function(o, "stringify");
+        object set_override=find_function(o, "set");
         if(set_override.type!=t_null){
             // create object to hold key value
             object key_string;
@@ -482,6 +483,59 @@ void set_string_field(object t, const char* field_name, char* string){
 char* get_and_stringify(object t, const char* key){
     object at_key=get(t, key);
     return stringify(at_key);
+}
+
+object stringify_multiple_causes(object* arguments, int arguments_count){
+    char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
+    buffer[0]='\0';
+    object self=arguments[0];
+
+    object count_object=get(self, "count");
+    //assert(count_object.type==t_number);
+    int count=count_object.value;
+    object_deinit(&count_object);
+
+    for(int i=0; i<count; i++){
+        char stringified_key[64];
+        snprintf(stringified_key, 64, "%i", i);
+
+        object value=get(self, stringified_key);
+        char* stringified_value=stringify(value);
+
+        char formatted[STRINGIFY_BUFFER_SIZE];
+        sprintf(formatted, "(%i/%i) %s\n", i+1, count, stringified_value);
+        strncat(buffer, formatted, STRINGIFY_BUFFER_SIZE);
+
+        free(stringified_value);
+    }
+    object result;
+    string_init(&result);
+    result.text=buffer;
+    return result;
+}
+
+object multiple_causes(object* causes, int causes_count){
+    object result;
+    table_init(&result);
+
+    for(int i=0; i<causes_count; i++){
+        char buffer[64];
+        snprintf(buffer, 64, "%i", i);
+        set(result, buffer, causes[i]);
+    }
+    
+    object count;
+    number_init(&count);
+    count.value=causes_count;
+    set(result, "count", count);
+
+    object stringify_f;
+    function_init(&stringify_f);
+    stringify_f.fp->arguments_count=1;
+    stringify_f.fp->pointer=stringify_multiple_causes;
+    set(result, "stringify", stringify_f);
+
+    return result;
 }
 
 object stringify_error(object* arguments, int arguments_count){

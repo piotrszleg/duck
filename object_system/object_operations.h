@@ -24,6 +24,7 @@ void set_table(table* t, const char* key, object value);
 void set(object o, const char* key, object value);
 
 void get_execution_info(char* buffer, int buffer_count);
+object multiple_causes(object* causes, int causes_count);
 object new_error(char* type, object cause, char* message, char* location);
 
 char* stringify_object(object o);
