@@ -117,3 +117,17 @@ trace()
 Traceback:
 tests.duck:20: test_tracing()
 tests.duck:25: init_tests()
+
+proccess=x...->sum(x)
+
+map((e)->if e.age>18 {print(a)} )
+map((e)->if(e.age>18)print(a))
+
+if debug {
+    print(id+name)
+} else {
+    print(name)
+}
+
+if(debug) print(id+name) endif
+else print(name)

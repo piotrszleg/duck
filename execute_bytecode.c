@@ -254,6 +254,7 @@ object execute_bytecode(bytecode_environment* environment, object scope){
                     }
                     push(object_stack, call(o, arguments, arguments_count));
                     free(arguments);
+                    break;
                 }
                 object f=cast(o, t_function);
                 if(f.fp->ftype==f_native){

@@ -100,7 +100,7 @@ void bytecode_path_set(stream* code, stream* information, stream* constants, pat
 void ast_to_bytecode_recursive(expression* exp, stream* code, stream* information, stream* constants, int keep_scope){
     instruction_information info=information_from_ast(exp);
 
-    #define DUPLICATE_INFO(repetitions) stream_repeat_last(information, repetitions, sizeof(instruction_information));
+    #define DUPLICATE_INFO(repetitions) stream_push(information, &info, sizeof(info));//stream_repeat_last(information, repetitions, sizeof(instruction_information));
     #define PUSH_INFO stream_push(information, &info, sizeof(info));
 
     switch(exp->type){

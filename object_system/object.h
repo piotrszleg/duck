@@ -77,6 +77,7 @@ struct table {
     object_map_t fields;
 };
 
+typedef object (*function_pointer)(object* arguments, int arguments_count);
 typedef enum function_type function_type;
 enum function_type {
     f_native,
@@ -88,7 +89,7 @@ struct function {
     int ref_count;
     function_type ftype;
     union {
-        object (*pointer)(object* arguments, int arguments_count);
+        function_pointer pointer;
         // void* should be expression* but I don't want to create cross dependency here
         void* ast_pointer;
         int label;

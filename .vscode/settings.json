@@ -27,6 +27,8 @@
         "vector.h\u0000vector.h": "c",
         "object_operations.h": "c",
         "ast_visitor.h": "c",
-        "ast_optimisations.h": "c"
+        "ast_optimisations.h": "c",
+        "bytecode_optimisations.h": "c",
+        "stdbool.h": "c"
     }
 }

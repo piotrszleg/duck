@@ -1,16 +1,37 @@
 "Speed is a social construct." - Mattias Petter Johansson 2018
 
+To sum up my research every function should have it's own constants and bytecode array, jumping is only for ifs and loops.
+bytecode_function {
+    bytecode_enviroment enviroment;
+    bytecode_program program;
+};
+struct bytecode_program {
+    instruction* code;
+    instruction_information* information;
+    char* constants;
+    int* labels;
+    bytecode_function* subfunctions;
+};
+struct bytecode_environment {
+    instruction* code;
+    instruction_information* information;
+    char* constants;
+    int* labels;
+    int pointer;
+    stack object_stack;
+    stack return_stack;
+    
+};
+
 # TOFIX:
-- garbage collection of functions
+- wrong arguments order after bytecode optimisations
 - fix functions calling in ast
 - valgrind
 - resize stack
 
 ## TODO:
-- get execution info for error objects
-- include(file) function, binding code to functions
 - empty and variadic arguments
-- show number of arguments in stringified bytecode functions
+- include(file) function, binding code to functions
 - call and destroy override
 - coroutines
 - more comments

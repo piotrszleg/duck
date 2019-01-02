@@ -6,6 +6,7 @@
 #include "../error/error.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #define EXPRESSION_TYPES_COUNT 13
 #define EXPRESSION_TYPES \
@@ -84,6 +85,7 @@ AST_OBJECT(prefix,
 
 AST_OBJECT(function_declaration,
     vector* arguments;
+    bool variadic;
     expression* body;
 )
 

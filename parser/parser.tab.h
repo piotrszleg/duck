@@ -41,17 +41,18 @@
    enum yytokentype {
      ENDL = 258,
      ARROW = 259,
-     IF = 260,
-     ELSE = 261,
-     ELIF = 262,
-     NULL_LITERAL = 263,
-     INT = 264,
-     FLOAT = 265,
-     STRING = 266,
-     NAME = 267,
-     ASSIGN_UNARY_OPERATOR = 268,
-     UNARY_OPERATOR = 269,
-     PREFIX_OPERATOR = 270
+     ELLIPSIS = 260,
+     IF = 261,
+     ELSE = 262,
+     ELIF = 263,
+     NULL_LITERAL = 264,
+     INT = 265,
+     FLOAT = 266,
+     STRING = 267,
+     NAME = 268,
+     ASSIGN_UNARY_OPERATOR = 269,
+     UNARY_OPERATOR = 270,
+     PREFIX_OPERATOR = 271
    };
 #endif
 
@@ -62,7 +63,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 25 "parser.y"
+#line 26 "parser.y"
 
 	int ival;
 	float fval;
@@ -73,7 +74,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 77 "parser.tab.h"
+#line 78 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

@@ -364,7 +364,9 @@ expression* copy_expression(expression* exp){
         {
             function_declaration* f=(function_declaration*)exp;
             function_declaration* copy=new_function_declaration();
+            copy->variadic=f->variadic;
             COPY_LOCATION
+            copy->arguments=malloc(sizeof(vector));
             vector_init(copy->arguments);
             for (int i = 0; i < vector_total(f->arguments); i++){
                 vector_add(copy->arguments, copy_expression(vector_get(f->arguments, i)));

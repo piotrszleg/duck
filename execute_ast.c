@@ -173,7 +173,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             function_init(&f);
             vector_init(&f.fp->argument_names);
             for (int i = 0; i < vector_total(d->arguments); i++){
-                vector_add(&f.fp->argument_names, ((name*)vector_get(d->arguments, i))->value);
+                vector_add(&f.fp->argument_names, strdup(((name*)vector_get(d->arguments, i))->value));
             }
             f.fp->ftype=f_ast;
             f.fp->ast_pointer=(void*)d->body;

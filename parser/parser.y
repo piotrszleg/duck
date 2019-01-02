@@ -7,6 +7,7 @@ extern int yyparse();
 extern FILE *yyin;
 extern int line_number;
 extern int column_number;
+const char* file_name;
 
 expression* parsing_result;
  
@@ -33,6 +34,7 @@ void yyerror(const char *s);
 // define the constant-string tokens:
 %token ENDL
 %token ARROW
+%token ELLIPSIS
 %token IF
 %token ELSE
 %token ELIF
@@ -52,8 +54,8 @@ void yyerror(const char *s);
 %type <exp> table;
 %type <exp> table_contents;
 %type <exp> path;
+%type <exp> lines_with_return;
 %type <exp> lines;
-%type <exp> line;
 %type <exp> expression;
 %type <exp> literal;
 %type <exp> null;
@@ -73,17 +75,31 @@ program:
 		parsing_result = $1;
 	}
 	;
-lines:
-	lines line {
-		vector_add(&((block*)$1)->lines, $2);
+lines_separator:
+	ENDLS | ',';
+lines_with_return:
+	lines '!' {
+		vector* lines=&((block*)$1)->lines;
+		int last_element_index=vector_total(lines)-1;
+		function_return* r=new_function_return();
+		ADD_DEBUG_INFO(r)
+		r->value=vector_get(lines, last_element_index);
+		vector_set(lines, last_element_index, r);
 		$$=$1;
 	}
-	| line	{
-		block* b=new_block();
-		ADD_DEBUG_INFO(b)
-		vector_init(&b->lines);
-		vector_add(&b->lines, $1);
-		$$=(expression*)b;
+	;
+lines:
+	lines lines_separator expression {
+		vector_add(&((block*)$1)->lines, $3);
+		$$=$1;
+	}
+	| lines_with_return lines_separator expression {
+		vector_add(&((block*)$1)->lines, $3);
+		$$=$1;
+	}
+	| lines_with_return expression {
+		vector_add(&((block*)$1)->lines, $2);
+		$$=$1;
 	}
 	| expression {
 		block* b=new_block();
@@ -93,37 +109,25 @@ lines:
 		$$=(expression*)b;
 	}
 	;
-line:
-	expression ENDLS
-	| expression ','
-	| expression
-	| expression '!' OPT_ENDLS
-	{
-		function_return* r=new_function_return();
-		ADD_DEBUG_INFO(r)
-		r->value=$1;
-		$$=(expression*)r;
-	}
-	;
 block:
-	OPT_ENDLS '{' OPT_ENDLS lines OPT_ENDLS '}' OPT_ENDLS { $$=$4; }
+	'{' OPT_ENDLS lines OPT_ENDLS '}' { $$=$3; }
 	;
 table_contents:
 	lines {
 		$$=$1; 
 		$$->type=e_table_literal;
 	}
-	| {
+	;
+table:
+	'[' OPT_ENDLS table_contents OPT_ENDLS ']' { 
+		$$=$3;
+	}
+	| '[' ']' {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
 		vector_init(&b->lines);
 		b->type=e_table_literal;
 		$$=(expression*)b;
-	}
-	;
-table:
-	OPT_ENDLS '[' OPT_ENDLS table_contents OPT_ENDLS ']' OPT_ENDLS { 
-		$$=$4;
 	}
 	;
 path:
@@ -142,7 +146,7 @@ path:
 	}
 	;
 expression:
-	'(' expression ')' {$$=$2;}
+	| '(' expression ')' {$$=$2;}
 	| literal
 	| block
 	| table
@@ -156,20 +160,20 @@ expression:
 	| null
 	;
 conditional:
-	IF '(' expression ')' OPT_ENDLS line  {	
+	IF '(' expression ')' expression  {	
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$6;
+		c->ontrue=$5;
 		c->onfalse=(expression*)new_empty();
 		$$=(expression*)c;
 	}
-	| IF '(' expression ')' OPT_ENDLS line conditional_else {
+	| IF '(' expression ')' expression conditional_else {
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$6;
-		c->onfalse=$7;
+		c->ontrue=$5;
+		c->onfalse=$6;
 		$$=(expression*)c;
 	}
 	;
@@ -177,19 +181,19 @@ conditional_else:
 	ELSE expression {
 		$$=$2
 	}
-	| ELIF '(' expression ')' OPT_ENDLS line conditional_else {
+	| ELIF '(' expression ')' expression conditional_else {
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$6;
-		c->onfalse=$7;
+		c->ontrue=$5;
+		c->onfalse=$6;
 		$$=(expression*)c;
 	}
-	| ELIF '(' expression ')' OPT_ENDLS line {
+	| ELIF '(' expression ')' expression {
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
-		c->ontrue=$6;
+		c->ontrue=$5;
 		c->onfalse=(expression*)new_empty();
 		$$=(expression*)c;
 	} 
@@ -208,22 +212,32 @@ arguments:
 	}
 	;
 function:
-	'(' arguments ')' ARROW expression {
+	'(' arguments ELLIPSIS ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		f->arguments=$2;
+		f->variadic=false;
+		f->body=$6;
+		$$=(expression*)f;
+	}
+	| '(' arguments ')' ARROW expression {
+		function_declaration* f=new_function_declaration();
+		ADD_DEBUG_INFO(f)
+		f->arguments=$2;
+		f->variadic=false;
 		f->body=$5;
 		$$=(expression*)f;
-	} 
-	| '(' name ')' ARROW expression {
+	}
+	| name ELLIPSIS ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
 		vector_init(args);
-		vector_add(args, $2);
+		vector_add(args, $1);
 		f->arguments=args;
-		f->body=$5;
+		f->variadic=true;
+		f->body=$4;
 		$$=(expression*)f;
 	}
 	| name ARROW expression {
@@ -234,6 +248,7 @@ function:
 		vector_init(args);
 		vector_add(args, $1);
 		f->arguments=args;
+		f->variadic=false;
 		f->body=$3;
 		$$=(expression*)f;
 	}
@@ -244,6 +259,7 @@ function:
 		vector_init(args);
 		ADD_DEBUG_INFO(f)
 		f->arguments=args;
+		f->variadic=false;
 		f->body=$2;
 		$$=(expression*)f;
 	}
@@ -384,8 +400,9 @@ extern YY_BUFFER_STATE yy_scan_string(const char * str);
 extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
 
 void parse_string(const char* s) {
-	line_number=0;
+	line_number=1;
 	column_number=0;
+	file_name="unknown";
 
 	// Set Flex to read from it instead of defaulting to STDIN:
 	YY_BUFFER_STATE buffer = yy_scan_string(s);
@@ -396,8 +413,9 @@ void parse_string(const char* s) {
 }
 
 void parse_file(const char* file_name) {
-	line_number=0;
+	line_number=1;
 	column_number=0;
+	file_name=file_name;
 
 	// Open a file handle to a particular file:
 	FILE *myfile = fopen(file_name, "r");
@@ -412,7 +430,7 @@ void parse_file(const char* file_name) {
 	yyparse();
 }
 
-void yyerror(const char *s) {
-	printf("Parse error on line %i, column %i\nMessage: %s\n", line_number, column_number, s);
+void yyerror(const char *message) {
+	printf("ParsingError: %s\nat(%s:%i:%i)\n", message, file_name, line_number, column_number);
 	exit(-1);
 }

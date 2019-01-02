@@ -1,7 +1,6 @@
 #include "object_operations.h"
 
 #define INITIAL_BUFFER_SIZE 8
-#define STRINGIFY_BUFFER_SIZE 200
 
 bool is_number(const char *s)
 {
@@ -26,40 +25,6 @@ bool is_falsy(object o){
             return o.tp->fields.base.nnodes==0;// empty table is falsy
         default:
             ERROR(WRONG_ARGUMENT_TYPE, "Incorrect object pointer passed to is_falsy function.");
-    }
-}
-
-int sign(int x){
-    return (x > 0) - (x < 0);
-}
-
-// if a>b returns 1 if a<b returns -1, if a==b returns 0
-int compare(object a, object b){
-    // null is always less than anything
-    if(a.type!=t_null && b.type==t_null){
-        return 1;
-    }
-    if(b.type!=t_null && a.type==t_null){
-        return -1;
-    }
-    if(b.type==t_null && a.type==t_null){
-        return 0;
-    }
-    switch(a.type){
-        case t_string:
-            if(a.type==b.type){
-                return strcmp(a.text, b.text);
-            }
-        case t_number:
-            if(a.type==b.type){
-                return sign(a.value-b.value);
-            }
-        case t_table:
-            if(a.type==b.type){
-                return sign(a.tp->fields.base.nnodes-b.tp->fields.base.nnodes);
-            }
-        default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Can't compare <%s> to <%s>", OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
     }
 }
 
@@ -125,6 +90,38 @@ object find_function(object o, const char* function_name){
     return find_call_function(get(o, function_name));
 }
 
+int sign(int x){
+    return (x > 0) - (x < 0);
+}
+
+#define COMPARISION_ERROR 2
+// if a>b returns 1 if a<b returns -1, if a==b returns 0
+int compare(object a, object b){
+    // null is always less than anything
+    if(a.type!=t_null && b.type==t_null){
+        return 1;
+    }
+    if(b.type!=t_null && a.type==t_null){
+        return -1;
+    }
+    if(b.type==t_null && a.type==t_null){
+        return 0;
+    }
+    if(a.type!=b.type){
+        return COMPARISION_ERROR;
+    }
+    switch(a.type){
+        case t_string:
+            return strcmp(a.text, b.text);
+        case t_number:
+            return sign(a.value-b.value);
+        case t_table:
+            return sign(a.tp->fields.base.nnodes-b.tp->fields.base.nnodes);
+        default:
+            return COMPARISION_ERROR;
+    }
+}
+
 object operator(object a, object b, const char* op){
     if(a.type==t_table){
         object operator_function=find_function(a, op);
@@ -135,25 +132,36 @@ object operator(object a, object b, const char* op){
             return result;
         }
     }
+
     if(strcmp(op, "==")==0){
-        return create_number(compare(a, b)==0);
+        int comparision_result=compare(a, b);
+        if(comparision_result!=COMPARISION_ERROR)
+            return create_number(comparision_result==0);
     }
     if(strcmp(op, "!=")==0){
-        return create_number(compare(a, b)!=0);
+        int comparision_result=compare(a, b);
+        if(comparision_result!=COMPARISION_ERROR)
+            return create_number(!comparision_result!=0);
     }
     if(strcmp(op, ">")==0){
-        return create_number(compare(a, b)==1);
+        int comparision_result=compare(a, b);
+        if(comparision_result!=COMPARISION_ERROR)
+            return create_number(comparision_result==1);
     }
     if(strcmp(op, "<")==0){
-        return create_number(compare(a, b)==-1);
+        int comparison_result=compare(a, b);
+        if(comparison_result!=COMPARISION_ERROR)
+            return create_number(comparison_result==-1);
     }
     if(strcmp(op, ">=")==0){
         int comparison_result=compare(a, b);
-        return create_number(comparison_result==1||comparison_result==0);
+        if(comparison_result!=COMPARISION_ERROR)
+            return create_number(comparison_result==1||comparison_result==0);
     }
     if(strcmp(op, "<=")==0){
         int comparison_result=compare(a, b);
-        return create_number(comparison_result==-1||comparison_result==0);
+        if(comparison_result!=COMPARISION_ERROR)
+            return create_number(comparison_result==-1||comparison_result==0);
     }
     if(strcmp(op, "||")==0){
         if(!is_falsy(a)){
@@ -180,6 +188,9 @@ object operator(object a, object b, const char* op){
     if(strcmp(op, "-")==0 && a.type==t_number && b.type==t_null){
         a.value=-a.value;
         return a;
+    }
+    if(strcmp(op, "--")==0){
+        return new_pipe(a, b);
     }
     
     if(a.type==t_string){
@@ -216,7 +227,7 @@ object operator(object a, object b, const char* op){
         }
     }
     object causes[]={a, b};
-    RETURN_ERROR("OperatorError", multiple_causes(causes, 2), "Can't perform operotion '%s' object of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+    RETURN_ERROR("OperatorError", multiple_causes(causes, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
 }
 
 char* stringify(object o){
@@ -375,6 +386,10 @@ char* stringify_object(object o){
                 char* buffer_truncated=strdup(buffer);
                 free(buffer);
                 return buffer_truncated;
+            } else if(f->arguments_count>0){
+                char* buffer=malloc(16*sizeof(char*));
+                snprintf(buffer, 16, "function(%i)", f->arguments_count);
+                return buffer;
             } else {
                 return strdup("function()");
             }
@@ -465,7 +480,13 @@ object call(object o, object* arguments, int arguments_count) {
         {
             object call_field=find_function(o, "call");
             if(call_field.type!=t_null){
-                return call(call_field, arguments, arguments_count);
+                // add o object as a first argument
+                object* arguments_with_self=malloc(sizeof(object)*(arguments_count+1));
+                arguments_with_self[0]=o;
+                for(int i=0; i<arguments_count; i++){
+                    arguments_with_self[i+1]=arguments[i];
+                }
+                return call(call_field, arguments_with_self, arguments_count+1);
             }// else go to default label
         }
         default:
@@ -473,109 +494,9 @@ object call(object o, object* arguments, int arguments_count) {
     }
 }
 
-void set_string_field(object t, const char* field_name, char* string){
-    object string_object;
-    string_init(&string_object);
-    string_object.text=string;
-    set(t, field_name, string_object);
-}
-
-char* get_and_stringify(object t, const char* key){
-    object at_key=get(t, key);
-    return stringify(at_key);
-}
-
-object stringify_multiple_causes(object* arguments, int arguments_count){
-    char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
-    buffer[0]='\0';
-    object self=arguments[0];
-
-    object count_object=get(self, "count");
-    //assert(count_object.type==t_number);
-    int count=count_object.value;
-    object_deinit(&count_object);
-
-    for(int i=0; i<count; i++){
-        char stringified_key[64];
-        snprintf(stringified_key, 64, "%i", i);
-
-        object value=get(self, stringified_key);
-        char* stringified_value=stringify(value);
-
-        char formatted[STRINGIFY_BUFFER_SIZE];
-        sprintf(formatted, "(%i/%i) %s\n", i+1, count, stringified_value);
-        strncat(buffer, formatted, STRINGIFY_BUFFER_SIZE);
-
-        free(stringified_value);
+object call_destroy(object o){
+    object destroy_override=find_function(o, "destroy");
+    if(destroy_override.type!=t_null){
+        call(destroy_override, &o, 1);
     }
-    object result;
-    string_init(&result);
-    result.text=buffer;
-    return result;
-}
-
-object multiple_causes(object* causes, int causes_count){
-    object result;
-    table_init(&result);
-
-    for(int i=0; i<causes_count; i++){
-        char buffer[64];
-        snprintf(buffer, 64, "%i", i);
-        set(result, buffer, causes[i]);
-    }
-    
-    object count;
-    number_init(&count);
-    count.value=causes_count;
-    set(result, "count", count);
-
-    object stringify_f;
-    function_init(&stringify_f);
-    stringify_f.fp->arguments_count=1;
-    stringify_f.fp->pointer=stringify_multiple_causes;
-    set(result, "stringify", stringify_f);
-
-    return result;
-}
-
-object stringify_error(object* arguments, int arguments_count){
-    char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
-    object self=arguments[0];
-    char* type=get_and_stringify(self, "type");
-    char* message=get_and_stringify(self, "message");
-    char* location=get_and_stringify(self, "location");
-    char* cause=get_and_stringify(self, "cause");
-    snprintf(buffer, STRINGIFY_BUFFER_SIZE, "%s: %s\n%s\ncaused by:\n%s", type, message, location, cause);
-    free(type);
-    free(message);
-    free(location);
-    free(cause);
-    object result;
-    string_init(&result);
-    result.text=buffer;
-    return result;
-}
-
-object new_error(char* type, object cause, char* message, char* location){
-    object err;
-    table_init(&err);
-
-    set_string_field(err, "type", type);
-    set_string_field(err, "message", message);
-    set_string_field(err, "location", location);
-
-    object one;
-    number_init(&one);
-    one.value=1;
-    set(err, "is_error", one);
-
-    object stringify_f;
-    function_init(&stringify_f);
-    stringify_f.fp->arguments_count=1;
-    stringify_f.fp->pointer=stringify_error;
-    set(err, "stringify", stringify_f);
-
-    set(err, "cause", cause);
-
-    return err;
 }

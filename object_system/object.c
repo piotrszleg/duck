@@ -15,6 +15,7 @@ OBJECT_INIT_NEW(null,)
 OBJECT_INIT_NEW(number,)
 OBJECT_INIT_NEW(function,
     o->fp=malloc(sizeof(function));
+    o->fp->ref_count=0;
     o->fp->argument_names.items=NULL;
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
@@ -23,6 +24,7 @@ OBJECT_INIT_NEW(function,
 OBJECT_INIT_NEW(string,)
 OBJECT_INIT_NEW(table,
     o->tp=malloc(sizeof(table));
+    o->tp->ref_count=0;
     map_init(&o->tp->fields);
 )
 
@@ -40,14 +42,7 @@ void reference(object* o){
     }
 }
 
-void dereference(object* o){
-    if(o->type==t_table){
-        o->tp->ref_count--;
-    } else if(o->type==t_function){
-        o->fp->ref_count--;
-    }
-}
-
+object call_destroy(object o);
 void object_deinit(object* o){
     CHECK_OBJECT(o);
 
@@ -59,15 +54,20 @@ void object_deinit(object* o){
         }
         case t_function:
         {
-            object_deinit(&o->fp->enclosing_scope);
-            if(o->fp->argument_names.items!=NULL){
-                vector_free(&o->fp->argument_names);
+            if(o->fp->ref_count<=0){
+                call_destroy(*o);
+                object_deinit(&o->fp->enclosing_scope);
+                if(o->fp->argument_names.items!=NULL){
+                    vector_free(&o->fp->argument_names);
+                }
+            } else {
+                o->fp->ref_count--;
             }
             break;
         }
         case t_table: 
         {
-            if(o->tp->ref_count==0){
+            if(o->tp->ref_count<=0){
                 const char *key;
                 map_iter_t iter = map_iter(&o->tp->fields);
                 while ((key = map_next(&o->tp->fields, &iter))) {
@@ -76,6 +76,8 @@ void object_deinit(object* o){
                     object_deinit(&value);
                 }
                 map_deinit(&o->tp->fields);
+            } else {
+                o->tp->ref_count--;
             }
             break;
         }

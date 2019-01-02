@@ -66,6 +66,13 @@ object builtin_test(object* arguments, int arguments_count){
     return null_const;
 }
 
+object evaluate_file(const char* file_name, int use_bytecode);
+
+object builtin_include(object* arguments, int arguments_count){
+    object path=arguments[0];
+    return evaluate_file(stringify(path), 1);
+}
+
 void register_builtins(object scope){
     #define REGISTER_FUNCTION(f, args_count) \
         object f##_function; \
@@ -80,6 +87,7 @@ void register_builtins(object scope){
     REGISTER_FUNCTION(native_get, 2);
     REGISTER_FUNCTION(native_call, 2);
     REGISTER_FUNCTION(native_stringify, 1);
+    REGISTER_FUNCTION(include, 1);
     //REGISTER_FUNCTION(test, 2);
 
     #undef REGISTER_FUNCTION

@@ -45,6 +45,7 @@ null				    { COUNT_COLUMNS; return NULL_LITERAL; }
 \"([^\\\"]|\\.)*\"      { COUNT_COLUMNS; yylval.sval = unquote(yytext); return STRING; }// double quote string literal god bless stack overflow
 '[a-zA-Z_][a-zA-Z0-9_]* { COUNT_COLUMNS; yylval.sval = strdup(yytext+1); return STRING; }// single quote string
 [a-zA-Z_][a-zA-Z0-9_]*  { COUNT_COLUMNS; yylval.sval = strdup(yytext); return NAME; }
+\.\.\.						{ COUNT_COLUMNS; return ELLIPSIS; }
 ->                      { COUNT_COLUMNS; return ARROW; }
 !=					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 ==					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
