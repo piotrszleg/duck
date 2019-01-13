@@ -1,11 +1,13 @@
 #include "ast_to_bytecode.h"
 
-#define CODE_SIZE 50
-#define CONSTANTS_SIZE 50
+#define CODE_SIZE 32
+#define CONSTANTS_SIZE 32
+#define SUB_PROGRAMS_SIZE 4
 
 int labels_count=0;
 
-void ast_to_bytecode_recursive(expression* exp, stream* code, stream* information, stream* constants, int keep_scope);
+void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, int keep_scope);
+bytecode_program closure_to_bytecode(function_declaration* d);
 
 void push_instruction(stream* code, instruction_type type, long value){
     instruction instr={type, value};
@@ -24,14 +26,14 @@ char* stream_search_string(stream* s, const char* str){
     return NULL;
 }
 
-void push_string_load(stream* code, stream* constants, const char* string_constant){
-    char* search_result=stream_search_string(constants, string_constant);
+void push_string_load(bytecode_translation* translation, const char* string_constant){
+    char* search_result=stream_search_string(&translation->constants, string_constant);
     if(search_result){
-        int relative_position=(search_result-((char*)constants->data));
-        push_instruction(code, b_load_string, relative_position/sizeof(char));// use existing
+        int relative_position=(search_result-((char*)translation->constants.data));
+        push_instruction(&translation->code, b_load_string, relative_position/sizeof(char));// use existing
     } else {
-        int push_position=stream_push(constants, (const void*)string_constant, (strlen(string_constant)+1));
-        push_instruction(code, b_load_string, push_position);
+        int push_position=stream_push(&translation->constants, (const void*)string_constant, (strlen(string_constant)+1));
+        push_instruction(&translation->code, b_load_string, push_position);
     }
 }
 
@@ -56,57 +58,59 @@ instruction_information information_from_ast(expression* exp){
     return info;
 }
 
-void bytecode_path_get(stream* code, stream* information, stream* constants, path p){
+void bytecode_path_get(bytecode_translation* translation, path p){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
         if(e->type==e_name){
             instruction_information info=information_from_ast(e);
-            stream_push(information, &info, sizeof(info));
-            push_string_load(code, constants, ((name*)e)->value);
+            stream_push(&translation->information, &info, sizeof(info));
+            push_string_load(translation, ((name*)e)->value);
         } else{
-            ast_to_bytecode_recursive(e, code, information, constants, 0);
+            ast_to_bytecode_recursive(e, translation, 0);
         }
         instruction_information info=information_from_ast((expression*)&p);
-        stream_push(information, &info, sizeof(info));
+        stream_push(&translation->information, &info, sizeof(info));
         instruction get={b_get, i>0};
-        stream_push(code, &get, sizeof(instruction));
+        stream_push(&translation->code, &get, sizeof(instruction));
     }
 } 
 
-void bytecode_path_set(stream* code, stream* information, stream* constants, path p){
+void bytecode_path_set(bytecode_translation* translation, path p){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
         if(e->type==e_name){
             instruction_information info=information_from_ast(e);
-            stream_push(information, &info, sizeof(info));
-            push_string_load(code, constants, ((name*)e)->value);
+            stream_push(&translation->information, &info, sizeof(info));
+            push_string_load(translation, ((name*)e)->value);
         } else{
-            ast_to_bytecode_recursive(e, code, information, constants, 0);
+            ast_to_bytecode_recursive(e, translation, 0);
         }
         if(i==lines_count-1){
             instruction set={b_set, i>0};
-            stream_push(code, &set, sizeof(instruction));
+            stream_push(&translation->code, &set, sizeof(instruction));
         } else {
             instruction get={b_get, i>0};
-            stream_push(code, &get, sizeof(instruction));
+            stream_push(&translation->code, &get, sizeof(instruction));
         }
         instruction_information info=information_from_ast((expression*)&p);
-        stream_push(information, &info, sizeof(info));
+        stream_push(&translation->information, &info, sizeof(info));
     }
 }
 
-void ast_to_bytecode_recursive(expression* exp, stream* code, stream* information, stream* constants, int keep_scope){
+void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, int keep_scope){
     instruction_information info=information_from_ast(exp);
 
-    #define DUPLICATE_INFO(repetitions) stream_push(information, &info, sizeof(info));//stream_repeat_last(information, repetitions, sizeof(instruction_information));
-    #define PUSH_INFO stream_push(information, &info, sizeof(info));
+    stream* code=&translation->code;
+
+    #define DUPLICATE_INFO(repetitions) stream_push(&translation->information, &info, sizeof(info));//stream_repeat_last(information, repetitions, sizeof(instruction_information));
+    #define PUSH_INFO stream_push(&translation->information, &info, sizeof(info));
 
     switch(exp->type){
         case e_empty:
             PUSH_INFO
-            push_instruction(code, b_null, 0);
+            push_instruction(&translation->code, b_null, 0);
             break;
         case e_literal:
         {
@@ -121,7 +125,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
                     push_number_load(code, l->fval);
                     break;
                 case l_string:
-                    push_string_load(code, constants, l->sval);
+                    push_string_load(translation, l->sval);
                     break;
             }
             break;
@@ -139,10 +143,10 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
             int last_index=0;
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=vector_get(&b->lines, i);
-                ast_to_bytecode_recursive(line, code, information, constants, 1);
+                ast_to_bytecode_recursive(line, translation, 1);
                 if(line->type!=e_assignment){
                     // if the expression isn't assignment use last index as a key
-                    // arr=[5, 4] => arr[0=5, 1=2]
+                    // arr=[5, 4] => arr[0=5, 1=4]
                     PUSH_INFO
                     PUSH_INFO
                     push_number_load(code, (float)last_index++);
@@ -165,7 +169,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
             block* b=(block*)exp;
             int lines_count=vector_total(&b->lines);
             for (int i = 0; i < lines_count; i++){
-                ast_to_bytecode_recursive(vector_get(&b->lines, i), code, information, constants, 1);
+                ast_to_bytecode_recursive(vector_get(&b->lines, i), translation, 1);
                 if(i!=lines_count-1){// leave only the last line on the stack
                     push_instruction(code, b_discard, 0);
                     PUSH_INFO
@@ -176,7 +180,7 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
         case e_name:
         {
             name* n=(name*)exp;
-            push_string_load(code, constants, n->value);
+            push_string_load(translation, n->value);
             PUSH_INFO
             push_instruction(code, b_get, 0);
             PUSH_INFO
@@ -185,8 +189,8 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
         case e_assignment:
         {
             assignment* a=(assignment*)exp;
-            ast_to_bytecode_recursive(a->right, code, information, constants, keep_scope);
-            bytecode_path_set(code, information, constants, *a->left);
+            ast_to_bytecode_recursive(a->right, translation, keep_scope);
+            bytecode_path_set(translation, *a->left);
             PUSH_INFO
             break;
         }
@@ -194,9 +198,9 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
         {
             unary* u=(unary*)exp;
 
-            ast_to_bytecode_recursive(u->right, code, information, constants, keep_scope);
-            ast_to_bytecode_recursive(u->left, code, information, constants, keep_scope);
-            push_string_load(code, constants, u->op);
+            ast_to_bytecode_recursive(u->right, translation, keep_scope);
+            ast_to_bytecode_recursive(u->left, translation, keep_scope);
+            push_string_load(translation, u->op);
             PUSH_INFO
             push_instruction(code, b_unary, 0);
             PUSH_INFO
@@ -205,10 +209,10 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
         case e_prefix:
         {
             prefix* p=(prefix*)exp;
-            ast_to_bytecode_recursive(p->right, code, information, constants, keep_scope);
+            ast_to_bytecode_recursive(p->right, translation, keep_scope);
 
             PUSH_INFO
-            push_string_load(code, constants, p->op);
+            push_string_load(translation, p->op);
             PUSH_INFO
             push_instruction(code, b_prefix, 0);
             break;
@@ -219,16 +223,16 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
             int conditional_end=labels_count++;
             int on_false=labels_count++;
 
-            ast_to_bytecode_recursive(c->condition, code, information, constants, keep_scope);
+            ast_to_bytecode_recursive(c->condition, translation, keep_scope);
             push_instruction(code, b_jump_not, on_false);// if condition is false jump to on_false label
             DUPLICATE_INFO(1)
 
-            ast_to_bytecode_recursive(c->ontrue, code, information, constants, keep_scope);
+            ast_to_bytecode_recursive(c->ontrue, translation, keep_scope);
             push_instruction(code, b_jump, conditional_end);// jump over the on_false block to the end of conditional
             DUPLICATE_INFO(1)
 
             push_instruction(code, b_label, on_false);
-            ast_to_bytecode_recursive(c->onfalse, code, information, constants, keep_scope);
+            ast_to_bytecode_recursive(c->onfalse, translation, keep_scope);
             DUPLICATE_INFO(1)
 
             push_instruction(code, b_label, conditional_end);
@@ -241,37 +245,13 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
             function_declaration* d=(function_declaration*)exp;
             int arguments_count=vector_total(d->arguments);
 
-            int function_end=labels_count++;
-            int function_beginning=labels_count++;
-
-            PUSH_INFO
-            PUSH_INFO
-            push_instruction(code, b_jump, function_end);// jump over the function
-            push_instruction(code, b_label, function_beginning);// this is where function object will point
-            
-            // arguments need to be in reverse because of the way stack works
-            for (int i = 0; i < arguments_count; i++){
-                DUPLICATE_INFO(3)
-                push_string_load(code, constants, ((name*)vector_get(d->arguments, arguments_count-1-i))->value);
-                push_instruction(code, b_set, 0);
-                push_instruction(code, b_discard, 0);
-            }
-
-            ast_to_bytecode_recursive((expression*)d->body, code, information, constants, keep_scope);
-            
-            PUSH_INFO
-            PUSH_INFO
-            push_instruction(code, b_return, 0);
-            push_instruction(code, b_label, function_end);
-
-            /*for (int i = 0; i < arguments_count; i++){
-                push_string_load(code, constants, ((name*)vector_get(d->arguments, i))->value);
-            }*/
-
             PUSH_INFO
             PUSH_INFO
             push_number_load(code, (float)arguments_count);
-            push_instruction(code, b_function, function_beginning);
+            bytecode_program prog=closure_to_bytecode(d);
+            stream_push(&translation->sub_programs, &prog, sizeof(bytecode_program));
+            int sub_program_index=(translation->sub_programs.position/sizeof(bytecode_program))-1;
+            push_instruction(code, b_function, sub_program_index);
             break;
         }
         case e_function_call:
@@ -279,10 +259,10 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
             function_call* c=(function_call*)exp;
             int lines_count=vector_total(&c->arguments->lines);
             for (int i = 0; i < lines_count; i++){
-                ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), code, information, constants, keep_scope);
+                ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), translation, keep_scope);
             }
             PUSH_INFO
-            bytecode_path_get(code, information, constants, *c->function_path);
+            bytecode_path_get(translation, *c->function_path);
             PUSH_INFO
             push_instruction(code, b_call, lines_count);
             break;
@@ -290,14 +270,14 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
         case e_function_return:
         {
             function_return* r=(function_return*)exp;
-            ast_to_bytecode_recursive((expression*)r->value, code, information, constants, keep_scope);
+            ast_to_bytecode_recursive((expression*)r->value, translation, keep_scope);
             PUSH_INFO
             push_instruction(code, b_return, 0);
             break;
         }
         case e_path:
         {
-            bytecode_path_get(code, information, constants, *((path*)exp));
+            bytecode_path_get(translation, *((path*)exp));
             break;
         }
         default:
@@ -305,26 +285,63 @@ void ast_to_bytecode_recursive(expression* exp, stream* code, stream* informatio
             ERROR(WRONG_ARGUMENT_TYPE, "Uncatched expression instruction type: %i\n", exp->type);
         }
     }
+    #undef DUPLICATE_INFO
+    #undef PUSH_INFO
+}
+
+void bytecode_translation_init(bytecode_translation* translation){
+    init_stream(&translation->constants, CONSTANTS_SIZE);
+    init_stream(&translation->code, CODE_SIZE);
+    init_stream(&translation->information, CODE_SIZE);
+    init_stream(&translation->sub_programs, SUB_PROGRAMS_SIZE);
+}
+
+bytecode_program translation_to_bytecode(bytecode_translation* translation){
+    bytecode_program prog;
+    stream_truncate(&translation->code);
+    stream_truncate(&translation->information);
+    stream_truncate(&translation->constants);
+    stream_truncate(&translation->sub_programs);
+    prog.code=translation->code.data;
+    prog.constants=translation->constants.data;
+    prog.information=translation->information.data;
+    prog.sub_programs=translation->sub_programs.data;
+    prog.sub_programs_count=translation->sub_programs.position/sizeof(bytecode_program);
+    return prog;
+}
+
+bytecode_program closure_to_bytecode(function_declaration* d){
+    bytecode_translation translation;
+    bytecode_translation_init(&translation);
+
+    instruction_information info=information_from_ast((expression*)d);
+    #define PUSH_INFO stream_push(&translation.information, &info, sizeof(info));
+
+    int arguments_count=vector_total(d->arguments);
+    for (int i = 0; i < arguments_count; i++){
+        PUSH_INFO
+        PUSH_INFO
+        PUSH_INFO
+        push_string_load(&translation, ((name*)vector_get(d->arguments, arguments_count-1-i))->value);
+        push_instruction(&translation.code, b_set, 0);
+        push_instruction(&translation.code, b_discard, 0);
+    }
+
+    ast_to_bytecode_recursive(d->body, &translation, true);
+    instruction instr={b_end, 0};
+    stream_push(&translation.code, &instr, sizeof(instruction));
+
+    return translation_to_bytecode(&translation);
+    #undef PUSH_INFO
 }
 
 bytecode_program ast_to_bytecode(expression* exp, int keep_scope){
-    stream constants;
-    stream code;
-    stream information;
-    init_stream(&constants, CONSTANTS_SIZE);
-    init_stream(&code, CODE_SIZE);
-    init_stream(&information, CODE_SIZE);
+    bytecode_translation translation;
+    bytecode_translation_init(&translation);
 
-    ast_to_bytecode_recursive(exp, &code, &information, &constants, keep_scope);
+    ast_to_bytecode_recursive(exp, &translation, keep_scope);
     instruction instr={b_end, 0};
-    stream_push(&code, &instr, sizeof(instruction));
+    stream_push(&translation.code, &instr, sizeof(instruction));
 
-    bytecode_program prog;
-    stream_truncate(&code);
-    stream_truncate(&information);
-    stream_truncate(&constants);
-    prog.code=code.data;
-    prog.constants=constants.data;
-    prog.information=information.data;
-    return prog;
+    return translation_to_bytecode(&translation);
 }

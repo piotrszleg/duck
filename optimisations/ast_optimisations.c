@@ -61,7 +61,7 @@ object evaluate_expression(expression* exp){
     object scope;
     table_init(&scope);
     object execution_result=execute_ast(&state, exp, scope, 0);
-    object_deinit(&scope);
+    dereference(&scope);
     return execution_result;
 }
 
@@ -99,7 +99,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
                 request.replacement=copy_expression(c->ontrue);
             }
             LOG_CHANGE("constant conditional", exp, request.replacement);
-            object_deinit(&evaluated);
+            dereference(&evaluated);
             return request;
         }
     }
@@ -109,7 +109,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
         object evaluated=evaluate_expression(exp);
         request.replacement=to_literal(evaluated);
         //replace current expression with the literal
-        object_deinit(&evaluated);
+        dereference(&evaluated);
         LOG_CHANGE("constants folding", exp, request.replacement);
         return request;
     }

@@ -20,7 +20,6 @@ object call(object o, object* arguments, int arguments_count);
 // so this function should be implemented in higher level module
 object call_function(function* f, object* arguments, int arguments_count);
 
-
 object get_table(table* t, const char* key);
 object get(object o, const char* key);
 void set_table(table* t, const char* key, object value);

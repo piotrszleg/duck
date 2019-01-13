@@ -47,27 +47,31 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
 }
 
 char* stringify_bytecode(const bytecode_program* prog){
-    int pointer=0;
-    int string_end=0;
-    int result_size=64;
-    char* result=calloc(64, sizeof(char));
-    CHECK_ALLOCATION(result);
+    stream s;
+    init_stream(&s, 64);
 
+    int pointer=0;
     while(prog->code[pointer].type!=b_end){
         char stringified_instruction[64];
         stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], pointer, 64);
         int stringified_length=strlen(stringified_instruction);
 
-        if(result_size-string_end<=stringified_length){
-            result_size*=2;
-            result=realloc(result, result_size);
-        }
-        strncat(result, stringified_instruction, result_size);
-        string_end+=strlen(stringified_instruction);
+        stream_push(&s, stringified_instruction, stringified_length*sizeof(char));
         pointer++;
     }
-    result[string_end]='\0';
-    return result; 
+    
+    if(prog->sub_programs_count>0){
+
+        for(int i=0; i<prog->sub_programs_count; i++){
+            char buf[32];// assuming that the number of subprograms has less than 16 digits
+            snprintf(buf, 32, "SUBPROGRAM[%i]\n", i);
+            char* sub_program_stringified=stringify_bytecode(prog->sub_programs+i);
+            stream_push(&s, buf, strlen(buf)*sizeof(char));
+            stream_push(&s, sub_program_stringified, strlen(sub_program_stringified)*sizeof(char));
+        }
+    }
+    stream_push(&s, "\0", sizeof(char));
+    return s.data;
 }
 
 #define X(t, result) case t: return result;

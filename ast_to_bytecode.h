@@ -11,4 +11,12 @@
 bytecode_program ast_to_bytecode(expression* exp, int keep_scope);
 void optimise_bytecode(bytecode_program* prog);
 
+typedef struct bytecode_translation bytecode_translation;
+struct bytecode_translation {
+    stream code;
+    stream information;
+    stream constants;
+    stream sub_programs;
+} ;
+
 #endif

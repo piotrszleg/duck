@@ -14,7 +14,8 @@ struct stack {
 };
 
 void stack_init(stack* s, size_t item_size, int size);
-void stack_push(stack* stack, const void* o);
-void* stack_pop(stack* stack);
+void stack_push(stack* s, const void* o);
+void* stack_pop(stack* s);
+void* stack_top(stack* s);
 
 #endif

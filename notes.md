@@ -24,6 +24,8 @@ struct bytecode_environment {
 };
 
 # TOFIX:
+- correct argument value in b_function
+- calling bytecode functions
 - wrong arguments order after bytecode optimisations
 - fix functions calling in ast
 - valgrind

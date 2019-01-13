@@ -25,7 +25,7 @@ void repl(int use_bytecode){
             state.returning=false;
             object execution_result=execute_ast(&state, parsing_result, global_scope, 1);
             printf("%s\n", stringify(execution_result));
-            object_deinit(&execution_result);
+            dereference(&execution_result);
             vector_add(&asts, parsing_result);
         ,
             printf("%s\n", err_message);
@@ -36,5 +36,5 @@ void repl(int use_bytecode){
     for (int i = 0; i < vector_total(&asts); i++){
         delete_expression(vector_get(&asts, i));
     }
-    object_deinit(&global_scope);
+    dereference(&global_scope);
 }

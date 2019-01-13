@@ -54,7 +54,7 @@ object builtin_native_stringify(object* arguments, int arguments_count){
 
 object builtin_native_call(object* arguments, int arguments_count){
     object self=arguments[0];
-    // call function omitting the first argument, because it was function object itself
+    // call function omitting the first argument, because it was function object
     return call(self, arguments+1, arguments_count-1);
 }
 
@@ -78,7 +78,7 @@ void register_builtins(object scope){
         object f##_function; \
         function_init(&f##_function); \
         f##_function.fp->arguments_count=args_count; \
-        f##_function.fp->pointer=&builtin_##f; \
+        f##_function.fp->native_pointer=&builtin_##f; \
         set(scope, #f, f##_function);
     
     REGISTER_FUNCTION(print, 1);
@@ -120,14 +120,14 @@ object scope_get_override(object* arguments, int arguments_count){
 void inherit_scope(object scope, object base){
     object f;
     function_init(&f);
-    f.fp->pointer=&scope_get_override;
+    f.fp->native_pointer=&scope_get_override;
     f.fp->arguments_count=2;
     object base_global=get(base, "global");
     if(base_global.type!=t_null){
         set(scope, "global", base_global);
     } else {
         set(scope, "global", base);
-        object_deinit(&base_global);// base_global is null so it can be safely deleted
+        dereference(&base_global);// base_global is null so it can be safely deleted
     }
     set(scope, "get", f);
     set(scope, "scope", scope);

@@ -424,7 +424,7 @@ object get(object o, const char* key){
             object arguments[]={o, key_string};
 
             object result=call_function(map_get_override->fp, arguments, 2);
-            object_deinit(&key_string);
+            dereference(&key_string);
             return result;
         } else {
             // simply get key from table's map
@@ -461,7 +461,7 @@ void set(object o, const char* key, object value){
 
             object arguments[]={o, key_string, value};
             call(set_override, arguments, 3);
-            object_deinit(&key_string);
+            dereference(&key_string);
         } else {
             set_table(o.tp, key, value);
         }

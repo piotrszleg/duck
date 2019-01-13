@@ -41,11 +41,11 @@ object pipe_call(object* arguments, int arguments_count){
     return previous_result;
 }
 
-void set_function(object t, const char* name, int arguments_count, function_pointer f){
+void set_function(object t, const char* name, int arguments_count, object_system_function f){
     object function_object;
     function_init(&function_object);
     function_object.fp->arguments_count=arguments_count;
-    function_object.fp->pointer=f;
+    function_object.fp->native_pointer=f;
     set(t, name, function_object);
 }
 

@@ -42,8 +42,9 @@ void reference(object* o){
     }
 }
 
+#define ALREADY_DESTROYED INT_MIN
 object call_destroy(object o);
-void object_deinit(object* o){
+void dereference(object* o){
     CHECK_OBJECT(o);
 
     switch(o->type){
@@ -54,9 +55,9 @@ void object_deinit(object* o){
         }
         case t_function:
         {
-            if(o->fp->ref_count<=0){
-                call_destroy(*o);
-                object_deinit(&o->fp->enclosing_scope);
+            if(o->fp->ref_count<=1 && o->tp->ref_count!=ALREADY_DESTROYED){
+                o->fp->ref_count=ALREADY_DESTROYED;// make sure that there won't be a cycle of scope dereferencing function
+                dereference(&o->fp->enclosing_scope);
                 if(o->fp->argument_names.items!=NULL){
                     vector_free(&o->fp->argument_names);
                 }
@@ -67,13 +68,14 @@ void object_deinit(object* o){
         }
         case t_table: 
         {
-            if(o->tp->ref_count<=0){
+            if(o->tp->ref_count<=1 && o->tp->ref_count!=ALREADY_DESTROYED){
+                call_destroy(*o);
+                o->tp->ref_count=ALREADY_DESTROYED;
                 const char *key;
                 map_iter_t iter = map_iter(&o->tp->fields);
                 while ((key = map_next(&o->tp->fields, &iter))) {
                     object value=(*map_get(&o->tp->fields, key));
-                    dereference(o);// dereference contained object, so it can be garbage collected
-                    object_deinit(&value);
+                    dereference(&value);// dereference contained object, so it can be garbage collected
                 }
                 map_deinit(&o->tp->fields);
             } else {
@@ -84,8 +86,4 @@ void object_deinit(object* o){
         default:;
     }
 }
-
-void object_delete(object* o){
-    object_deinit(o);
-    free(o);
-}
+#undef ALREADY_DESTROYED

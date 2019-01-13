@@ -5,7 +5,7 @@ void set_string_field(object t, const char* field_name, char* string){
     string_init(&string_object);
     string_object.text=string;
     set(t, field_name, string_object);
-    object_deinit(&string_object);
+    dereference(&string_object);
 }
 
 void set_number_field(object t, const char* field_name, int value){
@@ -13,7 +13,7 @@ void set_number_field(object t, const char* field_name, int value){
     number_init(&number_object);
     number_object.value=value;
     set(t, field_name, number_object);
-    object_deinit(&number_object);
+    dereference(&number_object);
 }
 
 char* get_and_stringify(object t, const char* key){
@@ -29,7 +29,7 @@ object stringify_multiple_causes(object* arguments, int arguments_count){
     object count_object=get(self, "count");
     //assert(count_object.type==t_number);
     int count=count_object.value;
-    object_deinit(&count_object);
+    dereference(&count_object);
 
     for(int i=0; i<count; i++){
         char stringified_key[64];
@@ -68,7 +68,7 @@ object multiple_causes(object* causes, int causes_count){
     object stringify_f;
     function_init(&stringify_f);
     stringify_f.fp->arguments_count=1;
-    stringify_f.fp->pointer=stringify_multiple_causes;
+    stringify_f.fp->native_pointer=stringify_multiple_causes;
     set(result, "stringify", stringify_f);
 
     return result;
@@ -101,7 +101,7 @@ object destroy_error(object* arguments, int arguments_count){
     }
 }
 
-void set_function(object t, const char* name, int arguments_count, function_pointer f);
+void set_function(object t, const char* name, int arguments_count, object_system_function f);
 
 object new_error(char* type, object cause, char* message, char* location){
     object err;

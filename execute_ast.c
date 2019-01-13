@@ -97,7 +97,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
                     sprintf(buf,"%d",i);
                     set(table_scope, buf, line_result);
                 }
-                object_deinit(&line_result);
+                dereference(&line_result);
             }
             return table_scope;
         }
@@ -119,11 +119,11 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
                     result=line_result;
                     break;
                 } else {
-                    object_deinit(&line_result);
+                    dereference(&line_result);
                 }
             }
             if(!keep_scope){
-                object_deinit(&block_scope);
+                dereference(&block_scope);
             }
             return result;
         }
@@ -144,8 +144,8 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             object left=execute_ast(state, u->left, scope, 0);
             object right=execute_ast(state, u->right, scope, 0);
             object result=operator(left, right, u->op);
-            object_deinit(&left);
-            object_deinit(&right);
+            dereference(&left);
+            dereference(&right);
             return result;
         }
         case e_prefix:
@@ -154,7 +154,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             object left=execute_ast(state, p->right, scope, 0);
             object right=null_const;
             object result=operator(left, right, p->op);
-            object_deinit(&left);
+            dereference(&left);
             return result;
         }
         case e_conditional:
@@ -176,7 +176,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
                 vector_add(&f.fp->argument_names, strdup(((name*)vector_get(d->arguments, i))->value));
             }
             f.fp->ftype=f_ast;
-            f.fp->ast_pointer=(void*)d->body;
+            f.fp->source_pointer=(void*)d->body;
             f.fp->enviroment=(void*)state;
             f.fp->enclosing_scope=scope;
             reference(&scope);

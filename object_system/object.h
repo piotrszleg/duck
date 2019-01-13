@@ -2,11 +2,12 @@
 #define OBJECT_H
 #include <stdlib.h>
 #include <math.h>
-#include "map.h"
+#include <ctype.h>
+#include <limits.h>
 #include "../error/error.h"
 #include "..\macros.h"
-#include <ctype.h>
 #include "../datatypes/vector.h"
+#include "map.h"
 
 typedef enum object_type object_type;
 enum object_type{
@@ -77,7 +78,7 @@ struct table {
     object_map_t fields;
 };
 
-typedef object (*function_pointer)(object* arguments, int arguments_count);
+typedef object (*object_system_function)(object* arguments, int arguments_count);
 typedef enum function_type function_type;
 enum function_type {
     f_native,
@@ -89,10 +90,8 @@ struct function {
     int ref_count;
     function_type ftype;
     union {
-        function_pointer pointer;
-        // void* should be expression* but I don't want to create cross dependency here
-        void* ast_pointer;
-        int label;
+        object_system_function native_pointer;
+        void* source_pointer;
     };
     void* enviroment;
     vector argument_names;
@@ -107,7 +106,7 @@ void delete_unreferenced(object* checked);
 
 void object_init(object* o, object_type type);
 
-void object_deinit(object* o);
+void dereference(object* o);
 void object_delete(object* o);
 
 char* stringify_object(object o);

@@ -15,5 +15,11 @@ void stack_push(stack* s, const void* value){
 void* stack_pop(stack* s){
     s->top--;
     char* item_position=((char*)s->items) + s->top*s->item_size/sizeof(char);
+    // TODO: add free here
+    return (void*)item_position;
+}
+
+void* stack_top(stack* s){
+    char* item_position=((char*)s->items) + (s->top-1)*s->item_size/sizeof(char);
     return (void*)item_position;
 }

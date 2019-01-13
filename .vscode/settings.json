@@ -29,6 +29,8 @@
         "ast_visitor.h": "c",
         "ast_optimisations.h": "c",
         "bytecode_optimisations.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "ctype.h": "c",
+        "limits.h": "c"
     }
 }

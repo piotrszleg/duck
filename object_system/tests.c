@@ -30,13 +30,13 @@ void test_error_catching(){
 
     TRY_CATCH(
         compare(num, fun);// comparing number to function should cause an error
-        object_deinit(&num);
-        object_deinit(&fun);
+        dereference(&num);
+        dereference(&fun);
     ,
         // TODO fix error type
         assert(err_type==WRONG_ARGUMENT_TYPE);
-        object_deinit(&num);
-        object_deinit(&fun);
+        dereference(&num);
+        dereference(&fun);
         printf("test successful\n");
         return;
     )
@@ -54,8 +54,8 @@ void adding_numbers(){// tests whether 1+2=3
     num2.value=2;
     assert_stringification(operator(num1, num2, "+"), "3");
 
-    object_deinit(&num1);
-    object_deinit(&num2);
+    dereference(&num1);
+    dereference(&num2);
     printf("test successful\n");
 }
 
@@ -70,8 +70,8 @@ void adding_strings(){// tests whether "Hello "+"Cruel World"="Hello Cruel World
     str2.text="Cruel World";
     assert_stringification((operator(str1, str2, "+")), "Hello Cruel World");
 
-    object_deinit(&str1);
-    object_deinit(&str2);
+    dereference(&str1);
+    dereference(&str2);
     printf("test successful\n");
 }
 
@@ -81,7 +81,7 @@ object add_three(object* arguments, int arguments_count){
     number_init(&three);
     three.value=3;
     object result= operator(arguments[0], three, "+");
-    object_deinit(&three);
+    dereference(&three);
     return result;
 }
 
@@ -102,8 +102,8 @@ void function_call(){// tests whether f(5)==8 where f(x)=x+3
 
     assert_stringification(call(f, arguments, 1), "8");
 
-    object_deinit(&f);
-    object_deinit(&five);
+    dereference(&f);
+    dereference(&five);
     printf("test successful\n");
 }
 
@@ -127,7 +127,7 @@ void table_indexing(){// t["name"]="John" => t["name"]=="John"
 
     assert_stringification((get(t, "name")), "2");// test if setting succeeded
 
-    object_deinit(&t);// deleting t will also delete n
+    dereference(&t);// deleting t will also delete n
     printf("test successful\n");
 }
 
@@ -143,8 +143,8 @@ void adding_number_string(){// tests whether "count: "+5="count: 5"
     num.value=5;
     assert_stringification(operator(str, num, "+"), "count: 5");
 
-    object_deinit(&num);
-    object_deinit(&str);
+    dereference(&num);
+    dereference(&str);
     printf("test successful\n");
 }
 

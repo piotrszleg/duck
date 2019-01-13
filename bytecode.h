@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "macros.h"
+#include "datatypes/stream.h"
 
 typedef enum instruction_type instruction_type;
 enum instruction_type {
@@ -17,7 +18,7 @@ enum instruction_type {
     b_load_number,// argument: bits of float value
     b_table_literal,
     b_null,
-    b_function,// argument: beginning_label, stack: [arguments_count]
+    b_function,// argument: sub_function_index, stack: [arguments_count]
     b_return,
     b_get_scope,
     b_set_scope,
@@ -50,6 +51,8 @@ struct bytecode_program {
     instruction* code;
     instruction_information* information;
     char* constants;
+    bytecode_program* sub_programs;
+    int sub_programs_count;
 };
 
 char* stringify_bytecode(const bytecode_program* program);
