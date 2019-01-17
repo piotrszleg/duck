@@ -526,10 +526,15 @@ char* remove_last_character(const char* source){
 	return result;
 }
 
+void reset_lexer(){
+	YY_FLUSH_BUFFER;
+	BEGIN(0);
+}
+
 #define COUNT_COLUMNS column_number+=strlen(yytext)
 
 
-#line 533 "lex.yy.c"
+#line 538 "lex.yy.c"
 
 #define INITIAL 0
 #define COMMENT 1
@@ -717,9 +722,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 35 "lexer.l"
+#line 40 "lexer.l"
 
-#line 723 "lex.yy.c"
+#line 728 "lex.yy.c"
 
 	if ( !(yy_init) )
 		{
@@ -804,112 +809,112 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 36 "lexer.l"
+#line 41 "lexer.l"
 { COUNT_COLUMNS; }
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 37 "lexer.l"
+#line 42 "lexer.l"
 { line_number++; column_number=0; return ENDL; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 38 "lexer.l"
+#line 43 "lexer.l"
 ;// comment
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 39 "lexer.l"
+#line 44 "lexer.l"
 { COUNT_COLUMNS; return IF; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 40 "lexer.l"
+#line 45 "lexer.l"
 { COUNT_COLUMNS; return ELIF; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 41 "lexer.l"
+#line 46 "lexer.l"
 { COUNT_COLUMNS; return ELSE; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 42 "lexer.l"
+#line 47 "lexer.l"
 { COUNT_COLUMNS; return NULL_LITERAL; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 43 "lexer.l"
+#line 48 "lexer.l"
 { COUNT_COLUMNS; yylval.fval = atof(yytext); return FLOAT; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 44 "lexer.l"
+#line 49 "lexer.l"
 { COUNT_COLUMNS; yylval.ival = atoi(yytext); return INT; }
 	YY_BREAK
 case 10:
 /* rule 10 can match eol */
 YY_RULE_SETUP
-#line 45 "lexer.l"
+#line 50 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = unquote(yytext); return STRING; }// double quote string literal god bless stack overflow
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 46 "lexer.l"
+#line 51 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext+1); return STRING; }// single quote string
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 47 "lexer.l"
+#line 52 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return NAME; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 48 "lexer.l"
+#line 53 "lexer.l"
 { COUNT_COLUMNS; return ELLIPSIS; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 49 "lexer.l"
+#line 54 "lexer.l"
 { COUNT_COLUMNS; return ARROW; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 50 "lexer.l"
+#line 55 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 51 "lexer.l"
+#line 56 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 52 "lexer.l"
+#line 57 "lexer.l"
 { COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, - must be separated from other unary operators because it is also a prefix
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 53 "lexer.l"
+#line 58 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 54 "lexer.l"
+#line 59 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = remove_last_character(yytext); return ASSIGN_UNARY_OPERATOR; }// +=, -= etc
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 55 "lexer.l"
+#line 60 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = unquote(yytext); return UNARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 56 "lexer.l"
+#line 61 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 913 "lex.yy.c"
+#line 918 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMENT):
 	yyterminate();
@@ -1908,6 +1913,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 56 "lexer.l"
+#line 61 "lexer.l"
 
 

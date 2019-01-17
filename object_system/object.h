@@ -5,7 +5,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include "../error/error.h"
-#include "..\macros.h"
+#include "../macros.h"
 #include "../datatypes/vector.h"
 #include "map.h"
 
@@ -94,22 +94,20 @@ struct function {
         void* source_pointer;
     };
     void* enviroment;
-    vector argument_names;
+    char** argument_names;
     int arguments_count;
     object enclosing_scope;
 };
 
 void reference(object* o);
-
-void dereference(object* o);
-void delete_unreferenced(object* checked);
-
 void object_init(object* o, object_type type);
-
 void dereference(object* o);
-void object_delete(object* o);
 
 char* stringify_object(object o);
 char* stringify(object o);
+
+// these functions should be implemented in higher level module
+object call_function(function* f, object* arguments, int arguments_count);
+void free_function(function* f);
 
 #endif

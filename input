@@ -1,2 +1,2 @@
-f=include("data.duck")
+f=eval("x->x*2")
 f(10)

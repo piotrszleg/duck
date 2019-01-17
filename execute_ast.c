@@ -1,8 +1,5 @@
 #include "execute_ast.h"
 
-// creates string variable str, executes body and frees the string afterwards
-#define USING_STRING(string_expression, body) { char* str=string_expression; body; free(str); }
-
 void copy_table(table* source, table* destination){
     const char *key;
     map_iter_t iter = map_iter(&source->fields);
@@ -114,8 +111,8 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             object result;
             for (int i = 0; i < vector_total(&b->lines); i++){
                 object line_result=execute_ast(state, vector_get(&b->lines, i), block_scope, 0);
+                reference(&line_result);
                 if(state->returning || i == vector_total(&b->lines)-1){
-                    reference(&line_result);
                     result=line_result;
                     break;
                 } else {
@@ -169,14 +166,18 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
         case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
+            int arguments_count=vector_total(d->arguments);
+
             object f;
             function_init(&f);
-            vector_init(&f.fp->argument_names);
-            for (int i = 0; i < vector_total(d->arguments); i++){
-                vector_add(&f.fp->argument_names, strdup(((name*)vector_get(d->arguments, i))->value));
+            f.fp->argument_names=malloc(sizeof(char*)*arguments_count);
+            f.fp->arguments_count=arguments_count;
+
+            for (int i = 0; i < arguments_count; i++){
+                f.fp->argument_names[i]=strdup(((name*)vector_get(d->arguments, i))->value);
             }
             f.fp->ftype=f_ast;
-            f.fp->source_pointer=(void*)d->body;
+            f.fp->source_pointer=(void*)copy_expression(d->body);
             f.fp->enviroment=(void*)state;
             f.fp->enclosing_scope=scope;
             reference(&scope);

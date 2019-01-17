@@ -27,6 +27,11 @@ char* remove_last_character(const char* source){
 	return result;
 }
 
+void reset_lexer(){
+	YY_FLUSH_BUFFER;
+	BEGIN(0);
+}
+
 #define COUNT_COLUMNS column_number+=strlen(yytext)
 
 %}

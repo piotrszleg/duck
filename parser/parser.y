@@ -8,6 +8,7 @@ extern FILE *yyin;
 extern int line_number;
 extern int column_number;
 const char* file_name;
+bool is_repl;
 
 expression* parsing_result;
  
@@ -77,6 +78,11 @@ program:
 	;
 lines_separator:
 	ENDLS | ',';
+lines_separators:
+	lines_separator
+	| lines_separators lines_separator;
+optional_lines_separators:
+	lines_separators | ;
 lines_with_return:
 	lines '!' {
 		vector* lines=&((block*)$1)->lines;
@@ -89,16 +95,12 @@ lines_with_return:
 	}
 	;
 lines:
-	lines lines_separator expression {
+	lines lines_separators expression {
 		vector_add(&((block*)$1)->lines, $3);
 		$$=$1;
 	}
-	| lines_with_return lines_separator expression {
+	| lines_with_return optional_lines_separators expression {
 		vector_add(&((block*)$1)->lines, $3);
-		$$=$1;
-	}
-	| lines_with_return expression {
-		vector_add(&((block*)$1)->lines, $2);
 		$$=$1;
 	}
 	| expression {
@@ -146,7 +148,7 @@ path:
 	}
 	;
 expression:
-	| '(' expression ')' {$$=$2;}
+	| '(' expression ')' { $$=$2;}
 	| literal
 	| block
 	| table
@@ -398,11 +400,14 @@ typedef struct yy_buffer_state * YY_BUFFER_STATE;
 extern int yyparse();
 extern YY_BUFFER_STATE yy_scan_string(const char * str);
 extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
+extern void reset_lexer(void);
 
-void parse_string(const char* s) {
+expression* parse_string(const char* s) {
 	line_number=1;
 	column_number=0;
-	file_name="unknown";
+	file_name="repl";
+
+	reset_lexer();
 
 	// Set Flex to read from it instead of defaulting to STDIN:
 	YY_BUFFER_STATE buffer = yy_scan_string(s);
@@ -410,27 +415,65 @@ void parse_string(const char* s) {
 	// Parse through the input:
 	yyparse();
 	yy_delete_buffer(buffer);
+	return parsing_result;
 }
 
-void parse_file(const char* file_name) {
+expression* parse_file(const char* file) {
 	line_number=1;
 	column_number=0;
-	file_name=file_name;
+	file_name=file;
+
+	reset_lexer();
 
 	// Open a file handle to a particular file:
-	FILE *myfile = fopen(file_name, "r");
+	FILE *myfile = fopen(file, "r");
 	if (!myfile) {
 		printf("I can't open the file!\n");
-		return;
+		return NULL;
 	}
 	// Set Flex to read from it instead of defaulting to STDIN:
 	yyin = myfile;
 	
 	// Parse through the input:
 	yyparse();
+	return parsing_result;
+}
+
+char* get_line(const char* file, int line){
+	size_t size = 32;
+    char *buf = malloc(size+1);
+
+    FILE* f = fopen(file, "r");
+    if (f == NULL) {
+        return strdup("");
+    }
+
+	int l=1;
+    while ((getline(&buf, &size, f)) != -1) {
+		if(l==line){
+			fclose(f);
+			return buf;
+		}
+        line++;
+    }
+	return strdup("");
+}
+
+void print_arrow(int length){
+	printf("%.*s^\n", length, "----------------------------------------------------------------------");
 }
 
 void yyerror(const char *message) {
+	bool is_repl=strcmp(file_name, "repl")==0;
+	if(is_repl){
+		print_arrow(column_number-1);
+	}
 	printf("ParsingError: %s\nat(%s:%i:%i)\n", message, file_name, line_number, column_number);
-	exit(-1);
+	if(!is_repl){
+		char * line=get_line(file_name, line_number);
+		printf("%s\n", line);
+		print_arrow(column_number-1);
+		free(line);
+	}
+	parsing_result=NULL;
 }

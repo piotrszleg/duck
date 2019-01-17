@@ -25,13 +25,7 @@ object pipe_call(object* arguments, int arguments_count){
         for(int i=0; i<count.value; i++){
             char buffer[100];
             snprintf(buffer, 100, "%i", i);
-            object* subfunction_arguments;
-            int subfunction_arguments_count;
-            if(i==0){
-                subfunction_arguments=arguments+1;
-                subfunction_arguments_count=arguments_count-1;
-                
-            } else {
+            if(i>0) {
                 subfunction_arguments=&previous_result;
                 subfunction_arguments_count=1;
             }

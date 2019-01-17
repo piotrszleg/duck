@@ -346,7 +346,7 @@ char* stringify_object(object o){
         case t_function:
         {
             function* f=o.fp;
-            if(f->argument_names.items!=NULL){
+            if(f->argument_names!=NULL){
                 char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
                 CHECK_ALLOCATION(buffer);
                 buffer[0]='\0';
@@ -364,8 +364,8 @@ char* stringify_object(object o){
                 
                 BUFFER_WRITE("function(", 9);
                 int first=1;
-                for (int i = 0; i < vector_total(&f->argument_names); i++){
-                    char* argument_name=vector_get(&f->argument_names, i);
+                for (int i = 0; i < f->arguments_count; i++){
+                    char* argument_name=f->argument_names[i];
                     int character_count=strlen(argument_name);
 
                     if(first){
@@ -494,7 +494,7 @@ object call(object o, object* arguments, int arguments_count) {
     }
 }
 
-object call_destroy(object o){
+void call_destroy(object o){
     object destroy_override=find_function(o, "destroy");
     if(destroy_override.type!=t_null){
         call(destroy_override, &o, 1);

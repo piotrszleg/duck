@@ -131,3 +131,8 @@ if debug {
 
 if(debug) print(id+name) endif
 else print(name)
+
+options=[ast=1, ast_optimisations=0]
+#[ast=1, ast_optimisations=0]
+#recursion_depth 100
+#recursion_depth=100

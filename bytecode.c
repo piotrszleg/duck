@@ -13,6 +13,8 @@ char* INSTRUCTION_NAMES[]={
     "return",
     "get_scope",
     "set_scope",
+    "new_scope",
+    "discard_scope",
     "label",
     "jump",
     "jump_not",
@@ -33,6 +35,8 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
         case b_return:
         case b_unary:
         case b_prefix:
+        case b_discard_scope:
+        case b_new_scope:
             snprintf(destination, buffer_count, "%i: %s\n", index, INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
             break;
         case b_load_number:
@@ -74,6 +78,12 @@ char* stringify_bytecode(const bytecode_program* prog){
     return s.data;
 }
 
+void bytecode_program_deinit(bytecode_program* prog) {
+    free(prog->code);
+    free(prog->information);
+    free(prog->constants);
+}
+
 #define X(t, result) case t: return result;
 int gets_from_stack(instruction instr){
     switch(instr.type){
@@ -113,6 +123,8 @@ bool changes_flow(instruction_type instr){
 bool changes_scope(instruction_type instr){
     return false
     X(b_return)
+    X(b_new_scope)
+    X(b_discard_scope)
     X(b_get_scope)
     X(b_set_scope);
 }

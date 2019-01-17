@@ -23,7 +23,9 @@ char* stringify_expression(expression* exp, int indentation){
         return strdup("NULL");
     }
 
-    char* result=calloc(STRINGIFY_BUFFER_SIZE+1, sizeof(char));
+    char* result=malloc(sizeof(char)*(STRINGIFY_BUFFER_SIZE+1));
+    CHECK_ALLOCATION(result);
+    result[0]='\0';
 
     char* indentation_string=malloc(sizeof(char)*(indentation+1));
     CHECK_ALLOCATION(indentation_string);
@@ -358,6 +360,7 @@ expression* copy_expression(expression* exp){
             for (int i = 0; i < vector_total(&b->lines); i++){
                 vector_add(&copy->lines, copy_expression(vector_get(&b->lines, i)));
             }
+            copy->type=exp->type;
             return (expression*)copy;
         }
         case e_function_declaration:

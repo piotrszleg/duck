@@ -87,17 +87,20 @@ void optimise_bytecode(bytecode_program* prog){
     LOG_CHANGE("Unoptimised bytecode:\n%s\n");
     for(int pointer=count_instructions(prog->code); pointer>=0; pointer--){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard){
-            if(LOG_BYTECODE_OPTIMISATIONS)
+            if(LOG_BYTECODE_OPTIMISATIONS){
                 printf("I found a set instruction: %i\n", pointer);
+            }
             bool first_get_removal=true;
             bool used=false;
             for(int search_pointer=pointer+2; prog->code[search_pointer].type!=b_end; search_pointer++){
-                if(changes_scope(prog->code[search_pointer].type)){
-                    // we optimised all gets in this scope so the varaible isn't needed anymore
+                if(changes_flow(prog->code[search_pointer].type) || prog->code[search_pointer].type==b_get_scope){
+                    // if flow changes we can't say if the variable is used later
+                    // also if the scope ends with b_get_scope the scope is used as an table object later
+                    used=true;
                     break;
                 }
-                if(changes_flow(prog->code[search_pointer].type)){
-                    used=true;
+                if(changes_scope(prog->code[search_pointer].type)){
+                    // we optimised all gets in this scope so the varaible isn't needed anymore
                     break;
                 }
                 if(prog->code[search_pointer].type==b_get && paths_equal(prog->code, pointer-1, search_pointer-1)){

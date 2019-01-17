@@ -87,7 +87,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
             }
         }
     }
-    // implement copying expressions first
+    // if conditional condition is constant replace it with corresponding branch
     else if(exp->type==e_conditional){
         conditional* c=(conditional*)exp;
         if(is_constant(c->condition)){

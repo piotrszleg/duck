@@ -2,6 +2,8 @@
 #include "repl.h"
 #include "execution.h"
 
+void repl(int use_bytecode);
+
 int main(int argc, char *argv[]){
     if(argc>3){
         printf("Too many arguments.");

@@ -200,6 +200,16 @@ object execute_bytecode(bytecode_environment* environment){
                 }
                 break;
             }
+            case b_discard_scope:
+                ERROR(NOT_IMPLEMENTED, "With current scope handling discard scope doesn't work.");
+            case b_new_scope:
+            {
+                object t;
+                table_init(&t);
+                dereference(&environment->scope);
+                environment->scope=t;
+                break;
+            }
             case b_unary:
             {
                 object op=pop(object_stack);
@@ -300,7 +310,9 @@ object execute_bytecode(bytecode_environment* environment){
                 } else {
                     return_point* rp=stack_pop(return_stack);
                     if(rp->terminate){
-                        return pop(object_stack);
+                        object last=pop(object_stack);
+                        reference(&last);
+                        return last;
                     } else {
                         environment->program=rp->program;
                         environment->pointer=rp->pointer;

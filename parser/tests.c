@@ -5,8 +5,10 @@
 extern expression* parsing_result;
 
 block* parse_block(char* code, int expected_lines_count){
-    parse_string(code);
-    printf(stringify_expression(parsing_result, 0));
+    expression* parsing_result=parse_string(code);
+    assert(parsing_result!=NULL);
+    //printf("%s", stringify_expression(parsing_result, 0));
+    
     assert(parsing_result->type==e_block);
     block* as_block=(block*)parsing_result;
     assert(vector_total(&as_block->lines)==expected_lines_count);
@@ -203,7 +205,7 @@ void conditionals(){
     "if(1) 1 else 2\n"
     "if(1) 1 elif(2) 2 else 3\n"
     "if(1){ 1 }elif(2){ 2 }else{ 3 }\n"
-    "if(1){ 1 }elif(2){ 2 }elif(3){ 3 }else{ 4 }\n"
+    "if(1){ 1 }elif(2){ 2 }elif(3){ 3 }else{ 4 }"
     , 5);
 
     for (int i = 0; i < vector_total(&as_block->lines); i++){

@@ -2,7 +2,7 @@
 #define OBJECT_OPERATIONS_H
 
 #include "object.h"
-#include "..\macros.h"
+#include "../macros.h"
 #include <stdbool.h>
 
 #define STRINGIFY_BUFFER_SIZE 200
@@ -15,10 +15,6 @@ object operator(object a, object b, const char* op);
 object cast(object o, object_type type);
 
 object call(object o, object* arguments, int arguments_count);
-
-// object_system doesn't know how to execute code other than native, 
-// so this function should be implemented in higher level module
-object call_function(function* f, object* arguments, int arguments_count);
 
 object get_table(table* t, const char* key);
 object get(object o, const char* key);

@@ -16,14 +16,16 @@ void push_instruction(stream* code, instruction_type type, long value){
 
 char* stream_search_string(stream* s, const char* str){
     char* casted=(char*)s->data;
-    int casted_size=s->size;
-    for(int i=0; i<casted_size; i++){
-        char* stream_part=casted+i;
+    if(s->size==0){
+        return NULL;// there is nothing inside of the stream
+    }
+    for(int i=0; i<s->size; i++){
+        char* stream_part=casted+i;// take part of the stream starting from i, we assume it's \0 terminated
         if(strcmp(stream_part, str)==0){
             return stream_part;
         }
     }
-    return NULL;
+    return NULL;// string wasn't found inside of the stream
 }
 
 void push_string_load(bytecode_translation* translation, const char* string_constant){
@@ -132,36 +134,39 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
         }
         case e_table_literal:
         {
-            block* b=(block*)exp;
-            
-            PUSH_INFO
-            DUPLICATE_INFO(2)
-            push_instruction(code, b_get_scope, 0);
-            push_instruction(code, b_table_literal, 0);
-            push_instruction(code, b_set_scope, 0);
+            table_literal* b=(table_literal*)exp;
+            int lines_count=vector_total(&b->lines);
+            if(lines_count>0){
+                PUSH_INFO
+                PUSH_INFO
+                push_instruction(code, b_get_scope, 0);
+                push_instruction(code, b_new_scope, 0);
 
-            int last_index=0;
-            for (int i = 0; i < vector_total(&b->lines); i++){
-                expression* line=vector_get(&b->lines, i);
-                ast_to_bytecode_recursive(line, translation, 1);
-                if(line->type!=e_assignment){
-                    // if the expression isn't assignment use last index as a key
-                    // arr=[5, 4] => arr[0=5, 1=4]
-                    PUSH_INFO
-                    PUSH_INFO
-                    push_number_load(code, (float)last_index++);
-                    push_instruction(code, b_set, 0);
+                int last_index=0;
+                for (int i = 0; i < lines_count; i++){
+                    expression* line=vector_get(&b->lines, i);
+                    ast_to_bytecode_recursive(line, translation, 1);
+                    if(line->type!=e_assignment){
+                        // if the expression isn't assignment use last index as a key
+                        // arr=[5, 4] => arr[0=5, 1=4]
+                        PUSH_INFO
+                        PUSH_INFO
+                        push_number_load(code, (float)last_index++);
+                        push_instruction(code, b_set, 0);
+                    }
+                    DUPLICATE_INFO(1)
+                    push_instruction(code, b_discard, 0);
                 }
-                DUPLICATE_INFO(1)
-                push_instruction(code, b_discard, 0);
+
+                PUSH_INFO
+                DUPLICATE_INFO(2)
+                push_instruction(code, b_get_scope, 0);
+                push_instruction(code, b_swap, 1);
+                push_instruction(code, b_set_scope, 0);
+            } else {
+                PUSH_INFO
+                push_instruction(code, b_table_literal, 0);
             }
-
-            PUSH_INFO
-            DUPLICATE_INFO(2)
-            push_instruction(code, b_get_scope, 0);
-            push_instruction(code, b_swap, 1);
-            push_instruction(code, b_set_scope, 0);
-
             break;
         }
         case e_block:

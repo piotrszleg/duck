@@ -17,7 +17,7 @@ bison: lex.yy.c parser.tab.c parser.tab.h
 
 # bison and lex
 parser.tab.c parser.tab.h: parser.y
-	bison -d parser.y
+	bison -d -t parser.y
 
 lex.yy.c: lexer.l parser.tab.h
 	flex lexer.l

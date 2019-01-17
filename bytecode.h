@@ -22,6 +22,8 @@ enum instruction_type {
     b_return,
     b_get_scope,
     b_set_scope,
+    b_new_scope,
+    b_discard_scope,
     b_label,
     b_jump,// argument: position
     b_jump_not,// argument: position
@@ -55,7 +57,8 @@ struct bytecode_program {
     int sub_programs_count;
 };
 
-char* stringify_bytecode(const bytecode_program* program);
+char* stringify_bytecode(const bytecode_program* prog);
+void bytecode_program_deinit(bytecode_program* prog);
 
 int gets_from_stack(instruction instr);
 bool pushes_to_stack(instruction_type instr);

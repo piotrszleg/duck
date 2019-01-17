@@ -16,7 +16,7 @@ OBJECT_INIT_NEW(number,)
 OBJECT_INIT_NEW(function,
     o->fp=malloc(sizeof(function));
     o->fp->ref_count=0;
-    o->fp->argument_names.items=NULL;
+    o->fp->argument_names=NULL;
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
     o->fp->enclosing_scope=null_const;
@@ -58,9 +58,12 @@ void dereference(object* o){
             if(o->fp->ref_count<=1 && o->tp->ref_count!=ALREADY_DESTROYED){
                 o->fp->ref_count=ALREADY_DESTROYED;// make sure that there won't be a cycle of scope dereferencing function
                 dereference(&o->fp->enclosing_scope);
-                if(o->fp->argument_names.items!=NULL){
-                    vector_free(&o->fp->argument_names);
+                if(o->fp->argument_names!=NULL){
+                    for(int i=0; i<o->fp->arguments_count; i++){
+                        free(o->fp->argument_names[i]);
+                    }
                 }
+                free_function(o->fp);
             } else {
                 o->fp->ref_count--;
             }

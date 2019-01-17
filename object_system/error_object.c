@@ -99,6 +99,7 @@ object destroy_error(object* arguments, int arguments_count){
         USING_STRING(stringify(self),
             printf("Unhandled error:\n%s", str));
     }
+    return null_const;
 }
 
 void set_function(object t, const char* name, int arguments_count, object_system_function f);

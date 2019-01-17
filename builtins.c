@@ -67,10 +67,15 @@ object builtin_test(object* arguments, int arguments_count){
 }
 
 object evaluate_file(const char* file_name, int use_bytecode);
-
 object builtin_include(object* arguments, int arguments_count){
     object path=arguments[0];
-    return evaluate_file(stringify(path), 1);
+    return evaluate_file(stringify(path), true);
+}
+
+object evaluate_string(const char* s, bool use_bytecode);
+object builtin_eval(object* arguments, int arguments_count){
+    object text=arguments[0];
+    return evaluate_string(stringify(text), true);
 }
 
 void register_builtins(object scope){
@@ -88,6 +93,7 @@ void register_builtins(object scope){
     REGISTER_FUNCTION(native_call, 2);
     REGISTER_FUNCTION(native_stringify, 1);
     REGISTER_FUNCTION(include, 1);
+    REGISTER_FUNCTION(eval, 1);
     //REGISTER_FUNCTION(test, 2);
 
     #undef REGISTER_FUNCTION

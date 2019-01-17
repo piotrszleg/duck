@@ -6,12 +6,14 @@
 
 object call_function(function* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
-        return f->pointer(arguments, arguments_count);
+        return f->native_pointer(arguments, arguments_count);
     } else {
         ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
         return null_const;
     }
 }
+
+void free_function(function* f){}
 
 void get_execution_info(char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
@@ -29,7 +31,7 @@ void test_error_catching(){
     function_init(&fun);
 
     TRY_CATCH(
-        compare(num, fun);// comparing number to function should cause an error
+        set(fun, "test", num);// setting a field in function should cause an error
         dereference(&num);
         dereference(&fun);
     ,
@@ -85,12 +87,12 @@ object add_three(object* arguments, int arguments_count){
     return result;
 }
 
-void function_call(){// tests whether f(5)==8 where f(x)=x+3
+void function_calling(){// tests whether f(5)==8 where f(x)=x+3
     printf("TEST: %s\n", __FUNCTION__);
 
     object f;
     function_init(&f);
-    f.fp->pointer=add_three;
+    f.fp->native_pointer=add_three;
     f.fp->ftype=f_native;
     f.fp->arguments_count=1;
 
@@ -150,10 +152,11 @@ void adding_number_string(){// tests whether "count: "+5="count: 5"
 
 int main(){
     TRY_CATCH(
+        // TODO test error objects
         test_error_catching();
         adding_numbers();
         adding_strings();
-        function_call();
+        function_calling();
         table_indexing();
         adding_number_string();
     ,

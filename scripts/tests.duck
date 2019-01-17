@@ -26,6 +26,5 @@ print("test successful")
 test=(name, assertion)->{
     print("TEST: "+name)
     assert(assertion)
-    print("test successful")
-}
+    print("test successful")}
 test("test helper function", 1)
