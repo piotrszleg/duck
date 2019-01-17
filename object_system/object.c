@@ -25,8 +25,33 @@ OBJECT_INIT_NEW(string,)
 OBJECT_INIT_NEW(table,
     o->tp=malloc(sizeof(table));
     o->tp->ref_count=0;
-    map_init(&o->tp->fields);
+    table_component_init(o->tp);
 )
+
+object to_string(const char* s){
+    object o; 
+    string_init(&o);
+    // so here we assume that if something saves the string it will call reference function to copy it
+    o.text=(char*)s;
+    return o;
+}
+
+object to_number(int i){
+    object o; 
+    number_init(&o); 
+    o.value=i;
+    return o;
+}
+
+object to_function(object_system_function f, char** argument_names, int arguments_count){
+    object o;
+    function_init(&o);
+    
+    o.fp->native_pointer=f;
+    o.fp->argument_names=argument_names;
+    o.fp->arguments_count=arguments_count;
+    return o;
+}
 
 object null_const={t_null};
 
@@ -74,13 +99,13 @@ void dereference(object* o){
             if(o->tp->ref_count<=1 && o->tp->ref_count!=ALREADY_DESTROYED){
                 call_destroy(*o);
                 o->tp->ref_count=ALREADY_DESTROYED;
-                const char *key;
+                /*const char *key;
                 map_iter_t iter = map_iter(&o->tp->fields);
                 while ((key = map_next(&o->tp->fields, &iter))) {
                     object value=(*map_get(&o->tp->fields, key));
                     dereference(&value);// dereference contained object, so it can be garbage collected
                 }
-                map_deinit(&o->tp->fields);
+                map_deinit(&o->tp->fields);*/
             } else {
                 o->tp->ref_count--;
             }

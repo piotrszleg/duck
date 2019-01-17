@@ -155,7 +155,7 @@ object execute_bytecode(bytecode_environment* environment){
                     indexed=environment->scope;
                 }
                 USING_STRING(stringify(key), 
-                        push(object_stack, get(indexed, str)));
+                        push(object_stack, get(indexed, to_string(str))));
                 if(instr.argument){
                     // delete indexed if it isn't the scope
                     dereference(&indexed);
@@ -173,7 +173,8 @@ object execute_bytecode(bytecode_environment* environment){
                     indexed=environment->scope;
                 }
                 object value=pop(object_stack);
-                set(indexed, stringify(key), value);
+                USING_STRING(stringify(key),
+                    set(indexed, to_string(str), value));
                 if(instr.argument){
                     // delete indexed if it isn't the scope
                     dereference(&indexed);

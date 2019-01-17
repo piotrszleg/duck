@@ -1,26 +1,17 @@
 #include "execute_ast.h"
 
-void copy_table(table* source, table* destination){
-    const char *key;
-    map_iter_t iter = map_iter(&source->fields);
-    while ((key = map_next(&source->fields, &iter))) {
-        map_set(&destination->fields, key, (*map_get(&source->fields, key)));
-    }
-}
-
 object path_get(ast_executor_state* state, object scope, path p){
     object current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
-        char* evaluated_to_string;
+        object object_at_name;
         if(e->type==e_name){
-            evaluated_to_string=((name*)e)->value;
+            object_at_name=get(current, to_string(((name*)e)->value));
         } else {
-            USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
-                evaluated_to_string=str);
+            USING_STRING(stringify(execute_ast(state, e, scope, 0)),
+                object_at_name=get(current, to_string(str)));
         }
-        object object_at_name=get(current, evaluated_to_string);
         if(i==lines_count-1){
             return object_at_name;
         } else {
@@ -40,12 +31,12 @@ void path_set(ast_executor_state* state, object scope, path p, object value){
             evaluated_to_string=((name*)e)->value;
         } else {
             USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
-                evaluated_to_string=str);
+                evaluated_to_string=str);// TOFIX
         }
         if(i==lines_count-1){
-            set(current, evaluated_to_string, value);
+            set(current, to_string(evaluated_to_string), value);
         } else{
-            object object_at_name=get(current, evaluated_to_string);
+            object object_at_name=get(current, to_string(evaluated_to_string));
             current=object_at_name;
         }
     }
@@ -92,7 +83,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
                 if(line->type!=e_assignment){
                     char buf[16];
                     sprintf(buf,"%d",i);
-                    set(table_scope, buf, line_result);
+                    set(table_scope, to_string(buf), line_result);
                 }
                 dereference(&line_result);
             }
@@ -126,7 +117,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
         }
         case e_name:
         {
-            return get(scope, ((name*)exp)->value);
+            return get(scope, to_string(((name*)exp)->value));
         }
         case e_assignment:
         {

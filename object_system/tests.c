@@ -31,7 +31,8 @@ void test_error_catching(){
     function_init(&fun);
 
     TRY_CATCH(
-        set(fun, "test", num);// setting a field in function should cause an error
+        STRING_OBJECT(s, "test")
+        set(fun, s, num);// setting a field in function should cause an error
         dereference(&num);
         dereference(&fun);
     ,
@@ -114,20 +115,20 @@ void table_indexing(){// t["name"]="John" => t["name"]=="John"
     object t;
     table_init(&t);
 
-    assert(get(t, "name").type==t_null);// getting variable at key that wasn't set before should return null
+    STRING_OBJECT(name, "name");
 
-    object s;
-    string_init(&s);
-    s.text="John";// set t["name"]="John"
-    set(t, "name", s);
-    assert_stringification((get(t, "name")), "John");// test if setting succeeded
+    assert(get(t, name).type==t_null);// getting variable at key that wasn't set before should return null
+
+    STRING_OBJECT(s, "John");
+    set(t, name, s);
+    assert_stringification((get(t, name)), "John");// test if setting succeeded
 
     object n;
     number_init(&n);
     n.value=2;
-    set(t, "name", n);// set t["name"]=2, check if it is possible to change variable type and value
+    set(t, name, n);// set t["name"]=2, check if it is possible to change variable type and value
 
-    assert_stringification((get(t, "name")), "2");// test if setting succeeded
+    assert_stringification((get(t, name)), "2");// test if setting succeeded
 
     dereference(&t);// deleting t will also delete n
     printf("test successful\n");

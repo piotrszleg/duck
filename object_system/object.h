@@ -4,10 +4,10 @@
 #include <math.h>
 #include <ctype.h>
 #include <limits.h>
+#include <string.h>
 #include "../error/error.h"
 #include "../macros.h"
 #include "../datatypes/vector.h"
-#include "map.h"
 
 typedef enum object_type object_type;
 enum object_type{
@@ -66,17 +66,18 @@ OBJECT_INIT_NEW_DECLARATIONS(function)
 OBJECT_INIT_NEW_DECLARATIONS(string)
 OBJECT_INIT_NEW_DECLARATIONS(table)
 
+#define STRING_OBJECT(name, string_text) object name; string_init(&name); name.text=(char*)string_text;
+
 #define CHECK_OBJECT(checked) \
     if(checked==NULL) { ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); } \
     if(checked->type<t_null||checked->type>t_table) { ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); }
 
-typedef map_t(object) object_map_t;
-
+/*typedef map_t(object) object_map_t;
 typedef struct table table;
 struct table {
     int ref_count;
     object_map_t fields;
-};
+};*/
 
 typedef object (*object_system_function)(object* arguments, int arguments_count);
 typedef enum function_type function_type;
@@ -99,6 +100,10 @@ struct function {
     object enclosing_scope;
 };
 
+object to_string(const char* s);
+object to_number(int i);
+object to_function(object_system_function f, char** argument_names, int arguments_count);
+
 void reference(object* o);
 void object_init(object* o, object_type type);
 void dereference(object* o);
@@ -109,5 +114,7 @@ char* stringify(object o);
 // these functions should be implemented in higher level module
 object call_function(function* f, object* arguments, int arguments_count);
 void free_function(function* f);
+
+#include "table.h"
 
 #endif

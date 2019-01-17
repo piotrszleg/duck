@@ -2,6 +2,7 @@
 #define OBJECT_OPERATIONS_H
 
 #include "object.h"
+#include "table.h"
 #include "../macros.h"
 #include <stdbool.h>
 
@@ -16,10 +17,8 @@ object cast(object o, object_type type);
 
 object call(object o, object* arguments, int arguments_count);
 
-object get_table(table* t, const char* key);
-object get(object o, const char* key);
-void set_table(table* t, const char* key, object value);
-void set(object o, const char* key, object value);
+object get(object o, object key);
+void set(object o, object key, object value);
 
 void get_execution_info(char* buffer, int buffer_count);
 object multiple_causes(object* causes, int causes_count);

@@ -90,7 +90,8 @@ object call_function(function* f, object* arguments, int arguments_count){
                 return null_const;
             }
             for(int i=0; i<arguments_count; i++){
-                set(function_scope, f->argument_names[i], arguments[i]);
+                STRING_OBJECT(argument_name, f->argument_names[i]);
+                set(function_scope, argument_name, arguments[i]);
             }
             return execute_ast((ast_executor_state*)f->enviroment, (expression*)f->source_pointer, function_scope, 1);
         } else if(f->ftype==f_bytecode){

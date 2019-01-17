@@ -22,7 +22,7 @@ bool is_falsy(object o){
         case t_number:
             return o.value==0;// 0 is falsy
         case t_table:
-            return o.tp->fields.base.nnodes==0;// empty table is falsy
+            return o.tp->array_size==0 && o.tp->map_size==0;// empty table is falsy
         default:
             ERROR(WRONG_ARGUMENT_TYPE, "Incorrect object pointer passed to is_falsy function.");
     }
@@ -57,7 +57,8 @@ object cast(object o, object_type type){
             object called=o;
             do{
                 // recursively search for object of type function under key "call" inside of 'o' object structure
-                called=get(called, "call");
+                STRING_OBJECT(call_string, "call");
+                called=get(called, call_string);
                 // get will fail at some point so it shouldn't create an infinite loop
             } while(called.type!=t_function);
             return called;
@@ -78,7 +79,8 @@ object find_call_function(object o){
     if(o.type==t_function){
         return o;
     } else if(o.type==t_table){
-        object call_field=get(o, "call");
+        STRING_OBJECT(call_string, "call");
+        object call_field=get(o, call_string);
         return find_call_function(call_field);
     } else {
         object n={t_null};
@@ -87,7 +89,8 @@ object find_call_function(object o){
 }
 
 object find_function(object o, const char* function_name){
-    return find_call_function(get(o, function_name));
+    STRING_OBJECT(function_name_string, function_name);
+    return find_call_function(get(o, function_name_string));
 }
 
 int sign(int x){
@@ -115,8 +118,7 @@ int compare(object a, object b){
             return strcmp(a.text, b.text);
         case t_number:
             return sign(a.value-b.value);
-        case t_table:
-            return sign(a.tp->fields.base.nnodes-b.tp->fields.base.nnodes);
+        // avoid comparing tables for now
         default:
             return COMPARISION_ERROR;
     }
@@ -285,7 +287,8 @@ char* stringify_object(object o){
             return buffer;
         }
         case t_table:
-            {
+            return strdup("<table>");
+            /*{
                 table* t=o.tp;
                 char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
                 CHECK_ALLOCATION(buffer);
@@ -342,7 +345,7 @@ char* stringify_object(object o){
                 char* buffer_truncated=strdup(buffer);
                 free(buffer);
                 return buffer_truncated;
-            }
+            }*/
         case t_function:
         {
             function* f=o.fp;
@@ -401,30 +404,14 @@ char* stringify_object(object o){
     }
 }
 
-object get_table(table* t, const char* key){
-    object* map_get_result=map_get(&t->fields, key);
-    if(map_get_result==NULL){// there's no object at this key
-        return null_const;
-    }else {
-        return *map_get_result;
-    }
-}
-
-object get(object o, const char* key){
+object get(object o, object key){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
-        object* map_get_override=map_get(&o.tp->fields, "get");
-        if(map_get_override!=NULL && map_get_override->type==t_function){
+        object map_get_override=get_table(o.tp, to_string("get"));
+        if(map_get_override.type==t_function){
+            object arguments[]={o, key};
 
-            // create object to hold key value
-            object key_string;
-            string_init(&key_string);
-            key_string.text=strdup(key);
-
-            object arguments[]={o, key_string};
-
-            object result=call_function(map_get_override->fp, arguments, 2);
-            dereference(&key_string);
+            object result=call_function(map_get_override.fp, arguments, 2);
             return result;
         } else {
             // simply get key from table's map
@@ -435,33 +422,13 @@ object get(object o, const char* key){
     }
 }
 
-void set_table(table* t, const char* key, object value){
-    object_map_t* fields=&t->fields;
-    object* value_at_key = map_get(fields, key);
-    if(value_at_key!=NULL){
-        dereference(value_at_key);// table no longer holds a reference to this object
-        if(value.type==t_null){
-            map_remove(fields, key);// setting key to null removes it
-            return;
-        }
-    }
-    reference(&value);// now the value is referenced by table
-    map_set(fields, key, value);// key is empty so it only needs to be set to point to value
-}
-
-void set(object o, const char* key, object value){
+void set(object o, object key, object value){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object set_override=find_function(o, "set");
         if(set_override.type!=t_null){
-            // create object to hold key value
-            object key_string;
-            string_init(&key_string);
-            key_string.text=strdup(key);
-
-            object arguments[]={o, key_string, value};
+            object arguments[]={o, key, value};
             call(set_override, arguments, 3);
-            dereference(&key_string);
         } else {
             set_table(o.tp, key, value);
         }

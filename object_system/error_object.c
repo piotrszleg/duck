@@ -1,23 +1,7 @@
 #include "error_object.h"
 
-void set_string_field(object t, const char* field_name, char* string){
-    object string_object;
-    string_init(&string_object);
-    string_object.text=string;
-    set(t, field_name, string_object);
-    dereference(&string_object);
-}
-
-void set_number_field(object t, const char* field_name, int value){
-    object number_object;
-    number_init(&number_object);
-    number_object.value=value;
-    set(t, field_name, number_object);
-    dereference(&number_object);
-}
-
 char* get_and_stringify(object t, const char* key){
-    object at_key=get(t, key);
+    object at_key=get(t, to_string(key));
     return stringify(at_key);
 }
 
@@ -26,7 +10,7 @@ object stringify_multiple_causes(object* arguments, int arguments_count){
     buffer[0]='\0';
     object self=arguments[0];
 
-    object count_object=get(self, "count");
+    object count_object=get(self, to_string("count"));
     //assert(count_object.type==t_number);
     int count=count_object.value;
     dereference(&count_object);
@@ -35,7 +19,7 @@ object stringify_multiple_causes(object* arguments, int arguments_count){
         char stringified_key[64];
         snprintf(stringified_key, 64, "%i", i);
 
-        object value=get(self, stringified_key);
+        object value=get(self, to_string(stringified_key));
         char* stringified_value=stringify(value);
 
         char formatted[STRINGIFY_BUFFER_SIZE];
@@ -57,21 +41,22 @@ object multiple_causes(object* causes, int causes_count){
     for(int i=0; i<causes_count; i++){
         char buffer[64];
         snprintf(buffer, 64, "%i", i);
-        set(result, buffer, causes[i]);
+        set(result, to_string(buffer), causes[i]);
     }
     
     object count;
     number_init(&count);
     count.value=causes_count;
-    set(result, "count", count);
+    set(result, to_string("count"), count);
 
     object stringify_f;
     function_init(&stringify_f);
     stringify_f.fp->arguments_count=1;
     stringify_f.fp->native_pointer=stringify_multiple_causes;
-    set(result, "stringify", stringify_f);
+    set(result, to_string("stringify"), stringify_f);
 
     return result;
+    return null_const;
 }
 
 object stringify_error(object* arguments, int arguments_count){
@@ -89,35 +74,35 @@ object stringify_error(object* arguments, int arguments_count){
     object result;
     string_init(&result);
     result.text=buffer;
-    set_number_field(self, "handled", 1);
+    set(self, to_string("handled"), to_number(1));
     return result;
 }
 
 object destroy_error(object* arguments, int arguments_count){
     object self=arguments[0];
-    if(is_falsy(get(self, "handled"))){
+    if(is_falsy(get(self, to_string("handled")))){
         USING_STRING(stringify(self),
             printf("Unhandled error:\n%s", str));
     }
     return null_const;
 }
 
-void set_function(object t, const char* name, int arguments_count, object_system_function f);
-
 object new_error(char* type, object cause, char* message, char* location){
     object err;
     table_init(&err);
 
-    set_string_field(err, "type", type);
-    set_string_field(err, "message", message);
-    set_string_field(err, "location", location);
+    set(err, to_string("type"), to_string(type));
+    set(err, to_string("message"), to_string(message));
+    set(err, to_string("location"), to_string(location));
 
-    set_number_field(err, "error", 1);
+    set(err, to_string("error"), to_number(1));
+    set(err, to_string("handled"), to_number(1));
 
-    set_function(err, "stringify", 1, stringify_error);
-    set_function(err, "destroy", 1, destroy_error);
+    set(err, to_string("stringify"), to_function(stringify_error, NULL, 1));
+    set(err, to_string("destroy"), to_function(destroy_error, NULL, 1));
 
-    set(err, "cause", cause);
+    set(err, to_string("cause"), cause);
 
     return err;
+    return null_const;
 }

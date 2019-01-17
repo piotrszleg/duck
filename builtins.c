@@ -30,7 +30,10 @@ object builtin_native_get(object* arguments, int arguments_count){
         ERROR(WRONG_ARGUMENT_TYPE, "Native get function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self.type]);
         return null_const;
     }
-    return get_table(self.tp, stringify(key));
+    object result;
+    USING_STRING(stringify(key),
+        get_table(self.tp, to_string(str)));
+    return result;
 }
 
 object builtin_native_set(object* arguments, int arguments_count){
@@ -41,7 +44,8 @@ object builtin_native_set(object* arguments, int arguments_count){
         ERROR(WRONG_ARGUMENT_TYPE, "Native set function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self.type]);
         return null_const;
     }
-    set_table(self.tp, stringify(key), value);
+    USING_STRING(stringify(key),
+        set_table(self.tp, to_string(str), value));
     return value;
 }
 
@@ -84,7 +88,7 @@ void register_builtins(object scope){
         function_init(&f##_function); \
         f##_function.fp->arguments_count=args_count; \
         f##_function.fp->native_pointer=&builtin_##f; \
-        set(scope, #f, f##_function);
+        set(scope, to_string(#f), f##_function);
     
     REGISTER_FUNCTION(print, 1);
     REGISTER_FUNCTION(assert, 1);
@@ -110,14 +114,14 @@ object scope_get_override(object* arguments, int arguments_count){
         ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect key argument.");
         return null_const;
     }
-    object map_get_result=get_table(self.tp, key.text);
+    object map_get_result=get_table(self.tp, to_string(key.text));
 
     if(map_get_result.type!=t_null){
         return map_get_result;
     } else{
-        object base=get_table(self.tp, "base");
+        object base=get_table(self.tp, to_string("base"));
         if(base.type==t_table){
-            return get(base, key.text);
+            return get(base, to_string(key.text));
         }
         return null_const;
     }
@@ -128,14 +132,14 @@ void inherit_scope(object scope, object base){
     function_init(&f);
     f.fp->native_pointer=&scope_get_override;
     f.fp->arguments_count=2;
-    object base_global=get(base, "global");
+    object base_global=get(base, to_string("global"));
     if(base_global.type!=t_null){
-        set(scope, "global", base_global);
+        set(scope, to_string("global"), base_global);
     } else {
-        set(scope, "global", base);
+        set(scope, to_string("global"), base);
         dereference(&base_global);// base_global is null so it can be safely deleted
     }
-    set(scope, "get", f);
-    set(scope, "scope", scope);
-    set(scope, "base", base);
+    set(scope, to_string("get"), f);
+    set(scope, to_string("scope"), scope);
+    set(scope, to_string("base"), base);
 }
