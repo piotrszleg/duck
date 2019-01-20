@@ -1,20 +1,17 @@
 "Speed is a social construct." - Mattias Petter Johansson 2018
 
 # TOFIX:
-- correct argument value in b_function
-- calling bytecode functions
-- wrong arguments order after bytecode optimisations
-- fix functions calling in ast
+- execute_bytecode.c:192
 - valgrind
 - resize stack
 
-## TODO:
+# TODO:
 - empty and variadic arguments
-- call and destroy override
+- call and destroy override 
 - coroutines
 - more comments
 
-## POINTERS:
+# POINTERS:
 **&** - returns pointer to it's operand
     `operand` becomes `operand*`
     `operand*` becomes `operand**`

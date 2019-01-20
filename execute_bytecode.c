@@ -154,8 +154,7 @@ object execute_bytecode(bytecode_environment* environment){
                 } else {
                     indexed=environment->scope;
                 }
-                USING_STRING(stringify(key), 
-                        push(object_stack, get(indexed, to_string(str))));
+                push(object_stack, get(indexed, key));
                 if(instr.argument){
                     // delete indexed if it isn't the scope
                     dereference(&indexed);
@@ -173,8 +172,7 @@ object execute_bytecode(bytecode_environment* environment){
                     indexed=environment->scope;
                 }
                 object value=pop(object_stack);
-                USING_STRING(stringify(key),
-                    set(indexed, to_string(str), value));
+                set(indexed, key, value);
                 if(instr.argument){
                     // delete indexed if it isn't the scope
                     dereference(&indexed);
@@ -197,16 +195,19 @@ object execute_bytecode(bytecode_environment* environment){
                     USING_STRING(stringify(o),
                         ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, *pointer));
                 } else {
+                    reference(&o);
                     environment->scope=o;
                 }
                 break;
             }
             case b_discard_scope:
                 ERROR(NOT_IMPLEMENTED, "With current scope handling discard scope doesn't work.");
+                break;
             case b_new_scope:
             {
                 object t;
                 table_init(&t);
+                reference(&t);
                 dereference(&environment->scope);
                 environment->scope=t;
                 break;

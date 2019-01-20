@@ -15,6 +15,7 @@ OBJECT_INIT_NEW(null,)
 OBJECT_INIT_NEW(number,)
 OBJECT_INIT_NEW(function,
     o->fp=malloc(sizeof(function));
+    CHECK_ALLOCATION(o->fp);
     o->fp->ref_count=0;
     o->fp->argument_names=NULL;
     o->fp->arguments_count=0;
@@ -24,6 +25,7 @@ OBJECT_INIT_NEW(function,
 OBJECT_INIT_NEW(string,)
 OBJECT_INIT_NEW(table,
     o->tp=malloc(sizeof(table));
+    CHECK_ALLOCATION(o->tp);
     o->tp->ref_count=0;
     table_component_init(o->tp);
 )
@@ -64,8 +66,11 @@ void reference(object* o){
         // maybe it is a dirty hack, will find out later
         // other option would be a copy function
         o->text=strdup(o->text);
+        CHECK_ALLOCATION(o->text);
     }
 }
+
+void delete_table(table* t);
 
 #define ALREADY_DESTROYED INT_MIN
 object call_destroy(object o);
@@ -99,13 +104,7 @@ void dereference(object* o){
             if(o->tp->ref_count<=1 && o->tp->ref_count!=ALREADY_DESTROYED){
                 call_destroy(*o);
                 o->tp->ref_count=ALREADY_DESTROYED;
-                /*const char *key;
-                map_iter_t iter = map_iter(&o->tp->fields);
-                while ((key = map_next(&o->tp->fields, &iter))) {
-                    object value=(*map_get(&o->tp->fields, key));
-                    dereference(&value);// dereference contained object, so it can be garbage collected
-                }
-                map_deinit(&o->tp->fields);*/
+                delete_table(o->tp);
             } else {
                 o->tp->ref_count--;
             }

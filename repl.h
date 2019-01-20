@@ -5,6 +5,6 @@
 #include "execute_ast.h"
 #include "stdio.h"
 
-void repl();
+void repl(int use_bytecode);
 
 #endif

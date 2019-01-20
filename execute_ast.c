@@ -9,8 +9,10 @@ object path_get(ast_executor_state* state, object scope, path p){
         if(e->type==e_name){
             object_at_name=get(current, to_string(((name*)e)->value));
         } else {
-            USING_STRING(stringify(execute_ast(state, e, scope, 0)),
-                object_at_name=get(current, to_string(str)));
+            object key=execute_ast(state, e, scope, 0);
+            reference(&key);
+            object_at_name=get(current, key);
+            dereference(&key);
         }
         if(i==lines_count-1){
             return object_at_name;
@@ -26,18 +28,21 @@ void path_set(ast_executor_state* state, object scope, path p, object value){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
-        char* evaluated_to_string;
+        object key;
         if(e->type==e_name){
-            evaluated_to_string=((name*)e)->value;
+            key=to_string(((name*)e)->value);
         } else {
-            USING_STRING(stringify(execute_ast(state, e, scope, 0)), 
-                evaluated_to_string=str);// TOFIX
+            object key=execute_ast(state, e, scope, 0);
+            reference(&key);
         }
         if(i==lines_count-1){
-            set(current, to_string(evaluated_to_string), value);
+            set(current, key, value);
         } else{
-            object object_at_name=get(current, to_string(evaluated_to_string));
+            object object_at_name=get(current, key);
             current=object_at_name;
+        }
+        if(e->type!=e_name){// we don't borrow name expression's string value
+            dereference(&key);
         }
     }
 }
@@ -77,13 +82,12 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             object table_scope;
             table_init(&table_scope);
             reference(&table_scope);
+            int array_counter=0;
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=(expression*)vector_get(&b->lines, i);
                 object line_result=execute_ast(state, line, table_scope, 0);
                 if(line->type!=e_assignment){
-                    char buf[16];
-                    sprintf(buf,"%d",i);
-                    set(table_scope, to_string(buf), line_result);
+                    set(table_scope, to_number(array_counter++), line_result);
                 }
                 dereference(&line_result);
             }

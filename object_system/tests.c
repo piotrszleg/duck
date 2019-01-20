@@ -115,20 +115,23 @@ void table_indexing(){// t["name"]="John" => t["name"]=="John"
     object t;
     table_init(&t);
 
-    STRING_OBJECT(name, "name");
+    STRING_OBJECT(name_key, "name");
 
-    assert(get(t, name).type==t_null);// getting variable at key that wasn't set before should return null
+    // test if setting works
+    #define TEST_SET(key, value) \
+        set(t, key, value); \
+        assert(compare(get(t, key), value)==0);
 
-    STRING_OBJECT(s, "John");
-    set(t, name, s);
-    assert_stringification((get(t, name)), "John");// test if setting succeeded
+    // getting variable at key that wasn't set before should return null
+    #define TEST_EMPTY(key) assert(get(t, key).type==t_null);
 
-    object n;
-    number_init(&n);
-    n.value=2;
-    set(t, name, n);// set t["name"]=2, check if it is possible to change variable type and value
-
-    assert_stringification((get(t, name)), "2");// test if setting succeeded
+    TEST_EMPTY(name_key)
+    TEST_SET(name_key, to_string("John"))
+    TEST_SET(name_key, to_number(2))
+    TEST_EMPTY(to_number(0))
+    TEST_SET(to_number(0), to_number(2))
+    TEST_EMPTY(to_number(1))
+    TEST_SET(to_number(1), to_number(2))
 
     dereference(&t);// deleting t will also delete n
     printf("test successful\n");

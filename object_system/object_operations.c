@@ -287,65 +287,7 @@ char* stringify_object(object o){
             return buffer;
         }
         case t_table:
-            return strdup("<table>");
-            /*{
-                table* t=o.tp;
-                char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
-                CHECK_ALLOCATION(buffer);
-                buffer[0]='\0';
-                int buffer_size=STRINGIFY_BUFFER_SIZE;
-                int buffer_filled=0;// how many characters were written to the buffer
-                
-                // if buffer isn't big enough to hold the added string characters double its size
-                #define BUFFER_WRITE(string, count) \
-                    while(buffer_size<=buffer_filled+count){ \
-                        buffer_size*=2; \
-                        buffer=realloc(buffer, buffer_size*sizeof(char)); \
-                    } \
-                    strncat(buffer, string, buffer_size); \
-                    buffer_filled+=count;
-               
-                BUFFER_WRITE("[", 1);
-                int first=1;
-                map_iter_t iter = map_iter(&m);
-                const char *key;
-                while ((key = map_next(&t->fields, &iter))) {
-                    object value=*map_get(&t->fields, key);
-                    bool self_reference=value.type==t_table && value.tp==t;
-                    char* value_stringified;
-                    if(self_reference){
-                        value_stringified="self";
-                    } else {
-                        value_stringified = stringify(value);
-                    }
-
-                    int formatted_count=strlen(key)+1+strlen(value_stringified)+1;
-                    if(!first){ 
-                        formatted_count+=2;
-                    }
-                    char* pair_buffer=malloc(formatted_count*sizeof(char));
-                    if(first){
-                        snprintf(pair_buffer, formatted_count, "%s=%s", key, value_stringified);
-                    } else {
-                        snprintf(pair_buffer, formatted_count, ", %s=%s", key, value_stringified);
-                    }
-                    BUFFER_WRITE(pair_buffer, formatted_count);
-                    free(pair_buffer);
-
-                    if(!self_reference){
-                        free(value_stringified);
-                    }
-                    
-                    first=0;
-                }
-                BUFFER_WRITE("]", 1);
-
-                buffer[buffer_size-1]='\0';// to make sure that the string won't overflow
-
-                char* buffer_truncated=strdup(buffer);
-                free(buffer);
-                return buffer_truncated;
-            }*/
+            return stringify_table(o.tp);
         case t_function:
         {
             function* f=o.fp;
