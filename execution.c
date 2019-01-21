@@ -19,7 +19,7 @@ object evaluate(expression* parsing_result, bool use_bytecode){
     if(use_bytecode){
         bytecode_program prog=ast_to_bytecode(parsing_result, 1);
         delete_expression(parsing_result);// at this point ast is useless and only wastes memory
-        optimise_bytecode(&prog);
+        //optimise_bytecode(&prog);
         USING_STRING(stringify_bytecode(&prog),
             printf("Bytecode:\n%s\n", str));
         
@@ -29,7 +29,7 @@ object evaluate(expression* parsing_result, bool use_bytecode){
         environment.scope=global_scope;
         bytecode_enviroment_init(&environment);
         execution_result=execute_bytecode(&environment);
-
+        
         USING_STRING(stringify(execution_result), 
             printf("Execution result:\n%s\n", str));
         USING_STRING(stringify(global_scope), 

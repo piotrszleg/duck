@@ -2,6 +2,8 @@
 
 #define INITIAL_BUFFER_SIZE 8
 
+object patching_table={t_table};
+
 bool is_number(const char *s)
 {
     while (*s) {
@@ -93,6 +95,24 @@ object find_function(object o, const char* function_name){
     return find_call_function(get(o, function_name_string));
 }
 
+object monkey_patching(const char* function_name, object* arguments, int arguments_count){
+    // attempt to get object from field named after a's type in operations_table
+    object type_table=get(patching_table, to_string(OBJECT_TYPE_NAMES[arguments[0].type]));
+    if(type_table.type!=t_null){
+        object operator_function=find_function(type_table, function_name);
+        if(operator_function.type!=t_null){
+            // call get_function a and b as arguments
+            object result=call(operator_function, arguments, arguments_count);
+            return result;
+        }
+    }
+    return null_const;
+}
+
+#define MONKEY_PATCH(function_name, arguments, arguments_count) \
+    object patching_result=monkey_patching(function_name, arguments, arguments_count); \
+    if(patching_result.type!=t_null) return patching_result;
+
 int sign(int x){
     return (x > 0) - (x < 0);
 }
@@ -125,6 +145,7 @@ int compare(object a, object b){
 }
 
 object operator(object a, object b, const char* op){
+    MONKEY_PATCH(op, ((object[]){a, b}), 2);
     if(a.type==t_table){
         object operator_function=find_function(a, op);
         if(operator_function.type!=t_null){
@@ -233,6 +254,10 @@ object operator(object a, object b, const char* op){
 }
 
 char* stringify(object o){
+    object patching_result=monkey_patching("stringify", &o, 1);
+    if(patching_result.type!=t_null){
+        return stringify_object(patching_result);
+    }
     if(o.type==t_table){
         object stringify_override=find_function(o, "stringify");
         if(stringify_override.type!=t_null){
@@ -347,6 +372,9 @@ char* stringify_object(object o){
 }
 
 object get(object o, object key){
+    if(o.tp!=patching_table.tp) {
+        MONKEY_PATCH("get", ((object[]){o, key}), 2);
+    }
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object map_get_override=get_table(o.tp, to_string("get"));
@@ -364,22 +392,39 @@ object get(object o, object key){
     }
 }
 
-void set(object o, object key, object value){
+object set(object o, object key, object value){
+    MONKEY_PATCH("set", ((object[]){o, key, value}), 3);
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object set_override=find_function(o, "set");
         if(set_override.type!=t_null){
             object arguments[]={o, key, value};
-            call(set_override, arguments, 3);
+            return call(set_override, arguments, 3);
         } else {
             set_table(o.tp, key, value);
+            return null_const;
         }
     } else {
-        ERROR(WRONG_ARGUMENT_TYPE, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+        RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
     }
 }
 
+object* concat_arguments(object head, object* tail, int tail_count){
+    object* result=malloc(sizeof(object)*(tail_count+1));
+    result[0]=head;
+    for(int i=0; i<tail_count; i++){
+        result[i+1]=tail[i];
+    }
+    return result;
+}
+
 object call(object o, object* arguments, int arguments_count) {
+    object* arguments_with_self=concat_arguments(o, arguments, arguments_count);
+    object patching_result=monkey_patching("call", arguments_with_self, arguments_count+1);
+    if(patching_result.type!=t_null){
+        free(arguments_with_self);
+        return patching_result;
+    }
     switch(o.type){
         case t_function:
         {
@@ -390,12 +435,9 @@ object call(object o, object* arguments, int arguments_count) {
             object call_field=find_function(o, "call");
             if(call_field.type!=t_null){
                 // add o object as a first argument
-                object* arguments_with_self=malloc(sizeof(object)*(arguments_count+1));
-                arguments_with_self[0]=o;
-                for(int i=0; i<arguments_count; i++){
-                    arguments_with_self[i+1]=arguments[i];
-                }
-                return call(call_field, arguments_with_self, arguments_count+1);
+                object result=call(call_field, arguments_with_self, arguments_count+1);
+                free(arguments_with_self);
+                return result;
             }// else go to default label
         }
         default:

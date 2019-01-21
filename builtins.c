@@ -90,6 +90,8 @@ void register_builtins(object scope){
         f##_function.fp->native_pointer=&builtin_##f; \
         set(scope, to_string(#f), f##_function);
     
+    set(scope, to_string("patches"), patching_table);
+    set(scope, to_string("global"), scope);
     REGISTER_FUNCTION(print, 1);
     REGISTER_FUNCTION(assert, 1);
     REGISTER_FUNCTION(typeof, 1);

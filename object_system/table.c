@@ -115,13 +115,9 @@ iteration_result table_next(table_iterator* it){
     return result;
 }
 
-char* stringify_kvp(object key, object value){// kvp = key value pair
+char* stringify_kvp(const char* key, const char* value){// kvp = key value pair
     char* buf=malloc(32);// TODO: resizing buffer
-    char* key_string=stringify(key);
-    char* value_string=stringify(value);
-    snprintf(buf, 32, "%s=%s", key_string, value_string);
-    free(key_string);
-    free(value_string);
+    snprintf(buf, 32, "%s=%s", key, value);
     return buf;
 }
 
@@ -138,13 +134,25 @@ char* stringify_table(table* t){
         } else {
             stream_push(&s, ", ", 2);
         }
+        bool self_reference=i.value.type==t_table && i.value.tp==t;
+        char* stringified_value;
+        if(self_reference){
+            stringified_value="<self>";
+        } else {
+            stringified_value=stringify(i.value);
+        }
         if(i.inside_array){
-            USING_STRING(stringify(i.value),
+            USING_STRING(stringified_value,
                 stream_push(&s, str, strlen(str)));
         } else {
-            USING_STRING(stringify_kvp(i.key, i.value),
+            char* stringified_key=stringify(i.key);
+            USING_STRING(stringify_kvp(stringified_key, stringified_value),
                 stream_push(&s, str, strlen(str)));
-        } 
+            free(stringified_key);
+        }
+        if(!self_reference){
+            free(stringified_value);
+        }
     }
     stream_push(&s, "]", 2);// push ] with null terminator
     

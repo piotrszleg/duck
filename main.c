@@ -7,6 +7,7 @@ int main(int argc, char *argv[]){
         printf("Too many arguments.");
     } else {
         TRY_CATCH(
+            table_init(&patching_table);
             bool use_bytecode=strcmp(argv[argc-1], "-ast")!=0;
             if(!use_bytecode){
                 if(argc==3){

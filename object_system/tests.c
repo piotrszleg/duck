@@ -25,21 +25,14 @@ void assert_stringification(object o, char* expected){
 
 void test_error_catching(){
     printf("TEST: %s\n", __FUNCTION__);
-    object num;
-    number_init(&num);
-    object fun;
-    function_init(&fun);
 
     TRY_CATCH(
-        STRING_OBJECT(s, "test")
-        set(fun, s, num);// setting a field in function should cause an error
-        dereference(&num);
-        dereference(&fun);
+        object o;
+        o.type=(object_type)100;
+        is_falsy(o);// o has incorrect type value which should cause an error
     ,
         // TODO fix error type
         assert(err_type==WRONG_ARGUMENT_TYPE);
-        dereference(&num);
-        dereference(&fun);
         printf("test successful\n");
         return;
     )
@@ -157,6 +150,7 @@ void adding_number_string(){// tests whether "count: "+5="count: 5"
 int main(){
     TRY_CATCH(
         // TODO test error objects
+        table_init(&patching_table);
         test_error_catching();
         adding_numbers();
         adding_strings();

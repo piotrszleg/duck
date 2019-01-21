@@ -311,15 +311,14 @@ object execute_bytecode(bytecode_environment* environment){
                     return pop(object_stack);
                 } else {
                     return_point* rp=stack_pop(return_stack);
+                    environment->program=rp->program;
+                    environment->pointer=rp->pointer;
+                    dereference(&environment->scope);
+                    environment->scope=rp->scope;
                     if(rp->terminate){
                         object last=pop(object_stack);
                         reference(&last);
                         return last;
-                    } else {
-                        environment->program=rp->program;
-                        environment->pointer=rp->pointer;
-                        dereference(&environment->scope);
-                        environment->scope=rp->scope;
                     }
                 }
                 break;

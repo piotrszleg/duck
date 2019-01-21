@@ -8,6 +8,8 @@
 
 #define STRINGIFY_BUFFER_SIZE 200
 
+extern object patching_table;
+
 bool is_falsy(object o);
 
 int compare(object a, object b);
@@ -18,7 +20,7 @@ object cast(object o, object_type type);
 object call(object o, object* arguments, int arguments_count);
 
 object get(object o, object key);
-void set(object o, object key, object value);
+object set(object o, object key, object value);
 
 void get_execution_info(char* buffer, int buffer_count);
 object multiple_causes(object* causes, int causes_count);
