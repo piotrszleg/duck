@@ -12,10 +12,29 @@ bool is_path_part(instruction instr){
 }
 
 int path_length(const instruction* code,  int path_start){
+    if(code[path_start].type!=b_get && code[path_start].type!=b_set){
+        return 0;// path must start with either set or get
+    }
     int p=1;
     for(; is_path_part(code[path_start-p]); p++);
     return p;
 }
+
+/*int path_length(const instruction* code,  int path_start){
+    if(code[path_start].type!=b_get && code[path_start].type!=b_set){
+        return 0;// path must start with either set or get
+    }
+    int balance=-1;
+    if(code[path_start].type==b_set){
+        balance--;// value assigned by set is not part of the path
+    }
+    for(int p=0; is_path_part(code[path_start-p]); p++){
+        balance+=pushes_to_stack(code[p].type)-gets_from_stack(code[p]);
+        if(balance==0){
+            return p;
+        }
+    }
+}*/
 
 bool instructions_equal(instruction a, instruction b){
     return a.type==b.type && a.argument == b.argument;
@@ -86,7 +105,8 @@ bool keep_stack_top_unchanged(bytecode_program* prog, int start, int end){
 void optimise_bytecode(bytecode_program* prog){
     LOG_CHANGE("Unoptimised bytecode:\n%s\n");
     for(int pointer=count_instructions(prog->code); pointer>=0; pointer--){
-        if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard){
+        if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
+           && path_length(prog->code, pointer)>2){// don't optimise nested paths like table.key, only single name paths
             if(LOG_BYTECODE_OPTIMISATIONS){
                 printf("I found a set instruction: %i\n", pointer);
             }
@@ -104,7 +124,8 @@ void optimise_bytecode(bytecode_program* prog){
                     break;
                 }
                 if(prog->code[search_pointer].type==b_get && paths_equal(prog->code, pointer-1, search_pointer-1)){
-                    int get_path_length=path_length(prog->code, search_pointer);
+                    // for now only single name variables are optimised
+                    int get_path_length=2;//path_length(prog->code, search_pointer);
 
                     if(keep_stack_top_unchanged(prog, pointer+2, search_pointer+1-get_path_length)){
                         search_pointer++;// if swap instruction was added search needs to be moved by one to point at the correct instruction

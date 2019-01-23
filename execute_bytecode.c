@@ -172,13 +172,12 @@ object execute_bytecode(bytecode_environment* environment){
                     indexed=environment->scope;
                 }
                 object value=pop(object_stack);
-                set(indexed, key, value);
+                push(object_stack, set(indexed, key, value));
                 if(instr.argument){
                     // delete indexed if it isn't the scope
                     dereference(&indexed);
                 }
                 dereference(&key);
-                push(object_stack, value);
                 dereference(&value);
                 break;
             }

@@ -45,13 +45,15 @@ object cast(object o, object_type type){
         case t_number:
         {
             object result;
-            string_init(&result);
+            number_init(&result);
             if(o.type==t_null){
                 result.value=0;// null is zero
                 return result;
             } else if(o.type==t_string && is_number(o.text)){
                 result.value=atoi(o.text);// convert string to int if it contains number
                 return result;
+            } else {
+                break;
             }
         }
         case t_function:
@@ -65,9 +67,9 @@ object cast(object o, object_type type){
             } while(called.type!=t_function);
             return called;
         }
-        default:
-            RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
+        default:;
     }
+    RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
 }
 
 object create_number(int value){
@@ -150,8 +152,7 @@ object operator(object a, object b, const char* op){
         object operator_function=find_function(a, op);
         if(operator_function.type!=t_null){
             // call get_function a and b as arguments
-            object arguments[]={a, b};
-            object result=call(operator_function, arguments, 2);
+            object result=call(operator_function, ((object[]){a, b}), 2);
             return result;
         }
     }
@@ -212,7 +213,7 @@ object operator(object a, object b, const char* op){
         a.value=-a.value;
         return a;
     }
-    if(strcmp(op, "--")==0){
+    if(strcmp(op, ">>")==0){
         return new_pipe(a, b);
     }
     
@@ -261,8 +262,7 @@ char* stringify(object o){
     if(o.type==t_table){
         object stringify_override=find_function(o, "stringify");
         if(stringify_override.type!=t_null){
-            object arguments[]={o};
-            object result=call(stringify_override, arguments, 1);
+            object result=call(stringify_override, &o, 1);
             return stringify_object(result);
         }
     }
@@ -372,7 +372,7 @@ char* stringify_object(object o){
 }
 
 object get(object o, object key){
-    if(o.tp!=patching_table.tp) {
+    if(o.tp!=patching_table.tp) {// avoid cycling call to get in patching table
         MONKEY_PATCH("get", ((object[]){o, key}), 2);
     }
     if(o.type==t_table){
@@ -387,6 +387,21 @@ object get(object o, object key){
             // simply get key from table's map
             return get_table(o.tp, key);
         }
+    } else if(o.type==t_string){
+        object number_key=cast(key, t_number);
+        if(number_key.type==t_number){
+            if(number_key.value<strlen(o.text) && number_key.value>0){
+                char* character_string=malloc(2*sizeof(char));
+                character_string[0]=o.text[(int)number_key.value];
+                character_string[1]='\0';
+                return to_string(character_string);
+            } else {
+                RETURN_ERROR("WRONG_ARGUMENT_TYPE", multiple_causes((object[]){o, key}, 2), 
+                "Index %i is out of bounds of string \"%s\"", (int)number_key.value, o.text);
+            }
+        } else {
+            return number_key;// casting failed, return error object
+        }
     } else {
         RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
     }
@@ -398,11 +413,10 @@ object set(object o, object key, object value){
         // try to get "get" operator overriding function from the table and use it
         object set_override=find_function(o, "set");
         if(set_override.type!=t_null){
-            object arguments[]={o, key, value};
-            return call(set_override, arguments, 3);
+            return call(set_override, (object[]){o, key, value}, 3);
         } else {
             set_table(o.tp, key, value);
-            return null_const;
+            return value;
         }
     } else {
         RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);

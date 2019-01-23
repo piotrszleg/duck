@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "../bytecode.h"
 
+int path_length(const instruction* code,  int path_start);
 void optimise_bytecode(bytecode_program* prog);
 
 #endif
