@@ -1,0 +1,3 @@
+sum=(a, b)->a+b
+addone=sum<<1
+addone(4)

@@ -30,6 +30,7 @@ char* stringify_object(object o);
 char* stringify(object o);
 
 #include "error_object.h"
+#include "binding_object.h"
 #include "pipe_object.h"
 
 #endif

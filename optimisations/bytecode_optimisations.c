@@ -106,7 +106,7 @@ void optimise_bytecode(bytecode_program* prog){
     LOG_CHANGE("Unoptimised bytecode:\n%s\n");
     for(int pointer=count_instructions(prog->code); pointer>=0; pointer--){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
-           && path_length(prog->code, pointer)>2){// don't optimise nested paths like table.key, only single name paths
+           && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
             if(LOG_BYTECODE_OPTIMISATIONS){
                 printf("I found a set instruction: %i\n", pointer);
             }

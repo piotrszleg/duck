@@ -216,6 +216,9 @@ object operator(object a, object b, const char* op){
     if(strcmp(op, ">>")==0){
         return new_pipe(a, b);
     }
+    if(strcmp(op, "<<")==0){
+        return new_binding(a, b);
+    }
     
     if(a.type==t_string){
         if(a.type!=b.type){

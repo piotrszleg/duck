@@ -33,7 +33,9 @@ OBJECT_INIT_NEW(table,
 object to_string(const char* s){
     object o; 
     string_init(&o);
-    // so here we assume that if something saves the string it will call reference function to copy it
+    /* String object can contain const string as long as it doesn't dereference it.
+    If some object takes ownership over the string it will copy it by calling reference function.
+    This way strings are allocated dynamically only if it's needed. */
     o.text=(char*)s;
     return o;
 }

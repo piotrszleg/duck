@@ -53,7 +53,7 @@ object new_pipe(object f1, object f2){
     set(pipe, to_string("0"), f1);
     set(pipe, to_string("1"), f2);
 
-    set_function(pipe, "--", 2, pipe_add);
+    set_function(pipe, ">>", 2, pipe_add);
     set_function(pipe, "call", 1, pipe_call);
 
     return pipe;
