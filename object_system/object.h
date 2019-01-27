@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <string.h>
+#include <stdbool.h>
 #include "../error/error.h"
 #include "../macros.h"
 #include "../datatypes/vector.h"
@@ -69,17 +70,16 @@ OBJECT_INIT_NEW_DECLARATIONS(table)
 #define STRING_OBJECT(name, string_text) object name; string_init(&name); name.text=(char*)string_text;
 
 #define CHECK_OBJECT(checked) \
-    if(checked==NULL) { ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); } \
-    if(checked->type<t_null||checked->type>t_table) { ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); }
+    if(checked==NULL) { \
+        ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); \
+    } \
+    if(checked->type<t_null||checked->type>t_table) { \
+        ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
+    }
 
-/*typedef map_t(object) object_map_t;
-typedef struct table table;
-struct table {
-    int ref_count;
-    object_map_t fields;
-};*/
-
+// declaration of function pointer type used in function objects
 typedef object (*object_system_function)(object* arguments, int arguments_count);
+
 typedef enum function_type function_type;
 enum function_type {
     f_native,
@@ -97,6 +97,7 @@ struct function {
     void* enviroment;
     char** argument_names;
     int arguments_count;
+    bool variadic;
     object enclosing_scope;
 };
 

@@ -9,5 +9,6 @@
 
 void register_builtins(object scope);
 void inherit_scope(object scope, object base);
+char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
 
 #endif

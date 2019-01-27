@@ -251,11 +251,13 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
             int arguments_count=vector_total(d->arguments);
 
             PUSH_INFO
+            push_number_load(code, (float)d->variadic);
             PUSH_INFO
             push_number_load(code, (float)arguments_count);
             bytecode_program prog=closure_to_bytecode(d);
             stream_push(&translation->sub_programs, &prog, sizeof(bytecode_program));
             int sub_program_index=(translation->sub_programs.position/sizeof(bytecode_program))-1;
+            PUSH_INFO
             push_instruction(code, b_function, sub_program_index);
             break;
         }

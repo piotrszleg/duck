@@ -11,7 +11,9 @@ void repl(int use_bytecode){
     register_builtins(global_scope);
 
     while(1) {
-        scanf("%s", input);
+        if(fgets_no_newline(input, sizeof(input), stdin)==NULL){
+            continue;
+        }
         if(strcmp(input, "quit")==0){
             break;
         }

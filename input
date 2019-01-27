@@ -1,4 +1,1 @@
-a=17
-b=9
-c=2
-print(a+b+c)
+print(eval(input()))

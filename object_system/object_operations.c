@@ -26,7 +26,7 @@ bool is_falsy(object o){
         case t_table:
             return o.tp->array_size==0 && o.tp->map_size==0;// empty table is falsy
         default:
-            ERROR(WRONG_ARGUMENT_TYPE, "Incorrect object pointer passed to is_falsy function.");
+            ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object pointer passed to is_falsy function.");
     }
 }
 

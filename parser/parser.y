@@ -214,20 +214,20 @@ arguments:
 	}
 	;
 function:
-	'(' arguments ELLIPSIS ')' ARROW expression {
-		function_declaration* f=new_function_declaration();
-		ADD_DEBUG_INFO(f)
-		f->arguments=$2;
-		f->variadic=false;
-		f->body=$6;
-		$$=(expression*)f;
-	}
-	| '(' arguments ')' ARROW expression {
+	'(' arguments ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		f->arguments=$2;
 		f->variadic=false;
 		f->body=$5;
+		$$=(expression*)f;
+	}
+	| '(' arguments ELLIPSIS ')' ARROW expression {
+		function_declaration* f=new_function_declaration();
+		ADD_DEBUG_INFO(f)
+		f->arguments=$2;
+		f->variadic=true;
+		f->body=$6;
 		$$=(expression*)f;
 	}
 	| name ELLIPSIS ARROW expression {

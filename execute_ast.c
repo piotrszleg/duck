@@ -167,6 +167,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             function_init(&f);
             f.fp->argument_names=malloc(sizeof(char*)*arguments_count);
             f.fp->arguments_count=arguments_count;
+            f.fp->variadic=d->variadic;
 
             for (int i = 0; i < arguments_count; i++){
                 f.fp->argument_names[i]=strdup(((name*)vector_get(d->arguments, i))->value);

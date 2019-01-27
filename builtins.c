@@ -6,6 +6,86 @@ object builtin_print(object* arguments, int arguments_count){
     return null_const;
 }
 
+// source: https://stackoverflow.com/questions/1694036/why-is-the-gets-function-so-dangerous-that-it-should-not-be-used
+char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp) {
+    if (fgets(buffer, buflen, fp) != 0)
+    {
+        buffer[strcspn(buffer, "\n")] = '\0';
+        return buffer;
+    }
+    return 0;
+}
+
+object builtin_input(object* arguments, int arguments_count){
+    #define MAX_INPUT 128
+    char* input=malloc(MAX_INPUT*sizeof(char));
+    if(fgets_no_newline(input, MAX_INPUT, stdin)!=NULL){
+        return to_string(input);
+    }
+    #undef MAX_INPUT
+}
+
+#define REQUIRE(predicate, cause) if(!(predicate)) { RETURN_ERROR("WRONG_ARGUMENT", cause, "Requirement of function %s wasn't satisified: %s", __FUNCTION__, #predicate); }
+#define REQUIRE_TYPE(o, t) if(o.type!=t) { RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
+
+object builtin_substring(object* arguments, int arguments_count){
+    object str=arguments[0];
+    REQUIRE_TYPE(str, t_string)
+    object start=arguments[1];
+    REQUIRE_TYPE(start, t_number)
+    object end=arguments[2];
+    REQUIRE_TYPE(end, t_number)
+    REQUIRE(start.value<end.value, multiple_causes((object[]){str, start, end}, 3))
+    REQUIRE(start.value>=0, multiple_causes((object[]){str, start}, 2))
+    REQUIRE(end.value<=strlen(str.text), multiple_causes((object[]){str, end}, 2))
+    int length=end.value-start.value;
+    char* result=malloc(sizeof(char)*(length+1));
+    memcpy(result, str.text+(int)start.value, length);
+    result[length]='\0';
+    return to_string(result);
+}
+
+object builtin_string_length(object* arguments, int arguments_count){
+    object str=arguments[0];
+    REQUIRE_TYPE(str, t_string)
+    return to_number(strlen(str.text));
+}
+
+object builtin_to_character(object* arguments, int arguments_count){
+    object n=arguments[0];
+    REQUIRE_TYPE(n, t_number);
+    char* result=malloc(sizeof(char)*2);
+    result[0]=n.value;
+    result[1]='\0';
+    return to_string(result);
+}
+
+object builtin_from_character(object* arguments, int arguments_count){
+    object str=arguments[0];
+    REQUIRE_TYPE(str, t_string)
+    REQUIRE(strlen(str.text)==1, str)
+    return to_number(str.text[0]);
+}
+
+object builtin_format(object* arguments, int arguments_count){
+    object str=arguments[0];
+    REQUIRE_TYPE(str, t_string)
+    object variadic_table=arguments[1];
+    stream s;
+    init_stream(&s, 64);
+    int variadic_counter=0;
+    for(int i=0; i<strlen(str.text); i++){
+        if(str.text[i]=='{' && str.text[i+1]=='}'){
+            USING_STRING(stringify(get(variadic_table, to_number(variadic_counter++))),
+                stream_push(&s, str, strlen(str)*sizeof(char)))
+            i++;
+        }
+        else stream_push(&s, &str.text[i], sizeof(char));
+    }
+    stream_push(&s, "\0", sizeof(char));
+    return to_string(s.data);
+}
+
 object builtin_assert(object* arguments, int arguments_count){
     object self=arguments[0];
     if(is_falsy(self)){
@@ -25,25 +105,16 @@ object builtin_typeof(object* arguments, int arguments_count){
 
 object builtin_native_get(object* arguments, int arguments_count){
     object self=arguments[0];
+    REQUIRE_TYPE(self, t_table)
     object key =arguments[1];
-    if(self.type!=t_table){
-        ERROR(WRONG_ARGUMENT_TYPE, "Native get function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self.type]);
-        return null_const;
-    }
-    object result;
-    USING_STRING(stringify(key),
-        get_table(self.tp, to_string(str)));
-    return result;
+    return get_table(self.tp, key);
 }
 
 object builtin_native_set(object* arguments, int arguments_count){
     object self =arguments[2];
+    REQUIRE_TYPE(self, t_table)
     object key  =arguments[1]; 
     object value=arguments[2];
-    if(self.type!=t_table){
-        ERROR(WRONG_ARGUMENT_TYPE, "Native set function only works on tables. Object type is %s.", OBJECT_TYPE_NAMES[self.type]);
-        return null_const;
-    }
     USING_STRING(stringify(key),
         set_table(self.tp, to_string(str), value));
     return value;
@@ -58,7 +129,7 @@ object builtin_native_stringify(object* arguments, int arguments_count){
 
 object builtin_native_call(object* arguments, int arguments_count){
     object self=arguments[0];
-    // call function omitting the first argument, because it was function object
+    // call function omitting the first argument, because it was the function object
     return call(self, arguments+1, arguments_count-1);
 }
 
@@ -73,13 +144,19 @@ object builtin_test(object* arguments, int arguments_count){
 object evaluate_file(const char* file_name, int use_bytecode);
 object builtin_include(object* arguments, int arguments_count){
     object path=arguments[0];
-    return evaluate_file(stringify(path), true);
+    object result;
+    REQUIRE_TYPE(path, t_string)
+    result=evaluate_file(path.text, true);
+    return result;
 }
 
 object evaluate_string(const char* s, bool use_bytecode);
 object builtin_eval(object* arguments, int arguments_count){
     object text=arguments[0];
-    return evaluate_string(stringify(text), true);
+    object result;
+    REQUIRE_TYPE(text, t_string)
+    result=evaluate_string(text.text, true);
+    return result;
 }
 
 void register_builtins(object scope){
@@ -92,38 +169,43 @@ void register_builtins(object scope){
     
     set(scope, to_string("patches"), patching_table);
     set(scope, to_string("global"), scope);
-    REGISTER_FUNCTION(print, 1);
-    REGISTER_FUNCTION(assert, 1);
-    REGISTER_FUNCTION(typeof, 1);
-    REGISTER_FUNCTION(native_get, 2);
-    REGISTER_FUNCTION(native_call, 2);
-    REGISTER_FUNCTION(native_stringify, 1);
-    REGISTER_FUNCTION(include, 1);
-    REGISTER_FUNCTION(eval, 1);
+    REGISTER_FUNCTION(print, 1)
+    REGISTER_FUNCTION(input, 0)
+    REGISTER_FUNCTION(assert, 1)
+    REGISTER_FUNCTION(typeof, 1)
+    REGISTER_FUNCTION(native_get, 2)
+    REGISTER_FUNCTION(native_call, 2)
+    REGISTER_FUNCTION(native_stringify, 1)
+    REGISTER_FUNCTION(include, 1)
+    REGISTER_FUNCTION(eval, 1)
+    REGISTER_FUNCTION(substring, 3)
+    REGISTER_FUNCTION(string_length, 1)
+    REGISTER_FUNCTION(from_character, 1)
+    REGISTER_FUNCTION(to_character, 1)
     //REGISTER_FUNCTION(test, 2);
+
+    object format_function;
+    function_init(&format_function);
+    format_function.fp->variadic=true;
+    format_function.fp->arguments_count=2;
+    format_function.fp->native_pointer=&builtin_format;
+    set(scope, to_string("format"), format_function);
 
     #undef REGISTER_FUNCTION
 }
 
 object scope_get_override(object* arguments, int arguments_count){
     object self=arguments[0];
-    if(self.type!=t_table){
-        ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect self argument.");
-        return null_const;
-    }
+    REQUIRE_TYPE(self, t_table)
     object key=arguments[1];
-    if(key.type!=t_string){
-        ERROR(WRONG_ARGUMENT_TYPE, "Table get override incorrect key argument.");
-        return null_const;
-    }
-    object map_get_result=get_table(self.tp, to_string(key.text));
+    object map_get_result=get_table(self.tp, key);
 
     if(map_get_result.type!=t_null){
         return map_get_result;
     } else{
         object base=get_table(self.tp, to_string("base"));
         if(base.type==t_table){
-            return get(base, to_string(key.text));
+            return get(base, key);
         }
         return null_const;
     }

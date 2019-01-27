@@ -19,7 +19,7 @@ object evaluate(expression* parsing_result, bool use_bytecode){
     if(use_bytecode){
         bytecode_program prog=ast_to_bytecode(parsing_result, 1);
         delete_expression(parsing_result);// at this point ast is useless and only wastes memory
-        //optimise_bytecode(&prog);
+        optimise_bytecode(&prog);
         USING_STRING(stringify_bytecode(&prog),
             printf("Bytecode:\n%s\n", str));
         
@@ -75,7 +75,7 @@ void execute_file(const char* file_name, bool use_bytecode){
     dereference(&execution_result);
 }
 
-object call_function(function* f, object* arguments, int arguments_count){
+object call_function_checked(function* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
         return f->native_pointer(arguments, arguments_count);
     } else {
@@ -85,10 +85,6 @@ object call_function(function* f, object* arguments, int arguments_count){
             inherit_scope(function_scope, f->enclosing_scope);
         }
         if(f->ftype==f_ast){
-            if(f->arguments_count<arguments_count){
-                ERROR(NOT_ENOUGH_ARGUMENTS, "Too many arguments in ast function call.");
-                return null_const;
-            }
             for(int i=0; i<arguments_count; i++){
                 STRING_OBJECT(argument_name, f->argument_names[i]);
                 set(function_scope, argument_name, arguments[i]);
@@ -108,6 +104,43 @@ object call_function(function* f, object* arguments, int arguments_count){
             ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
             return null_const;
         }
+    }
+}
+
+// return error if arguments count is incorrect and proccess variadic functions, then call the function using call_function_checked
+object call_function(function* f, object* arguments, int arguments_count){
+
+    int arguments_count_difference=arguments_count-f->arguments_count;
+    if(f->variadic){
+        //if(arguments_count_difference<-1){
+            RETURN_ERROR("CALL_ERROR", null_const, "Not enough arguments in variadic function call, expected at least %i, given %i.", f->arguments_count-1, arguments_count);
+        //}
+
+        // make new arguments array
+        int processed_arguments_count=f->arguments_count;
+        object* processed_arguments=malloc(sizeof(object)*processed_arguments_count);
+        // copy non variadic arguments
+        for(int i=0; i<f->arguments_count-1; i++){
+            processed_arguments[i]=arguments[i];
+        }
+        
+        // pack variadic arguments into a table
+        int variadic_arguments_count=arguments_count_difference+1;
+        object variadic_table;
+        table_init(&variadic_table);
+        for(int i=variadic_arguments_count-1; i>=0; i--){
+            set(variadic_table, to_number(i), arguments[f->arguments_count-1+i]);
+        }
+        // append the variadic array to the end of processed arguments array
+        processed_arguments[f->arguments_count-1]=variadic_table;
+
+        return call_function_checked(f, processed_arguments, processed_arguments_count);
+    } else if(arguments_count_difference<0){
+        RETURN_ERROR("CALL_ERROR", null_const, "Not enough arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
+    } else if(arguments_count_difference>0) {
+        RETURN_ERROR("CALL_ERROR", null_const, "Too many arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
+    } else {
+        return call_function_checked(f, arguments, arguments_count);
     }
 }
 
