@@ -27,9 +27,6 @@ object builtin_input(object* arguments, int arguments_count){
     #undef MAX_INPUT
 }
 
-#define REQUIRE(predicate, cause) if(!(predicate)) { RETURN_ERROR("WRONG_ARGUMENT", cause, "Requirement of function %s wasn't satisified: %s", __FUNCTION__, #predicate); }
-#define REQUIRE_TYPE(o, t) if(o.type!=t) { RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
-
 // string operations
 
 object builtin_substring(object* arguments, int arguments_count){
@@ -194,6 +191,7 @@ void register_builtins(object scope){
     REGISTER_FUNCTION(from_character, 1)
     REGISTER_FUNCTION(to_character, 1)
     //REGISTER_FUNCTION(test, 2);
+    set(scope, to_string("iterator"), to_function(get_table_iterator, NULL, 1));
 
     object format_function;
     function_init(&format_function);

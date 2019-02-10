@@ -2,12 +2,17 @@
 #define TABLE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "object.h"
 #include "../datatypes/stream.h"
 #include "../macros.h"
+#include "error_object.h"
 
 #define INITIAL_MAP_SIZE 16
 #define INITIAL_ARRAY_SIZE 16
+
+#define REQUIRE_TYPE(o, t) if(o.type!=t) { \
+    RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
 
 typedef struct map_element map_element;
 struct map_element {
@@ -44,5 +49,6 @@ object get_table(table* t, object key);
 void set_table(table* t, object key, object value);
 char* stringify_table(table* t);
 void table_component_init(table* t);
+object get_table_iterator(object* arguments, int arguments_count);
 
 #endif

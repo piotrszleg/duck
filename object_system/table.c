@@ -104,6 +104,9 @@ iteration_result table_next(table_iterator* it){
             it->index++;
             it->element=iterated->map[it->index];
             if(it->index>=iterated->map_size){
+                // map iteration finished
+                result.key=null_const;
+                result.value=null_const;
                 result.finished=true;
                 return result;
             }
@@ -198,6 +201,7 @@ void set_table(table* t, object key, object value) {
     int hashed=hash(key)%t->map_size;
     reference(&key);
     map_element* e=t->map[hashed];
+    // traverse linked list
     while(e){
         if(e!=NULL && compare(e->key, key)==0) {
             // there is a map_element with this key, so we replace it's value
@@ -207,11 +211,51 @@ void set_table(table* t, object key, object value) {
         }
         e=e->next;
     }
-    {
-        map_element* e=malloc(sizeof(map_element));
-        e->key=key;
-        e->value=value;
-        e->next=t->map[hashed];
-        t->map[hashed]=e;
-    }
+    // searching for a map_element with given key failed, create new and insert it
+    map_element* new_element=malloc(sizeof(map_element));
+    new_element->key=key;
+    new_element->value=value;
+    new_element->next=t->map[hashed];
+    t->map[hashed]=new_element;
+}
+
+object get(object o, object key);
+object set(object o, object key, object value);
+
+object iterator_next_function(object* arguments, int arguments_count){
+    object self=arguments[0];
+    object result_object;
+    table_init(&result_object);
+
+    object iterator_address=get(self, to_number(0));
+    REQUIRE_TYPE(iterator_address, t_number);
+    table_iterator* it=(table_iterator*)(intptr_t)iterator_address.value;
+    iteration_result result=table_next(it);
+    set(result_object, to_string("key"), result.key);
+    set(result_object, to_string("value"), result.value);
+    set(result_object, to_string("finished"), to_number(result.finished));
+    set(result_object, to_string("inside_array"), to_number(result.inside_array));
+    return result_object;
+}
+
+object destroy_iterator(object* arguments, int arguments_count){
+    object self=arguments[0];
+    object iterator_address=get(self, to_number(0));
+    REQUIRE_TYPE(iterator_address, t_number);
+    free((table_iterator*)(intptr_t)iterator_address.value);
+    return null_const;
+}
+
+// TODO: protect pointer from overriding from script for safety reasons
+object get_table_iterator(object* arguments, int arguments_count){
+    object self=arguments[0];
+    object iterator;
+    table_init(&iterator);
+    REQUIRE_TYPE(self, t_table);
+    table_iterator* it=malloc(sizeof(table_iterator));
+    *it=start_iteration(self.tp);
+    set(iterator, to_number(0), to_number((intptr_t)it));
+    set(iterator, to_string("next"), to_function(iterator_next_function, NULL, 1));
+    set(iterator, to_string("destroy"), to_function(destroy_iterator, NULL, 1));
+    return iterator;
 }

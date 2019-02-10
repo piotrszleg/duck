@@ -1,1 +1,2 @@
- 
+it= iterator([a=1, b=4])
+it.next()
