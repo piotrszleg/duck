@@ -75,6 +75,11 @@ program:
 	lines { 
 		parsing_result = $1;
 	}
+	| {
+		empty* e=new_empty();
+		ADD_DEBUG_INFO(e)
+		parsing_result=(expression*)e;
+	}
 	;
 lines_separator:
 	ENDLS | ',';

@@ -12,6 +12,11 @@
     EXPRESSION_TYPES
 #undef X
 
+
+bool check_expression(expression* e){
+	return e!=NULL && e->type>=e_empty && e->type<=e_function_return;
+}
+
 void string_replace(char *s, char from, char to) {
     while (*s == from)
     *s++ = to;

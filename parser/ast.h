@@ -111,6 +111,7 @@ AST_OBJECT(literal,
     };
 )
 
+bool check_expression(expression* e);
 char* stringify_expression(expression*, int);
 void delete_expression(expression*);
 expression* copy_expression(expression*);
