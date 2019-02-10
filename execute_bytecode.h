@@ -4,7 +4,7 @@
 #include "object_system/object.h"
 #include "error/error.h"
 #include "datatypes/stack.h"
-#include "builtins.h"
+#include "runtime/builtins.h"
 #include "bytecode.h"
 #include "macros.h"
 #include "bytecode.h"

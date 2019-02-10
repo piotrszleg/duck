@@ -381,10 +381,10 @@ object get(object o, object key){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object map_get_override=get_table(o.tp, to_string("get"));
-        if(map_get_override.type==t_function){
+        if(map_get_override.type!=t_null){
             object arguments[]={o, key};
 
-            object result=call_function(map_get_override.fp, arguments, 2);
+            object result=call(map_get_override, arguments, 2);
             return result;
         } else {
             // simply get key from table's map
@@ -414,7 +414,7 @@ object set(object o, object key, object value){
     MONKEY_PATCH("set", ((object[]){o, key, value}), 3);
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
-        object set_override=find_function(o, "set");
+        object set_override=get_table(o.tp, to_string("set"));
         if(set_override.type!=t_null){
             return call(set_override, (object[]){o, key, value}, 3);
         } else {

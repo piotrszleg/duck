@@ -2,7 +2,7 @@
 #define AST_VISITOR_H
 
 #include <stdbool.h>
-#include "parser/ast.h"
+#include "../parser/ast.h"
 
 typedef enum move_request move_request;
 enum move_request{

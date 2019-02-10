@@ -17,6 +17,7 @@ OBJECT_INIT_NEW(function,
     o->fp=malloc(sizeof(function));
     CHECK_ALLOCATION(o->fp);
     o->fp->ref_count=0;
+    o->fp->variadic=false;
     o->fp->argument_names=NULL;
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
@@ -40,10 +41,10 @@ object to_string(const char* s){
     return o;
 }
 
-object to_number(int i){
+object to_number(float n){
     object o; 
     number_init(&o); 
-    o.value=i;
+    o.value=n;
     return o;
 }
 

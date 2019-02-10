@@ -277,20 +277,26 @@ object execute_bytecode(bytecode_environment* environment){
             {
                 object o=pop(object_stack);
                 int provided_arguments=instr.argument;
-                if(o.type==t_null){
-                    object err;
-                    NEW_ERROR(err, "CALL_ERROR", o, "Called function is null.");
-                    push(object_stack, err);
-                    break;
-                }
-                int arguments_count_difference=provided_arguments-o.fp->arguments_count;
 
                 #define CALL_ERROR(message, ...) \
                     object err; \
                     NEW_ERROR(err, "CALL_ERROR", o, message, ##__VA_ARGS__); \
                     push(object_stack, err); \
                     break;
-
+                
+                if(o.type==t_null){
+                    CALL_ERROR("Called function is null.");
+                }
+                if(o.type!=t_function){
+                    object* arguments=malloc(sizeof(object)*provided_arguments);
+                    for (int i = 0; i < provided_arguments; i++){
+                        arguments[i]=pop(object_stack);
+                    }
+                    push(object_stack, call(o, arguments, provided_arguments));
+                    free(arguments);
+                    break;
+                }
+                int arguments_count_difference=provided_arguments-o.fp->arguments_count;
                 if(o.fp->variadic){
                     if(arguments_count_difference<-1){
                         CALL_ERROR("Not enough arguments in variadic function call, expected at least %i, given %i.", o.fp->arguments_count-1, provided_arguments);
@@ -309,15 +315,6 @@ object execute_bytecode(bytecode_environment* environment){
                     CALL_ERROR("Not enough arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
                 }
                 // TODO: clean and test, why the two loops are different?
-                if(o.type!=t_function){
-                    object* arguments=malloc(sizeof(object)*o.fp->arguments_count);
-                    for (int i = 0; i < o.fp->arguments_count; i++){
-                        arguments[i]=pop(object_stack);
-                    }
-                    push(object_stack, call(o, arguments, o.fp->arguments_count));
-                    free(arguments);
-                    break;
-                }
                 else if(o.fp->ftype==f_native){
                     object* arguments=malloc(sizeof(object)*o.fp->arguments_count);
                     // items are on stack in reverse order, but native function expect them to be in normal order

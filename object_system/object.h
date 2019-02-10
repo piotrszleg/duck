@@ -102,7 +102,7 @@ struct function {
 };
 
 object to_string(const char* s);
-object to_number(int i);
+object to_number(float n);
 object to_function(object_system_function f, char** argument_names, int arguments_count);
 
 void reference(object* o);

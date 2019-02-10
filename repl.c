@@ -1,8 +1,8 @@
 #include "repl.h"
-#include "builtins.h"
+#include "runtime/builtins.h"
 
 void repl(int use_bytecode){
-    printf("Read eval print loop of the duck parser. \n---\nType in duck syntax to see it's AST representation. \nWrite \"quit\" to exit the program.\n");
+    printf("Read eval print loop of the duck parser. \n---\nType in duck expressions to get their evaluation results. \nWrite \"quit\" to exit the program.\n");
     char input[128];
 
     object global_scope;
@@ -33,7 +33,5 @@ void repl(int use_bytecode){
             printf("%s\n", err_message);
         )
     }
-    // since parts of ast are functions they can't be deleted right after executing each line
-    // so they are deleted when program finishes
     dereference(&global_scope);
 }

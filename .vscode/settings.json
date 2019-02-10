@@ -32,6 +32,7 @@
         "stdbool.h": "c",
         "ctype.h": "c",
         "limits.h": "c",
-        "execution.h": "c"
+        "execution.h": "c",
+        "struct_descriptor.h": "c"
     }
 }

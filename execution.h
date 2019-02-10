@@ -8,7 +8,7 @@
 #include "execute_bytecode.h"
 #include "optimisations/ast_optimisations.h"
 #include "optimisations/bytecode_optimisations.h"
-#include "builtins.h"
+#include "runtime/builtins.h"
 #include "macros.h"
 #include "object_system/object_operations.h"
 #include "error/execution_state.h"
@@ -17,6 +17,7 @@
 #include "execute_ast.h"
 
 object detach_function(function* f);
+object evaluate_string(const char* s, bool use_bytecode);
 object evaluate_file(const char* file_name, bool use_bytecode);
 void execute_file(const char* file_name, bool use_bytecode);
 object call_function(function* f, object* arguments, int arguments_count);

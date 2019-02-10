@@ -4,7 +4,7 @@
 #include "parser/ast.h"
 #include "object_system/object.h"
 #include "error/error.h"
-#include "builtins.h"
+#include "runtime/builtins.h"
 #include "stdbool.h"
 #include "error/execution_state.h"
 #include "macros.h"

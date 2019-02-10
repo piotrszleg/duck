@@ -21,12 +21,16 @@ object builtin_input(object* arguments, int arguments_count){
     char* input=malloc(MAX_INPUT*sizeof(char));
     if(fgets_no_newline(input, MAX_INPUT, stdin)!=NULL){
         return to_string(input);
+    } else {
+        return null_const;
     }
     #undef MAX_INPUT
 }
 
 #define REQUIRE(predicate, cause) if(!(predicate)) { RETURN_ERROR("WRONG_ARGUMENT", cause, "Requirement of function %s wasn't satisified: %s", __FUNCTION__, #predicate); }
 #define REQUIRE_TYPE(o, t) if(o.type!=t) { RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
+
+// string operations
 
 object builtin_substring(object* arguments, int arguments_count){
     object str=arguments[0];
@@ -131,6 +135,13 @@ object builtin_native_call(object* arguments, int arguments_count){
     object self=arguments[0];
     // call function omitting the first argument, because it was the function object
     return call(self, arguments+1, arguments_count-1);
+}
+
+object builtin_iterator(object* arguments, int arguments_count){
+    object self=arguments[0];
+    REQUIRE_TYPE(self, t_table);
+    // TODO
+    return null_const;
 }
 
 object builtin_test(object* arguments, int arguments_count){

@@ -8,7 +8,7 @@
     }
 
 bool is_path_part(instruction instr){
-    return (instr.type==b_get && instr.argument!=0) || instr.type==b_load_string;
+    return instr.type==b_get || instr.type==b_load_string;
 }
 
 int path_length(const instruction* code,  int path_start){
@@ -16,7 +16,7 @@ int path_length(const instruction* code,  int path_start){
         return 0;// path must start with either set or get
     }
     int p=1;
-    for(; is_path_part(code[path_start-p]); p++);
+    for(; is_path_part(code[path_start-p]) && p<path_start+1; p++);
     return p;
 }
 
@@ -108,7 +108,7 @@ void optimise_bytecode(bytecode_program* prog){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
            && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
             if(LOG_BYTECODE_OPTIMISATIONS){
-                printf("I found a set instruction: %i\n", pointer);
+                printf("I found a set instruction: %i, path length is: %i\n", pointer, path_length(prog->code, pointer));
             }
             bool first_get_removal=true;
             bool used=false;

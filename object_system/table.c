@@ -116,8 +116,9 @@ iteration_result table_next(table_iterator* it){
 }
 
 char* stringify_kvp(const char* key, const char* value){// kvp = key value pair
-    char* buf=malloc(32);// TODO: resizing buffer
-    snprintf(buf, 32, "%s=%s", key, value);
+    int length=strlen(key)+strlen(value)+2;
+    char* buf=malloc(length*sizeof(char));// TODO: resizing buffer
+    snprintf(buf, length, "%s=%s", key, value);
     return buf;
 }
 
