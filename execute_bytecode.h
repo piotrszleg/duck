@@ -12,7 +12,6 @@
 #include "error/execution_state.h"
 
 typedef struct {
-    int* labels;
     int pointer;
     object scope;
     bytecode_program* program;

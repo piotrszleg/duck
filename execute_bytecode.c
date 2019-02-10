@@ -53,6 +53,13 @@ int* list_labels(instruction* code){
     return labels;
 }
 
+void list_program_labels(bytecode_program* program){
+    program->labels=list_labels(program->code);
+    for(int i=0; i<program->sub_programs_count; i++){
+        list_program_labels(&program->sub_programs[i]);
+    }
+}
+
 void move_to_function(bytecode_environment* environment, function* f, bool termainate){
     // create and push return_point pointing to current location
     return_point rp;
@@ -73,7 +80,8 @@ void move_to_function(bytecode_environment* environment, function* f, bool terma
 }
 
 void bytecode_enviroment_init(bytecode_environment* e){
-    e->labels=list_labels(e->program->code);
+    list_program_labels(e->program);
+    
     stack_init(&e->object_stack, sizeof(object), STACK_SIZE);
     push(&e->object_stack, null_const);
     stack_init(&e->return_stack, sizeof(return_point), STACK_SIZE);
@@ -243,7 +251,7 @@ object execute_bytecode(bytecode_environment* environment){
             }
             case b_jump:
             {
-                int destination=environment->labels[instr.argument];
+                int destination=environment->program->labels[instr.argument];
                 if(destination>0){
                     *pointer=destination;
                 } else {

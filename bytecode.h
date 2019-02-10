@@ -51,6 +51,7 @@ struct instruction {
 typedef struct bytecode_program bytecode_program;
 struct bytecode_program {
     instruction* code;
+    int* labels;
     instruction_information* information;
     char* constants;
     bytecode_program* sub_programs;
