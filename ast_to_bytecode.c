@@ -269,7 +269,7 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
                 ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), translation, keep_scope);
             }
             PUSH_INFO
-            bytecode_path_get(translation, *c->function_path);
+            ast_to_bytecode_recursive(c->called, translation, keep_scope);
             PUSH_INFO
             push_instruction(code, b_call, lines_count);
             break;

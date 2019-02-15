@@ -128,6 +128,24 @@ object builtin_native_stringify(object* arguments, int arguments_count){
     return result;
 }
 
+object builtin_string(object* arguments, int arguments_count){
+    return cast(arguments[0], t_string);
+}
+
+object builtin_number(object* arguments, int arguments_count){
+    return cast(arguments[0], t_number);
+}
+
+object builtin_cast(object* arguments, int arguments_count){
+    REQUIRE_TYPE(arguments[1], t_string);
+    for(int i=0; i<OBJECT_TYPE_NAMES_COUNT; i++){
+        if(OBJECT_TYPE_NAMES[i]==arguments[1].text){
+            return cast(arguments[0], (object_type)i);
+        }
+    }
+    RETURN_ERROR("INCORRECT_ARGUMENT", arguments[1], "Incorrect type name");
+}
+
 object builtin_native_call(object* arguments, int arguments_count){
     object self=arguments[0];
     // call function omitting the first argument, because it was the function object
@@ -190,6 +208,9 @@ void register_builtins(object scope){
     REGISTER_FUNCTION(string_length, 1)
     REGISTER_FUNCTION(from_character, 1)
     REGISTER_FUNCTION(to_character, 1)
+    REGISTER_FUNCTION(string, 1)
+    REGISTER_FUNCTION(number, 1)
+    REGISTER_FUNCTION(cast, 1)
     //REGISTER_FUNCTION(test, 2);
     set(scope, to_string("iterator"), to_function(get_table_iterator, NULL, 1));
 

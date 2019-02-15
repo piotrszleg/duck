@@ -323,7 +323,7 @@ object execute_bytecode(bytecode_environment* environment){
                     CALL_ERROR("Not enough arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
                 }
                 // TODO: clean and test, why the two loops are different?
-                else if(o.fp->ftype==f_native){
+                if(o.fp->ftype==f_native){
                     object* arguments=malloc(sizeof(object)*o.fp->arguments_count);
                     // items are on stack in reverse order, but native function expect them to be in normal order
                     for (int i = o.fp->arguments_count-1; i >= 0; i--){

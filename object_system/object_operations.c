@@ -52,24 +52,12 @@ object cast(object o, object_type type){
             } else if(o.type==t_string && is_number(o.text)){
                 result.value=atoi(o.text);// convert string to int if it contains number
                 return result;
-            } else {
-                break;
             }
+            // intentional fallthrough
         }
-        case t_function:
-        {
-            object called=o;
-            do{
-                // recursively search for object of type function under key "call" inside of 'o' object structure
-                STRING_OBJECT(call_string, "call");
-                called=get(called, call_string);
-                // get will fail at some point so it shouldn't create an infinite loop
-            } while(called.type!=t_function);
-            return called;
-        }
-        default:;
+        default:
+            RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
     }
-    RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
 }
 
 object create_number(int value){
@@ -156,38 +144,38 @@ object operator(object a, object b, const char* op){
             return result;
         }
     }
-
-    if(strcmp(op, "==")==0){
+    #define OP_CASE(operator_name) if(strcmp(op, operator_name)==0)
+    OP_CASE("=="){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
             return create_number(comparision_result==0);
     }
-    if(strcmp(op, "!=")==0){
+    OP_CASE("!="){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
             return create_number(!comparision_result!=0);
     }
-    if(strcmp(op, ">")==0){
+    OP_CASE(">"){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
             return create_number(comparision_result==1);
     }
-    if(strcmp(op, "<")==0){
+    OP_CASE("<"){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
             return create_number(comparison_result==-1);
     }
-    if(strcmp(op, ">=")==0){
+    OP_CASE(">="){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
             return create_number(comparison_result==1||comparison_result==0);
     }
-    if(strcmp(op, "<=")==0){
+    OP_CASE("<="){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
             return create_number(comparison_result==-1||comparison_result==0);
     }
-    if(strcmp(op, "||")==0){
+    OP_CASE("||"){
         if(!is_falsy(a)){
             return a;
         } else if (!is_falsy(b)){
@@ -197,7 +185,7 @@ object operator(object a, object b, const char* op){
             return result;
         }
     }
-    if(strcmp(op, "&&")==0){
+    OP_CASE("&&"){
         if(is_falsy(a)){
             return a;
         } else if (is_falsy(b)){
@@ -206,25 +194,45 @@ object operator(object a, object b, const char* op){
             return b;
         }
     }
-    if(strcmp(op, "!")==0){
+    OP_CASE("!"){
         return create_number(is_falsy(a));
     }
-    if(strcmp(op, "-")==0 && a.type==t_number && b.type==t_null){
-        a.value=-a.value;
-        return a;
+    OP_CASE("-"){
+        if(a.type==t_number && b.type==t_null){
+            a.value=-a.value;
+            return a;
+        }
     }
-    if(strcmp(op, ">>")==0){
+    OP_CASE(">>"){
         return new_pipe(a, b);
     }
-    if(strcmp(op, "<<")==0){
+    OP_CASE("<<"){
         return new_binding(a, b);
+    }
+    OP_CASE("##"){
+        if(a.type==t_table){
+            table_iterator it=start_iteration(a.tp);
+            for(iteration_result i=table_next(&it); !i.finished; i=table_next(&it)) {
+                call(b, (object[]){i.key, i.value}, 2);
+            }
+            return null_const;
+        }
+    }
+    OP_CASE("#"){
+        if(a.type==t_table){
+            table_iterator it=start_iteration(a.tp);
+            for(iteration_result i=table_next(&it); !i.finished; i=table_next(&it)) {
+                call(b, (object[]){i.value}, 1);
+            }
+            return null_const;
+        }
     }
     
     if(a.type==t_string){
         if(a.type!=b.type){
             b=cast(b, a.type);
         }
-        if(strcmp(op, "+")==0){
+        OP_CASE("+"){
             char* buffer=malloc(sizeof(char)*1024);
             CHECK_ALLOCATION(buffer);
             strcpy(buffer, a.text);
@@ -240,16 +248,16 @@ object operator(object a, object b, const char* op){
         }
         object result;
         number_init(&result);
-        if(strcmp(op, "+")==0){
+        OP_CASE("+"){
             return create_number(a.value+b.value);
         }
-        if(strcmp(op, "-")==0){
+        OP_CASE("-"){
             return create_number(a.value-b.value);
         }
-        if(strcmp(op, "*")==0){
+        OP_CASE("*"){
             return create_number(a.value*b.value);
         }
-        if(strcmp(op, "/")==0){
+        OP_CASE("/"){
             return create_number(a.value/b.value);
         }
     }

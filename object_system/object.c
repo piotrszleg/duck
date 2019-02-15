@@ -10,6 +10,7 @@ const char* OBJECT_TYPE_NAMES[]={
     "string",
     "table"
 };
+const int OBJECT_TYPE_NAMES_COUNT=5;
 
 OBJECT_INIT_NEW(null,)
 OBJECT_INIT_NEW(number,)

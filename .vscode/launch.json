@@ -44,5 +44,25 @@
                 }
             ]
         }
+        {
+            "name": "(gdb) parser tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/parser/tests.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "miDebuggerPath": "E:/Programy/MinGW/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
     ]
 }

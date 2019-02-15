@@ -98,7 +98,7 @@ char* stringify_expression(expression* exp, int indentation){
             function_call* c=(function_call*)exp;
             snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sCALL: \n%s-> name: %s \n%s-> arguments: %s", 
                                         indentation_string,
-                                        indentation_string, stringify_expression((expression*)c->function_path, indentation+1), 
+                                        indentation_string, stringify_expression((expression*)c->called, indentation+1), 
                                         indentation_string, stringify_expression((expression*)c->arguments, indentation+1));
             break;
         }
@@ -221,7 +221,7 @@ void delete_expression(expression* exp){
         case e_function_call:
         {
             function_call* c=(function_call*)exp;
-            delete_expression((expression*)c->function_path);
+            delete_expression((expression*)c->called);
             if(c->arguments!=NULL){
                 delete_expression((expression*)c->arguments);
             }
@@ -348,7 +348,7 @@ expression* copy_expression(expression* exp){
             function_call* copy=new_function_call();
             COPY_LOCATION
 
-            copy->function_path=(path*)copy_expression((expression*)c->function_path);
+            copy->called=copy_expression((expression*)c->called);
             if(c->arguments!=NULL){
                 copy->arguments=(table_literal*)copy_expression((expression*)c->arguments);
             }

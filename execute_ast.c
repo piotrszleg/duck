@@ -183,7 +183,7 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
         {
             function_call* c=(function_call*)exp;
             
-            object f=path_get(state, scope, *c->function_path);
+            object f=execute_ast(state, c->called, scope, 0);
             int arguments_count=vector_total(&c->arguments->lines);
             object* arguments=malloc(arguments_count*sizeof(object));
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){

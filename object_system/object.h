@@ -20,6 +20,7 @@ enum object_type{
 };
 
 extern const char* OBJECT_TYPE_NAMES[];// array mapping enum object_type to their names as strings
+extern const int OBJECT_TYPE_NAMES_COUNT;
 
 typedef struct table table;
 typedef struct function function;

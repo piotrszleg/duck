@@ -30,6 +30,10 @@ static void vector_resize(vector *v, int capacity)
     }
 }
 
+void* vector_last(vector *v){
+    return v->items[v->total-1];
+}
+
 void vector_add(vector *v, void *item)
 {
     if (v->capacity == v->total)

@@ -14,6 +14,13 @@ expression* parsing_result;
  
 void yyerror(const char *s);
 
+// if item is already at the end of the vector don't add it again
+void vector_add_ignore_duplicate(vector *v, void *item){
+    if(vector_last(v)!=item){
+        vector_add(v, item);
+    }
+}
+
 #define ADD_DEBUG_INFO(exp) exp->line_number=line_number; exp->column_number=column_number;
 
 #define YYERROR_VERBOSE 1
@@ -101,18 +108,24 @@ lines_with_return:
 	;
 lines:
 	lines lines_separators expression {
-		vector_add(&((block*)$1)->lines, $3);
+		vector_add_ignore_duplicate(&((block*)$1)->lines, $3);
+		$$=$1;
+	}
+	| lines_separators lines {
+		$$=$2;
+	}
+	| lines lines_separators {
 		$$=$1;
 	}
 	| lines_with_return optional_lines_separators expression {
-		vector_add(&((block*)$1)->lines, $3);
+		vector_add_ignore_duplicate(&((block*)$1)->lines, $3);
 		$$=$1;
 	}
 	| expression {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
 		vector_init(&b->lines);
-		vector_add(&b->lines, $1);
+		vector_add_ignore_duplicate(&b->lines, $1);
 		$$=(expression*)b;
 	}
 	;
@@ -333,18 +346,18 @@ assignment:
 	}
 	;
 call:
-	path '(' lines ')' {
+	expression '(' lines ')' {
 		function_call* c=new_function_call();
 		ADD_DEBUG_INFO(c)
-		c->function_path=(path*)$1;
+		c->called=$1;
 		c->arguments=(table_literal*)$3;
 		c->arguments->type=e_table_literal;
 		$$=(expression*)c;
 	}
-	| path '(' ')' {
+	| expression '(' ')' {
 		function_call* c=new_function_call();
 		ADD_DEBUG_INFO(c)
-		c->function_path=(path*)$1;
+		c->called=$1;
 		c->arguments=(table_literal*)new_block();
 		vector_init(&c->arguments->lines);
 		$$=(expression*)c;

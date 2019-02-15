@@ -68,7 +68,7 @@ AST_OBJECT(assignment,
 )
 
 AST_OBJECT(function_call,
-    path* function_path;
+    expression* called;
     table_literal* arguments;
 )
 

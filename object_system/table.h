@@ -50,5 +50,7 @@ void set_table(table* t, object key, object value);
 char* stringify_table(table* t);
 void table_component_init(table* t);
 object get_table_iterator(object* arguments, int arguments_count);
+table_iterator start_iteration(table* iterated);
+iteration_result table_next(table_iterator* it);
 
 #endif

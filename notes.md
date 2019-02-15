@@ -1,7 +1,7 @@
 "Speed is a social construct." - Mattias Petter Johansson 2018
 
 # TOFIX:
-- empty file
+- escaping format function
 - casting ownership
 - execute_bytecode.c:192
 - valgrind

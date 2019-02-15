@@ -226,6 +226,28 @@ void conditionals(){
     printf("test successful\n");
 }
 
+void blocks(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    int counts[]={2, 2, 2, 2, 1};
+
+    block* as_block=parse_block(
+    "{1, 2}\n"
+    "{\n1, 2}\n"
+    "{\n1, 2\n}\n"
+    "{\n1\n2\n}\n"
+    "{\n1\n}\n"
+    , 5);
+    
+    for (int i = 0; i < vector_total(&as_block->lines); i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==e_block);
+        assert(vector_total(&((block*)e)->lines)==counts[i]);
+    }
+
+    printf("test successful\n");
+}
+
 int main(){
     literals();
     operators();
@@ -237,4 +259,5 @@ int main(){
     function_calls();
     function_returns();
     conditionals();
+    blocks();
 }

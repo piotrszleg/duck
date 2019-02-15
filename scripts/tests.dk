@@ -29,9 +29,9 @@ test=(name, assertion)->{
     print("test successful")}
 test("test helper function", ->assert(1))
 
-test("string functions", ->{
-    assert_error=assert(o->o.error)
+assert_error=o->assert(o.error)
 
+test("string functions", ->{
     assert(substring("John", 2, 4)=="hn")
     assert_error(substring("John", -1, 4))
     assert_error(substring("John", 0, 5))
@@ -55,4 +55,14 @@ test("format function", ->{
     assert(format("name: {, surname: {}", "John", "Doe")=="name: {, surname: John")
     assert(format("name: {, surname: }", "John", "Doe")=="name: {, surname: }")
     assert(format("name: {}, surname: {", "John", "Doe")=="name: John, surname: {")
+    assert_error(format(1, 4))
+})
+
+test("type casting", ->{
+    five=5
+    text="5"
+    assert(number(text)==five)
+    assert(string(five)==text)
+    assert(cast(text, 'number)==five)
+    assert(cast(five, 'string)==text)
 })

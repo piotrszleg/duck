@@ -255,6 +255,7 @@ object get_table_iterator(object* arguments, int arguments_count){
     table_iterator* it=malloc(sizeof(table_iterator));
     *it=start_iteration(self.tp);
     set(iterator, to_number(0), to_number((intptr_t)it));
+    set(iterator, to_string("table"), self);
     set(iterator, to_string("next"), to_function(iterator_next_function, NULL, 1));
     set(iterator, to_string("destroy"), to_function(destroy_iterator, NULL, 1));
     return iterator;

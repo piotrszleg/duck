@@ -19,5 +19,6 @@ void *vector_get(vector *, int);
 void vector_delete(vector *, int);
 void vector_reverse(vector *);
 void vector_free(vector *);
+void* vector_last(vector *);
 
 #endif
