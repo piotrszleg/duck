@@ -81,7 +81,7 @@ int gets_from_stack(instruction instr){
         X(b_table_get, 2)
         X(b_set, 2)
         X(b_table_set, 3)
-        X(b_table_set_keep, 2)
+        X(b_table_set_keep, 3)
         X(b_call, instr.argument+1)
         X(b_unary, 3)
         X(b_prefix, 2)
