@@ -14,8 +14,9 @@ void optimise_bytecode(bytecode_program* prog);
 typedef struct bytecode_translation bytecode_translation;
 struct bytecode_translation {
     stream code;
-    int* labels;
+    unsigned* labels;
     stream information;
+    instruction_information last_information;
     stream constants;
     stream sub_programs;
 } ;

@@ -19,6 +19,7 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
         case b_new_scope:
         case b_set:
         case b_table_set:
+        case b_table_set_keep:
         case b_get:
         case b_table_get:
             snprintf(destination, buffer_count, "%i: %s\n", index, INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument

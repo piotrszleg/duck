@@ -196,8 +196,8 @@ object execute_bytecode(bytecode_environment* environment){
             case b_table_set_keep:
             {
                 object key=pop(object_stack);
-                object indexed=pop(object_stack);
                 object value=pop(object_stack);
+                object indexed=pop(object_stack);
                 object set_result=set(indexed, key, value);
                 push(object_stack, indexed);
                 //dereference(&indexed); // not sure about this
@@ -266,12 +266,7 @@ object execute_bytecode(bytecode_environment* environment){
             }
             case b_jump:
             {
-                int destination=environment->program->labels[instr.argument];
-                if(destination>0){
-                    *pointer=destination;
-                } else {
-                    ERROR(WRONG_ARGUMENT_TYPE, "Incorrect jump label %li, number of instruction is: %i\n", instr.argument, *pointer);
-                }
+                *pointer=environment->program->labels[instr.argument];
                 break;
             }
             case b_function:

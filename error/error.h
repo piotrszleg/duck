@@ -13,7 +13,8 @@ enum error_type{
     NOT_IMPLEMENTED,
     ASSERTION_FAILED,
     NOT_ENOUGH_ARGUMENTS,
-    STRINGIFICATION_ERROR
+    STRINGIFICATION_ERROR,
+    BYTECODE_ERROR
 };
 
 extern jmp_buf error_buf;
