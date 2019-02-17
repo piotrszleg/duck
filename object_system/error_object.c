@@ -94,7 +94,7 @@ object new_error(char* type, object cause, char* message, char* location){
     set(err, to_string("location"), to_string(location));
 
     set(err, to_string("error"), to_number(1));
-    set(err, to_string("handled"), to_number(1));
+    set(err, to_string("handled"), to_number(0));
 
     set(err, to_string("stringify"), to_function(stringify_error, NULL, 1));
     set(err, to_string("destroy"), to_function(destroy_error, NULL, 1));

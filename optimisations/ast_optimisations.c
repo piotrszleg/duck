@@ -10,6 +10,16 @@
         free(after_string);\
     }
 
+bool is_literal(expression* exp){
+    switch(exp->type){
+        case e_empty:
+        case e_literal:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool is_constant(expression* exp){
     switch(exp->type){
         case e_empty:
@@ -105,7 +115,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
         }
     }
     // constants folding
-    else if(exp->type!=e_literal && is_constant(exp)){
+    else if(!is_literal(exp) && is_constant(exp)){
         ast_visitor_request request={next};
         object evaluated=evaluate_expression(exp);
         request.replacement=to_literal(evaluated);
