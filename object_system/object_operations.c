@@ -1,6 +1,6 @@
 #include "object_operations.h"
 
-#define INITIAL_BUFFER_SIZE 8
+#define INITIAL_BUFFER_SIZE 16
 
 object patching_table={t_table};
 
@@ -280,26 +280,21 @@ char* stringify(object o){
     return stringify_object(o);
 }
 
-#define CALL_SNPRINTF(buffer, format, ...) \
-    buffer=malloc(INITIAL_BUFFER_SIZE*sizeof(char)); \
-    int buffer_size=INITIAL_BUFFER_SIZE; \
-    CHECK_ALLOCATION(buffer); \
-    while(1) { /* repeatedly call snprintf until buffer is big enough to hold formatted string */ \
-        int snprintf_result=snprintf(buffer, buffer_size, format, __VA_ARGS__); \
-        if(snprintf_result<buffer_size){ \
-            break; /*success*/ \
-        } \
-        if(snprintf_result<0){ \
-            free(buffer); \
-            ERROR(STRINGIFICATION_ERROR, "Error while calling snprintf(\"%s\")", format); \
-            buffer=strdup("<ERROR>"); \
-            break; \
-        } \
-        /*double buffer size*/ \
-        buffer_size*=2; \
-        buffer=realloc(buffer, buffer_size*sizeof(char)); \
-        CHECK_ALLOCATION(buffer); \
+char* suprintf (const char * format, ...)
+{
+    char* buffer=malloc(INITIAL_BUFFER_SIZE*sizeof(char));
+    CHECK_ALLOCATION(buffer);
+    int buffer_size=INITIAL_BUFFER_SIZE;
+    va_list args;
+    va_start (args, format);
+    while(vsnprintf (buffer, buffer_size, format, args)>=buffer_size){
+        buffer_size*=2;
+        buffer=realloc(buffer, buffer_size*sizeof(char));
+        CHECK_ALLOCATION(buffer);
     }
+    va_end (args);
+    return buffer;
+}
 
 char* stringify_object(object o){
     switch(o.type){
@@ -313,14 +308,12 @@ char* stringify_object(object o){
         }
         case t_number:
         {
-            char* buffer;
             int ceiled=o.value;
             if(((float)ceiled)==o.value){
-                CALL_SNPRINTF(buffer, "%d", ceiled);
+                return suprintf("%d", ceiled);
             } else {
-                CALL_SNPRINTF(buffer, "%f", o.value);
+                return suprintf("%f", o.value);
             }
-            return buffer;
         }
         case t_table:
             return stringify_table(o.tp);

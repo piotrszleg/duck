@@ -1,6 +1,7 @@
 #ifndef ERROR_OBJECT_H
 #define ERROR_OBJECT_H
 
+#include <stdarg.h>
 #include "object.h"
 #include "object_operations.h"
 

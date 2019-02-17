@@ -8,7 +8,7 @@
     }
 
 bool is_path_part(instruction instr){
-    return instr.type==b_get || instr.type==b_load_string;
+    return  instr.type==b_get || instr.type==b_table_get || instr.type==b_load_string;
 }
 
 int path_length(const instruction* code,  int path_start){
@@ -108,7 +108,7 @@ void optimise_bytecode(bytecode_program* prog){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
            && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
             if(LOG_BYTECODE_OPTIMISATIONS){
-                printf("I found a set instruction: %i, path length is: %i\n", pointer, path_length(prog->code, pointer));
+                printf("Found a set instruction (position: %i, path length: %i)\n", pointer, path_length(prog->code, pointer));
             }
             bool first_get_removal=true;
             bool used=false;
@@ -120,7 +120,7 @@ void optimise_bytecode(bytecode_program* prog){
                     break;
                 }
                 if(changes_scope(prog->code[search_pointer].type)){
-                    // we optimised all gets in this scope so the varaible isn't needed anymore
+                    // we optimised all gets in this scope so the variable isn't needed anymore
                     break;
                 }
                 if(prog->code[search_pointer].type==b_get && paths_equal(prog->code, pointer-1, search_pointer-1)){
@@ -140,6 +140,9 @@ void optimise_bytecode(bytecode_program* prog){
                         instruction double_instruction={b_double, 0};
                         prog->code[pointer+1]=double_instruction;
                         LOG_CHANGE("removed get and added double instruction:\n%s\n")
+                    }
+                    if(prog->code[search_pointer].type==b_end){
+                        break;// after removing the path search_pointer points to b_end, if loop continued from this point it would get past the code's end
                     }
                 }
             }

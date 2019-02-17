@@ -9,29 +9,38 @@
 #include "datatypes/stream.h"
 
 typedef enum instruction_type instruction_type;
+
+// [] - arguments on stack
+#define INSTRUCTION_TYPES \
+    X(end) /*           denotes the end of the program */ \
+    X(discard) /*       removes one value from the stack */ \
+    X(swap) /*          performs argument number of swaps starting from stack.top-argument */ \
+    X(double) /*        creates a copy of topmost stack item */ \
+    X(load_string) /*   argument: position_in_constants */ \
+    X(load_number) /*   argument: bits of float value */ \
+    X(table_literal) \
+    X(null) \
+    X(function) /*      argument: sub_program_index, [arguments_count] */ \
+    X(return) /*        [object_to_return] */ \
+    X(get_scope) \
+    X(set_scope) /*     sets the object on the stack as the current scope */ \
+    X(new_scope) /*     creates a new table and sets it as the current scope */ \
+    X(label) /*         no effect, argument: label_index */ \
+    X(jump) /*          jump to a label argument: label_index */ \
+    X(jump_not) /*      jump to a label if value on stack is falsy argument: label_index */ \
+    X(get) /*           get the value at the key from the current scope, [key] */ \
+    X(table_get) /*     get the value at the key from the table, [key, table] */ \
+    X(set) /*           sets field at key in the current scope to value, [key, value] */ \
+    X(table_set) /*     sets field at key in table to value, keeps the value on stack, [key, table, value] */ \
+    X(table_set_keep) /*same as table_set but keeps the indexed table on the stack, [key, table, value] */ \
+    X(call) /*          argument: number_of_arguments, [function, arguments...] */ \
+    X(unary) /*         [a, b, operator] */ \
+    X(prefix) /*        [a, operator] */
+
 enum instruction_type {
-    b_end,// denotes the end of the program
-    b_discard,// stack: [value_to_discard] - removes one value from the stack
-    b_swap,// performs argument number of swaps starting from stack.top-argument
-    b_double,// creates a copy of topmost stack item
-    b_load_string,// argument: position_in_constants
-    b_load_number,// argument: bits of float value
-    b_table_literal,
-    b_null,
-    b_function,// argument: sub_function_index, stack: [arguments_count]
-    b_return,
-    b_get_scope,
-    b_set_scope,
-    b_new_scope,
-    b_discard_scope,
-    b_label,
-    b_jump,// argument: position
-    b_jump_not,// argument: position
-    b_get,// stack: [key, ?indexed_object] - if argument is zero use scope as indexed object
-    b_set,// stack: [value, key, ?indexed_object] - if argument is zero use scope as indexed object, pushes the value back to the stack
-    b_call,// argument: number_of_arguments, stack: [function, arguments...]
-    b_unary,// stack: [a, b, operator]
-    b_prefix,// stack: [a, operator]
+    #define X(t) b_##t,
+    INSTRUCTION_TYPES
+    #undef X
 };
 
 typedef struct instruction_information instruction_information;

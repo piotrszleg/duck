@@ -55,6 +55,8 @@ test("format function", ->{
     assert(format("name: {, surname: {}", "John", "Doe")=="name: {, surname: John")
     assert(format("name: {, surname: }", "John", "Doe")=="name: {, surname: }")
     assert(format("name: {}, surname: {", "John", "Doe")=="name: John, surname: {")
+    assert(format("\{}", 1)=="{}")
+    assert(format("\\{}", 1)=="\1")
     assert_error(format(1, 4))
 })
 

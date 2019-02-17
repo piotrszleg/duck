@@ -12,6 +12,7 @@
 
 bool is_constant(expression* exp){
     switch(exp->type){
+        case e_empty:
         case e_literal:
             return true;
         case e_unary:

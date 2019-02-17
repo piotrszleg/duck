@@ -68,6 +68,15 @@ object builtin_from_character(object* arguments, int arguments_count){
     return to_number(str.text[0]);
 }
 
+bool str_match(char* a, char* b, int length){
+    for(int i=0; i<length; i++) {
+        if(a[i]!=b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 object builtin_format(object* arguments, int arguments_count){
     object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
@@ -75,13 +84,27 @@ object builtin_format(object* arguments, int arguments_count){
     stream s;
     init_stream(&s, 64);
     int variadic_counter=0;
-    for(int i=0; i<strlen(str.text); i++){
-        if(str.text[i]=='{' && str.text[i+1]=='}'){
+    int str_length=strlen(str.text);
+    for(int i=0; i<str_length; i++){
+        #define COUNT_STR(s) (sizeof(s)/sizeof(char)-1)
+        #define MATCH(s) (i+str_length>=COUNT_STR(s) && str_match(str.text+i, s, COUNT_STR(s)))
+        if(MATCH("{}")){
             USING_STRING(stringify(get(variadic_table, to_number(variadic_counter++))),
                 stream_push(&s, str, strlen(str)*sizeof(char)))
             i++;
+        } else if(MATCH("\\{}")) {
+            stream_push(&s, &str.text[i+1], sizeof(char)*2);
+            i+=2;
+        } else if(MATCH("\\\\{}")){
+            stream_push(&s, "\\", sizeof(char));
+            USING_STRING(stringify(get(variadic_table, to_number(variadic_counter++))),
+                stream_push(&s, str, strlen(str)*sizeof(char)))
+            i+=3;
+        } else {
+            stream_push(&s, &str.text[i], sizeof(char));
         }
-        else stream_push(&s, &str.text[i], sizeof(char));
+        #undef COUNT_STR
+        #undef MATCH
     }
     stream_push(&s, "\0", sizeof(char));
     return to_string(s.data);
@@ -256,4 +279,12 @@ void inherit_scope(object scope, object base){
     set(scope, to_string("get"), f);
     set(scope, to_string("scope"), scope);
     set(scope, to_string("base"), base);
+}
+
+void clean_scope_table(object scope){
+    #define CLEAR_KEY(key) set(scope, to_string(#key), null_const);
+    CLEAR_KEY(global)
+    CLEAR_KEY(get)
+    CLEAR_KEY(scope)
+    CLEAR_KEY(base)
 }

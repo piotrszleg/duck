@@ -6,14 +6,14 @@ char* get_and_stringify(object t, const char* key){
 }
 
 object stringify_multiple_causes(object* arguments, int arguments_count){
-    char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
-    buffer[0]='\0';
     object self=arguments[0];
 
+    stream s;
+    init_stream(&s, 64);
+
     object count_object=get(self, to_string("count"));
-    //assert(count_object.type==t_number);
+    REQUIRE_TYPE(count_object, t_number)
     int count=count_object.value;
-    dereference(&count_object);
 
     for(int i=0; i<count; i++){
         char stringified_key[64];
@@ -22,15 +22,15 @@ object stringify_multiple_causes(object* arguments, int arguments_count){
         object value=get(self, to_string(stringified_key));
         char* stringified_value=stringify(value);
 
-        char formatted[STRINGIFY_BUFFER_SIZE];
-        sprintf(formatted, "(%i/%i) %s\n", i+1, count, stringified_value);
-        strncat(buffer, formatted, STRINGIFY_BUFFER_SIZE);
+        char* formatted=suprintf("(%i/%i) %s\n", i+1, count, stringified_value);
+        stream_push(&s, formatted, strlen(formatted));
 
+        free(formatted);
         free(stringified_value);
     }
     object result;
     string_init(&result);
-    result.text=buffer;
+    result.text=(char*)s.data;
     return result;
 }
 
@@ -60,20 +60,18 @@ object multiple_causes(object* causes, int causes_count){
 }
 
 object stringify_error(object* arguments, int arguments_count){
-    char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
     object self=arguments[0];
     char* type=get_and_stringify(self, "type");
     char* message=get_and_stringify(self, "message");
     char* location=get_and_stringify(self, "location");
     char* cause=get_and_stringify(self, "cause");
-    snprintf(buffer, STRINGIFY_BUFFER_SIZE, "%s: %s\n%s\ncaused by:\n%s", type, message, location, cause);
+    object result;
+    string_init(&result);
+    result.text=suprintf("%s: %s\n%s\ncaused by:\n%s", type, message, location, cause);
     free(type);
     free(message);
     free(location);
     free(cause);
-    object result;
-    string_init(&result);
-    result.text=buffer;
     set(self, to_string("handled"), to_number(1));
     return result;
 }

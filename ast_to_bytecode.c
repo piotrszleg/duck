@@ -73,8 +73,7 @@ void bytecode_path_get(bytecode_translation* translation, path p){
         }
         instruction_information info=information_from_ast((expression*)&p);
         stream_push(&translation->information, &info, sizeof(info));
-        instruction get={b_get, i>0};
-        stream_push(&translation->code, &get, sizeof(instruction));
+        push_instruction(&translation->code, i==0 ? b_get : b_table_get, sizeof(instruction));
     }
 } 
 
@@ -90,11 +89,10 @@ void bytecode_path_set(bytecode_translation* translation, path p){
             ast_to_bytecode_recursive(e, translation, 0);
         }
         if(i==lines_count-1){
-            instruction set={b_set, i>0};
-            stream_push(&translation->code, &set, sizeof(instruction));
+            // final isntruction is always set
+            push_instruction(&translation->code, i==0 ? b_set : b_table_set, sizeof(instruction));
         } else {
-            instruction get={b_get, i>0};
-            stream_push(&translation->code, &get, sizeof(instruction));
+            push_instruction(&translation->code, i==0 ? b_get : b_table_get, sizeof(instruction));
         }
         instruction_information info=information_from_ast((expression*)&p);
         stream_push(&translation->information, &info, sizeof(info));

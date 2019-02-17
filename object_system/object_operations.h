@@ -6,7 +6,7 @@
 #include "../macros.h"
 #include <stdbool.h>
 
-#define STRINGIFY_BUFFER_SIZE 200
+#define STRINGIFY_BUFFER_SIZE 32
 
 extern object patching_table;
 
@@ -26,6 +26,7 @@ void get_execution_info(char* buffer, int buffer_count);
 object multiple_causes(object* causes, int causes_count);
 object new_error(char* type, object cause, char* message, char* location);
 
+char* suprintf (const char * format, ...);
 char* stringify_object(object o);
 char* stringify(object o);
 

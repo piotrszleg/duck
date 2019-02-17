@@ -1,28 +1,9 @@
 #include "bytecode.h"
 
 char* INSTRUCTION_NAMES[]={
-    "end",
-    "discard",
-    "swap",
-    "double",
-    "load_string",
-    "load_number",
-    "table_literal",
-    "null",
-    "function",
-    "return",
-    "get_scope",
-    "set_scope",
-    "new_scope",
-    "discard_scope",
-    "label",
-    "jump",
-    "jump_not",
-    "get",
-    "set",
-    "call",
-    "unary",
-    "prefix"
+    #define X(t) #t,
+    INSTRUCTION_TYPES
+    #undef X
 };
 
 void stringify_instruction(const bytecode_program* prog, char* destination, instruction instr, int index, int buffer_count){
@@ -35,8 +16,11 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
         case b_return:
         case b_unary:
         case b_prefix:
-        case b_discard_scope:
         case b_new_scope:
+        case b_set:
+        case b_table_set:
+        case b_get:
+        case b_table_get:
             snprintf(destination, buffer_count, "%i: %s\n", index, INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
             break;
         case b_load_number:
@@ -92,8 +76,11 @@ int gets_from_stack(instruction instr){
         X(b_function, 1 )
         X(b_return, 1)
         X(b_set_scope, 1)
-        X(b_get, instr.argument+1)
-        X(b_set, instr.argument+2)
+        X(b_get, 1)
+        X(b_table_get, 2)
+        X(b_set, 2)
+        X(b_table_set, 3)
+        X(b_table_set_keep, 2)
         X(b_call, instr.argument+1)
         X(b_unary, 3)
         X(b_prefix, 2)
@@ -124,7 +111,6 @@ bool changes_scope(instruction_type instr){
     return false
     X(b_return)
     X(b_new_scope)
-    X(b_discard_scope)
     X(b_get_scope)
     X(b_set_scope);
 }

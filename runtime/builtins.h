@@ -15,6 +15,7 @@
 
 void register_builtins(object scope);
 void inherit_scope(object scope, object base);
+void clean_scope_table(object scope);
 char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
 
 #endif

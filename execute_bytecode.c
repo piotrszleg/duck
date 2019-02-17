@@ -11,6 +11,10 @@ object pop(stack* stack){
     return *o;
 }
 
+object peek(stack* stack){
+    return *(object*)stack_top(stack);
+}
+
 char* stringify_object_stack(const stack* s){
     int pointer=0;
     int string_end=0;
@@ -156,35 +160,48 @@ object execute_bytecode(bytecode_environment* environment){
             case b_get:
             {
                 object key=pop(object_stack);
-                object indexed;
-                if(instr.argument){
-                    indexed=pop(object_stack);
-                } else {
-                    indexed=environment->scope;
-                }
+                push(object_stack, get(environment->scope, key));
+                dereference(&key);
+                break;
+            }
+            case b_table_get:
+            {
+                object key=pop(object_stack);
+                object indexed=pop(object_stack);
                 push(object_stack, get(indexed, key));
-                if(instr.argument){
-                    // delete indexed if it isn't the scope
-                    dereference(&indexed);
-                }
+                dereference(&indexed);
                 dereference(&key);
                 break;
             }
             case b_set:
             {
                 object key=pop(object_stack);
-                object indexed;
-                if(instr.argument){
-                    indexed=pop(object_stack);
-                } else {
-                    indexed=environment->scope;
-                }
+                object value=pop(object_stack);
+                push(object_stack, set(environment->scope, key, value));
+                dereference(&key);
+                dereference(&value);
+                break;
+            }
+            case b_table_set:
+            {
+                object key=pop(object_stack);
+                object indexed=pop(object_stack);
                 object value=pop(object_stack);
                 push(object_stack, set(indexed, key, value));
-                if(instr.argument){
-                    // delete indexed if it isn't the scope
-                    dereference(&indexed);
-                }
+                dereference(&indexed);
+                dereference(&key);
+                dereference(&value);
+                break;
+            }
+            case b_table_set_keep:
+            {
+                object key=pop(object_stack);
+                object indexed=pop(object_stack);
+                object value=pop(object_stack);
+                object set_result=set(indexed, key, value);
+                push(object_stack, indexed);
+                //dereference(&indexed); // not sure about this
+                dereference(&set_result);
                 dereference(&key);
                 dereference(&value);
                 break;
@@ -207,13 +224,11 @@ object execute_bytecode(bytecode_environment* environment){
                 }
                 break;
             }
-            case b_discard_scope:
-                ERROR(NOT_IMPLEMENTED, "With current scope handling discard scope doesn't work.");
-                break;
             case b_new_scope:
             {
                 object t;
                 table_init(&t);
+                //inherit_scope(t, environment->scope);
                 reference(&t);
                 dereference(&environment->scope);
                 environment->scope=t;
