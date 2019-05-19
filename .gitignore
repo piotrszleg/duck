@@ -2,3 +2,4 @@ notes.md
 *.exe
 *.a
 *.o
+vscode/ipch/
