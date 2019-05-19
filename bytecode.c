@@ -6,7 +6,7 @@ char* INSTRUCTION_NAMES[]={
     #undef X
 };
 
-void stringify_instruction(const bytecode_program* prog, char* destination, instruction instr, int index, int buffer_count){
+void stringify_instruction(const bytecode_program* prog, char* destination, instruction instr, int buffer_count){
     switch(instr.type){
         case b_end:
         case b_discard:
@@ -22,16 +22,16 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
         case b_table_set_keep:
         case b_get:
         case b_table_get:
-            snprintf(destination, buffer_count, "%i: %s\n", index, INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
+            snprintf(destination, buffer_count, "%s\n", INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
             break;
         case b_load_number:
-            snprintf(destination, buffer_count, "%i: %s %f\n", index, INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
+            snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
             break;
         case b_load_string:
-            snprintf(destination, buffer_count, "%i: %s %li \"%s\"\n", index, INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog->constants)+instr.argument);// displays string value
+            snprintf(destination, buffer_count, "%s %li \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog->constants)+instr.argument);// displays string value
             break;
         default:
-            snprintf(destination, buffer_count, "%i: %s %li\n", index, INSTRUCTION_NAMES[instr.type], instr.argument);
+            snprintf(destination, buffer_count, "%s %li\n", INSTRUCTION_NAMES[instr.type], instr.argument);
     }
 }
 
@@ -41,8 +41,13 @@ char* stringify_bytecode(const bytecode_program* prog){
 
     int pointer=0;
     while(prog->code[pointer].type!=b_end){
+        char line_number[8];
+        snprintf(line_number, 8, "%i: ", pointer);
+
+        stream_push(&s, line_number, strlen(line_number));
+
         char stringified_instruction[64];
-        stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], pointer, 64);
+        stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], 64);
         int stringified_length=strlen(stringified_instruction);
 
         stream_push(&s, stringified_instruction, stringified_length*sizeof(char));
@@ -73,8 +78,8 @@ void bytecode_program_deinit(bytecode_program* prog) {
 int gets_from_stack(instruction instr){
     switch(instr.type){
         X(b_discard, 1)
-        X(b_swap, 1)
-        X(b_function, 1 )
+        //X(b_move_top, 1)
+        X(b_function, 2 )
         X(b_return, 1)
         X(b_set_scope, 1)
         X(b_get, 1)
@@ -92,8 +97,12 @@ int gets_from_stack(instruction instr){
 
 #define X(i) || instr==i
 bool pushes_to_stack(instruction_type instr){
+    // the following instructions DON'T push to the stack
     return !(false
+    X(b_move_top)
+    X(b_push_to_top)
     X(b_end)
+    X(b_no_op)
     X(b_discard)
     X(b_get_scope)
     X(b_label)

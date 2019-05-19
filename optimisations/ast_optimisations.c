@@ -1,6 +1,6 @@
 #include "ast_optimisations.h"
 
-#define LOG_AST_OPTIMISATIONS 1
+#define LOG_AST_OPTIMISATIONS 0
 #define LOG_CHANGE(message, before, after) \
     if(LOG_AST_OPTIMISATIONS){ \
         char* before_string=stringify_expression(before, 0); \

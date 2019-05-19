@@ -112,15 +112,25 @@ object execute_bytecode(bytecode_environment* environment){
                 dereference(&top);
                 break;
             }
+            case b_no_op:
+                break;
             #define INDEX_STACK(index) ((object*)object_stack->items)[object_stack->top-1-(index)]
-            case b_swap:
+            case b_move_top:
             {
-                for(int i=instr.argument-1; i>=0; i--){
-                    object swap_temporary=INDEX_STACK(i);
+                for(int i=0; i<instr.argument-1; i++){
+                    object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i+1);
-                    INDEX_STACK(i+1)=swap_temporary;
+                    INDEX_STACK(i+1)=temporary;
                 }
-                
+                break;
+            }
+            case b_push_to_top:
+            {
+                for(int i=instr.argument; i>=1; i--){
+                    object temporary=INDEX_STACK(i);
+                    INDEX_STACK(i)=INDEX_STACK(i-1);
+                    INDEX_STACK(i-1)=temporary;
+                }
                 break;
             }
             case b_double:
@@ -305,6 +315,7 @@ object execute_bytecode(bytecode_environment* environment){
                 if(o.type==t_null){
                     CALL_ERROR("Called function is null.");
                 }
+                // provided object isn't a function but it can be called through using monkey patching or table call field
                 if(o.type!=t_function){
                     object* arguments=malloc(sizeof(object)*provided_arguments);
                     for (int i = 0; i < provided_arguments; i++){
@@ -315,42 +326,54 @@ object execute_bytecode(bytecode_environment* environment){
                     break;
                 }
                 int arguments_count_difference=provided_arguments-o.fp->arguments_count;
+                // check arguments count
                 if(o.fp->variadic){
+                    // variadic function can be called with no variadic arguments
                     if(arguments_count_difference<-1){
                         CALL_ERROR("Not enough arguments in variadic function call, expected at least %i, given %i.", o.fp->arguments_count-1, provided_arguments);
                     }
-                    // pack variadic arguments into a table and push the table back onto the stack
-                    int variadic_arguments_count=arguments_count_difference+1;
-                    object variadic_table;
-                    table_init(&variadic_table);
-                    for(int i=variadic_arguments_count-1; i>=0; i--){
-                        set(variadic_table, to_number(i), pop(object_stack));
+                } else {
+                    if(arguments_count_difference>0) {
+                        CALL_ERROR("Too many arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
+                    } else if(arguments_count_difference<0){
+                        CALL_ERROR("Not enough arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
                     }
-                    push(object_stack, variadic_table);
-                } else if(arguments_count_difference>0) {
-                    CALL_ERROR("Too many arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
-                } else if(arguments_count_difference<0){
-                    CALL_ERROR("Not enough arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
                 }
-                // TODO: clean and test, why the two loops are different?
+
                 if(o.fp->ftype==f_native){
-                    object* arguments=malloc(sizeof(object)*o.fp->arguments_count);
+                    object* arguments=malloc(sizeof(object)*provided_arguments);
                     // items are on stack in reverse order, but native function expect them to be in normal order
-                    for (int i = o.fp->arguments_count-1; i >= 0; i--){
+                    for (int i = provided_arguments-1; i >= 0; i--){
                         arguments[i]=pop(object_stack);
                     }
-                    push(object_stack, o.fp->native_pointer(arguments, o.fp->arguments_count));
+                    push(object_stack, o.fp->native_pointer(arguments, provided_arguments));
                     free(arguments);
-                } else if(o.fp->ftype==f_bytecode){
-                    move_to_function(environment, o.fp, false);
-                    continue;// don't increment the pointer
-               } else if(o.fp->ftype==f_ast) {
-                   CALL_ERROR("Can't call ast function from bytecode.");
-               } else {
-                    ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", *pointer);
-               }
-               #undef CALL_ERROR
-               break;
+                } else{
+                    if(o.fp->variadic){
+                        if(arguments_count_difference<-1){
+                            CALL_ERROR("Not enough arguments in variadic function call, expected at least %i, given %i.", o.fp->arguments_count-1, provided_arguments);
+                        }
+                        // pack variadic arguments into a table and push the table back onto the stack
+                        int variadic_arguments_count=arguments_count_difference+1;
+                        object variadic_table;
+                        table_init(&variadic_table);
+                        for(int i=variadic_arguments_count-1; i>=0; i--){
+                            set(variadic_table, to_number(i), pop(object_stack));
+                        }
+                        push(object_stack, variadic_table);
+                    }
+                    // TODO: clean and test, why the two loops are different?
+                    if(o.fp->ftype==f_bytecode){
+                        move_to_function(environment, o.fp, false);
+                        continue;// don't increment the pointer
+                    } else if(o.fp->ftype==f_ast) {
+                        CALL_ERROR("Can't call ast function from bytecode.");
+                    } else {
+                        ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", *pointer);
+                    }
+                }
+                #undef CALL_ERROR
+                break;
             }
             case b_end:
             case b_return:

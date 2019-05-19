@@ -80,16 +80,23 @@ bool str_match(char* a, char* b, int length){
 object builtin_format(object* arguments, int arguments_count){
     object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
-    object variadic_table=arguments[1];
     stream s;
     init_stream(&s, 64);
     int variadic_counter=0;
     int str_length=strlen(str.text);
+
+    #define NEXT_OBJECT \
+        variadic_counter++; \
+        if(variadic_counter>=arguments_count){ \
+            RETURN_ERROR("FORMATTING_ERROR", multiple_causes(arguments, arguments_count), "Not enough arguments provided to format function."); \
+        }
+
     for(int i=0; i<str_length; i++){
         #define COUNT_STR(s) (sizeof(s)/sizeof(char)-1)
         #define MATCH(s) (i+str_length>=COUNT_STR(s) && str_match(str.text+i, s, COUNT_STR(s)))
         if(MATCH("{}")){
-            USING_STRING(stringify(get(variadic_table, to_number(variadic_counter++))),
+            NEXT_OBJECT
+            USING_STRING(stringify(arguments[variadic_counter]),
                 stream_push(&s, str, strlen(str)*sizeof(char)))
             i++;
         } else if(MATCH("\\{}")) {
@@ -97,7 +104,8 @@ object builtin_format(object* arguments, int arguments_count){
             i+=2;
         } else if(MATCH("\\\\{}")){
             stream_push(&s, "\\", sizeof(char));
-            USING_STRING(stringify(get(variadic_table, to_number(variadic_counter++))),
+            NEXT_OBJECT
+            USING_STRING(stringify(arguments[variadic_counter]),
                 stream_push(&s, str, strlen(str)*sizeof(char)))
             i+=3;
         } else {
@@ -111,12 +119,13 @@ object builtin_format(object* arguments, int arguments_count){
 }
 
 object builtin_assert(object* arguments, int arguments_count){
-    object self=arguments[0];
-    if(is_falsy(self)){
-        USING_STRING(stringify(self), 
-            ERROR(ASSERTION_FAILED, "Assertion failed, %s is falsy.", str));
+    object tested=arguments[0];
+    if(is_falsy(tested)){
+        USING_STRING(stringify(tested), 
+            RETURN_ERROR("ASSERTION_FAILED", tested, "Assertion failed, %s is falsy.", str));
+    } else {
+        return null_const;
     }
-    return null_const;
 }
 
 object builtin_typeof(object* arguments, int arguments_count){
@@ -162,7 +171,7 @@ object builtin_number(object* arguments, int arguments_count){
 object builtin_cast(object* arguments, int arguments_count){
     REQUIRE_TYPE(arguments[1], t_string);
     for(int i=0; i<OBJECT_TYPE_NAMES_COUNT; i++){
-        if(OBJECT_TYPE_NAMES[i]==arguments[1].text){
+        if(strcmp(OBJECT_TYPE_NAMES[i], arguments[1].text)==0){
             return cast(arguments[0], (object_type)i);
         }
     }
@@ -233,7 +242,7 @@ void register_builtins(object scope){
     REGISTER_FUNCTION(to_character, 1)
     REGISTER_FUNCTION(string, 1)
     REGISTER_FUNCTION(number, 1)
-    REGISTER_FUNCTION(cast, 1)
+    REGISTER_FUNCTION(cast, 2)
     //REGISTER_FUNCTION(test, 2);
     set(scope, to_string("iterator"), to_function(get_table_iterator, NULL, 1));
 

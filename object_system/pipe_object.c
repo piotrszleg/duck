@@ -10,7 +10,7 @@ object pipe_add(object* arguments, int arguments_count){
         count.value++;
         set(pipe, to_string("count"), count);
     }
-    return null_const;
+    return pipe;
 }
 
 object pipe_call(object* arguments, int arguments_count){
@@ -35,14 +35,6 @@ object pipe_call(object* arguments, int arguments_count){
     return previous_result;
 }
 
-void set_function(object t, const char* name, int arguments_count, object_system_function f){
-    object function_object;
-    function_init(&function_object);
-    function_object.fp->arguments_count=arguments_count;
-    function_object.fp->native_pointer=f;
-    set(t, to_string(name), function_object);
-}
-
 object new_pipe(object f1, object f2){
     object pipe;
     table_init(&pipe);
@@ -53,9 +45,8 @@ object new_pipe(object f1, object f2){
     set(pipe, to_string("0"), f1);
     set(pipe, to_string("1"), f2);
 
-    set_function(pipe, ">>", 2, pipe_add);
-    set_function(pipe, "call", 1, pipe_call);
+    set_function(pipe, ">>", 2, false, pipe_add);
+    set_function(pipe, "call", 2, true, pipe_call);
 
     return pipe;
-    return null_const;
 }

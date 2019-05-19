@@ -3,6 +3,7 @@
 
 #include "object.h"
 #include "object_operations.h"
+#include "object_utility.h"
 
 object new_binding(object f, object arguments);
 

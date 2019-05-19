@@ -75,72 +75,70 @@ void execute_file(const char* file_name, bool use_bytecode){
     dereference(&execution_result);
 }
 
-object call_function_checked(function* f, object* arguments, int arguments_count){
-    if(f->ftype==f_native){
-        return f->native_pointer(arguments, arguments_count);
-    } else {
-        object function_scope;
-        table_init(&function_scope);
-        if(f->enclosing_scope.type!=t_null){
-            inherit_scope(function_scope, f->enclosing_scope);
+// this function should only be called from call_function, it's there to simplify the code structure
+object call_function_processed(function* f, object* arguments, int arguments_count){
+    object function_scope;
+    table_init(&function_scope);
+    if(f->enclosing_scope.type!=t_null){
+        inherit_scope(function_scope, f->enclosing_scope);
+    }
+    if(f->ftype==f_ast){
+        for(int i=0; i<arguments_count; i++){
+            STRING_OBJECT(argument_name, f->argument_names[i]);
+            set(function_scope, argument_name, arguments[i]);
         }
-        if(f->ftype==f_ast){
-            for(int i=0; i<arguments_count; i++){
-                STRING_OBJECT(argument_name, f->argument_names[i]);
-                set(function_scope, argument_name, arguments[i]);
-            }
-            return execute_ast((ast_executor_state*)f->enviroment, (expression*)f->source_pointer, function_scope, 1);
-        } else if(f->ftype==f_bytecode){
-            bytecode_environment* environment=(bytecode_environment*)f->enviroment;
-            environment->scope=function_scope;
+        return execute_ast((ast_executor_state*)f->enviroment, (expression*)f->source_pointer, function_scope, 1);
+    } else if(f->ftype==f_bytecode){
+        bytecode_environment* environment=(bytecode_environment*)f->enviroment;
+        environment->scope=function_scope;
 
-            move_to_function(environment, f, true);
-            for(int i=0; i<arguments_count; i++){
-                push(&environment->object_stack, arguments[i]);
-            }
-            object result=execute_bytecode(environment);
-            return result;
-        } else {
-            ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
-            return null_const;
+        move_to_function(environment, f, true);
+        for(int i=0; i<arguments_count; i++){
+            push(&environment->object_stack, arguments[i]);
         }
+        object result=execute_bytecode(environment);
+        return result;
+    } else {
+        ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
+        return null_const;
     }
 }
 
-// return error if arguments count is incorrect and proccess variadic functions, then call the function using call_function_checked
+// return error if arguments count is incorrect and proccess variadic functions, then call the function using call_function_processed
 object call_function(function* f, object* arguments, int arguments_count){
-
-    int arguments_count_difference=arguments_count-f->arguments_count;
-    if(f->variadic){
-        //if(arguments_count_difference<-1){
-            RETURN_ERROR("CALL_ERROR", null_const, "Not enough arguments in variadic function call, expected at least %i, given %i.", f->arguments_count-1, arguments_count);
-        //}
-
-        // make new arguments array
-        int processed_arguments_count=f->arguments_count;
-        object* processed_arguments=malloc(sizeof(object)*processed_arguments_count);
-        // copy non variadic arguments
-        for(int i=0; i<f->arguments_count-1; i++){
-            processed_arguments[i]=arguments[i];
-        }
-        
-        // pack variadic arguments into a table
-        int variadic_arguments_count=arguments_count_difference+1;
-        object variadic_table;
-        table_init(&variadic_table);
-        for(int i=variadic_arguments_count-1; i>=0; i--){
-            set(variadic_table, to_number(i), arguments[f->arguments_count-1+i]);
-        }
-        // append the variadic array to the end of processed arguments array
-        processed_arguments[f->arguments_count-1]=variadic_table;
-
-        return call_function_checked(f, processed_arguments, processed_arguments_count);
-    } else if(arguments_count_difference<0){
-        RETURN_ERROR("CALL_ERROR", null_const, "Not enough arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
-    } else if(arguments_count_difference>0) {
-        RETURN_ERROR("CALL_ERROR", null_const, "Too many arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
+    if(f->ftype==f_native){
+        return f->native_pointer(arguments, arguments_count);
     } else {
-        return call_function_checked(f, arguments, arguments_count);
+        int arguments_count_difference=arguments_count-f->arguments_count;
+        if(f->variadic){
+            if(arguments_count_difference<-1){
+                RETURN_ERROR("CALL_ERROR", null_const, "Not enough arguments in variadic function call, expected at least %i, given %i.", f->arguments_count-1, arguments_count);
+            }
+            // make new arguments array
+            int processed_arguments_count=f->arguments_count;
+            object* processed_arguments=malloc(sizeof(object)*processed_arguments_count);
+            // copy non variadic arguments
+            for(int i=0; i<f->arguments_count-1; i++){
+                processed_arguments[i]=arguments[i];
+            }
+            // pack variadic arguments into a table
+            int variadic_arguments_count=arguments_count_difference+1;
+            object variadic_table;
+            table_init(&variadic_table);
+            for(int i=variadic_arguments_count-1; i>=0; i--){
+                set(variadic_table, to_number(i), arguments[f->arguments_count-1+i]);
+            }
+            // append the variadic array to the end of processed arguments array
+            processed_arguments[f->arguments_count-1]=variadic_table;
+
+            return call_function_processed(f, processed_arguments, processed_arguments_count);
+        } else if(arguments_count_difference<0){
+            RETURN_ERROR("CALL_ERROR", null_const, "Not enough arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
+        } else if(arguments_count_difference>0) {
+            RETURN_ERROR("CALL_ERROR", null_const, "Too many arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
+        } else {
+            return call_function_processed(f, arguments, arguments_count);
+        }
     }
 }
 

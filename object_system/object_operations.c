@@ -394,7 +394,7 @@ object get(object o, object key){
     } else if(o.type==t_string){
         object number_key=cast(key, t_number);
         if(number_key.type==t_number){
-            if(number_key.value<strlen(o.text) && number_key.value>0){
+            if(number_key.value<strlen(o.text) && number_key.value>=0){
                 char* character_string=malloc(2*sizeof(char));
                 character_string[0]=o.text[(int)number_key.value];
                 character_string[1]='\0';

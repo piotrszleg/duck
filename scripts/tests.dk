@@ -29,7 +29,17 @@ test=(name, assertion)->{
     print("test successful")}
 test("test helper function", ->assert(1))
 
-assert_error=o->assert(o.error)
+test("stack optimisations", ->{
+    a=1
+    b=5
+    c=8
+    assert(a+a+b+b+a+c+b==26)
+})
+
+global.assert_error=o->{
+    assert(o.error)
+    o.handled=1
+}
 
 test("string functions", ->{
     assert(substring("John", 2, 4)=="hn")

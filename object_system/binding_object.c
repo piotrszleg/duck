@@ -1,8 +1,6 @@
 #include "binding_object.h"
 
-void set_function(object t, const char* name, int arguments_count, object_system_function f);
-
-/*object binding_bind(object* arguments, int arguments_count){// aka woodchuck.chuck_wood()
+/*object binding_bind(object* arguments, int arguments_count){
     object binding=arguments[0];
     object f=arguments[1];
     object count=get(binding, to_string("count"));
@@ -16,7 +14,7 @@ void set_function(object t, const char* name, int arguments_count, object_system
     return binding;
 }*/
 
-object binding_bind(object* arguments, int arguments_count){// aka woodchuck.chuck_wood()
+object binding_bind(object* arguments, int arguments_count){
     object binding=arguments[0];
     object binded_argument=arguments[1];
     object count=get(binding, to_string("count"));
@@ -28,7 +26,7 @@ object binding_bind(object* arguments, int arguments_count){// aka woodchuck.chu
     return binding;
 }
 
-object binding_bind_multiple(object* arguments, int arguments_count){// aka woodchuck.chuck_wood()
+object binding_bind_multiple(object* arguments, int arguments_count){
     object binding=arguments[0];
     object binded_arguments=arguments[1];
     object count=get(binding, to_string("count"));
@@ -52,7 +50,13 @@ object binding_call(object* arguments, int arguments_count){
     object count=get(binding, to_string("count"));
     object f=get(binding, to_string("f"));
 
-    if(count.type==t_number && f.type==t_function){
+    if(count.type!=t_number) {
+        RETURN_ERROR("BINDING_CALL_ERROR", count, "Count field in binding object is not a number.");
+    }
+    if(f.type!=t_function){
+        RETURN_ERROR("BINDING_CALL_ERROR", count, "Function object given to binding object is not a function.");
+    }
+    if(count.type==t_number){
         int binded_arguments=(int)count.value;
         int total_arguments=binded_arguments+arguments_count-1;
         if(total_arguments==f.fp->arguments_count) {
@@ -74,7 +78,6 @@ object binding_call(object* arguments, int arguments_count){
             return binding;
         }
     }
-    return null_const;// there should be a proper error here
 }
 
 /*object new_binding(object f, object arguments_table){
@@ -101,8 +104,8 @@ object new_binding(object f, object argument){
     object binding;
     table_init(&binding);
 
-    set_function(binding, "<<", 2, binding_bind);
-    set_function(binding, "call", 1, binding_call);
+    set_function(binding, "<<", 2, false, binding_bind);
+    set_function(binding, "call", 1, true, binding_call);
 
     set(binding, to_string("f"), f);
     set(binding, to_number(0), argument);
@@ -117,8 +120,8 @@ object bind_call(object f, object* arguments, int arguments_count){
     set(binding, to_string("f"), f);
     set(binding, to_string("count"), to_number(arguments_count));
     
-    set_function(binding, "<<", 2, binding_bind);
-    set_function(binding, "call", 1, binding_call);
+    set_function(binding, "<<", 2, false, binding_bind);
+    set_function(binding, "call", 1, true, binding_call);
 
     for(int i=0; i<arguments_count; i++){
         set(binding, to_number(i), arguments[i]);
