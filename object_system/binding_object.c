@@ -56,27 +56,25 @@ object binding_call(object* arguments, int arguments_count){
     if(f.type!=t_function){
         RETURN_ERROR("BINDING_CALL_ERROR", count, "Function object given to binding object is not a function.");
     }
-    if(count.type==t_number){
-        int binded_arguments=(int)count.value;
-        int total_arguments=binded_arguments+arguments_count-1;
-        if(total_arguments==f.fp->arguments_count) {
-            object* concated_arguments=malloc(sizeof(object)*total_arguments);
+    int binded_arguments=(int)count.value;
+    int total_arguments=binded_arguments+arguments_count-1;
+    if(total_arguments==f.fp->arguments_count) {
+        object* concated_arguments=malloc(sizeof(object)*total_arguments);
 
-            for(int i=0; i<binded_arguments; i++){
-                concated_arguments[i]=get(binding, to_number(i));
-            }
-            for(int i=1; i<arguments_count; i++){
-                concated_arguments[binded_arguments+i-1]=arguments[i];
-            }
-            return call(f, concated_arguments, total_arguments);
-        } else {
-            for(int i=0; i<arguments_count; i++){
-                set(binding, to_number(binded_arguments+i), arguments[i]);
-            }
-            count.value++;
-            set(binding, to_string("count"), count);
-            return binding;
+        for(int i=0; i<binded_arguments; i++){
+            concated_arguments[i]=get(binding, to_number(i));
         }
+        for(int i=1; i<arguments_count; i++){
+            concated_arguments[binded_arguments+i-1]=arguments[i];
+        }
+        return call(f, concated_arguments, total_arguments);
+    } else {
+        for(int i=0; i<arguments_count; i++){
+            set(binding, to_number(binded_arguments+i), arguments[i]);
+        }
+        count.value++;
+        set(binding, to_string("count"), count);
+        return binding;
     }
 }
 

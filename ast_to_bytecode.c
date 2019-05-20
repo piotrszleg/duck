@@ -76,11 +76,11 @@ void bytecode_path_get(bytecode_translation* translation, path p){
         } else{
             ast_to_bytecode_recursive(e, translation, 0);
         }
-        push_instruction(translation, i==0 ? b_get : b_table_get, sizeof(instruction));
+        push_instruction(translation, i==0 ? b_get : b_table_get, 0);
     }
 } 
 
-void bytecode_path_set(bytecode_translation* translation, path p){
+void bytecode_path_set(bytecode_translation* translation, path p, bool used_in_closure){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
@@ -91,9 +91,9 @@ void bytecode_path_set(bytecode_translation* translation, path p){
         }
         if(i==lines_count-1){
             // final isntruction is always set
-            push_instruction(translation, i==0 ? b_set : b_table_set, sizeof(instruction));
+            push_instruction(translation, i==0 ? b_set : b_table_set, used_in_closure);
         } else {
-            push_instruction(translation, i==0 ? b_get : b_table_get, sizeof(instruction));
+            push_instruction(translation, i==0 ? b_get : b_table_get, 0);
         }
     }
 }
@@ -181,7 +181,7 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
         {
             assignment* a=(assignment*)exp;
             ast_to_bytecode_recursive(a->right, translation, keep_scope);
-            bytecode_path_set(translation, *a->left);
+            bytecode_path_set(translation, *a->left, a->used_in_closure);
             break;
         }
         case e_unary:

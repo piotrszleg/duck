@@ -1,11 +1,10 @@
 "Speed is just a social construct." - Mattias Petter Johansson 2018
 
 # TOFIX:
+- fix optimisng subfunctions
 - monkey patching the number of arguments and if function is variadic
 - remove variadic table from call to native function in execute_bytecode
-- fix format function
 - calling ast functions from bytecode
-- native functions with variadic arguments
 - valgrind
 - resize stack
 

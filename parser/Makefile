@@ -1,9 +1,10 @@
 archive-path := parser.a
 tests-path := tests.exe
 repl-path := repl.exe
-headers := parser.tab.h ast.h ../datatypes/vector.h ../error/error.h
-source-files := parser.tab.c lex.yy.c ast.c ../datatypes/vector.c ../error/error.c
-object-files := parser.tab.o lex.yy.o ast.o vector.o
+headers := parser.tab.h ast.h ast_visitor.h ast_postprocessing.h ../datatypes/vector.h ../datatypes/map.h ../error/error.h
+source-files := parser.tab.c lex.yy.c ast.c ast_visitor.c ast_postprocessing.c ../datatypes/vector.c ../datatypes/map.c
+executable-only-source-files := ../error/error.c
+object-files := parser.tab.o lex.yy.o ast.o ast_visitor.o ast_postprocessing.o vector.o  map.o
 
 all: $(archive-path)
 
@@ -29,13 +30,14 @@ $(object-files): $(source-files) $(headers)
 # pack object files into archive
 $(archive-path): $(object-files)
 	ar cr $(archive-path) $(object-files)
+	rm $(object-files)
 
 # compile c files into exe
 $(tests-path): tests.c $(source-files) $(headers)
-	gcc -g -Wall -o $(tests-path) tests.c $(source-files)
+	gcc -g -Wall -o $(tests-path) tests.c $(source-files) $(executable-only-source-files)
 
 $(repl-path): repl.c $(source-files) $(headers)
-	gcc -g -Wall -o $(repl-path) repl.c $(source-files)
+	gcc -g -Wall -o $(repl-path) repl.c $(source-files) $(executable-only-source-files)
 
 clean:
 	rm $(archive-path) $(tests-path) $(repl-path) $(object-files) parser.tab.c parser.tab.h lex.yy.c

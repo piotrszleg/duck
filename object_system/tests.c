@@ -32,7 +32,7 @@ void test_error_catching(){
         is_falsy(o);// o has incorrect type value which should cause an error
     ,
         // TODO fix error type
-        assert(err_type==WRONG_ARGUMENT_TYPE);
+        assert(err_type==INCORRECT_OBJECT_POINTER);
         printf("test successful\n");
         return;
     )

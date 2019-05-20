@@ -78,3 +78,12 @@ test("type casting", ->{
     assert(cast(text, 'number)==five)
     assert(cast(five, 'string)==text)
 })
+
+test("closures", ->{
+    adder=a->{
+        one=1
+        x->(a+x)*one
+    }
+    add_two=adder(2)
+    assert(add_two(5)==7)
+})

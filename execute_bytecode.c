@@ -117,7 +117,7 @@ object execute_bytecode(bytecode_environment* environment){
             #define INDEX_STACK(index) ((object*)object_stack->items)[object_stack->top-1-(index)]
             case b_move_top:
             {
-                for(int i=0; i<instr.argument-1; i++){
+                for(int i=0; i<instr.argument; i++){
                     object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i+1);
                     INDEX_STACK(i+1)=temporary;

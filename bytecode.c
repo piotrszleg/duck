@@ -17,7 +17,6 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
         case b_unary:
         case b_prefix:
         case b_new_scope:
-        case b_set:
         case b_table_set:
         case b_table_set_keep:
         case b_get:

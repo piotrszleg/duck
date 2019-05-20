@@ -65,6 +65,7 @@ AST_OBJECT(name,
 AST_OBJECT(assignment,
     path* left;
     expression* right;
+    bool used_in_closure;
 )
 
 AST_OBJECT(function_call,

@@ -12,7 +12,6 @@
     EXPRESSION_TYPES
 #undef X
 
-
 bool check_expression(expression* e){
 	return e!=NULL && e->type>=e_empty && e->type<=e_function_return;
 }
@@ -67,8 +66,10 @@ char* stringify_expression(expression* exp, int indentation){
         case e_assignment:
         {
             assignment* a=(assignment*)exp;
-            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sASSIGNMENT: \n%s-> left: %s \n%s-> sign: '=' \n%s-> right: %s", 
+            char* used_in_closure= a->used_in_closure ? "(used_in_closure)" : "";
+            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sASSIGNMENT%s: \n%s-> left: %s \n%s-> sign: '=' \n%s-> right: %s", 
                                         indentation_string,
+                                        used_in_closure,
                                         indentation_string, stringify_expression((expression*)a->left, indentation+1), 
                                         indentation_string, 
                                         indentation_string, stringify_expression((expression*)a->right, indentation+1));

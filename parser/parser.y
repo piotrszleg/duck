@@ -1,5 +1,6 @@
 %{
 #include "parser.h"
+#include "ast_postprocessing.h"
 
 // Declare stuff from Flex that Bison needs to know about:
 extern int yylex();
@@ -334,6 +335,7 @@ assignment:
 		u->op=$2;
 		u->right=$3;
 		a->right=(expression*)u;
+		a->used_in_closure=false;
 		$$=(expression*)a;
 	}
 	| path '=' expression 
@@ -342,6 +344,7 @@ assignment:
 		ADD_DEBUG_INFO(a)
 		a->left=(path*)$1;
 		a->right=$3;
+		a->used_in_closure=false;
 		$$=(expression*)a;
 	}
 	;
@@ -433,6 +436,7 @@ expression* parse_string(const char* s) {
 	// Parse through the input:
 	yyparse();
 	yy_delete_buffer(buffer);
+	postprocess_ast(parsing_result);
 	return parsing_result;
 }
 
@@ -454,6 +458,7 @@ expression* parse_file(const char* file) {
 	
 	// Parse through the input:
 	yyparse();
+	postprocess_ast(parsing_result);
 	return parsing_result;
 }
 

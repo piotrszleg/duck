@@ -32,7 +32,7 @@ typedef enum instruction_type instruction_type;
     X(jump_not) /*      jump to a label if value on stack is falsy argument: label_index */ \
     X(get) /*           get the value at the key from the current scope, [key] */ \
     X(table_get) /*     get the value at the key from the table, [key, table] */ \
-    X(set) /*           sets field at key in the current scope to value, [key, value] */ \
+    X(set) /*           sets field at key in the current scope to value, argument: is_used_in_closure, [key, value] */ \
     X(table_set) /*     sets field at key in table to value, keeps the value on stack, [key, table, value] */ \
     X(table_set_keep) /*same as table_set but keeps the indexed table on the stack, [key, table, value] */ \
     X(call) /*          argument: number_of_arguments, [function, arguments...] */ \
