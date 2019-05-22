@@ -1,5 +1,2 @@
-test=(name, assertion)->{
-    print("TEST: "+name)
-    assertion()
-    print("test successful")}
-test("test helper function", ->assert(1))
+file=open_file("repl.h", "r")
+file.read(file)

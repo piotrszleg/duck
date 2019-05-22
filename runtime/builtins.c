@@ -217,6 +217,58 @@ object builtin_eval(object* arguments, int arguments_count){
     return result;
 }
 
+object file_destroy(object* arguments, int arguments_count){
+    object self=arguments[0];
+    object pointer=get(self, to_string("pointer"));
+    REQUIRE(pointer.type==t_number, pointer);
+    fclose((FILE*)(int)pointer.value);
+    return null_const;
+}
+
+object file_read(object* arguments, int arguments_count){
+    object self=arguments[0];
+    object pointer=get(self, to_string("pointer"));
+    REQUIRE(pointer.type==t_number, pointer)
+    char *buf=malloc(255*sizeof(char));
+    fgets(buf, 255, (FILE*)(int)pointer.value);
+    return to_string(buf);
+}
+
+object file_write(object* arguments, int arguments_count){
+    object self=arguments[0];
+    object text=arguments[1];
+    REQUIRE_TYPE(text, t_string)
+    object pointer=get(self, to_string("pointer"));
+    REQUIRE(pointer.type==t_number, pointer)
+    fputs(text.text, (FILE*)(int)pointer.value);
+    return text;
+}
+
+object builtin_open_file(object* arguments, int arguments_count){
+    object filename=arguments[0];
+    REQUIRE_TYPE(filename, t_string)
+    object mode=arguments[1];
+    REQUIRE_TYPE(mode, t_string)
+
+    object result;
+    table_init(&result);
+    
+    FILE* f=fopen(filename.text, mode.text);
+    set(result, to_string("pointer"), to_number((float)(int)f));
+    set_function(result, "read", 1, false, file_read);
+    set_function(result, "write", 2, false, file_write);
+    set_function(result, "destroy", 1, false, file_destroy);
+
+    return result;
+}
+
+object builtin_remove_file(object* arguments, int arguments_count){
+    object filename=arguments[0];
+    REQUIRE_TYPE(filename, t_string)
+    remove(filename.text);
+    return null_const;
+}
+
 void register_builtins(object scope){
     #define REGISTER_FUNCTION(f, args_count) \
         object f##_function; \
@@ -243,6 +295,8 @@ void register_builtins(object scope){
     REGISTER_FUNCTION(string, 1)
     REGISTER_FUNCTION(number, 1)
     REGISTER_FUNCTION(cast, 2)
+    REGISTER_FUNCTION(open_file, 2)
+     REGISTER_FUNCTION(remove_file, 1)
     //REGISTER_FUNCTION(test, 2);
     set(scope, to_string("iterator"), to_function(get_table_iterator, NULL, 1));
 
