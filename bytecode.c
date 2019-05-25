@@ -104,6 +104,7 @@ bool pushes_to_stack(instruction_type instr){
     X(b_no_op)
     X(b_discard)
     X(b_get_scope)
+    X(b_set_scope)
     X(b_label)
     X(b_jump)
     X(b_jump_not)

@@ -82,9 +82,11 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
         block* b=(block*)exp;
         if(vector_total(&b->lines)==1){
             expression* line=vector_get(&b->lines, 0);
-            ast_visitor_request request={next, copy_expression(line)};
-            LOG_CHANGE("replacing one line block with this one line", exp, request.replacement);
-            return request;
+            if(line->type!=e_assignment){
+                ast_visitor_request request={next, copy_expression(line)};
+                LOG_CHANGE("replacing one line block with this one line", exp, request.replacement);
+                return request;
+            }
         }
         for (int i = 0; i < vector_total(&b->lines)-1; i++){// last line isn't optimised because it is a result of the block
             expression* line=vector_get(&b->lines, i);

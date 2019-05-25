@@ -269,6 +269,12 @@ object builtin_remove_file(object* arguments, int arguments_count){
     return null_const;
 }
 
+object builtin_import_dll(object* arguments, int arguments_count){
+    object filename=arguments[0];
+    REQUIRE_TYPE(filename, t_string)
+    return import_dll(filename.text);
+}
+
 void register_builtins(object scope){
     #define REGISTER_FUNCTION(f, args_count) \
         object f##_function; \
@@ -296,7 +302,8 @@ void register_builtins(object scope){
     REGISTER_FUNCTION(number, 1)
     REGISTER_FUNCTION(cast, 2)
     REGISTER_FUNCTION(open_file, 2)
-     REGISTER_FUNCTION(remove_file, 1)
+    REGISTER_FUNCTION(remove_file, 1)
+    REGISTER_FUNCTION(import_dll, 1)
     //REGISTER_FUNCTION(test, 2);
     set(scope, to_string("iterator"), to_function(get_table_iterator, NULL, 1));
 
@@ -342,12 +349,4 @@ void inherit_scope(object scope, object base){
     set(scope, to_string("get"), f);
     set(scope, to_string("scope"), scope);
     set(scope, to_string("base"), base);
-}
-
-void clean_scope_table(object scope){
-    #define CLEAR_KEY(key) set(scope, to_string(#key), null_const);
-    CLEAR_KEY(global)
-    CLEAR_KEY(get)
-    CLEAR_KEY(scope)
-    CLEAR_KEY(base)
 }

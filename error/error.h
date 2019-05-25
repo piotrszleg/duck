@@ -33,14 +33,14 @@ extern char err_message[1024];
         memcpy(error_buf, previous_error_buf, sizeof error_buf); \
     }
 
-#define ERROR(type, message, ...) \
+#define THROW_ERROR(type, message, ...) \
     sprintf(err_message, "ERROR: %s, line %d\n" message, __FILE__, __LINE__, ##__VA_ARGS__); \
     err_type=type; \
     if(error_buf!=NULL){ longjmp(error_buf,1); }
 
 #define CHECK_ALLOCATION(value) \
     if(value==NULL) { \
-        ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
+        THROW_ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
     }
 
 

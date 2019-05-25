@@ -8,7 +8,7 @@
 
 #define CHECK_ALLOCATION(value) \
     if(value==NULL) { \
-        ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
+        THROW_ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
     }
 
 #endif

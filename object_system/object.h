@@ -16,7 +16,8 @@ enum object_type{
     t_number,
     t_function,
     t_string,
-    t_table
+    t_table,
+    t_pointer
 };
 
 extern const char* OBJECT_TYPE_NAMES[];// array mapping enum object_type to their names as strings
@@ -33,6 +34,7 @@ struct object{
         char* text;
         function* fp;
         table* tp;
+        void* p;
     };
 };
 
@@ -67,15 +69,16 @@ OBJECT_INIT_NEW_DECLARATIONS(number)
 OBJECT_INIT_NEW_DECLARATIONS(function)
 OBJECT_INIT_NEW_DECLARATIONS(string)
 OBJECT_INIT_NEW_DECLARATIONS(table)
+OBJECT_INIT_NEW_DECLARATIONS(pointer)
 
 #define STRING_OBJECT(name, string_text) object name; string_init(&name); name.text=(char*)string_text;
 
 #define CHECK_OBJECT(checked) \
     if(checked==NULL) { \
-        ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); \
+        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); \
     } \
     if(checked->type<t_null||checked->type>t_table) { \
-        ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
+        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
     }
 
 // declaration of function pointer type used in function objects
@@ -104,6 +107,7 @@ struct function {
 
 object to_string(const char* s);
 object to_number(float n);
+object to_pointer(void* p);
 object to_function(object_system_function f, char** argument_names, int arguments_count);
 
 void reference(object* o);

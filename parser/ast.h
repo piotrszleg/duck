@@ -23,6 +23,7 @@
     X(function_declaration) \
     X(conditional) \
     X(function_return) \
+    X(message)
 
 // generate enum of expression types, each value is prepended with "e_"
 typedef enum expression_type expression_type;
@@ -98,6 +99,12 @@ AST_OBJECT(conditional,
 
 AST_OBJECT(function_return,
     expression* value;
+)
+
+AST_OBJECT(message,
+    expression* messaged_object;
+    name* message_name;
+    table_literal* arguments;
 )
 
 typedef enum literal_type literal_type;

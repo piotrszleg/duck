@@ -26,7 +26,7 @@ bool is_falsy(object o){
         case t_table:
             return o.tp->array_size==0 && o.tp->map_size==0;// empty table is falsy
         default:
-            ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object pointer passed to is_falsy function.");
+            THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object pointer passed to is_falsy function.");
     }
 }
 
@@ -368,6 +368,8 @@ char* stringify_object(object o){
                 return strdup("function()");
             }
         }
+        case t_pointer:
+            return strdup("<pointer>");
         case t_null:
             return strdup("<null>");
         default:

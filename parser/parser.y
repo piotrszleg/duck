@@ -43,6 +43,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 // define the constant-string tokens:
 %token ENDL
 %token ARROW
+%token FOUR_DOTS
 %token ELLIPSIS
 %token IF
 %token ELSE
@@ -77,6 +78,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %type <exp> function;
 %type <exp> conditional;
 %type <exp> conditional_else;
+%type <exp> message;
 
 %%
 program:
@@ -179,6 +181,7 @@ expression:
 	| unary
 	| prefix
 	| null
+	| message
 	;
 conditional:
 	IF '(' expression ')' expression  {	
@@ -364,6 +367,24 @@ call:
 		c->arguments=(table_literal*)new_block();
 		vector_init(&c->arguments->lines);
 		$$=(expression*)c;
+	}
+	;
+message:
+	expression FOUR_DOTS name '(' lines ')' {
+		message* m=new_message();
+		ADD_DEBUG_INFO(m)
+		m->messaged_object=$1;
+		m->message_name=$3;
+		m->arguments=(table_literal*)$5;
+		$$=(expression*)m;
+	}
+	| expression FOUR_DOTS name '(' ')' {
+		message* m=new_message();
+		ADD_DEBUG_INFO(m)
+		m->messaged_object=$1;
+		m->message_name=$3;
+		m->arguments=(table_literal*)new_block();
+		$$=(expression*)m;
 	}
 	;
 unary:

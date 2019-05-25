@@ -136,3 +136,9 @@ options=[ast=1, ast_optimisations=0]
 #[ast=1, ast_optimisations=0]
 #recursion_depth 100
 #recursion_depth=100
+
+ffi=ffi_open("libsdl.dll")
+sin=ffi::function('sin, 'float, 'float)
+sin(10)
+imaginary=ffi::struct(real_part, 'float, imaginary_part, 'float)
+add_imaginary=ffi::function('add_imaginary, imaginary, imaginary, imaginary)

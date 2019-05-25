@@ -99,7 +99,7 @@ object call_function_processed(function* f, object* arguments, int arguments_cou
         object result=execute_bytecode(environment);
         return result;
     } else {
-        ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
+        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
         return null_const;
     }
 }

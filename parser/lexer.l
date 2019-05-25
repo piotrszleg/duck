@@ -52,9 +52,10 @@ null				    { COUNT_COLUMNS; return NULL_LITERAL; }
 [a-zA-Z_][a-zA-Z0-9_]*  { COUNT_COLUMNS; yylval.sval = strdup(yytext); return NAME; }
 \.\.\.						{ COUNT_COLUMNS; return ELLIPSIS; }
 ->                      { COUNT_COLUMNS; return ARROW; }
+::                      { COUNT_COLUMNS; return FOUR_DOTS; }
 !=					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 ==					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
-[\(\)\{\},\.#=\[\]!-]   { COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, - must be separated from other unary operators because it is also a prefix
+[\(\)\{\},\.#=\[\]!-]  { COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, - must be separated from other unary operators because it is also a prefix
 [+\-\/*^&|<>]+          { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
 [+\-\/*^&|]+=           { COUNT_COLUMNS; yylval.sval = remove_last_character(yytext); return ASSIGN_UNARY_OPERATOR; }// +=, -= etc
 `.+?`             	    { COUNT_COLUMNS; yylval.sval = unquote(yytext); return UNARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo

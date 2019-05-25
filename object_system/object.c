@@ -8,7 +8,8 @@ const char* OBJECT_TYPE_NAMES[]={
     "number",
     "function",
     "string",
-    "table"
+    "table",
+    "pointer"
 };
 const int OBJECT_TYPE_NAMES_COUNT=5;
 
@@ -31,6 +32,7 @@ OBJECT_INIT_NEW(table,
     o->tp->ref_count=0;
     table_component_init(o->tp);
 )
+OBJECT_INIT_NEW(pointer,)
 
 object to_string(const char* s){
     object o; 
@@ -46,6 +48,13 @@ object to_number(float n){
     object o; 
     number_init(&o); 
     o.value=n;
+    return o;
+}
+
+object to_pointer(void* p){
+    object o; 
+    pointer_init(&o); 
+    o.p=p;
     return o;
 }
 

@@ -28,7 +28,37 @@ char* get_variable_name(path* p){
 }
 
 ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
+    ast_visitor_request request={down, NULL};
     postprocessing_state* state=data;
+
+    // translate messages to functions
+    if(exp->type==e_message){
+        message* m=(message*)exp;
+        function_call* c=new_function_call();
+        c->called=copy_expression(m->messaged_object);
+        if(c->called->type!=e_path){
+            THROW_ERROR(INCORRECT_OBJECT_POINTER, "The messaged_object field of message should be of type path.");
+        }
+        path* p=new_path();
+        p->column_number=m->column_number;
+        p->line_number=m->line_number;
+        vector_init(&p->lines);
+        vector_add(&p->lines, copy_expression(m->message_name));
+        vector_add(&((path*)c->called)->lines, copy_expression(m->message_name));
+
+        c->arguments=new_block();
+        vector_init(&c->arguments->lines);
+        vector_add(&c->arguments->lines, copy_expression(m->messaged_object));
+        for(int i=0; i<vector_total(&m->arguments->lines); i++){
+            vector_add(&c->arguments->lines, copy_expression(vector_get(&m->arguments->lines, i)));
+        }
+        c->column_number=m->column_number;
+        c->line_number=m->line_number;
+
+        request.replacement=c;
+        return request;
+    }
+    // ast_vistor entered a function
     if(exp->type==e_function_declaration){
         state->current_function=exp;
     }
@@ -36,6 +66,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         assignment* a=(assignment*)exp;
         char* variable=get_variable_name(a->left);
         if(variable!=NULL){
+            // first assignment to variable is it's declaration
             if(map_get(&state->declarations, variable)==NULL){
                 declaration decl={state->current_function, a};
                 map_set(&state->declarations, variable, decl);
@@ -51,7 +82,6 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
             }
         }
     }
-    ast_visitor_request request={down, NULL};
     return request;
 }
 

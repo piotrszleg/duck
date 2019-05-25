@@ -227,7 +227,7 @@ object execute_bytecode(bytecode_environment* environment){
                 object o=pop(object_stack);
                 if(o.type!=t_table){
                     USING_STRING(stringify(o),
-                        ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, *pointer));
+                        THROW_ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, *pointer));
                 } else {
                     reference(&o);
                     environment->scope=o;
@@ -238,7 +238,7 @@ object execute_bytecode(bytecode_environment* environment){
             {
                 object t;
                 table_init(&t);
-                //inherit_scope(t, environment->scope);
+                inherit_scope(t, environment->scope);
                 reference(&t);
                 dereference(&environment->scope);
                 environment->scope=t;
@@ -288,7 +288,7 @@ object execute_bytecode(bytecode_environment* environment){
                 reference(&environment->scope);// remember to check the enclosing scope in destructor
                 object arguments_count_object=pop(object_stack);
                 if(arguments_count_object.type!=t_number){
-                    ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", *pointer);
+                    THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", *pointer);
                     break;
                 }
                 f.fp->arguments_count=(int)arguments_count_object.value;
@@ -346,7 +346,8 @@ object execute_bytecode(bytecode_environment* environment){
                     for (int i = provided_arguments-1; i >= 0; i--){
                         arguments[i]=pop(object_stack);
                     }
-                    push(object_stack, o.fp->native_pointer(arguments, provided_arguments));
+                    object call_result=o.fp->native_pointer(arguments, provided_arguments);
+                    push(object_stack, call_result);
                     free(arguments);
                 } else{
                     if(o.fp->variadic){
@@ -369,7 +370,7 @@ object execute_bytecode(bytecode_environment* environment){
                     } else if(o.fp->ftype==f_ast) {
                         CALL_ERROR("Can't call ast function from bytecode.");
                     } else {
-                        ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", *pointer);
+                        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", *pointer);
                     }
                 }
                 #undef CALL_ERROR
@@ -397,7 +398,7 @@ object execute_bytecode(bytecode_environment* environment){
             case b_label:
                 break;
             default:
-                ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, *pointer);
+                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, *pointer);
         }
         (*pointer)++;
     }

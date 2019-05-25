@@ -8,7 +8,7 @@ object call_function(function* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
         return f->native_pointer(arguments, arguments_count);
     } else {
-        ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
+        THROW_ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
         return null_const;
     }
 }

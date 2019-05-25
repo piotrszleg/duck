@@ -103,6 +103,16 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)c->arguments, indentation+1));
             break;
         }
+        case e_message:
+        {
+            message* m=(message*)exp;
+            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sMESSSAGE: \n%s-> object: %s \n%s-> name: %s \n%s-> arguments: %s", 
+                                        indentation_string,
+                                        indentation_string, stringify_expression((expression*)m->messaged_object, indentation+1), 
+                                        indentation_string, stringify_expression((expression*)m->message_name, indentation+1), 
+                                        indentation_string, stringify_expression((expression*)m->arguments, indentation+1));
+            break;
+        }
         #define STRINGIFY_LINES \
             block* b=(block*)exp; \
             for (int i = 0; i < vector_total(&b->lines); i++){ \
@@ -227,6 +237,17 @@ void delete_expression(expression* exp){
                 delete_expression((expression*)c->arguments);
             }
             free(c);
+            break;
+        }
+        case e_message:
+        {
+            message* m=(message*)exp;
+            delete_expression((expression*)m->messaged_object);
+            delete_expression((expression*)m->message_name);
+            if(m->arguments!=NULL){
+                delete_expression((expression*)m->arguments);
+            }
+            free(m);
             break;
         }
         case e_block:

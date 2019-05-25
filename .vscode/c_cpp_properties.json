@@ -3,7 +3,8 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "E:/Libraries/libffi-3.2.1/i686-pc-mingw32/include/*"
             ],
             "defines": [
                 "_DEBUG",

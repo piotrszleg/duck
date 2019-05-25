@@ -248,6 +248,28 @@ void blocks(){
     printf("test successful\n");
 }
 
+void message_translation(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    int counts[]={1, 2, 3, 3};
+
+    block* as_block=parse_block(
+    "a::b()\n"
+    "a::b(c)\n"
+    "a::b(c, d)\n"
+    "a.b::c(d, e)\n"
+    , 4);
+    
+    for (int i = 0; i < vector_total(&as_block->lines); i++){
+        expression* e=(expression*)vector_get(&as_block->lines, i);
+        assert(e->type==e_function_call);
+        assert(((function_call*)e)->called->type==e_path);
+        assert(vector_total(&((function_call*)e)->arguments->lines)==counts[i]);
+    }
+
+    printf("test successful\n");
+}
+
 int main(){
     literals();
     operators();
@@ -260,4 +282,5 @@ int main(){
     function_returns();
     conditionals();
     blocks();
+    message_translation();
 }

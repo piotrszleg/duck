@@ -24,12 +24,12 @@ unsigned hash(object o) {
         case t_null:
             return 0;
         case t_table:
-            ERROR(NOT_IMPLEMENTED, "Hashing tables is not implemented yet.");
+            THROW_ERROR(NOT_IMPLEMENTED, "Hashing tables is not implemented yet.");
             return 0;
         case t_function:
             return (unsigned)o.fp;
         default:
-            ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object type passed to hash function.");
+            THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object type passed to hash function.");
             return 0;
     }
 }

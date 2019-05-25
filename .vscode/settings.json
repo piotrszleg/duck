@@ -34,6 +34,7 @@
         "limits.h": "c",
         "execution.h": "c",
         "struct_descriptor.h": "c",
-        "ast.h": "c"
+        "ast.h": "c",
+        "sample_dll.h": "c"
     }
 }

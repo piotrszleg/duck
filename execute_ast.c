@@ -49,7 +49,7 @@ void path_set(ast_executor_state* state, object scope, path p, object value){
 
 object execute_ast(ast_executor_state* state, expression* exp, object scope, int keep_scope){
     if(exp==NULL){
-        ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
+        THROW_ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
     exec_state.line=exp->line_number;
     exec_state.column=exp->column_number;
