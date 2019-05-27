@@ -8,6 +8,7 @@ int main(int argc, char *argv[]){
     } else {
         TRY_CATCH(
             table_init(&patching_table);
+            reference(&patching_table);
             bool use_bytecode=strcmp(argv[argc-1], "-ast")!=0;
             if(!use_bytecode){
                 if(argc==3){
@@ -24,6 +25,7 @@ int main(int argc, char *argv[]){
                     repl(use_bytecode);
                 }
             }
+            dereference(&patching_table);
         ,
             printf("Error occured:\n");
             printf(err_message);

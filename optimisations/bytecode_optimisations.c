@@ -1,6 +1,6 @@
 #include "bytecode_optimisations.h"
 
-#define LOG_BYTECODE_OPTIMISATIONS 1
+#define LOG_BYTECODE_OPTIMISATIONS 0
 #define LOG_IF_ENABLED(message, ...) \
     if(LOG_BYTECODE_OPTIMISATIONS){ \
         printf(message, ##__VA_ARGS__); \

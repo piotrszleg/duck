@@ -6,7 +6,7 @@
 
 int labels_count=0;
 
-void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, int keep_scope);
+void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, bool keep_scope);
 bytecode_program closure_to_bytecode(function_declaration* d);
 
 void repeat_information(bytecode_translation* translation){
@@ -109,7 +109,7 @@ char* table_literal_extract_key(assignment* a){
     return ((name*)e)->value;
 }
 
-void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, int keep_scope){
+void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, bool keep_scope){
     translation->last_information=information_from_ast(exp);
 
     switch(exp->type){
@@ -162,20 +162,24 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
         {
             block* b=(block*)exp;
 
-            push_instruction(translation, b_get_scope, 0);
-            push_instruction(translation, b_new_scope, 0);
+            if(!keep_scope){
+                push_instruction(translation, b_get_scope, 0);
+                push_instruction(translation, b_new_scope, 0);
+            }
 
             int lines_count=vector_total(&b->lines);
             for (int i = 0; i < lines_count; i++){
-                ast_to_bytecode_recursive(vector_get(&b->lines, i), translation, 1);
+                ast_to_bytecode_recursive(vector_get(&b->lines, i), translation, false);
                 if(i!=lines_count-1){// result of the last line isn't discarded
                     push_instruction(translation, b_discard, 0);
                 }
             }
-            // the result of evaluating the last line is now on top
-            // so the scope object needs to be pushed to the top instead
-            push_instruction(translation, b_push_to_top, 1);
-            push_instruction(translation, b_set_scope, 0);
+            if(!keep_scope){
+                // the result of evaluating the last line is now on top
+                // so the scope object needs to be pushed to the top instead
+                push_instruction(translation, b_push_to_top, 1);
+                push_instruction(translation, b_set_scope, 0);
+            }
 
             break;
         }
@@ -189,7 +193,7 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
         case e_assignment:
         {
             assignment* a=(assignment*)exp;
-            ast_to_bytecode_recursive(a->right, translation, keep_scope);
+            ast_to_bytecode_recursive(a->right, translation, false);
             bytecode_path_set(translation, *a->left, a->used_in_closure);
             break;
         }
@@ -197,8 +201,8 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
         {
             unary* u=(unary*)exp;
 
-            ast_to_bytecode_recursive(u->right, translation, keep_scope);
-            ast_to_bytecode_recursive(u->left, translation, keep_scope);
+            ast_to_bytecode_recursive(u->right, translation, false);
+            ast_to_bytecode_recursive(u->left, translation, false);
             push_string_load(translation, u->op);
             push_instruction(translation, b_unary, 0);
             break;
@@ -206,7 +210,7 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
         case e_prefix:
         {
             prefix* p=(prefix*)exp;
-            ast_to_bytecode_recursive(p->right, translation, keep_scope);
+            ast_to_bytecode_recursive(p->right, translation, false);
 
             push_string_load(translation, p->op);
             push_instruction(translation, b_prefix, 0);
@@ -218,14 +222,14 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
             int conditional_end=labels_count++;
             int on_false=labels_count++;
 
-            ast_to_bytecode_recursive(c->condition, translation, keep_scope);
+            ast_to_bytecode_recursive(c->condition, translation, false);
             push_instruction(translation, b_jump_not, on_false);// if condition is false jump to on_false label
 
-            ast_to_bytecode_recursive(c->ontrue, translation, keep_scope);
+            ast_to_bytecode_recursive(c->ontrue, translation, false);
             push_instruction(translation, b_jump, conditional_end);// jump over the on_false block to the end of conditional
 
             push_instruction(translation, b_label, on_false);
-            ast_to_bytecode_recursive(c->onfalse, translation, keep_scope);
+            ast_to_bytecode_recursive(c->onfalse, translation, false);
 
             push_instruction(translation, b_label, conditional_end);
 
@@ -249,16 +253,16 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
             function_call* c=(function_call*)exp;
             int lines_count=vector_total(&c->arguments->lines);
             for (int i = 0; i < lines_count; i++){
-                ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), translation, keep_scope);
+                ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), translation, false);
             }
-            ast_to_bytecode_recursive(c->called, translation, keep_scope);
+            ast_to_bytecode_recursive(c->called, translation, false);
             push_instruction(translation, b_call, lines_count);
             break;
         }
         case e_function_return:
         {
             function_return* r=(function_return*)exp;
-            ast_to_bytecode_recursive((expression*)r->value, translation, keep_scope);
+            ast_to_bytecode_recursive((expression*)r->value, translation, false);
             push_instruction(translation, b_return, 0);
             break;
         }
@@ -313,7 +317,7 @@ bytecode_program closure_to_bytecode(function_declaration* d){
     return translation_to_bytecode(&translation);
 }
 
-bytecode_program ast_to_bytecode(expression* exp, int keep_scope){
+bytecode_program ast_to_bytecode(expression* exp, bool keep_scope){
     bytecode_translation translation;
     bytecode_translation_init(&translation);
 

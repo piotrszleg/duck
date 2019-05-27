@@ -17,7 +17,7 @@ object evaluate(expression* parsing_result, bool use_bytecode){
     printf("\nExecuting parsing result:\n");
     object execution_result;
     if(use_bytecode){
-        bytecode_program prog=ast_to_bytecode(parsing_result, 1);
+        bytecode_program prog=ast_to_bytecode(parsing_result, true);
         delete_expression(parsing_result);// at this point ast is useless and only wastes memory
         optimise_bytecode(&prog);
         USING_STRING(stringify_bytecode(&prog),
@@ -53,7 +53,7 @@ object evaluate(expression* parsing_result, bool use_bytecode){
         delete_expression(parsing_result);
     }
     
-    reference(&execution_result);// make sure that the execution_result isn't garbage collected along with global_scope
+    //reference(&execution_result);// make sure that the execution_result isn't garbage collected along with global_scope
     dereference(&global_scope);
     return execution_result;
 }

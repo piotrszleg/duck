@@ -210,8 +210,13 @@ object execute_bytecode(bytecode_environment* environment){
                 object indexed=pop(object_stack);
                 object set_result=set(indexed, key, value);
                 push(object_stack, indexed);
-                //dereference(&indexed); // not sure about this
+                dereference(&indexed);
+
+                // make sure that set_result will only be deleted
+                // if it is not the same object as value
+                reference(&set_result);
                 dereference(&set_result);
+
                 dereference(&key);
                 dereference(&value);
                 break;
@@ -363,7 +368,6 @@ object execute_bytecode(bytecode_environment* environment){
                         }
                         push(object_stack, variadic_table);
                     }
-                    // TODO: clean and test, why the two loops are different?
                     if(o.fp->ftype==f_bytecode){
                         move_to_function(environment, o.fp, false);
                         continue;// don't increment the pointer
@@ -389,7 +393,6 @@ object execute_bytecode(bytecode_environment* environment){
                     environment->scope=rp->scope;
                     if(rp->terminate){
                         object last=pop(object_stack);
-                        reference(&last);
                         return last;
                     }
                 }

@@ -1,0 +1,12 @@
+ffi=import_dll("dlls/libffi_wrapper/libffi_wrapper.dll")
+test_lib=ffi.open("dlls/libffi_wrapper/test_lib/test_lib.dll")
+
+sum_int=test_lib::function('sum_int, 'int, 'int, 'int)
+assert(sum_int(3, 2)==5)
+
+sum_int=test_lib::function('sum_float, 'float, 'float, 'float)
+assert(sum_int(3, 2)==5)
+
+point_type=test_lib::struct(['x, 'int], ['y, 'int])
+sum_struct=test_lib::function('sum_struct, point_type, point_type, point_type)
+sum_struct([x=1, y=4], [x=6, y=2])

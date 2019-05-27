@@ -284,7 +284,7 @@ void register_builtins(object scope){
         set(scope, to_string(#f), f##_function);
     
     set(scope, to_string("patches"), patching_table);
-    set(scope, to_string("global"), scope);
+    //set(scope, to_string("global"), scope);
     REGISTER_FUNCTION(print, 1)
     REGISTER_FUNCTION(input, 0)
     REGISTER_FUNCTION(assert, 1)
@@ -307,12 +307,7 @@ void register_builtins(object scope){
     //REGISTER_FUNCTION(test, 2);
     set(scope, to_string("iterator"), to_function(get_table_iterator, NULL, 1));
 
-    object format_function;
-    function_init(&format_function);
-    format_function.fp->variadic=true;
-    format_function.fp->arguments_count=2;
-    format_function.fp->native_pointer=&builtin_format;
-    set(scope, to_string("format"), format_function);
+    set_function(scope, "format", 1, true, builtin_format);
 
     #undef REGISTER_FUNCTION
 }
