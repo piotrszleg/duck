@@ -21,8 +21,11 @@ struct map_element {
     map_element* next;
 };
 
+typedef struct table table;
 struct table {
-    int ref_count;
+    // gc_object fields
+    gc_object gco;
+
     object* array;
     unsigned array_size;
     map_element** map;
@@ -47,6 +50,8 @@ struct iteration_result{
 
 object get_table(table* t, object key);
 void set_table(table* t, object key, object value);
+void free_table(table* t);
+void dereference_children_table(table* t);
 char* stringify_table(table* t);
 void table_component_init(table* t);
 object get_table_iterator(object* arguments, int arguments_count);

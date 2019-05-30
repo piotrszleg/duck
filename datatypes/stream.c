@@ -32,3 +32,7 @@ void stream_truncate(stream* s){
         s->data=NULL;
     }
 }
+
+void* stream_get_data(stream* s){
+    return s->data;
+}

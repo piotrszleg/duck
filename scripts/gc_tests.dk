@@ -1,0 +1,14 @@
+tab=[
+    message="You thought that this will be a destructor, but it is me DIO!"
+    destroy=self->print(self.message)
+]
+
+f=->{
+    tab=[
+        destroy=_->print("circular reference was destroyed")
+    ]
+    tab.self=tab
+}
+f()
+f()
+f()

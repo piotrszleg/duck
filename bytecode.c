@@ -64,7 +64,7 @@ char* stringify_bytecode(const bytecode_program* prog){
         }
     }
     stream_push(&s, "\0", sizeof(char));
-    return s.data;
+    return stream_get_data(&s);
 }
 
 void bytecode_program_deinit(bytecode_program* prog) {

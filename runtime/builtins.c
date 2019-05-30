@@ -115,7 +115,7 @@ object builtin_format(object* arguments, int arguments_count){
         #undef MATCH
     }
     stream_push(&s, "\0", sizeof(char));
-    return to_string(s.data);
+    return to_string(stream_get_data(&s));
 }
 
 object builtin_assert(object* arguments, int arguments_count){
@@ -284,7 +284,7 @@ void register_builtins(object scope){
         set(scope, to_string(#f), f##_function);
     
     set(scope, to_string("patches"), patching_table);
-    //set(scope, to_string("global"), scope);
+    set(scope, to_string("global"), scope);
     REGISTER_FUNCTION(print, 1)
     REGISTER_FUNCTION(input, 0)
     REGISTER_FUNCTION(assert, 1)
@@ -316,32 +316,56 @@ object scope_get_override(object* arguments, int arguments_count){
     object self=arguments[0];
     REQUIRE_TYPE(self, t_table)
     object key=arguments[1];
+
+    object base=self;
     object map_get_result=get_table(self.tp, key);
 
-    if(map_get_result.type!=t_null){
-        return map_get_result;
-    } else{
-        object base=get_table(self.tp, to_string("base"));
-        if(base.type==t_table){
-            return get(base, key);
+    // we assume that all scopes are of type table and have same get behaviour
+    while(map_get_result.type==t_null){
+        base=get_table(base.tp, to_string("base"));
+        if(base.type!=t_table){
+            return null_const;
+        } else {
+            map_get_result=get_table(base.tp, key);
         }
-        return null_const;
     }
+    return map_get_result;
+}
+
+object scope_set_override(object* arguments, int arguments_count){
+    object self=arguments[0];
+    REQUIRE_TYPE(self, t_table)
+    object key=arguments[1];
+    object value=arguments[2];
+
+    object base=self;
+    object map_get_result=get_table(self.tp, key);
+
+    // we assume that all scopes are of type table and have same get behaviour
+    while(map_get_result.type==t_null){
+        base=get_table(base.tp, to_string("base"));
+        if(base.type!=t_table){
+            // the variable isn't in any outer scope so assignment is a declaration
+            set_table(self.tp, key, value);
+            return value;
+        } else {
+            map_get_result=get_table(base.tp, key);
+        }
+    }
+    // variable was found in outer scope so we change it's value
+    set_table(base.tp, key, value);
+    return value;
 }
 
 void inherit_scope(object scope, object base){
-    object f;
-    function_init(&f);
-    f.fp->native_pointer=&scope_get_override;
-    f.fp->arguments_count=2;
     object base_global=get(base, to_string("global"));
     if(base_global.type!=t_null){
         set(scope, to_string("global"), base_global);
     } else {
         set(scope, to_string("global"), base);
-        dereference(&base_global);// base_global is null so it can be safely deleted
     }
-    set(scope, to_string("get"), f);
     set(scope, to_string("scope"), scope);
     set(scope, to_string("base"), base);
+    set_function(scope, "get", 2, false, scope_get_override);
+    set_function(scope, "set", 3, false, scope_set_override);
 }

@@ -36,6 +36,9 @@ object evaluate(expression* parsing_result, bool use_bytecode){
             printf("Global scope:\n%s\n", str));
         
         bytecode_program_deinit(&prog);
+
+        dereference(&global_scope);
+        gc_run(NULL, 0);
     } else {
         ast_executor_state state;
         state.returning=false;
@@ -55,7 +58,9 @@ object evaluate(expression* parsing_result, bool use_bytecode){
     
     //reference(&execution_result);// make sure that the execution_result isn't garbage collected along with global_scope
     dereference(&global_scope);
-    return execution_result;
+    //return execution_result;
+    gc_run(NULL, 0);
+    return null_const;
 }
 
 object evaluate_string(const char* s, bool use_bytecode){

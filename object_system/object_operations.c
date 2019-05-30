@@ -2,6 +2,11 @@
 
 #define INITIAL_BUFFER_SIZE 16
 
+#define ALREADY_DESTROYED_CHECK(o) \
+    if(is_gc_object(o) && o.gco->ref_count==ALREADY_DESTROYED){ \
+        RETURN_ERROR("INCOERR_OBJECT_ACCESS", o, "Attempted to call function %s on object that was previously garbage collected.", __FUNCTION__) \
+    }
+
 object patching_table={t_table};
 
 bool is_number(const char *s)
@@ -31,6 +36,7 @@ bool is_falsy(object o){
 }
 
 object cast(object o, object_type type){
+    //ALREADY_DESTROYED_CHECK(o)
     if(o.type==type){
         return o;
     }
@@ -58,13 +64,6 @@ object cast(object o, object_type type){
         default:
             RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
     }
-}
-
-object create_number(int value){
-    object n;
-    number_init(&n);
-    n.value=value;
-    return n;
 }
 
 object find_call_function(object o){
@@ -134,7 +133,23 @@ int compare(object a, object b){
     }
 }
 
+object get_iterator(object o){
+    MONKEY_PATCH("iterator", &o, 1);
+    if(o.type==t_table){
+        object iterator_override=find_function(o, "iterator");
+        if(iterator_override.type!=t_null){
+            return call(iterator_override, &o, 1);
+        } else {
+            return get_table_iterator(&o, 1);
+        }
+    } else {
+        RETURN_ERROR("OperatorError", o, "Can't get operator of object of type %s.", OBJECT_TYPE_NAMES[o.type]);
+    }
+}
+
 object operator(object a, object b, const char* op){
+    //ALREADY_DESTROYED_CHECK(a)
+    //ALREADY_DESTROYED_CHECK(b)
     MONKEY_PATCH(op, ((object[]){a, b}), 2);
     if(a.type==t_table){
         object operator_function=find_function(a, op);
@@ -148,32 +163,32 @@ object operator(object a, object b, const char* op){
     OP_CASE("=="){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
-            return create_number(comparision_result==0);
+            return to_number(comparision_result==0);
     }
     OP_CASE("!="){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
-            return create_number(!comparision_result!=0);
+            return to_number(comparision_result!=0);
     }
     OP_CASE(">"){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
-            return create_number(comparision_result==1);
+            return to_number(comparision_result==1);
     }
     OP_CASE("<"){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
-            return create_number(comparison_result==-1);
+            return to_number(comparison_result==-1);
     }
     OP_CASE(">="){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
-            return create_number(comparison_result==1||comparison_result==0);
+            return to_number(comparison_result==1||comparison_result==0);
     }
     OP_CASE("<="){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
-            return create_number(comparison_result==-1||comparison_result==0);
+            return to_number(comparison_result==-1||comparison_result==0);
     }
     OP_CASE("||"){
         if(!is_falsy(a)){
@@ -195,7 +210,7 @@ object operator(object a, object b, const char* op){
         }
     }
     OP_CASE("!"){
-        return create_number(is_falsy(a));
+        return to_number(is_falsy(a));
     }
     OP_CASE("-"){
         if(a.type==t_number && b.type==t_null){
@@ -209,25 +224,40 @@ object operator(object a, object b, const char* op){
     OP_CASE("<<"){
         return new_binding(a, b);
     }
+    // call b with arguments key and value for each iteration
     OP_CASE("##"){
-        if(a.type==t_table){
-            table_iterator it=start_iteration(a.tp);
-            for(iteration_result i=table_next(&it); !i.finished; i=table_next(&it)) {
-                call(b, (object[]){i.key, i.value}, 2);
+        object iterator=get_iterator(a);
+        reference(&iterator);
+
+        object iteration_result=call(iterator, NULL, 0); 
+        while(true) {
+            reference(&iteration_result);
+            object call_result=call(b, (object[]){get(iteration_result, to_string("key")), get(iteration_result, to_string("value"))}, 2);
+            dereference(&iteration_result);
+            iteration_result=call(iterator, NULL, 0);
+            if(!is_falsy(get(iteration_result, to_string("finished")))){
+                dereference(&iterator);
+                return call_result;
             }
-            return null_const;
         }
     }
+    // same as above except only the values are passed to the function
     OP_CASE("#"){
-        if(a.type==t_table){
-            table_iterator it=start_iteration(a.tp);
-            for(iteration_result i=table_next(&it); !i.finished; i=table_next(&it)) {
-                call(b, (object[]){i.value}, 1);
+        object iterator=get_iterator(a);
+        reference(&iterator);
+        
+        object iteration_result=call(iterator, &iterator, 1); 
+        while(true) {
+            reference(&iteration_result);
+            object call_result=call(b, (object[]){get(iteration_result, to_string("value"))}, 1);
+            dereference(&iteration_result);
+            iteration_result=call(iterator, &iterator, 1); 
+            if(!is_falsy(get(iteration_result, to_string("finished")))){
+                dereference(&iterator);
+                return call_result;
             }
-            return null_const;
         }
     }
-    
     if(a.type==t_string){
         if(a.type!=b.type){
             b=cast(b, a.type);
@@ -249,16 +279,16 @@ object operator(object a, object b, const char* op){
         object result;
         number_init(&result);
         OP_CASE("+"){
-            return create_number(a.value+b.value);
+            return to_number(a.value+b.value);
         }
         OP_CASE("-"){
-            return create_number(a.value-b.value);
+            return to_number(a.value-b.value);
         }
         OP_CASE("*"){
-            return create_number(a.value*b.value);
+            return to_number(a.value*b.value);
         }
         OP_CASE("/"){
-            return create_number(a.value/b.value);
+            return to_number(a.value/b.value);
         }
     }
     object causes[]={a, b};
@@ -280,8 +310,7 @@ char* stringify(object o){
     return stringify_object(o);
 }
 
-char* suprintf (const char * format, ...)
-{
+char* suprintf (const char * format, ...){
     char* buffer=malloc(INITIAL_BUFFER_SIZE*sizeof(char));
     CHECK_ALLOCATION(buffer);
     int buffer_size=INITIAL_BUFFER_SIZE;
@@ -296,14 +325,89 @@ char* suprintf (const char * format, ...)
     return buffer;
 }
 
+// source: https://stackoverflow.com/questions/779875/what-is-the-function-to-replace-string-in-c
+char *str_replace(char *orig, char *rep, char *with) {
+    char *result; // the return string
+    char *ins;    // the next insert point
+    char *tmp;    // varies
+    int len_rep;  // length of rep (the string to remove)
+    int len_with; // length of with (the string to replace rep with)
+    int len_front; // distance between rep and end of last rep
+    int count;    // number of replacements
+
+    // sanity checks and initialization
+    if (!orig || !rep)
+        return NULL;
+    len_rep = strlen(rep);
+    if (len_rep == 0)
+        return NULL; // empty rep causes infinite loop during count
+    if (!with)
+        with = "";
+    len_with = strlen(with);
+
+    // count the number of replacements needed
+    ins = orig;
+    for (count = 0; tmp = strstr(ins, rep); ++count) {
+        ins = tmp + len_rep;
+    }
+
+    tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
+
+    if (!result)
+        return NULL;
+
+    // first time through the loop, all the variable are set correctly
+    // from here on,
+    //    tmp points to the end of the result string
+    //    ins points to the next occurrence of rep in orig
+    //    orig points to the remainder of orig after "end of rep"
+    while (count--) {
+        ins = strstr(orig, rep);
+        len_front = ins - orig;
+        tmp = strncpy(tmp, orig, len_front) + len_front;
+        tmp = strcpy(tmp, with) + len_with;
+        orig += len_front + len_rep; // move to next "end of rep"
+    }
+    strcpy(tmp, orig);
+    return result;
+}
+
+bool has_spaces(char* s){
+    for(char* p=s; *p!='\0'; p++){
+        if(isspace(*p)){
+            return true;
+        }
+    }
+    return false;
+}
+
 char* stringify_object(object o){
     switch(o.type){
         case t_string:
         {
-            /*int length=strlen(o.text+3);
-            char* buffer=malloc(length*sizeof(char));
-            snprintf(buffer, length, "\"%s\"", o.text);
-            return buffer;*/
+            // escape quotes
+            /*char* replacement_result=str_replace(o.text, "\"", "\\\"");
+            char* text;
+            char* result;
+            if(replacement_result!=NULL){
+                text=replacement_result;
+            } else {
+                text=o.text;
+            }
+            if(has_spaces(text)){
+                int length=strlen(text)+3;
+                result=malloc(length*sizeof(char));
+                snprintf(result, length, "\"%s\"", text);
+            } else {
+                int length=strlen(text)+2;
+                result=malloc(length*sizeof(char));
+                snprintf(result, length, "'%s", text);
+            }
+
+            if(replacement_result!=NULL){
+                free(replacement_result);
+            }
+            return result;*/
             return strdup(o.text);
         }
         case t_number:
@@ -371,13 +475,14 @@ char* stringify_object(object o){
         case t_pointer:
             return strdup("<pointer>");
         case t_null:
-            return strdup("<null>");
+            return strdup("null");
         default:
             return strdup("<INCORRECT_OBJECT_POINTER>");
     }
 }
 
 object get(object o, object key){
+    //ALREADY_DESTROYED_CHECK(o)
     if(o.tp!=patching_table.tp) {// avoid cycling call to get in patching table
         MONKEY_PATCH("get", ((object[]){o, key}), 2);
     }
@@ -414,7 +519,8 @@ object get(object o, object key){
 }
 
 object set(object o, object key, object value){
-    MONKEY_PATCH("set", ((object[]){o, key, value}), 3);
+    //ALREADY_DESTROYED_CHECK(o)
+    //MONKEY_PATCH("set", ((object[]){o, key, value}), 3);
     if(o.type==t_table){
         // try to get "get" operator overriding function from the table and use it
         object set_override=get_table(o.tp, to_string("set"));
@@ -439,6 +545,7 @@ object* concat_arguments(object head, object* tail, int tail_count){
 }
 
 object call(object o, object* arguments, int arguments_count) {
+    //ALREADY_DESTROYED_CHECK(o)
     object* arguments_with_self=concat_arguments(o, arguments, arguments_count);
     object patching_result=monkey_patching("call", arguments_with_self, arguments_count+1);
     if(patching_result.type!=t_null){
@@ -471,3 +578,5 @@ void call_destroy(object o){
         call(destroy_override, &o, 1);
     }
 }
+
+#undef ALREADY_DESTROYED_CHECK

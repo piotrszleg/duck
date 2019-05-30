@@ -5,6 +5,7 @@
 
 #include "string.h"
 #include "stdlib.h"
+#include "../error/error.h"
 
 typedef struct stack stack;
 struct stack {

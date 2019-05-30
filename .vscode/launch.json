@@ -25,11 +25,11 @@
             ]
         },
         {
-            "name": "(gdb) tests",
+            "name": "(gdb) duck tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/tests.exe",
-            "args": [],
+            "program": "${workspaceFolder}/duck.exe",
+            "args": ["scripts/tests.dk"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -41,6 +41,30 @@
                     "description": "Enable pretty-printing for gdb",
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) libffi_wrapper tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/duck.exe",
+            "args": ["lls/libffi_wrapper/tests.dk"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "miDebuggerPath": "E:/Programy/MinGW/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Additional libs for gdb",
+                    "text": "set solib-search-path ${workspaceFolder}/dlls/libffi_wrapper"
                 }
             ]
         },

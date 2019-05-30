@@ -14,7 +14,8 @@ enum error_type{
     ASSERTION_FAILED,
     NOT_ENOUGH_ARGUMENTS,
     STRINGIFICATION_ERROR,
-    BYTECODE_ERROR
+    BYTECODE_ERROR,
+    STACK_OVERFLOW
 };
 
 extern jmp_buf error_buf;

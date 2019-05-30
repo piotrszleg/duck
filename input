@@ -1,4 +1,11 @@
-ffi=import_dll("dlls/libffi_wrapper\libffi_wrapper.dll")
-sample=ffi.open(null)
-f=sample::function('pushes_to_stack, 'int, 'int)
-f(10)
+range=(start, end, step)->[
+    iterator=self->{
+        [i=start, call=self->{
+            fin=self.i>end
+            result=[key=self.i, value=self.i, finished=fin]
+            self.i+=step
+            result
+        }]
+    }
+]
+range(0, 10, 2) `##` (k, v)->print(string(k)+"=>"+string(v))

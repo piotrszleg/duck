@@ -35,6 +35,9 @@
         "execution.h": "c",
         "struct_descriptor.h": "c",
         "ast.h": "c",
-        "sample_dll.h": "c"
+        "sample_dll.h": "c",
+        "stdlib.h": "c",
+        "macros.h": "c",
+        "xlocale": "c"
     }
 }

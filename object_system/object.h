@@ -10,6 +10,7 @@
 #include "../macros.h"
 #include "../datatypes/vector.h"
 
+// TODO: Change this declaration to X macro
 typedef enum object_type object_type;
 enum object_type{
     t_null,
@@ -23,6 +24,31 @@ enum object_type{
 extern const char* OBJECT_TYPE_NAMES[];// array mapping enum object_type to their names as strings
 extern const int OBJECT_TYPE_NAMES_COUNT;
 
+typedef struct gc_object gc_object;
+struct gc_object {
+    int ref_count;
+    // gc_objects form a double linked list starting from gc_root
+    struct gc_object* previous;
+    struct gc_object* next;
+
+    bool marked;
+    object_type gc_type;
+};
+extern gc_object* gc_root;
+
+typedef enum gc_state_type gc_state_type;
+enum gc_state_type {
+    gcs_inactive,
+    gcs_calling_destructors,
+    gcs_freeing_memory
+};
+extern gc_state_type gc_state;
+// when allocations_count in gc_object_init is greater than MAX_ALLOCATIONS the garbage collector will be activated
+#define MAX_ALLOCATIONS 100
+extern int allocations_count;
+
+#define ALREADY_DESTROYED INT_MIN
+
 typedef struct table table;
 typedef struct function function;
 
@@ -32,9 +58,12 @@ struct object{
     union {
         float value;
         char* text;
+        void* p;
         function* fp;
         table* tp;
-        void* p;
+        /* function and table structs have exact same memory layout as gc_object
+           and can be safely casted to it */
+        gc_object* gco;
     };
 };
 
@@ -77,7 +106,7 @@ OBJECT_INIT_NEW_DECLARATIONS(pointer)
     if(checked==NULL) { \
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); \
     } \
-    if(checked->type<t_null||checked->type>t_table) { \
+    if(checked->type<t_null||checked->type>t_pointer) { \
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
     }
 
@@ -92,7 +121,9 @@ enum function_type {
 };
 typedef struct function function;
 struct function {
-    int ref_count;
+    // gc_object fields
+    gc_object gco;
+
     function_type ftype;
     union {
         object_system_function native_pointer;
@@ -104,6 +135,10 @@ struct function {
     bool variadic;
     object enclosing_scope;
 };
+
+bool is_gc_object(object o);
+void gc_run(object* roots, int roots_count);
+void call_destroy(object o);
 
 object to_string(const char* s);
 object to_number(float n);

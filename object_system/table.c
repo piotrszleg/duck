@@ -86,10 +86,16 @@ iteration_result table_next(table_iterator* it){
     table* iterated=it->iterated;
     result.finished=false;
 
-    if(it->inside_array && (it->index>=iterated->array_size || iterated->array[it->index].type==t_null) ){
-        // switch from iterating array part to iterating map part
-        it->inside_array=false;
-        it->index=0;
+    if(it->inside_array){
+        // skip null fields in array part
+        while(it->index<iterated->array_size && iterated->array[it->index].type==t_null){
+            it->index++;
+        }
+        if(it->index>=iterated->array_size){
+            // switch from iterating array part to iterating map part
+            it->inside_array=false;
+            it->index=0;
+        }
     }
     result.inside_array=it->inside_array;
 
@@ -130,6 +136,9 @@ char* stringify_table(table* t){
     stream s;
     init_stream(&s, 64);
     bool first=true;
+    float last_array_index=-1;
+    bool array_part_holey=false;
+    int max_hole_size=3;
     
     stream_push(&s, "[", 1);
     for(iteration_result i=table_next(&it); !i.finished; i=table_next(&it)) {
@@ -145,9 +154,23 @@ char* stringify_table(table* t){
         } else {
             stringified_value=stringify(i.value);
         }
-        if(i.inside_array){
-            USING_STRING(stringified_value,
-                stream_push(&s, str, strlen(str)));
+        // detect if there are holes in array part
+        if(i.inside_array && !array_part_holey && i.key.type==t_number){
+            float indexes_difference=i.key.value-last_array_index;
+            if(indexes_difference!=1){
+                if(indexes_difference-1<=max_hole_size){
+                    for(int i=0; i<indexes_difference-1; i++){
+                        stream_push(&s, "null, ", 6);
+                    }
+                } else {
+                    array_part_holey=true;
+                }
+            }
+            last_array_index=i.key.value;
+        }
+        if(i.inside_array && !array_part_holey){
+            // print the array part without keys
+            stream_push(&s, stringified_value, strlen(stringified_value));
         } else {
             char* stringified_key=stringify(i.key);
             USING_STRING(stringify_kvp(stringified_key, stringified_value),
@@ -160,26 +183,34 @@ char* stringify_table(table* t){
     }
     stream_push(&s, "]", 2);// push ] with null terminator
     
-    return (char*)s.data;
+    return (char*)stream_get_data(&s);
 }
 
-void delete_table(table* t){
+void dereference_children_table(table* t){
     for(int i=0; i<t->array_size; i++){
         dereference(&t->array[i]);
     }
-    free(t->array);
     for(int i=0; i<t->map_size; i++){
         map_element* e=t->map[i];
         while(e){
             dereference(&e->key);
             dereference(&e->value);
+            e=e->next;
+        }
+    }
+}
+
+void free_table(table* t){
+    free(t->array);
+    for(int i=0; i<t->map_size; i++){
+         map_element* e=t->map[i];
+        while(e){
             map_element* next=e->next;
             free(e);
             e=next;
         }
     }
     free(t->map);
-
     free(t);
 }
 
@@ -256,7 +287,7 @@ object get_table_iterator(object* arguments, int arguments_count){
     *it=start_iteration(self.tp);
     set(iterator, to_number(0), to_number((intptr_t)it));
     set(iterator, to_string("table"), self);
-    set(iterator, to_string("next"), to_function(iterator_next_function, NULL, 1));
+    set(iterator, to_string("call"), to_function(iterator_next_function, NULL, 1));
     set(iterator, to_string("destroy"), to_function(destroy_iterator, NULL, 1));
     return iterator;
 }

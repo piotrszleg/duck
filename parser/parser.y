@@ -124,6 +124,9 @@ lines:
 		vector_add_ignore_duplicate(&((block*)$1)->lines, $3);
 		$$=$1;
 	}
+	| lines_with_return{
+		$$=$1;
+	}
 	| expression {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)

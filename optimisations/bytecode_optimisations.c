@@ -96,8 +96,8 @@ void highlight_instructions(bytecode_program* prog, char symbol, int start, int 
         pointer++;
     }
     stream_push(&s, "\n\0", 2);
-    printf(s.data);
-    free(s.data);
+    printf(stream_get_data(&s));
+    free(stream_get_data(&s));
 }
 
 void insert_instruction(bytecode_program* prog, int point, instruction instr){
@@ -201,6 +201,7 @@ void optimise_bytecode(bytecode_program* prog){
     }
     for(int pointer=count_instructions(prog->code); pointer>=0; pointer--){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
+           && !prog->code[pointer].argument /* argument tells whether the variable is used in closure, we can't tell if the closure changes the variable*/
            && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
             if(LOG_BYTECODE_OPTIMISATIONS){
                 printf("Found a set instruction\n");
@@ -209,9 +210,8 @@ void optimise_bytecode(bytecode_program* prog){
             bool first_get_removal=true;
             bool used=false;
             for(int search_pointer=pointer+2; prog->code[search_pointer].type!=b_end; search_pointer++){
-                if(changes_flow(prog->code[search_pointer].type) || prog->code[search_pointer].type==b_get_scope){
-                    // if flow changes we can't say if the variable is used later
-                    // also if the scope ends with b_get_scope the scope is used as a table object later
+                if(changes_flow(prog->code[search_pointer].type) || prog->code[search_pointer].type==b_function){
+                    // we can't tell if the variable is used later
                     used=true;
                     break;
                 }
@@ -244,7 +244,7 @@ void optimise_bytecode(bytecode_program* prog){
                     }
                 }
             }
-            if(!used && !prog->code[pointer].argument){
+            if(!used){
                 // the variable isn't used in it's own scope and in any closure, so it can be removed
                 LOG_IF_ENABLED("Removing set instruction:\n");
                 fill_with_no_op(prog, pointer-path_length(prog->code, pointer)+1, pointer);

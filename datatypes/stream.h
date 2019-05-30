@@ -15,5 +15,6 @@ struct stream {
 void init_stream(stream* s, size_t size);
 int stream_push(stream* s, const void* data_pointer, size_t size);
 void stream_truncate(stream* s);
+void* stream_get_data(stream* s);
 
 #endif

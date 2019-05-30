@@ -27,5 +27,11 @@
     `*operand` becomes `operand`, `**operand` becomes `*operand` 
     and `*operand` becomes a deadly bug in your code if you're using `void`  pointers 
 
+# GARBAGE COLLECTION
+The roots should be current scope and stack objects
+
+[Ctags - program for parsing c headers](http://ctags.sourceforge.net/)
+
 [Linking libraries dynamically](https://github.com/alainfrisch/flexdll)
+
 [Assembly guide](http://www.cs.virginia.edu/~evans/cs216/guides/x86.html)

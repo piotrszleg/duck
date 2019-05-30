@@ -8,6 +8,9 @@ void stack_init(stack* s, size_t item_size, int count){
 
 void stack_push(stack* s, const void* value){
     char* position=((char*)s->items) + s->top*s->item_size/sizeof(char);
+    if(s->top>=STACK_SIZE){
+        THROW_ERROR(STACK_OVERFLOW, "Too many items were allocated on the stack.");
+    }
     memcpy((void*)position, value, s->item_size);
     s->top++;
 }

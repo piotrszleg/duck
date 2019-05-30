@@ -28,9 +28,11 @@ object stringify_multiple_causes(object* arguments, int arguments_count){
         free(formatted);
         free(stringified_value);
     }
+    stream_push(&s, "\0", 1);
+
     object result;
     string_init(&result);
-    result.text=(char*)s.data;
+    result.text=(char*)stream_get_data(&s);
     return result;
 }
 
