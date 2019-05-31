@@ -109,7 +109,18 @@ void reference(object* o){
         // maybe it is a dirty hack, will find out later
         // other option would be a copy function
         o->text=strdup(o->text);
-        CHECK_ALLOCATION(o->text);
+        CHECK_ALLOCATION(o->text)
+    }
+}
+
+void print_allocated_objects(){
+    gc_object* o=gc_root;
+    while(o){
+        object wrapped={o->gc_type};
+        wrapped.gco=o;
+        USING_STRING(stringify(wrapped),
+            printf("%s\tref_count: %i\n", str, o->ref_count))
+        o=o->next;
     }
 }
 

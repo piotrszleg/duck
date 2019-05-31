@@ -246,12 +246,12 @@ object operator(object a, object b, const char* op){
         object iterator=get_iterator(a);
         reference(&iterator);
         
-        object iteration_result=call(iterator, &iterator, 1); 
+        object iteration_result=call(iterator, NULL, 0);
         while(true) {
             reference(&iteration_result);
             object call_result=call(b, (object[]){get(iteration_result, to_string("value"))}, 1);
             dereference(&iteration_result);
-            iteration_result=call(iterator, &iterator, 1); 
+            iteration_result=call(iterator, NULL, 0);
             if(!is_falsy(get(iteration_result, to_string("finished")))){
                 dereference(&iterator);
                 return call_result;

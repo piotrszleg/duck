@@ -3,3 +3,15 @@
     print(string(a)+"->"+string(b)) }
 [1, 2] `##` (a, b)->{
     print(string(a)+"->"+string(b)) }
+
+range=(start, end, step)->[
+    iterator=self->{
+        [i=start, call=self->{
+            fin=self.i>end
+            result=[key=self.i, value=self.i, finished=fin]
+            self.i+=step
+            result
+        }]
+    }
+]
+range(0, 10, 2) `#` x->print(x)

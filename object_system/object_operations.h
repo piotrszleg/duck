@@ -3,7 +3,7 @@
 
 #include "object.h"
 #include "table.h"
-#include "../macros.h"
+#include "../utility.h"
 #include <stdbool.h>
 
 #define STRINGIFY_BUFFER_SIZE 32

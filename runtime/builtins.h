@@ -5,7 +5,7 @@
 #include "../object_system/object.h"
 #include "../object_system/object_operations.h"
 #include "../error/error.h"
-#include "../macros.h"
+#include "../utility.h"
 #include "struct_descriptor.h"
 #include "import_dll.h"
 
@@ -16,6 +16,5 @@
 
 void register_builtins(object scope);
 void inherit_scope(object scope, object base);
-char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
 
 #endif

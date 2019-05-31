@@ -3,6 +3,7 @@
 
 #include "../parser/ast_visitor.h"
 #include "../execute_ast.h"
+#include "../options.h"
 #include "stdbool.h"
 
 void optimise_ast(expression* ast);

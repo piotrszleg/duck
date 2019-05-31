@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "../macros.h"
+#include "../utility.h"
 
 typedef struct stream stream;
 struct stream {

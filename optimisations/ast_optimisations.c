@@ -1,8 +1,7 @@
 #include "ast_optimisations.h"
 
-#define LOG_AST_OPTIMISATIONS 0
 #define LOG_CHANGE(message, before, after) \
-    if(LOG_AST_OPTIMISATIONS){ \
+    if(g_print_ast_optimisations){ \
         char* before_string=stringify_expression(before, 0); \
         char* after_string=stringify_expression(after, 0); \
         printf("\n%s\nreplacing:%s\nwith:%s\n", message, before_string, after_string); \
@@ -134,5 +133,4 @@ void optimise_ast(expression* ast){
     visit_ast(ast, optimise_ast_visitor, NULL);
 }
 
-#undef LOG_AST_OPTIMISATIONS
 #undef LOG_CHANGE

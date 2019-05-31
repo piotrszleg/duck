@@ -6,10 +6,16 @@
 #include "datatypes/stack.h"
 #include "runtime/builtins.h"
 #include "bytecode.h"
-#include "macros.h"
+#include "utility.h"
 #include "bytecode.h"
 #include "object_system/object_operations.h"
 #include "error/execution_state.h"
+#include "options.h"
+
+typedef struct {
+    vector breakpoints;// vector of execution_states
+    bool running;
+} debugger_state;
 
 typedef struct {
     int pointer;
@@ -17,6 +23,7 @@ typedef struct {
     bytecode_program* program;
     stack object_stack;
     stack return_stack;
+    debugger_state debugger;
 } bytecode_environment;
 
 typedef struct {
@@ -27,6 +34,7 @@ typedef struct {
 } return_point;
 
 void bytecode_enviroment_init(bytecode_environment* e);
+void bytecode_enviroment_deinit(bytecode_environment* e);
 
 void push(stack* stack, object o);
 object execute_bytecode(bytecode_environment* environment);

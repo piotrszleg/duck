@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "object.h"
 #include "../datatypes/stream.h"
-#include "../macros.h"
+#include "../utility.h"
 #include "error_object.h"
 
 #define INITIAL_MAP_SIZE 16

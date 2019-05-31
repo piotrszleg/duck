@@ -3,12 +3,12 @@ submodules := object_system/object_system.a parser/parser.a
 headers := bytecode.h ast_to_bytecode.h execute_bytecode.h execute_ast.h \
 error/execution_state.h execution.h runtime/builtins.h \
 optimisations/ast_optimisations.h optimisations/bytecode_optimisations.h \
-datatypes/stream.h datatypes/stack.h runtime/struct_descriptor.h runtime/import_dll.h
+datatypes/stream.h datatypes/stack.h runtime/struct_descriptor.h runtime/import_dll.h options.h utility.h
 
 source-files := bytecode.c ast_to_bytecode.c execute_bytecode.c execute_ast.c \
 error/execution_state.c execution.c runtime/builtins.c \
 optimisations/ast_optimisations.c optimisations/bytecode_optimisations.c \
-datatypes/stream.c datatypes/stack.c runtime/struct_descriptor.c repl.c runtime/import_dll.c
+datatypes/stream.c datatypes/stack.c runtime/struct_descriptor.c repl.c runtime/import_dll.c options.c utility.c
 
 tests-path := tests.exe
 compiler-options := -g -Wall

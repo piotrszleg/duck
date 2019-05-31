@@ -36,7 +36,7 @@ char* stringify_object_stack(const stack* s){
         pointer++;
     }
     result[string_end]='\0';
-    return result; 
+    return result;
 }
 
 #define INITIAL_LABELS_COUNT 4
@@ -83,18 +83,155 @@ void move_to_function(bytecode_environment* environment, function* f, bool terma
     environment->pointer=0;
 }
 
-void bytecode_enviroment_init(bytecode_environment* e){
-    list_program_labels(e->program);
+void bytecode_enviroment_init(bytecode_environment* environment){
+    list_program_labels(environment->program);
     
-    stack_init(&e->object_stack, sizeof(object), STACK_SIZE);
-    push(&e->object_stack, null_const);
-    stack_init(&e->return_stack, sizeof(return_point), STACK_SIZE);
+    vector_init(&environment->debugger.breakpoints);
+    if(g_debug_mode){
+        environment->debugger.running=false;
+    }
+    stack_init(&environment->object_stack, sizeof(object), STACK_SIZE);
+    push(&environment->object_stack, null_const);
+    stack_init(&environment->return_stack, sizeof(return_point), STACK_SIZE);
+}
+
+void bytecode_enviroment_deinit(bytecode_environment* environment){
+    list_program_labels(environment->program);
+    
+    for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
+        free(vector_get(&environment->debugger.breakpoints, i));
+    }
+    vector_free(&environment->debugger.breakpoints);
+    stack_deinit(&environment->object_stack);
+    stack_deinit(&environment->return_stack);
+
+    // TODO: free labels
+}
+
+object evaluate_string(const char* s, object scope);
+
+void debugger(bytecode_environment* environment){
+    if(environment->debugger.running){
+        for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
+            execution_state break_point=*(execution_state*)vector_get(&environment->debugger.breakpoints, i);
+
+            if(strcmp(exec_state.file, break_point.file)==0
+            && exec_state.line==break_point.line) {
+                environment->debugger.running=false;
+            }
+        }
+        if(environment->debugger.running){
+            return;
+        }
+    }
+    char input[128];
+    while(true){
+        printf(">>");
+        if(fgets_no_newline(input, sizeof(input), stdin)==NULL){
+            return;
+        }
+        #define COMMAND(name, body) if(strcmp(input, name)==0){body return;}
+        #define COMMAND_PARAMETERIZED(name, body) \
+            if(strstr(input, name)==input){ \
+                char* parameter=input+sizeof(name); \
+                body \
+                return; \
+            }
+        COMMAND("next",)
+        COMMAND("",)
+        COMMAND("run", environment->debugger.running=true;)
+        COMMAND("help",
+            printf("available commands are: \nnext \nrun \nposition \nmemory \nstack \nscope " \
+            "\neval <expression> \nbreakpoints \nbreak <file>:<line> \nremove <file>:<line>\n");
+        )
+        COMMAND("position",
+            char e_info[128];
+            get_execution_info(e_info, sizeof(e_info));
+            printf("%s\n", e_info);
+        )
+        COMMAND("memory",
+            print_allocated_objects();
+        )
+        COMMAND("stack",
+            USING_STRING(stringify_object_stack(&environment->object_stack),
+                printf("%s\n", str));
+        )
+        COMMAND("scope",
+            USING_STRING(stringify(environment->scope),
+                printf("%s\n", str));
+        )
+        COMMAND_PARAMETERIZED("eval", 
+            object result=evaluate_string(parameter, environment->scope);
+            USING_STRING(stringify(result),
+                printf("%s\n", str));
+            dereference(&result);
+            return;
+        )
+        COMMAND("breakpoints", 
+            for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
+                execution_state* break_point=(execution_state*)vector_get(&environment->debugger.breakpoints, i);
+                printf("%s:%i\n", break_point->file, break_point->line);
+            }
+        )
+        COMMAND_PARAMETERIZED("break",
+            execution_state* s=malloc(sizeof(execution_state));
+            CHECK_ALLOCATION(s)
+
+            // parameter has syntax file:line_number
+            int i=0;
+            while(parameter[i]!=':' && parameter[i]!='\0') i++;
+            if(parameter[i]=='\0'){
+                printf("Wrong parameter given to break command: %s", parameter);
+            }
+
+            char* buf=malloc((i+1)*(sizeof(char)));
+            memcpy(buf, parameter, i);
+            buf[i]='\0';
+
+            s->file=buf;
+            s->line=atoi(parameter+i+1);
+            
+            vector_add(&environment->debugger.breakpoints, s);
+            return;
+        )
+        COMMAND_PARAMETERIZED("remove",
+            execution_state s;
+
+            int i=0;
+            while(parameter[i]!=':' && parameter[i]!='\0') i++;
+            if(parameter[i]=='\0'){
+                printf("Wrong parameter given to remove command: %s", parameter);
+            }
+
+            char* buf=malloc((i+1)*(sizeof(char)));
+            memcpy(buf, parameter, i);
+            buf[i]='\0';
+
+            s.file=buf;
+            s.line=atoi(parameter+i+1);
+
+            for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
+                execution_state break_point=*(execution_state*)vector_get(&environment->debugger.breakpoints, i);
+                if(strcmp(break_point.file, s.file)==0 && break_point.line==s.line){
+                    vector_delete(&environment->debugger.breakpoints, i);
+                }
+            }
+            free(buf);
+            return;
+        )
+        #undef COMMAND
+        #undef COMMAND_PARAMETERIZED
+        printf("Unknown command \"%s\"\n", input);
+    }
 }
 
 object execute_bytecode(bytecode_environment* environment){
     int* pointer=&environment->pointer;// points to the current instruction
 
     while(true){
+        if(g_debug_mode){
+            debugger(environment);
+        }
         bytecode_program* program=environment->program;
         stack* object_stack=&environment->object_stack;
         stack* return_stack=&environment->return_stack;
@@ -383,6 +520,9 @@ object execute_bytecode(bytecode_environment* environment){
             case b_end:
             case b_return:
             {
+                if(g_debug_mode){
+                    debugger(environment);
+                }
                 if(return_stack->top==0){
                     return pop(object_stack);
                 } else {

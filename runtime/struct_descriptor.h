@@ -5,7 +5,7 @@
 #include "../object_system/object.h"
 #include "../object_system/object_operations.h"
 #include "../error/error.h"
-#include "../macros.h"
+#include "../utility.h"
 
 // TODO: implement correct behaviour for struct pointers
 typedef enum {

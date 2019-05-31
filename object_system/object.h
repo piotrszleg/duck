@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "../error/error.h"
-#include "../macros.h"
+#include "../utility.h"
 #include "../datatypes/vector.h"
 
 // TODO: Change this declaration to X macro
@@ -136,6 +136,7 @@ struct function {
     object enclosing_scope;
 };
 
+void print_allocated_objects();
 bool is_gc_object(object o);
 void gc_run(object* roots, int roots_count);
 void call_destroy(object o);

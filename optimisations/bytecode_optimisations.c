@@ -1,8 +1,7 @@
 #include "bytecode_optimisations.h"
 
-#define LOG_BYTECODE_OPTIMISATIONS 0
 #define LOG_IF_ENABLED(message, ...) \
-    if(LOG_BYTECODE_OPTIMISATIONS){ \
+    if(g_print_ast_optimisations){ \
         printf(message, ##__VA_ARGS__); \
     }
 
@@ -61,7 +60,7 @@ void move_instructions(bytecode_program* prog, int starting_index, int movement)
     int moved_count=initial_count+movement;
     instruction* new_code=malloc((moved_count+1)*sizeof(instruction));
 
-    //if(LOG_BYTECODE_OPTIMISATIONS)
+    //if(g_print_bytecode_optimisations)
     //    printf("move_instructions(%i, %i)\n", starting_index, movement);
 
     for(int i=0; i<moved_count; i++){
@@ -103,7 +102,7 @@ void highlight_instructions(bytecode_program* prog, char symbol, int start, int 
 void insert_instruction(bytecode_program* prog, int point, instruction instr){
     move_instructions(prog, point-1, 1);
     prog->code[point]=instr;
-    if(LOG_BYTECODE_OPTIMISATIONS){
+    if(g_print_bytecode_optimisations){
         highlight_instructions(prog, '+', point, point);
     }
 }
@@ -113,7 +112,7 @@ void remove_instructions(bytecode_program* prog, int start, int end){
 }
 
 void fill_with_no_op(bytecode_program* prog, int start, int end){
-    if(LOG_BYTECODE_OPTIMISATIONS){
+    if(g_print_bytecode_optimisations){
         highlight_instructions(prog, '-', start, end);
     }
     instruction instr={b_no_op, 0};
@@ -195,7 +194,7 @@ void optimise_bytecode(bytecode_program* prog){
     for(int i=0; i<prog->sub_programs_count; i++){
         optimise_bytecode(&prog->sub_programs[i]);
     }
-    if(LOG_BYTECODE_OPTIMISATIONS){
+    if(g_print_bytecode_optimisations){
         USING_STRING(stringify_bytecode(prog),
             printf("Unoptimised bytecode:\n%s\n", str));
     }
@@ -203,7 +202,7 @@ void optimise_bytecode(bytecode_program* prog){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
            && !prog->code[pointer].argument /* argument tells whether the variable is used in closure, we can't tell if the closure changes the variable*/
            && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
-            if(LOG_BYTECODE_OPTIMISATIONS){
+            if(g_print_bytecode_optimisations){
                 printf("Found a set instruction\n");
                 highlight_instructions(prog, '>', pointer-path_length(prog->code, pointer)+1, pointer);
             }
@@ -220,7 +219,7 @@ void optimise_bytecode(bytecode_program* prog){
                     break;
                 }
                 if(prog->code[search_pointer].type==b_get && paths_equal(prog->code, pointer-1, search_pointer-1)){
-                    if(LOG_BYTECODE_OPTIMISATIONS){
+                    if(g_print_bytecode_optimisations){
                         printf("Found a corresponding get instruction\n");
                         highlight_instructions(prog, '>', search_pointer-path_length(prog->code, pointer)+1, search_pointer);
                     }
@@ -254,5 +253,4 @@ void optimise_bytecode(bytecode_program* prog){
     remove_no_ops(prog);
 }
 
-#undef LOG_BYTECODE_OPTIMISATIONS
 #undef LOG

@@ -2,9 +2,11 @@
 #define REPL_H
 
 #include "parser/parser.h"
-#include "execute_ast.h"
+#include "execution.h"
 #include "stdio.h"
+#include "runtime/builtins.h"
+#include "utility.h"
 
-void repl(int use_bytecode);
+void repl();
 
 #endif

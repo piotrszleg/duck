@@ -1,83 +1,75 @@
 #include "execution.h"
 
-object evaluate(expression* parsing_result, bool use_bytecode){
+object evaluate(expression* parsing_result, object scope, bool ast_only){
     if(parsing_result==NULL){
         return null_const;// there was an error while parsing
     }
-    object global_scope;
-    table_init(&global_scope);
-    reference(&global_scope);
-    register_builtins(global_scope);
-    // chokes on bigger source trees
-    /*USING_STRING(stringify_expression(parsing_result, 0),
-        printf(str));*/
-    optimise_ast(parsing_result);
-    /*USING_STRING(stringify_expression(parsing_result, 0),
-        printf("\nAFTER OPTIMISATIONS %s", str));*/
-    printf("\nExecuting parsing result:\n");
-    object execution_result;
-    if(use_bytecode){
-        bytecode_program prog=ast_to_bytecode(parsing_result, true);
-        delete_expression(parsing_result);// at this point ast is useless and only wastes memory
-        optimise_bytecode(&prog);
-        USING_STRING(stringify_bytecode(&prog),
-            printf("Bytecode:\n%s\n", str));
-        
-        bytecode_environment environment;
-        environment.pointer=0;
-        environment.program=&prog;
-        environment.scope=global_scope;
-        bytecode_enviroment_init(&environment);
-        execution_result=execute_bytecode(&environment);
-        
-        USING_STRING(stringify(execution_result), 
-            printf("Execution result:\n%s\n", str));
-        USING_STRING(stringify(global_scope), 
-            printf("Global scope:\n%s\n", str));
-        
-        bytecode_program_deinit(&prog);
 
-        dereference(&global_scope);
-        gc_run(NULL, 0);
-    } else {
+    optimise_ast(parsing_result);
+    if(g_print_ast){
+        USING_STRING(stringify_expression(parsing_result, 0),
+            printf("Abstract Syntax Tree:\n%s\n", str));
+    }
+    object execution_result;
+    if(ast_only){
         ast_executor_state state;
         state.returning=false;
         TRY_CATCH(
-            execution_result=execute_ast(&state, parsing_result, global_scope, 1);
-            USING_STRING(stringify(execution_result), 
-                printf("Execution result:\n%s\n", str));
-            USING_STRING(stringify(global_scope), 
-                printf("Global scope:\n%s\n", str));
+            execution_result=execute_ast(&state, parsing_result, scope, 1);
         ,
             printf("Error occured on line %i, column %i of source code:\n", state.line_number, state.column_number);
             printf(err_message);
             exit(-1);
         );
         delete_expression(parsing_result);
+    } else {
+        bytecode_program prog=ast_to_bytecode(parsing_result, true);
+        delete_expression(parsing_result);// at this point ast is useless and only wastes memory
+        optimise_bytecode(&prog);
+
+        if(g_print_bytecode){
+            USING_STRING(stringify_bytecode(&prog),
+                printf("Bytecode:\n%s\n", str));
+        }
+        
+        bytecode_environment environment;
+        environment.pointer=0;
+        environment.program=&prog;
+        environment.scope=scope;
+        bytecode_enviroment_init(&environment);
+        execution_result=execute_bytecode(&environment);
+        
+        bytecode_enviroment_deinit(&environment);
+        bytecode_program_deinit(&prog);
     }
-    
-    //reference(&execution_result);// make sure that the execution_result isn't garbage collected along with global_scope
-    dereference(&global_scope);
-    //return execution_result;
-    gc_run(NULL, 0);
-    return null_const;
+    return execution_result;
 }
 
-object evaluate_string(const char* s, bool use_bytecode){
+object evaluate_string(const char* s, object scope){
     expression* parsing_result=parse_string(s);
     exec_state.file="string";
-    return evaluate(parsing_result, use_bytecode);
+    return evaluate(parsing_result, scope, true);
 }
 
-object evaluate_file(const char* file_name, bool use_bytecode){
+object evaluate_file(const char* file_name, object scope){
     expression* parsing_result=parse_file(file_name);
     exec_state.file=file_name;
-    return evaluate(parsing_result, use_bytecode);
+    return evaluate(parsing_result, scope, g_ast_only);
 }
 
-void execute_file(const char* file_name, bool use_bytecode){
-    object execution_result=evaluate_file(file_name, use_bytecode);
+void execute_file(const char* file_name){
+    object global_scope;
+    table_init(&global_scope);
+    reference(&global_scope);
+    register_builtins(global_scope);
+    object execution_result=evaluate_file(file_name, global_scope);
+    USING_STRING(stringify(execution_result), 
+        printf("Execution result:\n%s\n", str));
+    USING_STRING(stringify(global_scope), 
+       printf("Global scope:\n%s\n", str));
     dereference(&execution_result);
+    dereference(&global_scope);
+    gc_run(&patching_table, 1);
 }
 
 // this function should only be called from call_function, it's there to simplify the code structure
