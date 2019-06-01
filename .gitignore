@@ -4,3 +4,6 @@ notes.md
 *.o
 *.exe
 .vscode/ipch/
+duck.exe
+object_system/object_system.a
+parser/parser.a
