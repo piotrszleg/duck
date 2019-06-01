@@ -347,7 +347,7 @@ char *str_replace(char *orig, char *rep, char *with) {
 
     // count the number of replacements needed
     ins = orig;
-    for (count = 0; tmp = strstr(ins, rep); ++count) {
+    for (count = 0; (tmp = strstr(ins, rep)); ++count) {
         ins = tmp + len_rep;
     }
 
@@ -575,7 +575,8 @@ object call(object o, object* arguments, int arguments_count) {
 void call_destroy(object o){
     object destroy_override=find_function(o, "destroy");
     if(destroy_override.type!=t_null){
-        call(destroy_override, &o, 1);
+        object destroy_result=call(destroy_override, &o, 1);
+        dereference(&destroy_result);
     }
 }
 

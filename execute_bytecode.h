@@ -18,6 +18,7 @@ typedef struct {
 } debugger_state;
 
 typedef struct {
+    gc_pointer gcp;
     int pointer;
     object scope;
     bytecode_program* program;
@@ -33,8 +34,8 @@ typedef struct {
     int pointer;
 } return_point;
 
-void bytecode_enviroment_init(bytecode_environment* e);
-void bytecode_enviroment_deinit(bytecode_environment* e);
+void bytecode_environment_init(bytecode_environment* e);
+void bytecode_environment_free(bytecode_environment* e);
 
 void push(stack* stack, object o);
 object execute_bytecode(bytecode_environment* environment);

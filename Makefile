@@ -11,10 +11,9 @@ optimisations/ast_optimisations.c optimisations/bytecode_optimisations.c \
 datatypes/stream.c datatypes/stack.c runtime/struct_descriptor.c repl.c runtime/import_dll.c options.c utility.c
 
 tests-path := tests.exe
-compiler-options := -g -Wall
+options := -g -Wall -Wl,--out-implib,libhost.a -Wl,--export-all-symbols
 executable-path := duck.exe
 sandbox-path := sandbox.exe
-options := -Wl,--out-implib,libhost.a -Wl,--export-all-symbols
 
 all: $(executable-path) input
 	./$(executable-path) input
@@ -35,13 +34,13 @@ parser/parser.a:
 	make -C parser
 
 $(executable-path): main.c $(source-files) $(headers) $(submodules)
-	gcc $(compiler-options) -o $(executable-path) main.c $(source-files) $(submodules) $(options)
+	gcc -o $(executable-path) main.c $(source-files) $(submodules) $(options)
 
 $(tests-path): tests.c $(source-files) $(headers) $(submodules)
-	gcc $(compiler-options) -o $(tests-path) tests.c $(source-files) $(submodules)
+	gcc -o $(tests-path) tests.c $(source-files) $(submodules)
 
 $(sandbox-path): sandbox.c $(source-files) $(headers) $(submodules)
-	gcc $(compiler-options) -o $(sandbox-path) sandbox.c $(source-files) $(submodules)
+	gcc -o $(sandbox-path) sandbox.c $(source-files) $(submodules)
 
 clean:
 	rm $(executable-path) $(tests-path)

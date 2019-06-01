@@ -13,7 +13,7 @@ object call_function(function* f, object* arguments, int arguments_count){
     }
 }
 
-void free_function(function* f){}
+void deinit_function(function* f){}
 
 void get_execution_info(char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
@@ -150,7 +150,7 @@ void adding_number_string(){// tests whether "count: "+5="count: 5"
 int main(){
     TRY_CATCH(
         // TODO test error objects
-        table_init(&patching_table);
+        object_system_init();
         test_error_catching();
         adding_numbers();
         adding_strings();
@@ -161,4 +161,5 @@ int main(){
         printf(err_message);
         exit(-1);
     )
+    object_system_deinit();
 }

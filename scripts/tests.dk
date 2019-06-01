@@ -60,13 +60,21 @@ test("string functions", ->{
 
 test("format function", ->{
     assert(format("name: {}, surname: {}", "John", "Doe")=="name: John, surname: Doe")
-    assert(format("name: {}, surname: {}", "John")=="name: John, surname: <null>")
-    assert(format("name: {}, surname: {}")=="name: <null>, surname: <null>")
+
+    # not enough arguments provided to the format function should cause an error
+    assert_error(format("name: {}, surname: {}", "John"))
+    assert_error(format("name: {}, surname: {}"))
+
+    # incorrectly written braces
     assert(format("name: {, surname: {}", "John", "Doe")=="name: {, surname: John")
     assert(format("name: {, surname: }", "John", "Doe")=="name: {, surname: }")
     assert(format("name: {}, surname: {", "John", "Doe")=="name: John, surname: {")
+
+    # escaping
     assert(format("\{}", 1)=="{}")
     assert(format("\\{}", 1)=="\1")
+
+    # error when first argument is not a string
     assert_error(format(1, 4))
 })
 

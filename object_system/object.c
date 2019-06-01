@@ -4,12 +4,9 @@
 #define ALLOC_LOG 0
 
 const char* OBJECT_TYPE_NAMES[]={
-    "null",
-    "number",
-    "function",
-    "string",
-    "table",
-    "pointer"
+    #define X(t) #t,
+    OBJECT_TYPES
+    #undef X
 };
 const int OBJECT_TYPE_NAMES_COUNT=5;
 
@@ -27,28 +24,59 @@ void gc_object_init(gc_object* gco){
     gc_root=gco;
 }
 
+#define OBJECT_NEW(t, body) \
+    object* new_##t(){  \
+        object* o=malloc(sizeof(object)); \
+        CHECK_ALLOCATION(o); \
+        o->type=t_##t;\
+        body \
+        if(ALLOC_LOG) printf("new " #t "\n");\
+        return o; \
+    }
+
+#define OBJECT_INIT(t, body) \
+    void t##_init (object* o){  \
+        o->type=t_##t; \
+        body \
+    }
+
+#define OBJECT_INIT_NEW(t, body) \
+    OBJECT_NEW(t, body) \
+    OBJECT_INIT(t, body) \
+
+
 OBJECT_INIT_NEW(null,)
 OBJECT_INIT_NEW(number,)
 OBJECT_INIT_NEW(function,
     o->fp=malloc(sizeof(function));
     CHECK_ALLOCATION(o->fp);
     gc_object_init(o->gco);
-    o->fp->gco.gc_type=t_function;
+    o->gco->gc_type=t_function;
     o->fp->variadic=false;
     o->fp->argument_names=NULL;
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
     o->fp->enclosing_scope=null_const;
+    o->fp->environment=NULL;
 )
 OBJECT_INIT_NEW(string,)
 OBJECT_INIT_NEW(table,
     o->tp=malloc(sizeof(table));
     CHECK_ALLOCATION(o->tp);
     gc_object_init(o->gco);
-    o->tp->gco.gc_type=t_table;
+    o->gco->gc_type=t_table;
     table_component_init(o->tp);
 )
 OBJECT_INIT_NEW(pointer,)
+
+OBJECT_INIT_NEW(gc_pointer,
+    gc_object_init(o->gco);
+    o->gco->gc_type=t_gc_pointer;
+)
+
+#undef OBJECT_NEW
+#undef OBJECT_INIT
+#undef OBJECT_INIT_NEW
 
 object to_string(const char* s){
     object o; 
@@ -64,6 +92,13 @@ object to_number(float n){
     object o; 
     number_init(&o); 
     o.value=n;
+    return o;
+}
+
+object to_gc_pointer(gc_pointer* p){
+    object o;
+    o.type=t_gc_pointer;
+    o.gcp=p;
     return o;
 }
 
@@ -158,15 +193,13 @@ void gc_sweep(){
             o=next; \
         }
 
-    gc_state=gcs_calling_destructors;
+    gc_state=gcs_deinitializing;
     // dereference all children and call their destructors
     FOREACH(
-        object wrapped={o->gc_type};
-        wrapped.gco=o;
         if(o->ref_count>0){
             o->ref_count=0;
         }
-        dereference(&wrapped);
+        gc_dereference(o);
     )
     // reset ref_count for the third pass to work
     FOREACH(
@@ -175,9 +208,7 @@ void gc_sweep(){
     gc_state=gcs_freeing_memory;
     // free the memory
     FOREACH(
-       object wrapped={o->gc_type};
-       wrapped.gco=o;
-       dereference(&wrapped);
+       gc_dereference(o);
     )
     gc_state=gcs_inactive;
 }
@@ -196,58 +227,88 @@ void gc_run(object* roots, int roots_count){
 
 char* gc_text="<garbage collected text>";
 
+void gc_dereference(gc_object* o){
+    object wrapped;
+    wrapped.type=o->gc_type;
+    wrapped.gco=o;
+    dereference(&wrapped);
+}
+
 void dereference(object* o){
     CHECK_OBJECT(o)
-    if(is_gc_object(*o) && o->gco->ref_count==ALREADY_DESTROYED) {
-        return;
-    }
-
-    switch(o->type){
-        case t_string:
-        {
-            if(gc_state!=gcs_calling_destructors){
-                free(o->text);
-                o->text=gc_text;
-            }
-            break;
+    if(is_gc_object(*o)) {
+        if(o->gco->ref_count!=ALREADY_DESTROYED){
+            o->gco->ref_count--;
+            destroy_unreferenced(o);
         }
-        case t_function:
-        {
-            if(o->fp->gco.ref_count<=1){
-                o->fp->gco.ref_count=ALREADY_DESTROYED;
+    } else if(o->type==t_string){
+        if(gc_state!=gcs_deinitializing){
+            free(o->text);
+            o->text=gc_text;
+        }
+    }
+}
+
+void destroy_unreferenced(object* o){
+    if(o->gco->ref_count<=0){
+        o->gco->ref_count=ALREADY_DESTROYED;
+        switch(o->type){
+            case t_function:
+            {
                 dereference(&o->fp->enclosing_scope);
 
-                if(gc_state!=gcs_calling_destructors){
-                    gc_object_unchain((gc_object*)o->fp);
+                // in freeing memory stage the function environment will free itself
+                if(o->fp->environment!=NULL && gc_state!=gcs_freeing_memory){
+                    gc_dereference((gc_object*)o->fp->environment);
+                }
+                if(gc_state!=gcs_deinitializing){
+                    gc_object_unchain(o->gco);
                     if(o->fp->argument_names!=NULL){
                         for(int i=0; i<o->fp->arguments_count; i++){
                             free(o->fp->argument_names[i]);
                         }
                     }
-                    free_function(o->fp);
+                    deinit_function(o->fp);
+                    free(o->fp);
+                    o->fp=NULL;
                 }
-            } else {
-                o->fp->gco.ref_count--;
+                break;
             }
-            break;
-        }
-        case t_table:
-        {
-            if(o->tp->gco.ref_count<=1){
-                o->tp->gco.ref_count=ALREADY_DESTROYED;
+            case t_table:
+            {
                 if(gc_state!=gcs_freeing_memory){
                     call_destroy(*o);
                     dereference_children_table(o->tp);
                 }
-                if(gc_state!=gcs_calling_destructors){
-                    gc_object_unchain((gc_object*)o->tp);
+                if(gc_state!=gcs_deinitializing){
+                    gc_object_unchain(o->gco);
                     free_table(o->tp);
+                    o->tp=NULL;
                 }
-            } else {
-                o->tp->gco.ref_count--;
+                break;
             }
-            break;
+            case t_gc_pointer:
+            {
+                if(gc_state!=gcs_deinitializing){
+                    gc_object_unchain(o->gco);
+                    o->gcp->destructor(o->gcp);
+                    o->gcp=NULL;
+                }
+            }
+            default:;
         }
-        default:;
     }
+}
+
+void object_system_init(){
+    table_init(&patching_table);
+    reference(&patching_table);
+}
+
+void object_system_deinit(){
+    // patching table might be used by destructors
+    gc_run(&patching_table, 1);
+
+    patching_table.gco->ref_count=0;
+    destroy_unreferenced(&patching_table);
 }

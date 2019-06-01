@@ -10,6 +10,7 @@
 #include "utility.h"
 
 typedef struct {
+    gc_pointer gco;
     int line_number;
     int column_number;
     bool returning;

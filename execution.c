@@ -12,14 +12,18 @@ object evaluate(expression* parsing_result, object scope, bool ast_only){
     }
     object execution_result;
     if(ast_only){
-        ast_executor_state state;
-        state.returning=false;
+        ast_executor_state* state=malloc(sizeof(ast_executor_state));
+        state->returning=false;
+        object gcp;
+        gcp.gcp=(gc_pointer*)state;
+        gcp.gcp->destructor=(gc_pointer_destructor)free;
+        gc_pointer_init(&gcp);
         TRY_CATCH(
-            execution_result=execute_ast(&state, parsing_result, scope, 1);
+            execution_result=execute_ast(state, parsing_result, scope, 1);
         ,
-            printf("Error occured on line %i, column %i of source code:\n", state.line_number, state.column_number);
+            printf("Error occured on line %i, column %i of source code:\n", state->line_number, state->column_number);
             printf(err_message);
-            exit(-1);
+            return null_const;
         );
         delete_expression(parsing_result);
     } else {
@@ -32,15 +36,18 @@ object evaluate(expression* parsing_result, object scope, bool ast_only){
                 printf("Bytecode:\n%s\n", str));
         }
         
-        bytecode_environment environment;
-        environment.pointer=0;
-        environment.program=&prog;
-        environment.scope=scope;
-        bytecode_enviroment_init(&environment);
-        execution_result=execute_bytecode(&environment);
-        
-        bytecode_enviroment_deinit(&environment);
-        bytecode_program_deinit(&prog);
+        bytecode_environment* environment=malloc(sizeof(bytecode_environment));
+        environment->pointer=0;
+        environment->program=malloc(sizeof(bytecode_program));
+        memcpy(environment->program, &prog, sizeof(bytecode_program));
+        environment->scope=scope;
+        object gcp;
+        gcp.gcp=(gc_pointer*)environment;
+        gcp.gcp->destructor=(gc_pointer_destructor)bytecode_environment_free;
+        gc_pointer_init(&gcp);
+
+        bytecode_environment_init(environment);
+        execution_result=execute_bytecode(environment);
     }
     return execution_result;
 }
@@ -69,7 +76,6 @@ void execute_file(const char* file_name){
        printf("Global scope:\n%s\n", str));
     dereference(&execution_result);
     dereference(&global_scope);
-    gc_run(&patching_table, 1);
 }
 
 // this function should only be called from call_function, it's there to simplify the code structure
@@ -84,9 +90,9 @@ object call_function_processed(function* f, object* arguments, int arguments_cou
             STRING_OBJECT(argument_name, f->argument_names[i]);
             set(function_scope, argument_name, arguments[i]);
         }
-        return execute_ast((ast_executor_state*)f->enviroment, (expression*)f->source_pointer, function_scope, 1);
+        return execute_ast((ast_executor_state*)f->environment, (expression*)f->source_pointer, function_scope, 1);
     } else if(f->ftype==f_bytecode){
-        bytecode_environment* environment=(bytecode_environment*)f->enviroment;
+        bytecode_environment* environment=(bytecode_environment*)f->environment;
         environment->scope=function_scope;
 
         move_to_function(environment, f, true);
@@ -139,14 +145,10 @@ object call_function(function* f, object* arguments, int arguments_count){
     }
 }
 
-void free_function(function* f){
-    switch(f->ftype){
-        case f_ast:
-            delete_expression(f->source_pointer);
-            break;
-        case f_bytecode:
-            bytecode_program_deinit(f->source_pointer);
-            break;
-        default:;
+void deinit_function(function* f){
+    // only ast functions own their source code for now
+    // bytecode functions hold their source code in their shared environment
+    if(f->ftype==f_ast){
+        delete_expression(f->source_pointer);
     }
 }

@@ -21,7 +21,7 @@ void push_instruction(bytecode_translation* translation, instruction_type type, 
 
 char* stream_search_string(stream* s, const char* str){
     char* casted=(char*)s->data;
-    if(s->size==0){
+    if(s->position==0){
         return NULL;// there is nothing inside of the stream
     }
     for(int i=0; i<s->size; i++){
@@ -96,17 +96,6 @@ void bytecode_path_set(bytecode_translation* translation, path p, bool used_in_c
             push_instruction(translation, i==0 ? b_get : b_table_get, 0);
         }
     }
-}
-
-char* table_literal_extract_key(assignment* a){
-    if(vector_total(&a->left->lines)!=1) {
-        THROW_ERROR(BYTECODE_ERROR, "Table literal key should have only one name in path.");
-    }
-    expression* e=vector_get(&a->left->lines, 0);
-    if(e->type!=e_name) {
-        THROW_ERROR(BYTECODE_ERROR, "Table literal key should be of type name.");
-    }
-    return ((name*)e)->value;
 }
 
 void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, bool keep_scope){

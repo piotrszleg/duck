@@ -85,11 +85,14 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             int array_counter=0;
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=(expression*)vector_get(&b->lines, i);
-                object line_result=execute_ast(state, line, table_scope, 0);
-                if(line->type!=e_assignment){
-                    set(table_scope, to_number(array_counter++), line_result);
+                object set_result;
+                if(line->type==e_assignment){
+                    assignment* a=(assignment*)line;
+                    set_result=set(table_scope, to_string(table_literal_extract_key(a)), execute_ast(state, a->right, table_scope, 0));
+                } else {
+                    set_result=set(table_scope, to_number(array_counter++), execute_ast(state, line, table_scope, 0));
                 }
-                dereference(&line_result);
+                destroy_unreferenced(&set_result);
             }
             return table_scope;
         }
@@ -174,7 +177,9 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             }
             f.fp->ftype=f_ast;
             f.fp->source_pointer=(void*)copy_expression(d->body);
-            f.fp->enviroment=(void*)state;
+            object environment_object=to_gc_pointer((gc_pointer*)state);
+            reference(&environment_object);
+            f.fp->environment=(gc_pointer*)state;
             f.fp->enclosing_scope=scope;
             reference(&scope);
             return f;

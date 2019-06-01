@@ -71,7 +71,7 @@ struct bytecode_program {
 
 void stringify_instruction(const bytecode_program* prog, char* destination, instruction instr, int buffer_count);
 char* stringify_bytecode(const bytecode_program* prog);
-void bytecode_program_deinit(bytecode_program* prog);
+void bytecode_program_free(bytecode_program* prog);
 
 int gets_from_stack(instruction instr);
 bool pushes_to_stack(instruction_type instr);

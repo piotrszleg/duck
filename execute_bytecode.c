@@ -83,7 +83,7 @@ void move_to_function(bytecode_environment* environment, function* f, bool terma
     environment->pointer=0;
 }
 
-void bytecode_enviroment_init(bytecode_environment* environment){
+void bytecode_environment_init(bytecode_environment* environment){
     list_program_labels(environment->program);
     
     vector_init(&environment->debugger.breakpoints);
@@ -95,9 +95,14 @@ void bytecode_enviroment_init(bytecode_environment* environment){
     stack_init(&environment->return_stack, sizeof(return_point), STACK_SIZE);
 }
 
-void bytecode_enviroment_deinit(bytecode_environment* environment){
-    list_program_labels(environment->program);
-    
+void free_labels(bytecode_program* program){
+    free(program->labels);
+    for(int i=0; i<program->sub_programs_count; i++){
+        free_labels(&program->sub_programs[i]);
+    }
+}
+
+void bytecode_environment_free(bytecode_environment* environment){
     for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
         free(vector_get(&environment->debugger.breakpoints, i));
     }
@@ -105,7 +110,9 @@ void bytecode_enviroment_deinit(bytecode_environment* environment){
     stack_deinit(&environment->object_stack);
     stack_deinit(&environment->return_stack);
 
-    // TODO: free labels
+    free_labels(environment->program);
+    bytecode_program_free(environment->program);
+    free(environment);
 }
 
 object evaluate_string(const char* s, object scope);
@@ -351,8 +358,7 @@ object execute_bytecode(bytecode_environment* environment){
 
                 // make sure that set_result will only be deleted
                 // if it is not the same object as value
-                reference(&set_result);
-                dereference(&set_result);
+                destroy_unreferenced(&set_result);
 
                 dereference(&key);
                 dereference(&value);
@@ -425,7 +431,12 @@ object execute_bytecode(bytecode_environment* environment){
             {
                 object f;
                 function_init(&f);
-                f.fp->enviroment=environment;
+
+                object environment_object=to_gc_pointer((gc_pointer*)environment);
+                reference(&environment_object);
+
+                f.fp->environment=(gc_pointer*)environment;
+
                 f.fp->enclosing_scope=environment->scope;
                 reference(&environment->scope);// remember to check the enclosing scope in destructor
                 object arguments_count_object=pop(object_stack);
@@ -434,8 +445,10 @@ object execute_bytecode(bytecode_environment* environment){
                     break;
                 }
                 f.fp->arguments_count=(int)arguments_count_object.value;
+
                 object variadic_object=pop(object_stack);
                 f.fp->variadic=!is_falsy(variadic_object);
+
                 dereference(&variadic_object);
                 dereference(&arguments_count_object);
                 f.fp->ftype=f_bytecode;

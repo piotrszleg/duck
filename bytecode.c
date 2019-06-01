@@ -54,11 +54,10 @@ char* stringify_bytecode(const bytecode_program* prog){
     }
     
     if(prog->sub_programs_count>0){
-
         for(int i=0; i<prog->sub_programs_count; i++){
             char buf[32];// assuming that the number of subprograms has less than 16 digits
             snprintf(buf, 32, "SUBPROGRAM[%i]\n", i);
-            char* sub_program_stringified=stringify_bytecode(prog->sub_programs+i);
+            char* sub_program_stringified=stringify_bytecode(&prog->sub_programs[i]);
             stream_push(&s, buf, strlen(buf)*sizeof(char));
             stream_push(&s, sub_program_stringified, strlen(sub_program_stringified)*sizeof(char));
         }
@@ -67,10 +66,14 @@ char* stringify_bytecode(const bytecode_program* prog){
     return stream_get_data(&s);
 }
 
-void bytecode_program_deinit(bytecode_program* prog) {
+void bytecode_program_free(bytecode_program* prog) {
     free(prog->code);
     free(prog->information);
     free(prog->constants);
+    for(int i=0; i<prog->sub_programs_count; i++){
+        bytecode_program_free(&prog->sub_programs[i]);
+    }
+    free(prog);
 }
 
 #define X(t, result) case t: return result;

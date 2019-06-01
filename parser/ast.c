@@ -431,3 +431,16 @@ expression* copy_expression(expression* exp){
             return NULL;
     }
 }
+
+char* table_literal_extract_key(assignment* a){
+    if(vector_total(&a->left->lines)!=1) {
+        THROW_ERROR(BYTECODE_ERROR, "Table literal key should have only one name in path.");
+        return NULL;
+    }
+    expression* e=vector_get(&a->left->lines, 0);
+    if(e->type!=e_name) {
+        THROW_ERROR(BYTECODE_ERROR, "Table literal key should be of type name.");
+        return NULL;
+    }
+    return ((name*)e)->value;
+}

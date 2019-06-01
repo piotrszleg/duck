@@ -28,7 +28,7 @@ void handle_arguments(int argc, char **argv) {
         X("version", printf(version); exit(0); )\
         X("?", printf("duck %s\nAllowed options are: \n-version\n-ast_only\n-disable_ast_optimisations\n-disable_bytecode_optimisations\n-debug\n-?\n" \
                        "You can either provide a file path or a read-eval-print loop is started.", version); \
-                exit(0);)
+                return;)
 
     char* file_path=NULL;
     
@@ -44,17 +44,18 @@ void handle_arguments(int argc, char **argv) {
             #undef X
             if(!matched){
                 printf("Unknown command %s", argv[i]);
-                exit(-1);
+                return;
             }
         } else {
             if(file_path==NULL){
                 file_path=argv[i];
             } else {
                 printf("Only one file can be given as input.");
-                exit(-2);
+                return;
             }
         }
     }
+    
     if(file_path!=NULL){
         execute_file(file_path);
     } else {
