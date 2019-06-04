@@ -14,7 +14,7 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
         case b_set_scope:
         case b_null:
         case b_return:
-        case b_unary:
+        case b_binary:
         case b_prefix:
         case b_new_scope:
         case b_table_set:
@@ -66,6 +66,23 @@ char* stringify_bytecode(const bytecode_program* prog){
     return stream_get_data(&s);
 }
 
+void bytecode_program_copy(const bytecode_program* source, bytecode_program* copy) {
+    int c=0;
+    for(; source->code[c].type!=b_end; c++);
+
+    memcpy(copy->code, source->code, c);
+    memcpy(copy->information, source->information, c);
+    memcpy(copy->constants, source->constants, source->constants_size);
+    copy->constants_size=source->constants_size;
+    copy->labels=NULL;
+    
+    copy->sub_programs_count=source->sub_programs_count;
+    copy->sub_programs=malloc(sizeof(bytecode_program)*copy->sub_programs_count);
+    for(int i=0; i<source->sub_programs_count; i++){
+       bytecode_program_copy(&source->sub_programs[i], &source->sub_programs[i]);
+    }
+}
+
 void bytecode_program_free(bytecode_program* prog) {
     free(prog->code);
     free(prog->information);
@@ -90,7 +107,7 @@ int gets_from_stack(instruction instr){
         X(b_table_set, 3)
         X(b_table_set_keep, 3)
         X(b_call, instr.argument+1)
-        X(b_unary, 3)
+        X(b_binary, 3)
         X(b_prefix, 2)
         default: return 0;
     }

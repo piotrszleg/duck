@@ -45,11 +45,11 @@
             ]
         },
         {
-            "name": "(gdb) libffi_wrapper tests",
+            "name": "(gdb) other",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/duck.exe",
-            "args": ["lls/libffi_wrapper/tests.dk"],
+            "program": "${workspaceFolder}/tests.exe",
+            "args": [""],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

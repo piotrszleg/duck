@@ -186,14 +186,14 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
             bytecode_path_set(translation, *a->left, a->used_in_closure);
             break;
         }
-        case e_unary:
+        case e_binary:
         {
-            unary* u=(unary*)exp;
+            binary* u=(binary*)exp;
 
             ast_to_bytecode_recursive(u->right, translation, false);
             ast_to_bytecode_recursive(u->left, translation, false);
             push_string_load(translation, u->op);
-            push_instruction(translation, b_unary, 0);
+            push_instruction(translation, b_binary, 0);
             break;
         }
         case e_prefix:
@@ -280,10 +280,11 @@ bytecode_program translation_to_bytecode(bytecode_translation* translation){
     stream_truncate(&translation->information);
     stream_truncate(&translation->constants);
     stream_truncate(&translation->sub_programs);
-    prog.code=translation->code.data;
-    prog.constants=translation->constants.data;
-    prog.information=translation->information.data;
-    prog.sub_programs=translation->sub_programs.data;
+    prog.code=stream_get_data(&translation->code);
+    prog.constants=stream_get_data(&translation->constants);
+    prog.constants_size=translation->constants.position;
+    prog.information=stream_get_data(&translation->information);
+    prog.sub_programs=stream_get_data(&translation->sub_programs);
     prog.sub_programs_count=translation->sub_programs.position/sizeof(bytecode_program);
     return prog;
 }

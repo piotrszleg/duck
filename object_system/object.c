@@ -183,7 +183,7 @@ void gc_unmark_all(){
 
 void gc_sweep(){
     gc_object* o=gc_root;
-    #define FOREACH(body) \
+    #define FOREACH_GC_OBJECT(body) \
         o=gc_root; \
         while(o){ \
             gc_object* next=o->next; \
@@ -195,22 +195,23 @@ void gc_sweep(){
 
     gc_state=gcs_deinitializing;
     // dereference all children and call their destructors
-    FOREACH(
+    FOREACH_GC_OBJECT(
         if(o->ref_count>0){
             o->ref_count=0;
         }
         gc_dereference(o);
     )
     // reset ref_count for the third pass to work
-    FOREACH(
+    FOREACH_GC_OBJECT(
         o->ref_count=0;
     )
     gc_state=gcs_freeing_memory;
     // free the memory
-    FOREACH(
+    FOREACH_GC_OBJECT(
        gc_dereference(o);
     )
     gc_state=gcs_inactive;
+    #undef FOREACH_GC_OBJECT
 }
 
 bool gc_should_run(){
@@ -250,7 +251,7 @@ void dereference(object* o){
 }
 
 void destroy_unreferenced(object* o){
-    if(o->gco->ref_count<=0){
+    if(is_gc_object(*o) && o->gco->ref_count<=0){
         o->gco->ref_count=ALREADY_DESTROYED;
         switch(o->type){
             case t_function:

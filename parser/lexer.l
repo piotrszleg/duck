@@ -45,18 +45,18 @@ if                      { COUNT_COLUMNS; return IF; }
 elif                    { COUNT_COLUMNS; return ELIF; }
 else                    { COUNT_COLUMNS; return ELSE; }
 null				    { COUNT_COLUMNS; return NULL_LITERAL; }
+\.\.\.						{ COUNT_COLUMNS; return ELLIPSIS; }
+->                      { COUNT_COLUMNS; return ARROW; }
+::                      { COUNT_COLUMNS; return FOUR_DOTS; }
 [0-9]+\.[0-9]+          { COUNT_COLUMNS; yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+                  { COUNT_COLUMNS; yylval.ival = atoi(yytext); return INT; }
 \"([^\\\"]|\\.)*\"      { COUNT_COLUMNS; yylval.sval = unquote(yytext); return STRING; }// double quote string literal god bless stack overflow
 '[a-zA-Z_][a-zA-Z0-9_]* { COUNT_COLUMNS; yylval.sval = strdup(yytext+1); return STRING; }// single quote string
 [a-zA-Z_][a-zA-Z0-9_]*  { COUNT_COLUMNS; yylval.sval = strdup(yytext); return NAME; }
-\.\.\.						{ COUNT_COLUMNS; return ELLIPSIS; }
-->                      { COUNT_COLUMNS; return ARROW; }
-::                      { COUNT_COLUMNS; return FOUR_DOTS; }
-!=					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
-==					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
-[\(\)\{\},\.#=\[\]!-]  { COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, - must be separated from other unary operators because it is also a prefix
-[+\-\/*^&|<>]+          { COUNT_COLUMNS; yylval.sval = strdup(yytext); return UNARY_OPERATOR; }
-[+\-\/*^&|]+=           { COUNT_COLUMNS; yylval.sval = remove_last_character(yytext); return ASSIGN_UNARY_OPERATOR; }// +=, -= etc
-`.+?`             	    { COUNT_COLUMNS; yylval.sval = unquote(yytext); return UNARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo
+!=					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
+==					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
+[\(\)\{\},\.#=\[\]!-]  { COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, - must be separated from other binary operators because it is also a prefix
+[+\-\/*^&|<>]+          { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
+[+\-\/*^&|]+=           { COUNT_COLUMNS; yylval.sval = remove_last_character(yytext); return ASSIGN_BINARY_OPERATOR; }// +=, -= etc
+`.+?`             	    { COUNT_COLUMNS; yylval.sval = unquote(yytext); return BINARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo
 %%

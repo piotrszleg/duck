@@ -110,7 +110,8 @@ typedef enum function_type function_type;
 enum function_type {
     f_native,
     f_ast,
-    f_bytecode
+    f_bytecode,
+    f_special
 };
 
 typedef struct function function;
@@ -122,6 +123,7 @@ struct function {
     union {
         object_system_function native_pointer;
         void* source_pointer;
+        int special_index;
     };
     gc_pointer* environment;
     char** argument_names;

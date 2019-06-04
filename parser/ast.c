@@ -12,10 +12,6 @@
     EXPRESSION_TYPES
 #undef X
 
-bool check_expression(expression* e){
-	return e!=NULL && e->type>=e_empty && e->type<=e_function_return;
-}
-
 void string_replace(char *s, char from, char to) {
     while (*s == from)
     *s++ = to;
@@ -75,10 +71,10 @@ char* stringify_expression(expression* exp, int indentation){
                                         indentation_string, stringify_expression((expression*)a->right, indentation+1));
             break;
         }
-        case e_unary:
+        case e_binary:
         {
-            unary* u=(unary*)exp;
-            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sUNARY: \n%s-> left: %s \n%s-> sign: '%s' \n%s-> right: %s", 
+            binary* u=(binary*)exp;
+            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sBINARY: \n%s-> left: %s \n%s-> sign: '%s' \n%s-> right: %s", 
                                         indentation_string,
                                         indentation_string, stringify_expression((expression*)u->left, indentation+1), 
                                         indentation_string, u->op,
@@ -164,10 +160,12 @@ char* stringify_expression(expression* exp, int indentation){
             break;
         }
         case e_function_return:
+        case e_parentheses:
         {
+            char expression_name= exp->type==e_function_return ? "FUNCTION_RETURN":"PARENTHESES";
             function_return* r=(function_return*)exp;
-            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%sFUNCTION_RETURN: \n%s-> value: %s", 
-                                        indentation_string,
+            snprintf(result, STRINGIFY_BUFFER_SIZE, "\n%s%s: \n%s-> value: %s", 
+                                        indentation_string, expression_name,
                                         indentation_string, stringify_expression((expression*)r->value, indentation+1)
                                         );
             break;
@@ -212,9 +210,9 @@ void delete_expression(expression* exp){
             free(a);
             break;
         }
-        case e_unary:
+        case e_binary:
         {
-            unary* u=(unary*)exp;
+            binary* u=(binary*)exp;
             delete_expression((expression*)u->left);
             delete_expression((expression*)u->right);
             free(u->op);
@@ -285,6 +283,7 @@ void delete_expression(expression* exp){
             break;
         }
         case e_function_return:
+        case e_parentheses:
         {
             function_return* r=(function_return*)exp;
             delete_expression((expression*)r->value);
@@ -311,7 +310,6 @@ expression* copy_expression(expression* exp){
         {
             name* copy=new_name();
             COPY_LOCATION
-            copy->line_number=exp->line_number;
             ((name*)copy)->value=strdup(((name*)exp)->value);
             return (expression*)copy;
         }
@@ -343,10 +341,10 @@ expression* copy_expression(expression* exp){
             copy->right=copy_expression(a->right);
             return (expression*)copy;
         }
-        case e_unary:
+        case e_binary:
         {
-            unary* u=(unary*)exp;
-            unary* copy=new_unary();
+            binary* u=(binary*)exp;
+            binary* copy=new_binary();
             COPY_LOCATION
 
             copy->left=copy_expression(u->left);
@@ -419,9 +417,11 @@ expression* copy_expression(expression* exp){
             return (expression*)copy;
         }
         case e_function_return:
+        case e_parentheses:
         {
             function_return* r=(function_return*)exp;
             function_return* copy=new_function_return();
+            copy->type=exp->type;
             COPY_LOCATION
             copy->value=copy_expression(r->value);
             return (expression*)copy;

@@ -133,9 +133,9 @@ object execute_ast(ast_executor_state* state, expression* exp, object scope, int
             path_set(state, scope, *a->left, result);
             return result;
         }
-        case e_unary:
+        case e_binary:
         {
-            unary* u=(unary*)exp;
+            binary* u=(binary*)exp;
             object left=execute_ast(state, u->left, scope, 0);
             object right=execute_ast(state, u->right, scope, 0);
             object result=operator(left, right, u->op);

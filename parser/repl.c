@@ -21,6 +21,7 @@ int main(){
     char input[128];
     while(1) {
         TRY_CATCH({
+            printf(">>");
             fgets_no_newline(input, 128, stdin);
             if(strcmp(input, "quit")==0){
                 break;

@@ -226,37 +226,21 @@ object operator(object a, object b, const char* op){
     }
     // call b with arguments key and value for each iteration
     OP_CASE("##"){
-        object iterator=get_iterator(a);
-        reference(&iterator);
-
-        object iteration_result=call(iterator, NULL, 0); 
-        while(true) {
-            reference(&iteration_result);
-            object call_result=call(b, (object[]){get(iteration_result, to_string("key")), get(iteration_result, to_string("value"))}, 2);
-            dereference(&iteration_result);
-            iteration_result=call(iterator, NULL, 0);
-            if(!is_falsy(get(iteration_result, to_string("finished")))){
-                dereference(&iterator);
-                return call_result;
-            }
-        }
+        object it;
+        object call_result=null_const;
+        FOREACH(a, it, 
+            call_result=call(b, (object[]){get(it, to_string("key")), get(it, to_string("value"))}, 2);
+        )
+        return call_result;
     }
     // same as above except only the values are passed to the function
     OP_CASE("#"){
-        object iterator=get_iterator(a);
-        reference(&iterator);
-        
-        object iteration_result=call(iterator, NULL, 0);
-        while(true) {
-            reference(&iteration_result);
-            object call_result=call(b, (object[]){get(iteration_result, to_string("value"))}, 1);
-            dereference(&iteration_result);
-            iteration_result=call(iterator, NULL, 0);
-            if(!is_falsy(get(iteration_result, to_string("finished")))){
-                dereference(&iterator);
-                return call_result;
-            }
-        }
+        object it;
+        object call_result=null_const;
+        FOREACH(a, it, 
+            call_result=call(b, (object[]){get(it, to_string("value"))}, 1);
+        )
+        return call_result;
     }
     if(a.type==t_string){
         if(a.type!=b.type){

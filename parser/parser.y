@@ -42,13 +42,14 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 
 // define the constant-string tokens:
 %token ENDL
+
+%token IF
+%token ELIF
+%token ELSE
+%token NULL_LITERAL
+%token ELLIPSIS
 %token ARROW
 %token FOUR_DOTS
-%token ELLIPSIS
-%token IF
-%token ELSE
-%token ELIF
-%token NULL_LITERAL
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
@@ -56,8 +57,8 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %token <fval> FLOAT
 %token <sval> STRING
 %token <sval> NAME
-%token <sval> ASSIGN_UNARY_OPERATOR
-%token <sval> UNARY_OPERATOR
+%token <sval> ASSIGN_BINARY_OPERATOR
+%token <sval> BINARY_OPERATOR
 %token <sval> PREFIX_OPERATOR
 
 %type <exp> block;
@@ -71,7 +72,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %type <exp> null;
 %type <exp> name;
 %type <exp> assignment;
-%type <exp> unary;
+%type <exp> binary;
 %type <exp> prefix;
 %type <exp> call;
 %type <args> arguments;
@@ -79,6 +80,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %type <exp> conditional;
 %type <exp> conditional_else;
 %type <exp> message;
+%type <exp> parentheses;
 
 %%
 program:
@@ -172,7 +174,7 @@ path:
 	}
 	;
 expression:
-	| '(' expression ')' { $$=$2;}
+	| parentheses
 	| literal
 	| block
 	| table
@@ -181,11 +183,18 @@ expression:
 	| call
 	| function
 	| conditional
-	| unary
+	| binary
 	| prefix
 	| null
 	| message
 	;
+parentheses:
+	'(' expression ')' {
+		parentheses* p=new_parentheses();
+		ADD_DEBUG_INFO(p)
+		p->value=$2;
+		$$=(expression*)p;
+	}
 conditional:
 	IF '(' expression ')' expression  {	
 		conditional* c=new_conditional();
@@ -330,12 +339,12 @@ name:
 	  }
 	  ;
 assignment:
-	path ASSIGN_UNARY_OPERATOR expression 
+	path ASSIGN_BINARY_OPERATOR expression 
 	{
 		assignment* a=new_assignment();
 		ADD_DEBUG_INFO(a)
 		a->left=(path*)$1;
-		unary* u=new_unary();
+		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=$2;
@@ -390,10 +399,10 @@ message:
 		$$=(expression*)m;
 	}
 	;
-unary:
-	expression UNARY_OPERATOR expression 
+binary:
+	expression BINARY_OPERATOR expression 
 	{
-		unary* u=new_unary();
+		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=$2;
@@ -402,7 +411,7 @@ unary:
 	}
 	| expression '-' expression 
 	{
-		unary* u=new_unary();
+		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=strdup("-");
@@ -517,7 +526,8 @@ void print_arrow(int length){
 void yyerror(const char *message) {
 	bool is_repl=strcmp(file_name, "repl")==0;
 	if(is_repl){
-		print_arrow(column_number-1);
+		// two arrow needs to be two characters longer than normal because of ">>" prompt text
+		print_arrow(column_number+1);
 	}
 	printf("ParsingError: %s\nat(%s:%i:%i)\n", message, file_name, line_number, column_number);
 	if(!is_repl){

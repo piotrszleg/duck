@@ -24,9 +24,9 @@ bool is_constant(expression* exp){
         case e_empty:
         case e_literal:
             return true;
-        case e_unary:
+        case e_binary:
         {
-            unary* u=(unary*)exp;
+            binary* u=(binary*)exp;
             return is_constant(u->left) && is_constant(u->right);
         }
         case e_prefix:

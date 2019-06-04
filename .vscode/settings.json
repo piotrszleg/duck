@@ -39,6 +39,9 @@
         "stdlib.h": "c",
         "utility.h": "c",
         "xlocale": "c",
-        "iosfwd": "c"
+        "iosfwd": "c",
+        "initializer_list": "c",
+        "set": "c",
+        "xtree": "c"
     }
 }

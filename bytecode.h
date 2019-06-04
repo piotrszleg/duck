@@ -36,7 +36,7 @@ typedef enum instruction_type instruction_type;
     X(table_set) /*     sets field at key in table to value, keeps the value on stack, [key, table, value] */ \
     X(table_set_keep) /*same as table_set but keeps the indexed table on the stack, [key, table, value] */ \
     X(call) /*          argument: number_of_arguments, [function, arguments...] */ \
-    X(unary) /*         [a, b, operator] */ \
+    X(binary) /*         [a, b, operator] */ \
     X(prefix) /*        [a, operator] */
 
 enum instruction_type {
@@ -65,6 +65,7 @@ struct bytecode_program {
     int* labels;
     instruction_information* information;
     char* constants;
+    int constants_size;
     bytecode_program* sub_programs;
     int sub_programs_count;
 };
@@ -72,6 +73,7 @@ struct bytecode_program {
 void stringify_instruction(const bytecode_program* prog, char* destination, instruction instr, int buffer_count);
 char* stringify_bytecode(const bytecode_program* prog);
 void bytecode_program_free(bytecode_program* prog);
+void bytecode_program_copy(const bytecode_program* source, bytecode_program* copy);
 
 int gets_from_stack(instruction instr);
 bool pushes_to_stack(instruction_type instr);

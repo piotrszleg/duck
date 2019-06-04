@@ -12,7 +12,8 @@ typedef enum {
     n_string,
     n_int,
     n_float,
-    n_struct
+    n_struct,
+    n_pointer
 } native_type;
 
 object new_struct_descriptor(void* position, object sclass);

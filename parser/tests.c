@@ -56,11 +56,11 @@ void operators(){
     };
 
     block* as_block=parse_block("2+2, 5.0**2, a*b, 2*a, a*2, a`atan`b, a==b, a!=b", 8);
-    // compare unary operators on each line to the ones in tested_operators array
+    // compare binary operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
-        assert(e->type==e_unary);
-        assert(strcmp(((unary*)e)->op, tested_operators[i])==0);
+        assert(e->type==e_binary);
+        assert(strcmp(((binary*)e)->op, tested_operators[i])==0);
     }
 
     delete_expression(parsing_result);
@@ -76,15 +76,15 @@ void assignment_operators(){
     };
 
     block* as_block=parse_block("a=2, a+=2, a**=2", 3);
-    // compare unary operators on each line to the ones in tested_operators array
+    // compare binary operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
         assert(e->type==e_assignment);
         if(i>0){// ignore first assignment, because it doesn't contain any operators
-            // test if right hand of the assignment is unary expression with correct operator
+            // test if right hand of the assignment is binary expression with correct operator
             expression* right=((assignment*)e)->right;
-            assert(right->type==e_unary);
-            assert(strcmp(((unary*)right)->op, tested_operators[i-1])==0);
+            assert(right->type==e_binary);
+            assert(strcmp(((binary*)right)->op, tested_operators[i-1])==0);
         }
     }
 
@@ -259,14 +259,12 @@ void message_translation(){
     "a::b(c, d)\n"
     "a.b::c(d, e)\n"
     , 4);
-    
     for (int i = 0; i < vector_total(&as_block->lines); i++){
         expression* e=(expression*)vector_get(&as_block->lines, i);
         assert(e->type==e_function_call);
         assert(((function_call*)e)->called->type==e_path);
         assert(vector_total(&((function_call*)e)->arguments->lines)==counts[i]);
     }
-
     printf("test successful\n");
 }
 

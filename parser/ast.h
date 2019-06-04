@@ -18,11 +18,12 @@
     X(name) \
     X(assignment) \
     X(function_call) \
-    X(unary) \
+    X(binary) \
     X(prefix) \
     X(function_declaration) \
     X(conditional) \
     X(function_return) \
+    X(parentheses) \
     X(message)
 
 // generate enum of expression types, each value is prepended with "e_"
@@ -74,7 +75,7 @@ AST_OBJECT(function_call,
     table_literal* arguments;
 )
 
-AST_OBJECT(unary,
+AST_OBJECT(binary,
     expression* left;
     char* op;
     expression* right;
@@ -98,6 +99,10 @@ AST_OBJECT(conditional,
 )
 
 AST_OBJECT(function_return,
+    expression* value;
+)
+
+AST_OBJECT(parentheses,
     expression* value;
 )
 

@@ -39,12 +39,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         if(c->called->type!=e_path){
             THROW_ERROR(INCORRECT_OBJECT_POINTER, "The messaged_object field of message should be of type path.");
         }
-        path* p=new_path();
-        p->column_number=m->column_number;
-        p->line_number=m->line_number;
-        vector_init(&p->lines);
-        vector_add(&p->lines, copy_expression(m->message_name));
-        vector_add(&((path*)c->called)->lines, copy_expression(m->message_name));
+        vector_add(&((path*)c->called)->lines, copy_expression((expression*)m->message_name));
 
         c->arguments=new_block();
         vector_init(&c->arguments->lines);
@@ -58,9 +53,33 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         request.replacement=c;
         return request;
     }
+    // changing order of operations from right to left to left to right
+    if(exp->type==e_binary){
+        binary* u=(binary*)exp;
+        if(u->right->type==e_binary){
+            binary* u2=(binary*)u->right;
+
+            binary* ru=new_binary();
+            ru->left=copy_expression(u->left);
+            ru->right=copy_expression(u2->left);
+            ru->op=strdup(u->op);
+            ru->line_number=u->line_number;
+            ru->column_number=u->column_number;
+
+            binary* ru2=new_binary();
+            ru2->left=(expression*)ru;
+            ru2->right=copy_expression(u2->right);
+            ru2->op=strdup(u2->op);
+            ru2->line_number=u2->line_number;
+            ru2->column_number=u2->column_number;
+
+            request.replacement=(expression*)ru2;
+            return request;
+        }
+    }
     // ast_vistor entered a function
     if(exp->type==e_function_declaration){
-        state->current_function=exp;
+        state->current_function=(function_declaration*)exp;
     }
     if(exp->type==e_assignment){
         assignment* a=(assignment*)exp;

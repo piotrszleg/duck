@@ -3,6 +3,7 @@
 ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
     ast_visitor_request request=f(exp, data);
     // we want to pass the last replacement that isn't NULL
+
     expression* replacement=request.replacement;
     while(request.replacement){
         // call visitor function on replacing expression
@@ -38,13 +39,16 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             break;
         }
         #define SUBEXPRESSION(e) \
-        { \
-            ast_visitor_request subexpression_request=visit_ast((expression*)e, f, data); \
-            if(subexpression_request.replacement) \
-                e=subexpression_request.replacement; \
-            if(subexpression_request.move==up) \
-                break; \
-        }
+            if(e!=NULL){ \
+                ast_visitor_request subexpression_request=visit_ast((expression*)e, f, data); \
+                if(subexpression_request.replacement!=NULL){ \
+                    delete_expression(e); \
+                    e=subexpression_request.replacement; \
+                } \
+                if(subexpression_request.move==up){ \
+                    break; \
+                } \
+            }
         case e_function_call:
         {
             function_call* c=(function_call*)exp;
@@ -53,7 +57,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             for (int i = 0; i < lines_count; i++){
                 expression* line=vector_get(&c->arguments->lines, i);
                 ast_visitor_request subexpression_request=visit_ast(line, f, data);
-                if(subexpression_request.replacement){
+                if(subexpression_request.replacement!=NULL){
                     delete_expression(line);
                     vector_set(&c->arguments->lines, i, subexpression_request.replacement);
                 }
@@ -89,9 +93,9 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             SUBEXPRESSION(a->right)
             break;
         }
-        case e_unary:
+        case e_binary:
         {
-            unary* u=(unary*)exp;
+            binary* u=(binary*)exp;
 
             SUBEXPRESSION(u->right)
             SUBEXPRESSION(u->left)

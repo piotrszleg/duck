@@ -37,7 +37,7 @@ $(executable-path): main.c $(source-files) $(headers) $(submodules)
 	gcc -o $(executable-path) main.c $(source-files) $(submodules) $(options)
 
 $(tests-path): tests.c $(source-files) $(headers) $(submodules)
-	gcc -o $(tests-path) tests.c $(source-files) $(submodules)
+	gcc -o $(tests-path) tests.c $(source-files) $(submodules) $(options)
 
 $(sandbox-path): sandbox.c $(source-files) $(headers) $(submodules)
 	gcc -o $(sandbox-path) sandbox.c $(source-files) $(submodules)

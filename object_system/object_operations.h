@@ -29,6 +29,26 @@ object new_error(char* type, object cause, char* message, char* location);
 char* suprintf (const char * format, ...);
 char* stringify_object(object o);
 char* stringify(object o);
+object get_iterator(object o);
+
+// iterated and receiver should be of object type, executes body with receiver becoming subsequential elements of iterated
+#define FOREACH(iterated, receiver, body) \
+    { \
+        object iterator=get_iterator(iterated); \
+        reference(&iterator); \
+        \
+        receiver=call(iterator, NULL, 0); \
+        while(true) { \
+            reference(&receiver); \
+            {body} \
+            dereference(&receiver); \
+            receiver=call(iterator, NULL, 0); \
+            if(!is_falsy(get(receiver, to_string("finished")))){ \
+                dereference(&iterator); \
+                break; \
+            } \
+        } \
+    }
 
 #include "error_object.h"
 #include "binding_object.h"

@@ -40,19 +40,19 @@
       know about them.  */
    enum yytokentype {
      ENDL = 258,
-     ARROW = 259,
-     FOUR_DOTS = 260,
-     ELLIPSIS = 261,
-     IF = 262,
-     ELSE = 263,
-     ELIF = 264,
-     NULL_LITERAL = 265,
+     IF = 259,
+     ELIF = 260,
+     ELSE = 261,
+     NULL_LITERAL = 262,
+     ELLIPSIS = 263,
+     ARROW = 264,
+     FOUR_DOTS = 265,
      INT = 266,
      FLOAT = 267,
      STRING = 268,
      NAME = 269,
-     ASSIGN_UNARY_OPERATOR = 270,
-     UNARY_OPERATOR = 271,
+     ASSIGN_BINARY_OPERATOR = 270,
+     BINARY_OPERATOR = 271,
      PREFIX_OPERATOR = 272
    };
 #endif

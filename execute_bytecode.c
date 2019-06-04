@@ -392,7 +392,7 @@ object execute_bytecode(bytecode_environment* environment){
                 environment->scope=t;
                 break;
             }
-            case b_unary:
+            case b_binary:
             {
                 object op=pop(object_stack);
                 object a=pop(object_stack);
@@ -480,6 +480,38 @@ object execute_bytecode(bytecode_environment* environment){
                     free(arguments);
                     break;
                 }
+                /*
+                if(o.fp->ftype=f_special){
+                    switch(o.fp->special_index){
+                        case 0:// coroutine
+                        {
+                            bytecode_environment* new_environment=malloc(sizeof(bytecode_environment));
+                            new_environment->pointer=0;
+                            new_environment->program=malloc(sizeof(bytecode_program));
+                            object subscope;
+                            table_init(&subscope);
+                            inherit_scope(subscope, environment->scope);
+                            object gcp;
+                            gcp.gcp=(gc_pointer*)new_environment;
+                            gcp.gcp->destructor=(gc_pointer_destructor)bytecode_environment_free;
+                            gc_pointer_init(&gcp);
+
+                            // create coroutine object
+                            // set it's owner environment to this environment
+                        }
+                        case 1:// yield
+                        {
+                            // push the value from stack into the owner's stack
+                            // return control to the owner
+                        }
+                        case 2:// coroutine call
+                        {
+                            // get coroutine from the stack
+                            // push the value from stack into the coroutine's stack
+                            // return control to the coroutine
+                        }
+                    }
+                }*/
                 int arguments_count_difference=provided_arguments-o.fp->arguments_count;
                 // check arguments count
                 if(o.fp->variadic){
