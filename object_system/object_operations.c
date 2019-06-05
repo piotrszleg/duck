@@ -274,8 +274,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             return to_number(a.value/b.value);
         }
     }
-    Object causes[]={a, b};
-    RETURN_ERROR("OperatorError", multiple_causes(E, causes, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+    RETURN_ERROR("OperatorError", multiple_causes(E, (Object[]){a, b}, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
 }
 
 char* stringify(Executor* E, Object o){
@@ -355,21 +354,12 @@ char *str_replace(char *orig, char *rep, char *with) {
     return result;
 }
 
-bool has_spaces(char* s){
-    for(char* p=s; *p!='\0'; p++){
-        if(isspace(*p)){
-            return true;
-        }
-    }
-    return false;
-}
-
 char* stringify_object(Executor* E, Object o){
     switch(o.type){
         case t_string:
         {
             // escape quotes
-            /*char* replacement_result=str_replace(o.text, "\"", "\\\"");
+            char* replacement_result=str_replace(o.text, "\"", "\\\"");
             char* text;
             char* result;
             if(replacement_result!=NULL){
@@ -377,21 +367,21 @@ char* stringify_object(Executor* E, Object o){
             } else {
                 text=o.text;
             }
-            if(has_spaces(text)){
-                int length=strlen(text)+3;
-                result=malloc(length*sizeof(char));
-                snprintf(result, length, "\"%s\"", text);
-            } else {
+            if(is_valid_name(text)){
                 int length=strlen(text)+2;
                 result=malloc(length*sizeof(char));
                 snprintf(result, length, "'%s", text);
+            } else {
+                int length=strlen(text)+3;
+                result=malloc(length*sizeof(char));
+                snprintf(result, length, "\"%s\"", text);
             }
 
             if(replacement_result!=NULL){
                 free(replacement_result);
             }
-            return result;*/
-            return strdup(o.text);
+            return result;
+           // return strdup(o.text);
         }
         case t_number:
         {

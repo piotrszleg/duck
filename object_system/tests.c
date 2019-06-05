@@ -5,8 +5,12 @@
 #include "../error/error.h"
 
 struct Executor {
-void* nothing;
+    GarbageCollector gc;
 };
+
+GarbageCollector* get_garbage_collector(Executor* E){
+    return &E->gc;
+}
 
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count){
     if(f->ftype==f_native){
@@ -68,7 +72,7 @@ void adding_strings(Executor* E){// tests whether "Hello "+"Cruel World"="Hello 
     Object str2;
     string_init(&str2);
     str2.text="Cruel World";
-    assert_stringification(E, (operator(E, str1, str2, "+")), "Hello Cruel World");
+    assert_stringification(E, (operator(E, str1, str2, "+")), "\"Hello Cruel World\"");
 
     dereference(E, &str1);
     dereference(E, &str2);
@@ -89,7 +93,7 @@ void function_calling(Executor* E){// tests whether f(5)==8 where f(x)=x+3
     printf("TEST: %s\n", __FUNCTION__);
 
     Object f;
-    function_init(&f);
+    function_init(E, &f);
     f.fp->native_pointer=add_three;
     f.fp->ftype=f_native;
     f.fp->arguments_count=1;
@@ -110,7 +114,7 @@ void function_calling(Executor* E){// tests whether f(5)==8 where f(x)=x+3
 void table_indexing(Executor* E){// t["name"]="John" => t["name"]=="John"
     printf("TEST: %s\n", __FUNCTION__);
     Object t;
-    table_init(&t);
+    table_init(E, &t);
 
     STRING_OBJECT(name_key, "name");
 
@@ -144,7 +148,7 @@ void adding_number_string(Executor* E){// tests whether "count: "+5="count: 5"
     Object num;
     number_init(&num);
     num.value=5;
-    assert_stringification(E, operator(E, str, num, "+"), "count: 5");
+    assert_stringification(E, operator(E, str, num, "+"), "\"count: 5\"");
 
     dereference(E, &num);
     dereference(E, &str);
@@ -153,6 +157,7 @@ void adding_number_string(Executor* E){// tests whether "count: "+5="count: 5"
 
 int main(){
     Executor E;
+    garbage_collector_init(&E.gc);
     TRY_CATCH(
         // TODO test error objects
         object_system_init(&E);

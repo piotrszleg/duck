@@ -23,6 +23,7 @@ void execute_file(Executor* E, const char* file_name);
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 
 struct Executor {
+    GarbageCollector gc;
     unsigned line;
     unsigned column;
     unsigned* traceback;

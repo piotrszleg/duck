@@ -74,7 +74,7 @@ void move_to_function(Executor* E, Function* f, bool termainate){
     stack_push(&E->bytecode_environment.return_stack, &return_point);
 
     Object function_scope;
-    table_init(&function_scope);
+    table_init(E, &function_scope);
     if(f->enclosing_scope.type!=t_null){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
@@ -157,7 +157,7 @@ void debugger(Executor* E){
             printf("%s\n", e_info);
         )
         COMMAND("memory",
-            print_allocated_objects();
+            print_allocated_objects(E);
         )
         COMMAND("stack",
             USING_STRING(stringify_object_stack(E, &environment->object_stack),
@@ -303,7 +303,7 @@ Object execute_bytecode(Executor* E){
             case b_table_literal:
             {
                 Object t;
-                table_init(&t);
+                table_init(E, &t);
                 push(object_stack, t);
                 break;
             }
@@ -386,7 +386,7 @@ Object execute_bytecode(Executor* E){
             case b_new_scope:
             {
                 Object t;
-                table_init(&t);
+                table_init(E, &t);
                 inherit_scope(E, t, *scope);
                 reference(&t);
                 dereference(E, scope);
@@ -431,7 +431,7 @@ Object execute_bytecode(Executor* E){
             case b_function:
             {
                 Object f;
-                function_init(&f);
+                function_init(E, &f);
 
                 f.fp->environment=NULL;
 
@@ -487,10 +487,10 @@ Object execute_bytecode(Executor* E){
                             new_environment->pointer=0;
                             new_environment->program=malloc(sizeof(BytecodeProgram));
                             Object subscope;
-                            table_init(&subscope);
+                            table_init(E, &subscope);
                             inherit_scope(subscope, environment->scope);
                             Object gcp;
-                            gcp.gcp=(gc_pointer*)new_environment;
+                            gcp.gcp=(gc_Pointer*)new_environment;
                             gcp.gcp->destructor=(gc_PointerDestructorFunction)bytecode_environment_free;
                             gc_pointer_init(&gcp);
 
@@ -542,7 +542,7 @@ Object execute_bytecode(Executor* E){
                         // pack variadic arguments into a Table and push the Table back onto the stack
                         int variadic_arguments_count=arguments_count_difference+1;
                         Object variadic_table;
-                        table_init(&variadic_table);
+                        table_init(E, &variadic_table);
                         for(int i=variadic_arguments_count-1; i>=0; i--){
                             set(E, variadic_table, to_number(i), pop(object_stack));
                         }

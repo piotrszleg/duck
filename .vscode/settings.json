@@ -43,6 +43,8 @@
         "initializer_list": "c",
         "set": "c",
         "xtree": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "string": "c",
+        "xtr1common": "c"
     }
 }

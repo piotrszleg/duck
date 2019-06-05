@@ -37,7 +37,7 @@ Object pipe_call(Executor* E, Object* arguments, int arguments_count){
 
 Object new_pipe(Executor* E, Object f1, Object f2){
     Object pipe;
-    table_init(&pipe);
+    table_init(E, &pipe);
     Object count;
     number_init(&count);
     count.value=2;

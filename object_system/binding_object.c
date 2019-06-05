@@ -1,19 +1,5 @@
 #include "binding_object.h"
 
-/*Object binding_bind(Executor* E, Object* arguments, int arguments_count){
-    Object binding=arguments[0];
-    Object f=arguments[1];
-    Object count=get(E, binding, to_string("count"));
-    if(count.type==t_number){
-        for(int i=0; i<arguments_count-1; i++){
-            set(E, binding, to_number(count.value+i), arguments[i+1]);
-        }
-        count.value++;
-        set(E, binding, to_string("count"), count);
-    }
-    return binding;
-}*/
-
 Object binding_bind(Executor* E, Object* arguments, int arguments_count){
     Object binding=arguments[0];
     Object binded_argument=arguments[1];
@@ -78,29 +64,9 @@ Object binding_call(Executor* E, Object* arguments, int arguments_count){
     }
 }
 
-/*Object new_binding(Object f, Object arguments_table){
-    Object binding;
-    table_init(&binding);
-    set(E, binding, to_string("f"), f);
-
-    set_function(binding, "<<", 2, binding_bind);
-    set_function(binding, "call", 1, binding_call);
-    
-    for(int i=0; 1; i++){
-        Object argument=get(E, arguments_table, to_number(i));
-        if(argument.type!=t_null){
-            set(E, binding, to_number(i), argument);
-        } else {
-            set(E, binding, to_string("count"), to_number(i));
-            break;
-        }
-    }
-    return binding;
-}*/
-
 Object new_binding(Executor* E, Object f, Object argument){
     Object binding;
-    table_init(&binding);
+    table_init(E, &binding);
 
     set_function(E, binding, "<<", 2, false, binding_bind);
     set_function(E, binding, "call", 1, true, binding_call);
@@ -114,7 +80,7 @@ Object new_binding(Executor* E, Object f, Object argument){
 
 Object bind_call(Executor* E, Object f, Object* arguments, int arguments_count){
     Object binding;
-    table_init(&binding);
+    table_init(E, &binding);
     set(E, binding, to_string("f"), f);
     set(E, binding, to_string("count"), to_number(arguments_count));
     

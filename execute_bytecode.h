@@ -22,7 +22,7 @@ typedef struct {
 } debugger_state;
 
 typedef struct {
-    gc_pointer gcp;
+    gc_Pointer gcp;
     int pointer;
     Object scope;
     BytecodeProgram* program;

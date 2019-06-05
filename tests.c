@@ -74,7 +74,7 @@ typedef struct {
 Object example_struct_class(Executor* E) {
     ExampleStruct st;
     Object class;
-    table_init(&class);
+    table_init(E, &class);
     
     FIELD(class, st, a, n_int)
     FIELD(class, st, b, n_float)
@@ -131,7 +131,7 @@ Object to_struct_field(Executor* E, int offset, Object class){
 Object example_struct_nested_class(Executor* E){
     ExampleStructNested st;
     Object class;
-    table_init(&class);
+    table_init(E, &class);
 
     set(E, class, to_string("a"), to_struct_field(E, OFFSET(st, a), example_struct_class(E)));
 
@@ -176,7 +176,7 @@ void struct_descriptor_nested_tests(Executor* E){
     Object sd=new_struct_descriptor(E, st, example_struct_nested_class(E));
 
     Object contained_replacement;
-    table_init(&contained_replacement);
+    table_init(E, &contained_replacement);
     set(E, contained_replacement, to_string("a"), to_number(32));
     set(E, contained_replacement, to_string("b"), to_number(0.1));
     set(E, contained_replacement, to_string("c"), to_string("test test"));
@@ -202,7 +202,7 @@ void struct_descriptor_nested_tests(Executor* E){
     /*
     // TODO reimplement it in the language
     Object scope;
-    table_init(&scope);
+    table_init(E, &scope);
     set(E, scope, to_string("sd"), sd);
     set(E, scope, to_string("replacement"), sd);
 
@@ -230,8 +230,9 @@ void struct_descriptor_nested_tests(Executor* E){
 }
 
 int main(){
-    table_init(&patching_table);
     Executor E;
+    garbage_collector_init(&E.gc);
+    object_system_init(&E);
     E.options=default_options;
     TRY_CATCH(
         evaluation_tests(&E);
@@ -242,6 +243,7 @@ int main(){
         printf(err_message);
         exit(-1);
     )
+    object_system_deinit(&E);
 }
 
 #undef FIELD

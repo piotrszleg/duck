@@ -40,23 +40,31 @@ struct gc_Object {
     bool marked;
     ObjectType gc_type;
 };
-extern gc_Object* gc_root;
 
 typedef enum {
     gcs_inactive,
     gcs_deinitializing,
     gcs_freeing_memory
 } gc_StateType;
-extern gc_StateType gc_state;
+
 // when allocations_count in gc_object_init is greater than MAX_ALLOCATIONS the garbage collector will be activated
 #define MAX_ALLOCATIONS 100
-extern int allocations_count;
-
 #define ALREADY_DESTROYED INT_MIN
 
+typedef struct {
+    gc_Object* root;
+    gc_StateType state;
+    int allocations_count;
+} GarbageCollector;
+
+// Executor should have GarbageCollector embeeded inside
+GarbageCollector* get_garbage_collector(Executor*);
+void garbage_collector_init(GarbageCollector*);
+
+// forward declarations of allocated object components
 typedef struct Table Table;
 typedef struct Function Function;
-typedef struct gc_pointer gc_pointer;
+typedef struct gc_Pointer gc_Pointer;
 
 typedef struct {
     ObjectType type;
@@ -64,10 +72,10 @@ typedef struct {
         float value;
         char* text;
         void* p;
-        gc_pointer* gcp;
+        gc_Pointer* gcp;
         Function* fp;
         Table* tp;
-        /* Function, Table and gc_pointer structs have exact same memory layout as gc_Object
+        /* Function, Table and gc_Pointer structs have exact same memory layout as gc_Object
            and can be safely casted to it */
         gc_Object* gco;
     };
@@ -75,13 +83,24 @@ typedef struct {
 
 extern Object null_const;
 
-#define OBJECT_INIT_NEW_DECLARATIONS(t) \
-    Object* new_##t(); \
-    void t##_init(Object* o);
+#define OBJECT_INIT(t) \
+    void t##_init (Object* o);
 
-#define X(type) OBJECT_INIT_NEW_DECLARATIONS(type)
-OBJECT_TYPES
-#undef X
+#define OBJECT_INIT_E(t) \
+    void t##_init (Executor* E, Object* o);
+
+OBJECT_INIT(null)
+OBJECT_INIT(number)
+OBJECT_INIT(string)
+OBJECT_INIT(pointer)
+
+OBJECT_INIT_E(function)
+OBJECT_INIT_E(table)
+
+void gc_object_init_init (Executor* E, gc_Object* o);
+
+#undef OBJECT_INIT
+#undef OBJECT_INIT_E
 
 #define STRING_OBJECT(name, string_text) Object name; string_init(&name); name.text=(char*)string_text;
 
@@ -98,8 +117,8 @@ typedef Object (*ObjectSystemFunction)(Executor* E, Object* arguments, int argum
 
 typedef void (*gc_PointerDestructorFunction)(void*);
 
-typedef struct gc_pointer gc_pointer;
-struct gc_pointer {
+typedef struct gc_Pointer gc_Pointer;
+struct gc_Pointer {
     gc_Object gco;
     gc_PointerDestructorFunction destructor;
 };
@@ -121,14 +140,14 @@ struct Function {
         void* source_pointer;
         int special_index;
     };
-    gc_pointer* environment;
+    gc_Pointer* environment;
     char** argument_names;
     int arguments_count;
     bool variadic;
     Object enclosing_scope;
 };
 
-void print_allocated_objects();
+void print_allocated_objects(Executor* E);
 bool is_gc_object(Object o);
 void gc_run(Executor* E, Object* roots, int roots_count);
 void call_destroy(Executor* E, Object o);
@@ -136,8 +155,8 @@ void call_destroy(Executor* E, Object o);
 Object to_string(const char* s);
 Object to_number(float n);
 Object to_pointer(void* p);
-Object to_gc_pointer(gc_pointer* p);
-Object to_function(ObjectSystemFunction f, char** argument_names, int arguments_count);
+Object to_gc_pointer(gc_Pointer* p);
+Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, int arguments_count);
 
 void reference(Object* o);
 void object_init(Object* o, ObjectType type);
@@ -148,7 +167,7 @@ void destroy_unreferenced(Executor* E, Object* o);
 char* stringify_object(Executor* E, Object o);
 char* stringify(Executor* E, Object o);
 
-void object_system_init();
+void object_system_init(Executor* E);
 void object_system_deinit(Executor* E);
 
 // these functions should be implemented in higher level module

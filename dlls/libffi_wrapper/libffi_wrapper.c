@@ -102,7 +102,7 @@ Object from_ffi_type(Executor* E, void* v, ffi_type* t, Object type_object){
         case FFI_TYPE_STRUCT:
         {
             Object o;
-            table_init(&o);
+            table_init(E, &o);
             int position=0;
             for(int i=0; t->elements[i]!=NULL; i++){
                 void* field=(char*)v+position;
@@ -196,7 +196,7 @@ Object ffi_function(Executor* E, Object* arguments, int arguments_count){
     Object types=get(E, self, to_string("types"));
  
     Object result;
-    table_init(&result);
+    table_init(E, &result);
 
     int argument_types_count=arguments_count-3;
     ffi_type** argument_types=malloc(sizeof(ffi_type*)*(argument_types_count));
@@ -253,7 +253,7 @@ Object ffi_struct(Executor* E, Object* arguments, int arguments_count){
     CHECK_ALLOCATION(struct_type->elements)
 
     Object result;
-    table_init(&result);
+    table_init(E, &result);
     set(E, result, to_string("type"), to_pointer(struct_type));
 
     for(int i=1; i<arguments_count; i++){
@@ -281,7 +281,7 @@ Object ffi_destroy(Executor* E, Object* arguments, int arguments_count){
 Object ffi_open(Executor* E, Object* arguments, int arguments_count){
     Object library_name=arguments[0];
     Object result;
-    table_init(&result);
+    table_init(E, &result);
 
     void* dll_handle;
     if(library_name.type==t_null){
@@ -297,7 +297,7 @@ Object ffi_open(Executor* E, Object* arguments, int arguments_count){
     set_function(E, result, "destroy", 1, false, ffi_destroy);
     
     Object types;
-    table_init(&types);
+    table_init(E, &types);
     #define X(type, type_id, type_variable) \
         set(E, types, to_string(#type), to_pointer(&type_variable));
 
@@ -310,7 +310,7 @@ Object ffi_open(Executor* E, Object* arguments, int arguments_count){
 
 Object duck_module_init(Executor* E){
     Object module;
-    table_init(&module);
+    table_init(E, &module);
     set_function(E, module, "open", 1, false, ffi_open);
     return module;
 }

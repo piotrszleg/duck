@@ -68,7 +68,7 @@ expression* to_literal(Object o){
 
 Object evaluate_expression(Executor* E, expression* exp){
     Object scope;
-    table_init(&scope);
+    table_init(E, &scope);
     Object execution_result=execute_ast(E, exp, scope, 0);
     dereference(E, &scope);
     return execution_result;

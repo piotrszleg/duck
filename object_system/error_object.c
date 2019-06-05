@@ -38,7 +38,7 @@ Object stringify_multiple_causes(Executor* E, Object* arguments, int arguments_c
 
 Object multiple_causes(Executor* E, Object* causes, int causes_count){
     Object result;
-    table_init(&result);
+    table_init(E, &result);
 
     for(int i=0; i<causes_count; i++){
         char buffer[64];
@@ -52,7 +52,7 @@ Object multiple_causes(Executor* E, Object* causes, int causes_count){
     set(E, result, to_string("count"), count);
 
     Object stringify_f;
-    function_init(&stringify_f);
+    function_init(E, &stringify_f);
     stringify_f.fp->arguments_count=1;
     stringify_f.fp->native_pointer=stringify_multiple_causes;
     set(E, result, to_string("stringify"), stringify_f);
@@ -89,7 +89,7 @@ Object destroy_error(Executor* E, Object* arguments, int arguments_count){
 
 Object new_error(Executor* E, char* type, Object cause, char* message, char* location){
     Object err;
-    table_init(&err);
+    table_init(E, &err);
 
     set(E, err, to_string("type"), to_string(type));
     set(E, err, to_string("message"), to_string(message));
@@ -98,8 +98,8 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
     set(E, err, to_string("error"), to_number(1));
     set(E, err, to_string("handled"), to_number(0));
 
-    set(E, err, to_string("stringify"), to_function(stringify_error, NULL, 1));
-    set(E, err, to_string("destroy"), to_function(destroy_error, NULL, 1));
+    set(E, err, to_string("stringify"), to_function(E, stringify_error, NULL, 1));
+    set(E, err, to_string("destroy"), to_function(E, destroy_error, NULL, 1));
 
     set(E, err, to_string("cause"), cause);
 

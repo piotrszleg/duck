@@ -26,6 +26,7 @@ struct Table {
     gc_Object gco;
 
     Object* array;
+    unsigned elements_count;
     unsigned array_size;
     MapElement** map;
     unsigned map_size;
@@ -54,5 +55,7 @@ void table_component_init(Table* t);
 Object get_table_iterator(Executor* E, Object* arguments, int arguments_count);
 TableIterator start_iteration(Table* iterated);
 IterationResult table_next(TableIterator* it);
+
+bool is_valid_name(char* s);
 
 #endif

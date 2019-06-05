@@ -7,7 +7,7 @@ void repl(){
     Executor E;
 
     Object global_scope;
-    table_init(&global_scope);
+    table_init(&E, &global_scope);
     reference(&global_scope);
     register_builtins(&E, global_scope);
 
@@ -21,7 +21,6 @@ void repl(){
         }
 
         TRY_CATCH(
-            
             Object execution_result=evaluate_string(&E, input, global_scope);
             printf("%s\n", stringify(&E, execution_result));
             dereference(&E, &execution_result);

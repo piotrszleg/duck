@@ -31,8 +31,8 @@ Object pointer_get(Executor* E, void* position, Object field){
         case n_struct:
         case n_pointer:
             set_table(E, field.tp, to_string("position"), to_pointer(position));
-            set_table(E, field.tp, to_string("get"), to_function(struct_get, NULL, 2));
-            set_table(E, field.tp, to_string("set"), to_function(struct_set, NULL, 3));
+            set_table(E, field.tp, to_string("get"), to_function(E, struct_get, NULL, 2));
+            set_table(E, field.tp, to_string("set"), to_function(E, struct_set, NULL, 3));
             return field;
         default: RETURN_ERROR("STRUCTURE_GET_ERROR", field, "No type was matched.");
     }
@@ -89,13 +89,16 @@ Object pointer_set(Executor* E, void* position, Object field, Object value){
     switch(type){
         // TODO: error if value isn't a number
         case n_int:
+            REQUIRE_TYPE(value, t_number)
             *((int*)position)=(int)value.value;
             break;
         case n_float:
+            REQUIRE_TYPE(value, t_number)
             *((float*)position)=value.value;
             break;
         case n_string:
-            *((char**)position)=stringify(E, value);
+            REQUIRE_TYPE(value, t_string)
+            *((char**)position)=value.text;
             break;
         case n_struct:
         {
@@ -162,18 +165,18 @@ Object struct_set(Executor* E, Object* arguments, int arguments_count){
 
 Object new_struct_descriptor(Executor* E, void* position, Object sclass){
     Object sd;
-    table_init(&sd);
+    table_init(E, &sd);
     set(E, sd, to_string("type"), to_number(n_struct));
     set(E, sd, to_string("position"), to_pointer(position));
     set(E, sd, to_string("class"), sclass);
-    set(E, sd, to_string("get"), to_function(struct_get, NULL, 2));
-    set(E, sd, to_string("set"), to_function(struct_set, NULL, 3));
+    set(E, sd, to_string("get"), to_function(E, struct_get, NULL, 2));
+    set(E, sd, to_string("set"), to_function(E, struct_set, NULL, 3));
     return sd;
 }
 
 Object to_field(Executor* E, int offset, NativeType type){
     Object field;
-    table_init(&field);
+    table_init(E, &field);
     set(E, field, to_string("offset"), to_number(offset));
     set(E, field, to_string("type"), to_number(type));
     return field;

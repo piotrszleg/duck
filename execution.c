@@ -49,7 +49,7 @@ Object evaluate_file(Executor* E, const char* file_name, Object scope){
 
 void execute_file(Executor* E, const char* file_name){
     Object global_scope;
-    table_init(&global_scope);
+    table_init(E, &global_scope);
     reference(&global_scope);
     register_builtins(E, global_scope);
     Object execution_result=evaluate_file(E, file_name, global_scope);
@@ -64,7 +64,7 @@ void execute_file(Executor* E, const char* file_name){
 // this function should only be called from call_function, it's there to simplify the code structure
 Object call_function_processed(Executor* E, Function* f, Object* arguments, int arguments_count){
     Object function_scope;
-    table_init(&function_scope);
+    table_init(E, &function_scope);
     if(f->enclosing_scope.type!=t_null){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
@@ -109,7 +109,7 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
             // pack variadic arguments into a Table
             int variadic_arguments_count=arguments_count_difference+1;
             Object variadic_table;
-            table_init(&variadic_table);
+            table_init(E, &variadic_table);
             for(int i=variadic_arguments_count-1; i>=0; i--){
                 set(E, variadic_table, to_number(i), arguments[f->arguments_count-1+i]);
             }
@@ -125,6 +125,10 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
             return call_function_processed(E, f, arguments, arguments_count);
         }
     }
+}
+
+GarbageCollector* get_garbage_collector(Executor* E){
+    return &E->gc;
 }
 
 void deinit_function(Function* f){

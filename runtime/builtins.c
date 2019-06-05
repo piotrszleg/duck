@@ -241,7 +241,7 @@ Object builtin_open_file(Executor* E, Object* arguments, int arguments_count){
     REQUIRE_TYPE(mode, t_string)
 
     Object result;
-    table_init(&result);
+    table_init(E, &result);
     
     FILE* f=fopen(filename.text, mode.text);
     set(E, result, to_string("pointer"), to_number((float)(int)f));
@@ -268,7 +268,7 @@ Object builtin_import_dll(Executor* E, Object* arguments, int arguments_count){
 void register_builtins(Executor* E, Object scope){
     #define REGISTER_FUNCTION(f, args_count) \
         Object f##_function; \
-        function_init(&f##_function); \
+        function_init(E, &f##_function); \
         f##_function.fp->arguments_count=args_count; \
         f##_function.fp->native_pointer=&builtin_##f; \
         set(E, scope, to_string(#f), f##_function);
@@ -295,7 +295,7 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(remove_file, 1)
     REGISTER_FUNCTION(import_dll, 1)
     //REGISTER_FUNCTION(test, 2);
-    set(E, scope, to_string("iterator"), to_function(get_table_iterator, NULL, 1));
+    set(E, scope, to_string("iterator"), to_function(E, get_table_iterator, NULL, 1));
 
     set_function(E, scope, "format", 1, true, builtin_format);
 

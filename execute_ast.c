@@ -49,7 +49,7 @@ void path_set(Executor* E, Object scope, path p, Object value){
 
 Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     if(exp==NULL){
-        THROW_ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
+        return null_const;
     }
     E->line=exp->line_number;
     E->column=exp->column_number;
@@ -80,7 +80,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         {
             block* b=(block*)exp;
             Object table_scope;
-            table_init(&table_scope);
+            table_init(E, &table_scope);
             reference(&table_scope);
             int array_counter=0;
             for (int i = 0; i < vector_total(&b->lines); i++){
@@ -103,7 +103,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             if(keep_scope){
                 block_scope=scope;
             } else {
-                table_init(&block_scope);
+                table_init(E, &block_scope);
                 inherit_scope(E, block_scope, scope);
             }
             Object result;
@@ -167,7 +167,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             int arguments_count=vector_total(d->arguments);
 
             Object f;
-            function_init(&f);
+            function_init(E, &f);
             f.fp->argument_names=malloc(sizeof(char*)*arguments_count);
             f.fp->arguments_count=arguments_count;
             f.fp->variadic=d->variadic;
