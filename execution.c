@@ -1,25 +1,25 @@
 #include "execution.h"
 
-object evaluate(executor* Ex, expression* parsing_result, object scope, bool ast_only){
+object evaluate(executor* Ex, expression* parsing_result, object scope){
     if(parsing_result==NULL){
         return null_const;// there was an error while parsing
     }
 
     optimise_ast(Ex, parsing_result);
-    if(g_print_ast){
+    if(Ex->opt.print_ast){
         USING_STRING(stringify_expression(parsing_result, 0),
             printf("Abstract Syntax Tree:\n%s\n", str));
     }
     object execution_result;
-    if(ast_only){
+    if(Ex->opt.ast_only){
         execution_result=execute_ast(Ex, parsing_result, scope, 1);
         delete_expression(parsing_result);
     } else {
         bytecode_program prog=ast_to_bytecode(parsing_result, true);
         delete_expression(parsing_result);// at this point ast is useless and only wastes memory
-        optimise_bytecode(&prog);
+        optimise_bytecode(&prog, Ex->opt.print_bytecode_optimisations);
 
-        if(g_print_bytecode){
+        if(Ex->opt.print_bytecode){
             USING_STRING(stringify_bytecode(&prog),
                 printf("Bytecode:\n%s\n", str));
         }
@@ -38,13 +38,13 @@ object evaluate(executor* Ex, expression* parsing_result, object scope, bool ast
 object evaluate_string(executor* Ex, const char* s, object scope){
     expression* parsing_result=parse_string(s);
     Ex->file="string";
-    return evaluate(Ex, parsing_result, scope, true);
+    return evaluate(Ex, parsing_result, scope);
 }
 
 object evaluate_file(executor* Ex, const char* file_name, object scope){
     expression* parsing_result=parse_file(file_name);
     Ex->file=file_name;
-    return evaluate(Ex, parsing_result, scope, g_ast_only);
+    return evaluate(Ex, parsing_result, scope);
 }
 
 void execute_file(executor* Ex, const char* file_name){

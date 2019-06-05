@@ -4,27 +4,28 @@
 #include "repl.h"
 #include "execution.h"
 
-bool g_ast_only=false;
-bool g_print_ast=false;
-bool g_print_ast_optimisations=false;
-bool g_print_bytecode=false;
-bool g_print_bytecode_optimisations=false;
-bool g_optimise_ast=true;
-bool g_optimise_bytecode=true;
-bool g_debug_mode=false;
-
 static const char* version="0.0.1";
 
 void handle_arguments(int argc, char **argv) {
+    options opt={
+        .ast_only=false,
+        .print_ast=false,
+        .print_ast_optimisations=false,
+        .print_bytecode=false,
+        .print_bytecode_optimisations=false,
+        .optimise_ast=true,
+        .optimise_bytecode=true,
+        .debug_mode=false
+    };
     #define OPTIONS \
-        X("ast_only", g_ast_only=true;) \
-        X("print_ast", g_print_ast=true;) \
-        X("print_ast_optimisations", g_print_ast_optimisations=true;) \
-        X("print_bytecode", g_print_bytecode=true;) \
-        X("print_bytecode_optimisations", g_print_bytecode_optimisations=true;) \
-        X("disable_ast_optimisations", g_optimise_ast=false;) \
-        X("disable_bytecode_optimisations", g_optimise_bytecode=false;) \
-        X("debug", g_debug_mode=true;) \
+        X("ast_only", opt.ast_only=true;) \
+        X("print_ast", opt.print_ast=true;) \
+        X("print_ast_optimisations", opt.print_ast_optimisations=true;) \
+        X("print_bytecode", opt.print_bytecode=true;) \
+        X("print_bytecode_optimisations", opt.print_bytecode_optimisations=true;) \
+        X("disable_ast_optimisations", opt.optimise_ast=false;) \
+        X("disable_bytecode_optimisations", opt.optimise_bytecode=false;) \
+        X("debug", opt.debug_mode=true;) \
         X("version", printf(version); exit(0); )\
         X("?", printf("duck %s\nAllowed options are: \n-version\n-ast_only\n-disable_ast_optimisations\n-disable_bytecode_optimisations\n-debug\n-?\n" \
                        "You can either provide a file path or a read-eval-print loop is started.", version); \
@@ -57,6 +58,7 @@ void handle_arguments(int argc, char **argv) {
     }
 
     executor Ex;
+    Ex.opt=opt;
     
     object_system_init();
     TRY_CATCH(

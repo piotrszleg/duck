@@ -9,7 +9,6 @@
 #include <stdbool.h>
 
 bytecode_program ast_to_bytecode(expression* exp, bool keep_scope);
-void optimise_bytecode(bytecode_program* prog);
 
 typedef struct bytecode_translation bytecode_translation;
 struct bytecode_translation {

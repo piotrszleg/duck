@@ -87,9 +87,8 @@ void bytecode_environment_init(bytecode_environment* environment){
     list_program_labels(environment->program);
     
     vector_init(&environment->debugger.breakpoints);
-    if(g_debug_mode){
-        environment->debugger.running=false;
-    }
+
+    environment->debugger.running=false;
     stack_init(&environment->object_stack, sizeof(object), STACK_SIZE);
     push(&environment->object_stack, null_const);
     stack_init(&environment->return_stack, sizeof(return_point), STACK_SIZE);
@@ -237,7 +236,7 @@ object execute_bytecode(executor* Ex){
     int* pointer=&Ex->bytecode_env.pointer;// points to the current instruction
 
     while(true){
-        if(g_debug_mode){
+        if(Ex->opt.debug_mode){
             debugger(Ex);
         }
         bytecode_program* program=Ex->bytecode_env.program;
@@ -564,7 +563,7 @@ object execute_bytecode(executor* Ex){
             case b_end:
             case b_return:
             {
-                if(g_debug_mode){
+                if(Ex->opt.debug_mode){
                     debugger(Ex);
                 }
                 if(return_stack->top==0){

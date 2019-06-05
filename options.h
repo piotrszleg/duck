@@ -1,14 +1,16 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
-extern bool g_ast_only;
-extern bool g_print_ast;
-extern bool g_print_ast_optimisations;
-extern bool g_print_bytecode;
-extern bool g_print_bytecode_optimisations;
-extern bool g_optimise_ast;
-extern bool g_optimise_bytecode;
-extern bool g_debug_mode;
+typedef struct {
+    bool ast_only;
+    bool print_ast;
+    bool print_ast_optimisations;
+    bool print_bytecode;
+    bool print_bytecode_optimisations;
+    bool optimise_ast;
+    bool optimise_bytecode;
+    bool debug_mode;
+} options;
 
 void handle_arguments(int argc, char **argv);
 

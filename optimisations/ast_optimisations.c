@@ -1,12 +1,12 @@
 #include "ast_optimisations.h"
 
 #define LOG_CHANGE(message, before, after) \
-    if(g_print_ast_optimisations){ \
+    if(Ex->opt.print_ast_optimisations){ \
         char* before_string=stringify_expression(before, 0); \
         char* after_string=stringify_expression(after, 0); \
         printf("\n%s\nreplacing:%s\nwith:%s\n", message, before_string, after_string); \
         free(before_string); \
-        free(after_string);\
+        free(after_string); \
     }
 
 bool is_literal(expression* exp){

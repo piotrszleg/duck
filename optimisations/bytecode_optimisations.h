@@ -6,6 +6,6 @@
 #include "../options.h"
 
 int path_length(const instruction* code,  int path_start);
-void optimise_bytecode(bytecode_program* prog);
+void optimise_bytecode(bytecode_program* prog, bool print_optimisations);
 
 #endif

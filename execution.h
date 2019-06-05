@@ -30,6 +30,7 @@ struct executor {
 
     bool ast_returning;
     bytecode_environment bytecode_env;
+    options opt;
 };
 
 #endif
