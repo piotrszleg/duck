@@ -14,48 +14,45 @@
 #define REQUIRE_TYPE(o, t) if(o.type!=t) { \
     RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
 
-typedef struct map_element map_element;
-struct map_element {
-    object key;
-    object value;
-    map_element* next;
+typedef struct MapElement MapElement;
+struct MapElement {
+    Object key;
+    Object value;
+    MapElement* next;
 };
 
-typedef struct table table;
-struct table {
-    // gc_object fields
-    gc_object gco;
+struct Table {
+    // gc_Object fields
+    gc_Object gco;
 
-    object* array;
+    Object* array;
     unsigned array_size;
-    map_element** map;
+    MapElement** map;
     unsigned map_size;
 };
 
-typedef struct table_iterator table_iterator;
-struct table_iterator{
-    table* iterated;
+typedef struct {
+    Table* iterated;
     bool inside_array;
     int index;
-    map_element* element;
-};
+    MapElement* element;
+} TableIterator;
 
-typedef struct iteration_result iteration_result;
-struct iteration_result{
+typedef struct {
     bool inside_array;
     bool finished;
-    object key;
-    object value;
-};
+    Object key;
+    Object value;
+} IterationResult;
 
-object get_table(table* t, object key);
-void set_table(executor* Ex, table* t, object key, object value);
-void free_table(table* t);
-void dereference_children_table(executor* Ex, table* t);
-char* stringify_table(executor* Ex, table* t);
-void table_component_init(table* t);
-object get_table_iterator(executor* Ex, object* arguments, int arguments_count);
-table_iterator start_iteration(table* iterated);
-iteration_result table_next(table_iterator* it);
+Object get_table(Table* t, Object key);
+void set_table(Executor* E, Table* t, Object key, Object value);
+void free_table(Table* t);
+void dereference_children_table(Executor* E, Table* t);
+char* stringify_table(Executor* E, Table* t);
+void table_component_init(Table* t);
+Object get_table_iterator(Executor* E, Object* arguments, int arguments_count);
+TableIterator start_iteration(Table* iterated);
+IterationResult table_next(TableIterator* it);
 
 #endif

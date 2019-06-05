@@ -8,16 +8,15 @@
 #include "datatypes/stack.h"
 #include <stdbool.h>
 
-bytecode_program ast_to_bytecode(expression* exp, bool keep_scope);
+BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope);
 
-typedef struct bytecode_translation bytecode_translation;
-struct bytecode_translation {
+typedef struct {
     stream code;
     unsigned* labels;
     stream information;
-    instruction_information last_information;
+    InstructionInformation last_information;
     stream constants;
     stream sub_programs;
-} ;
+} BytecodeTranslation;
 
 #endif

@@ -2,49 +2,49 @@
 #define OBJECT_OPERATIONS_H
 
 #include "object.h"
-#include "table.h"
+#include "Table.h"
 #include "../utility.h"
 #include <stdbool.h>
 
 #define STRINGIFY_BUFFER_SIZE 32
 
-extern object patching_table;
+extern Object patching_table;
 
-bool is_falsy(object o);
+bool is_falsy(Object o);
 
-int compare(object a, object b);
-object operator(executor* Ex, object a, object b, const char* op);
+int compare(Object a, Object b);
+Object operator(Executor* E, Object a, Object b, const char* op);
 
-object cast(executor* Ex, object o, object_type type);
+Object cast(Executor* E, Object o, ObjectType type);
 
-object call(executor* Ex, object o, object* arguments, int arguments_count);
+Object call(Executor* E, Object o, Object* arguments, int arguments_count);
 
-object get(executor* Ex, object o, object key);
-object set(executor* Ex, object o, object key, object value);
+Object get(Executor* E, Object o, Object key);
+Object set(Executor* E, Object o, Object key, Object value);
 
-void get_execution_info(executor* Ex, char* buffer, int buffer_count);
-object multiple_causes(executor* Ex, object* causes, int causes_count);
-object new_error(executor* Ex, char* type, object cause, char* message, char* location);
+void get_execution_info(Executor* E, char* buffer, int buffer_count);
+Object multiple_causes(Executor* E, Object* causes, int causes_count);
+Object new_error(Executor* E, char* type, Object cause, char* message, char* location);
 
 char* suprintf (const char * format, ...);
-char* stringify_object(executor* Ex, object o);
-char* stringify(executor* Ex, object o);
-object get_iterator(executor* Ex, object o);
+char* stringify_object(Executor* E, Object o);
+char* stringify(Executor* E, Object o);
+Object get_iterator(Executor* E, Object o);
 
 // iterated and receiver should be of object type, executes body with receiver becoming subsequential elements of iterated
 #define FOREACH(iterated, receiver, body) \
     { \
-        object iterator=get_iterator(Ex, iterated); \
+        Object iterator=get_iterator(E, iterated); \
         reference(&iterator); \
         \
-        receiver=call(Ex, iterator, NULL, 0); \
+        receiver=call(E, iterator, NULL, 0); \
         while(true) { \
             reference(&receiver); \
             {body} \
-            dereference(Ex, &receiver); \
-            receiver=call(Ex, iterator, NULL, 0); \
-            if(!is_falsy(get(Ex, receiver, to_string("finished")))){ \
-                dereference(Ex, &iterator); \
+            dereference(E, &receiver); \
+            receiver=call(E, iterator, NULL, 0); \
+            if(!is_falsy(get(E, receiver, to_string("finished")))){ \
+                dereference(E, &iterator); \
                 break; \
             } \
         } \

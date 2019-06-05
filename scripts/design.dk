@@ -4,13 +4,13 @@ o=[1, 2, 3]
 o.set_metatable(
     o.get_metatable + [
         "+" = (self, b)->map(self, (e)->e+b)
-        "set" = -> Error("Read-only table.")
+        "set" = -> Error("Read-only Table.")
     ]
 )
 
 # magic indexes
 o["+"] = (self, b)->map(self, (e)->e+b)
-o["set"] = -> Error("Read-only table.")
+o["set"] = -> Error("Read-only Table.")
 
 # wrapping base types
 degree = (num)->{
@@ -74,8 +74,8 @@ fib=n->{
 call=(self, arguments){
     if(typeof(self)==function){
         self(arguments)
-    } elif(table.call!=null){
-        table.call(arguments)
+    } elif(Table.call!=null){
+        Table.call(arguments)
     } else {
         error("Can' index object "+self)
     }
@@ -94,15 +94,15 @@ call_override(self, arguments)-{
     native_call(self.contained_function, arguments)
 }
 
-table.get=(table, key)->{
-    if(table.get!=null){
-        table.get(table, key)
+Table.get=(Table, key)->{
+    if(Table.get!=null){
+        Table.get(Table, key)
     } else {
-        get_native(table, key)
+        get_native(Table, key)
     }
 }
 
-OperatorError: Can't add objects of type <number> and <table>
+OperatorError: Can't add objects of type <number> and <Table>
 at:  (tests.duck:10:5)
 src: (object.c:100:11)
 caused by:

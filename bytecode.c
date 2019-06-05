@@ -6,7 +6,7 @@ char* INSTRUCTION_NAMES[]={
     #undef X
 };
 
-void stringify_instruction(const bytecode_program* prog, char* destination, instruction instr, int buffer_count){
+void stringify_instruction(const BytecodeProgram* prog, char* destination, Instruction instr, int buffer_count){
     switch(instr.type){
         case b_end:
         case b_discard:
@@ -34,7 +34,7 @@ void stringify_instruction(const bytecode_program* prog, char* destination, inst
     }
 }
 
-char* stringify_bytecode(const bytecode_program* prog){
+char* stringify_bytecode(const BytecodeProgram* prog){
     stream s;
     init_stream(&s, 64);
 
@@ -66,7 +66,7 @@ char* stringify_bytecode(const bytecode_program* prog){
     return stream_get_data(&s);
 }
 
-void bytecode_program_copy(const bytecode_program* source, bytecode_program* copy) {
+void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy) {
     int c=0;
     for(; source->code[c].type!=b_end; c++);
 
@@ -77,13 +77,13 @@ void bytecode_program_copy(const bytecode_program* source, bytecode_program* cop
     copy->labels=NULL;
     
     copy->sub_programs_count=source->sub_programs_count;
-    copy->sub_programs=malloc(sizeof(bytecode_program)*copy->sub_programs_count);
+    copy->sub_programs=malloc(sizeof(BytecodeProgram)*copy->sub_programs_count);
     for(int i=0; i<source->sub_programs_count; i++){
        bytecode_program_copy(&source->sub_programs[i], &source->sub_programs[i]);
     }
 }
 
-void bytecode_program_free(bytecode_program* prog) {
+void bytecode_program_free(BytecodeProgram* prog) {
     free(prog->code);
     free(prog->information);
     free(prog->constants);
@@ -94,7 +94,7 @@ void bytecode_program_free(bytecode_program* prog) {
 }
 
 #define X(t, result) case t: return result;
-int gets_from_stack(instruction instr){
+int gets_from_stack(Instruction instr){
     switch(instr.type){
         X(b_discard, 1)
         //X(b_move_top, 1)
@@ -115,7 +115,7 @@ int gets_from_stack(instruction instr){
 #undef X
 
 #define X(i) || instr==i
-bool pushes_to_stack(instruction_type instr){
+bool pushes_to_stack(InstructionType instr){
     // the following instructions DON'T push to the stack
     return !(false
     X(b_move_top)
@@ -130,14 +130,14 @@ bool pushes_to_stack(instruction_type instr){
     X(b_jump_not)
     );
 }
-bool changes_flow(instruction_type instr){
+bool changes_flow(InstructionType instr){
     return false
     X(b_return)
     X(b_label)
     X(b_jump)
     X(b_jump_not);
 }
-bool changes_scope(instruction_type instr){
+bool changes_scope(InstructionType instr){
     return false
     X(b_return)
     X(b_new_scope)

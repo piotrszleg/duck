@@ -14,9 +14,9 @@ typedef enum {
     n_float,
     n_struct,
     n_pointer
-} native_type;
+} NativeType;
 
-object new_struct_descriptor(executor* Ex, void* position, object sclass);
-object to_field(executor* Ex, int offset, native_type type);
+Object new_struct_descriptor(Executor* E, void* position, Object sclass);
+Object to_field(Executor* E, int offset, NativeType type);
 
 #endif

@@ -4,6 +4,6 @@
 #include "stdio.h"
 #include "../../object_system/object.h"
 
-object duck_module_init(executor* Ex);
+Object duck_module_init(Executor* E);
 
 #endif

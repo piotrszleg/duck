@@ -7,7 +7,7 @@
         RETURN_ERROR("INCOERR_OBJECT_ACCESS", o, "Attempted to call function %s on object that was previously garbage collected.", __FUNCTION__) \
     }
 
-object patching_table={t_table};
+Object patching_table={t_table};
 
 bool is_number(const char *s)
 {
@@ -18,7 +18,7 @@ bool is_number(const char *s)
 }
 
 // TODO:  write tests
-bool is_falsy(object o){
+bool is_falsy(Object o){
     switch(o.type){
         case t_null:
             return 1;// null is falsy
@@ -29,27 +29,27 @@ bool is_falsy(object o){
         case t_number:
             return o.value==0;// 0 is falsy
         case t_table:
-            return o.tp->array_size==0 && o.tp->map_size==0;// empty table is falsy
+            return o.tp->array_size==0 && o.tp->map_size==0;// empty Table is falsy
         default:
             THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object pointer passed to is_falsy function.");
     }
 }
 
-object cast(executor* Ex, object o, object_type type){
+Object cast(Executor* E, Object o, ObjectType type){
     if(o.type==type){
         return o;
     }
     switch(type){
         case t_string:
         {
-            object result;
+            Object result;
             string_init(&result);
-            result.text=stringify(Ex, o);
+            result.text=stringify(E, o);
             return result;
         }
         case t_number:
         {
-            object result;
+            Object result;
             number_init(&result);
             if(o.type==t_null){
                 result.value=0;// null is zero
@@ -65,32 +65,32 @@ object cast(executor* Ex, object o, object_type type){
     }
 }
 
-object find_call_function(executor* Ex, object o){
+Object find_call_function(Executor* E, Object o){
     if(o.type==t_function){
         return o;
     } else if(o.type==t_table){
         STRING_OBJECT(call_string, "call");
-        object call_field=get(Ex, o, call_string);
-        return find_call_function(Ex, call_field);
+        Object call_field=get(E, o, call_string);
+        return find_call_function(E, call_field);
     } else {
-        object n={t_null};
+        Object n={t_null};
         return n;
     }
 }
 
-object find_function(executor* Ex, object o, const char* function_name){
+Object find_function(Executor* E, Object o, const char* function_name){
     STRING_OBJECT(function_name_string, function_name);
-    return find_call_function(Ex, get(Ex, o, function_name_string));
+    return find_call_function(E, get(E, o, function_name_string));
 }
 
-object monkey_patching(executor* Ex, const char* function_name, object* arguments, int arguments_count){
+Object monkey_patching(Executor* E, const char* function_name, Object* arguments, int arguments_count){
     // attempt to get object from field named after a's type in operations_table
-    object type_table=get(Ex, patching_table, to_string(OBJECT_TYPE_NAMES[arguments[0].type]));
+    Object type_table=get(E, patching_table, to_string(OBJECT_TYPE_NAMES[arguments[0].type]));
     if(type_table.type!=t_null){
-        object operator_function=find_function(Ex, type_table, function_name);
+        Object operator_function=find_function(E, type_table, function_name);
         if(operator_function.type!=t_null){
             // call get_function a and b as arguments
-            object result=call(Ex, operator_function, arguments, arguments_count);
+            Object result=call(E, operator_function, arguments, arguments_count);
             return result;
         }
     }
@@ -98,7 +98,7 @@ object monkey_patching(executor* Ex, const char* function_name, object* argument
 }
 
 #define MONKEY_PATCH(function_name, arguments, arguments_count) \
-    object patching_result=monkey_patching(Ex, function_name, arguments, arguments_count); \
+    Object patching_result=monkey_patching(E, function_name, arguments, arguments_count); \
     if(patching_result.type!=t_null) return patching_result;
 
 int sign(int x){
@@ -107,7 +107,7 @@ int sign(int x){
 
 #define COMPARISION_ERROR 2
 // if a>b returns 1 if a<b returns -1, if a==b returns 0
-int compare(object a, object b){
+int compare(Object a, Object b){
     // null is always less than anything
     if(a.type!=t_null && b.type==t_null){
         return 1;
@@ -132,29 +132,29 @@ int compare(object a, object b){
     }
 }
 
-object get_iterator(executor* Ex, object o){
+Object get_iterator(Executor* E, Object o){
     MONKEY_PATCH("iterator", &o, 1);
     if(o.type==t_table){
-        object iterator_override=find_function(Ex, o, "iterator");
+        Object iterator_override=find_function(E, o, "iterator");
         if(iterator_override.type!=t_null){
-            return call(Ex, iterator_override, &o, 1);
+            return call(E, iterator_override, &o, 1);
         } else {
-            return get_table_iterator(Ex, &o, 1);
+            return get_table_iterator(E, &o, 1);
         }
     } else {
         RETURN_ERROR("OperatorError", o, "Can't get operator of object of type %s.", OBJECT_TYPE_NAMES[o.type]);
     }
 }
 
-object operator(executor* Ex, object a, object b, const char* op){
+Object operator(Executor* E, Object a, Object b, const char* op){
     //ALREADY_DESTROYED_CHECK(a)
     //ALREADY_DESTROYED_CHECK(b)
-    MONKEY_PATCH(op, ((object[]){a, b}), 2);
+    MONKEY_PATCH(op, ((Object[]){a, b}), 2);
     if(a.type==t_table){
-        object operator_function=find_function(Ex, a, op);
+        Object operator_function=find_function(E, a, op);
         if(operator_function.type!=t_null){
             // call get_function a and b as arguments
-            object result=call(Ex, operator_function, ((object[]){a, b}), 2);
+            Object result=call(E, operator_function, ((Object[]){a, b}), 2);
             return result;
         }
     }
@@ -195,7 +195,7 @@ object operator(executor* Ex, object a, object b, const char* op){
         } else if (!is_falsy(b)){
             return b;
         } else {
-            object result={t_null};
+            Object result={t_null};
             return result;
         }
     }
@@ -218,48 +218,48 @@ object operator(executor* Ex, object a, object b, const char* op){
         }
     }
     OP_CASE(">>"){
-        return new_pipe(Ex, a, b);
+        return new_pipe(E, a, b);
     }
     OP_CASE("<<"){
-        return new_binding(Ex, a, b);
+        return new_binding(E, a, b);
     }
     // call b with arguments key and value for each iteration
     OP_CASE("##"){
-        object it;
-        object call_result=null_const;
+        Object it;
+        Object call_result=null_const;
         FOREACH(a, it, 
-            call_result=call(Ex, b, (object[]){get(Ex, it, to_string("key")), get(Ex, it, to_string("value"))}, 2);
+            call_result=call(E, b, (Object[]){get(E, it, to_string("key")), get(E, it, to_string("value"))}, 2);
         )
         return call_result;
     }
     // same as above except only the values are passed to the function
     OP_CASE("#"){
-        object it;
-        object call_result=null_const;
+        Object it;
+        Object call_result=null_const;
         FOREACH(a, it, 
-            call_result=call(Ex, b, (object[]){get(Ex, it, to_string("value"))}, 1);
+            call_result=call(E, b, (Object[]){get(E, it, to_string("value"))}, 1);
         )
         return call_result;
     }
     if(a.type==t_string){
         if(a.type!=b.type){
-            b=cast(Ex, b, a.type);
+            b=cast(E, b, a.type);
         }
         OP_CASE("+"){
             char* buffer=malloc(sizeof(char)*1024);
             CHECK_ALLOCATION(buffer);
             strcpy(buffer, a.text);
             strcat(buffer, b.text);
-            object result;
+            Object result;
             string_init(&result);
             result.text=buffer;
             return result;
         }
     } else if(a.type==t_number){
         if(a.type!=b.type){
-            b=cast(Ex, b, a.type);
+            b=cast(E, b, a.type);
         }
-        object result;
+        Object result;
         number_init(&result);
         OP_CASE("+"){
             return to_number(a.value+b.value);
@@ -274,23 +274,23 @@ object operator(executor* Ex, object a, object b, const char* op){
             return to_number(a.value/b.value);
         }
     }
-    object causes[]={a, b};
-    RETURN_ERROR("OperatorError", multiple_causes(Ex, causes, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+    Object causes[]={a, b};
+    RETURN_ERROR("OperatorError", multiple_causes(E, causes, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
 }
 
-char* stringify(executor* Ex, object o){
-    object patching_result=monkey_patching(Ex, "stringify", &o, 1);
+char* stringify(Executor* E, Object o){
+    Object patching_result=monkey_patching(E, "stringify", &o, 1);
     if(patching_result.type!=t_null){
-        return stringify_object(Ex, patching_result);
+        return stringify_object(E, patching_result);
     }
     if(o.type==t_table){
-        object stringify_override=find_function(Ex, o, "stringify");
+        Object stringify_override=find_function(E, o, "stringify");
         if(stringify_override.type!=t_null){
-            object result=call(Ex, stringify_override, &o, 1);
-            return stringify_object(Ex, result);
+            Object result=call(E, stringify_override, &o, 1);
+            return stringify_object(E, result);
         }
     }
-    return stringify_object(Ex, o);
+    return stringify_object(E, o);
 }
 
 char* suprintf (const char * format, ...){
@@ -364,7 +364,7 @@ bool has_spaces(char* s){
     return false;
 }
 
-char* stringify_object(executor* Ex, object o){
+char* stringify_object(Executor* E, Object o){
     switch(o.type){
         case t_string:
         {
@@ -403,10 +403,10 @@ char* stringify_object(executor* Ex, object o){
             }
         }
         case t_table:
-            return stringify_table(Ex, o.tp);
+            return stringify_table(E, o.tp);
         case t_function:
         {
-            function* f=o.fp;
+            Function* f=o.fp;
             if(f->argument_names!=NULL){
                 char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
                 CHECK_ALLOCATION(buffer);
@@ -464,24 +464,24 @@ char* stringify_object(executor* Ex, object o){
     }
 }
 
-object get(executor* Ex, object o, object key){
-    if(o.tp!=patching_table.tp) {// avoid cycling call to get in patching table
-        MONKEY_PATCH("get", ((object[]){o, key}), 2);
+Object get(Executor* E, Object o, Object key){
+    if(o.tp!=patching_table.tp) {// avoid cycling call to get in patching Table
+        MONKEY_PATCH("get", ((Object[]){o, key}), 2);
     }
     if(o.type==t_table){
-        // try to get "get" operator overriding function from the table and use it
-        object map_get_override=get_table(o.tp, to_string("get"));
+        // try to get "get" operator overriding function from the Table and use it
+        Object map_get_override=get_table(o.tp, to_string("get"));
         if(map_get_override.type!=t_null){
-            object arguments[]={o, key};
+            Object arguments[]={o, key};
 
-            object result=call(Ex, map_get_override, arguments, 2);
+            Object result=call(E, map_get_override, arguments, 2);
             return result;
         } else {
-            // simply get key from table's map
+            // simply get key from Table's map
             return get_table(o.tp, key);
         }
     } else if(o.type==t_string){
-        object number_key=cast(Ex, key, t_number);
+        Object number_key=cast(E, key, t_number);
         if(number_key.type==t_number){
             if(number_key.value<strlen(o.text) && number_key.value>=0){
                 char* character_string=malloc(2*sizeof(char));
@@ -489,7 +489,7 @@ object get(executor* Ex, object o, object key){
                 character_string[1]='\0';
                 return to_string(character_string);
             } else {
-                RETURN_ERROR("WRONG_ARGUMENT_TYPE", multiple_causes(Ex, (object[]){o, key}, 2), 
+                RETURN_ERROR("WRONG_ARGUMENT_TYPE", multiple_causes(E, (Object[]){o, key}, 2), 
                 "Index %i is out of bounds of string \"%s\"", (int)number_key.value, o.text);
             }
         } else {
@@ -500,15 +500,15 @@ object get(executor* Ex, object o, object key){
     }
 }
 
-object set(executor* Ex, object o, object key, object value){
-    //MONKEY_PATCH("set", ((object[]){o, key, value}), 3);
+Object set(Executor* E, Object o, Object key, Object value){
+    //MONKEY_PATCH("set", ((Object[]){o, key, value}), 3);
     if(o.type==t_table){
-        // try to get "get" operator overriding function from the table and use it
-        object set_override=get_table(o.tp, to_string("set"));
+        // try to get "get" operator overriding function from the Table and use it
+        Object set_override=get_table(o.tp, to_string("set"));
         if(set_override.type!=t_null){
-            return call(Ex, set_override, (object[]){o, key, value}, 3);
+            return call(E, set_override, (Object[]){o, key, value}, 3);
         } else {
-            set_table(Ex, o.tp, key, value);
+            set_table(E, o.tp, key, value);
             return value;
         }
     } else {
@@ -516,8 +516,8 @@ object set(executor* Ex, object o, object key, object value){
     }
 }
 
-object* concat_arguments(object head, object* tail, int tail_count){
-    object* result=malloc(sizeof(object)*(tail_count+1));
+Object* concat_arguments(Object head, Object* tail, int tail_count){
+    Object* result=malloc(sizeof(Object)*(tail_count+1));
     result[0]=head;
     for(int i=0; i<tail_count; i++){
         result[i+1]=tail[i];
@@ -525,9 +525,9 @@ object* concat_arguments(object head, object* tail, int tail_count){
     return result;
 }
 
-object call(executor* Ex, object o, object* arguments, int arguments_count) {
-    object* arguments_with_self=concat_arguments(o, arguments, arguments_count);
-    object patching_result=monkey_patching(Ex, "call", arguments_with_self, arguments_count+1);
+Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
+    Object* arguments_with_self=concat_arguments(o, arguments, arguments_count);
+    Object patching_result=monkey_patching(E, "call", arguments_with_self, arguments_count+1);
     if(patching_result.type!=t_null){
         free(arguments_with_self);
         return patching_result;
@@ -535,14 +535,14 @@ object call(executor* Ex, object o, object* arguments, int arguments_count) {
     switch(o.type){
         case t_function:
         {
-            return call_function(Ex, o.fp, arguments, arguments_count);
+            return call_function(E, o.fp, arguments, arguments_count);
         }
         case t_table:
         {
-            object call_field=find_function(Ex, o, "call");
+            Object call_field=find_function(E, o, "call");
             if(call_field.type!=t_null){
                 // add o object as a first argument
-                object result=call(Ex, call_field, arguments_with_self, arguments_count+1);
+                Object result=call(E, call_field, arguments_with_self, arguments_count+1);
                 free(arguments_with_self);
                 return result;
             }// else go to default label
@@ -552,11 +552,11 @@ object call(executor* Ex, object o, object* arguments, int arguments_count) {
     }
 }
 
-void call_destroy(executor* Ex, object o){
-    object destroy_override=find_function(Ex, o, "destroy");
+void call_destroy(Executor* E, Object o){
+    Object destroy_override=find_function(E, o, "destroy");
     if(destroy_override.type!=t_null){
-        object destroy_result=call(Ex, destroy_override, &o, 1);
-        dereference(Ex, &destroy_result);
+        Object destroy_result=call(E, destroy_override, &o, 1);
+        dereference(E, &destroy_result);
     }
 }
 

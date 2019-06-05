@@ -10,9 +10,9 @@ typedef struct {
     bool optimise_ast;
     bool optimise_bytecode;
     bool debug_mode;
-} options;
+} Options;
 
-extern const options default_options;
+extern const Options default_options;
 
 void handle_arguments(int argc, char **argv);
 

@@ -4,6 +4,6 @@
 #include <stdio.h>
 #include "..\execution.h"
 
-void get_execution_info(executor* Ex, char* buffer, int buffer_count);
+void get_execution_info(Executor* E, char* buffer, int buffer_count);
 
 #endif

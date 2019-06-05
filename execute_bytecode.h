@@ -14,7 +14,7 @@
 typedef struct {
     char* file;
     int line;
-} breakpoint;
+} Breakpoint;
 
 typedef struct {
     vector breakpoints;
@@ -24,26 +24,26 @@ typedef struct {
 typedef struct {
     gc_pointer gcp;
     int pointer;
-    object scope;
-    bytecode_program* program;
+    Object scope;
+    BytecodeProgram* program;
     stack object_stack;
     stack return_stack;
     debugger_state debugger;
-} bytecode_environment;
+} BytecodeEnvironment;
 
 typedef struct {
     bool terminate;
-    bytecode_program* program;
-    object scope;
+    BytecodeProgram* program;
+    Object scope;
     int pointer;
-} return_point;
+} ReturnPoint;
 
-void bytecode_environment_init(bytecode_environment* e);
-void bytecode_environment_free(bytecode_environment* e);
+void bytecode_environment_init(BytecodeEnvironment* e);
+void bytecode_environment_free(BytecodeEnvironment* e);
 
-void push(stack* stack, object o);
-object execute_bytecode(executor* Ex);
-void move_to_function(executor* Ex, function* f, bool termainate);
+void push(stack* stack, Object o);
+Object execute_bytecode(Executor* E);
+void move_to_function(Executor* E, Function* f, bool termainate);
 
 #include "error/execution_state.h"
 

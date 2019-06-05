@@ -1,7 +1,7 @@
 #include "ast_optimisations.h"
 
 #define LOG_CHANGE(message, before, after) \
-    if(Ex->opt.print_ast_optimisations){ \
+    if(E->options.print_ast_optimisations){ \
         char* before_string=stringify_expression(before, 0); \
         char* after_string=stringify_expression(after, 0); \
         printf("\n%s\nreplacing:%s\nwith:%s\n", message, before_string, after_string); \
@@ -39,7 +39,7 @@ bool is_constant(expression* exp){
     }
 }
 
-expression* to_literal(object o){
+expression* to_literal(Object o){
     if(o.type==t_null){
         return (expression*)new_empty();
     }
@@ -66,16 +66,16 @@ expression* to_literal(object o){
     }
 }
 
-object evaluate_expression(executor* Ex, expression* exp){
-    object scope;
+Object evaluate_expression(Executor* E, expression* exp){
+    Object scope;
     table_init(&scope);
-    object execution_result=execute_ast(Ex, exp, scope, 0);
-    dereference(Ex, &scope);
+    Object execution_result=execute_ast(E, exp, scope, 0);
+    dereference(E, &scope);
     return execution_result;
 }
 
 ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
-    executor* Ex=(executor*)data;
+    Executor* E=(Executor*)data;
 
     // remove statements that have no side effects and whose result isn't used anywhere
     if(exp->type==e_block){
@@ -104,7 +104,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
     else if(exp->type==e_conditional){
         conditional* c=(conditional*)exp;
         if(is_constant(c->condition)){
-            object evaluated=evaluate_expression(Ex, c->condition);
+            Object evaluated=evaluate_expression(E, c->condition);
             ast_visitor_request request={next};
             if(is_falsy(evaluated)){
                 request.replacement=copy_expression(c->onfalse);
@@ -112,17 +112,17 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
                 request.replacement=copy_expression(c->ontrue);
             }
             LOG_CHANGE("constant conditional", exp, request.replacement);
-            dereference(Ex, &evaluated);
+            dereference(E, &evaluated);
             return request;
         }
     }
     // constants folding
     else if(!is_literal(exp) && is_constant(exp)){
         ast_visitor_request request={next};
-        object evaluated=evaluate_expression(Ex, exp);
+        Object evaluated=evaluate_expression(E, exp);
         request.replacement=to_literal(evaluated);
         //replace current expression with the literal
-        dereference(Ex, &evaluated);
+        dereference(E, &evaluated);
         LOG_CHANGE("constants folding", exp, request.replacement);
         return request;
     }
@@ -130,8 +130,8 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
     return request;
 }
 
-void optimise_ast(executor* Ex, expression* ast){
-    visit_ast(ast, optimise_ast_visitor, Ex);
+void optimise_ast(Executor* E, expression* ast){
+    visit_ast(ast, optimise_ast_visitor, E);
 }
 
 #undef LOG_CHANGE

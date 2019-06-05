@@ -17,20 +17,20 @@
 #include "execute_ast.h"
 #include "options.h"
 
-object evaluate_string(executor* Ex, const char* s, object scope);
-object evaluate_file(executor* Ex, const char* file_name, object scope);
-void execute_file(executor* Ex, const char* file_name);
-object call_function(executor* Ex, function* f, object* arguments, int arguments_count);
+Object evaluate_string(Executor* E, const char* s, Object scope);
+Object evaluate_file(Executor* E, const char* file_name, Object scope);
+void execute_file(Executor* E, const char* file_name);
+Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 
-struct executor {
+struct Executor {
     unsigned line;
     unsigned column;
     unsigned* traceback;
     const char* file;
 
     bool ast_returning;
-    bytecode_environment bytecode_env;
-    options opt;
+    BytecodeEnvironment bytecode_environment;
+    Options options;
 };
 
 #endif

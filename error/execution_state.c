@@ -1,9 +1,9 @@
 #include "execution_state.h"
 
-void get_execution_info(executor* Ex, char* buffer, int buffer_count){
+void get_execution_info(Executor* E, char* buffer, int buffer_count){
     const char* file="unknown";
-    if(Ex->file!=NULL){
-        file=Ex->file;
+    if(E->file!=NULL){
+        file=E->file;
     }
-    snprintf(buffer, buffer_count, "%s:%i:%i", file, Ex->line, Ex->column);
+    snprintf(buffer, buffer_count, "%s:%i:%i", file, E->line, E->column);
 }

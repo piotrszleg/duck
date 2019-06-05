@@ -10,11 +10,11 @@ const char* OBJECT_TYPE_NAMES[]={
 };
 const int OBJECT_TYPE_NAMES_COUNT=5;
 
-gc_object* gc_root=NULL;
-gc_state_type gc_state=gcs_inactive;
+gc_Object* gc_root=NULL;
+gc_StateType gc_state=gcs_inactive;
 int allocations_count=0;
 
-void gc_object_init(gc_object* gco){
+void gc_object_init(gc_Object* gco){
     gco->ref_count=0;
     if(gc_root!=NULL){
         gc_root->previous=gco;
@@ -25,8 +25,8 @@ void gc_object_init(gc_object* gco){
 }
 
 #define OBJECT_NEW(t, body) \
-    object* new_##t(){  \
-        object* o=malloc(sizeof(object)); \
+    Object* new_##t(){  \
+        Object* o=malloc(sizeof(Object)); \
         CHECK_ALLOCATION(o); \
         o->type=t_##t;\
         body \
@@ -35,7 +35,7 @@ void gc_object_init(gc_object* gco){
     }
 
 #define OBJECT_INIT(t, body) \
-    void t##_init (object* o){  \
+    void t##_init (Object* o){  \
         o->type=t_##t; \
         body \
     }
@@ -48,7 +48,7 @@ void gc_object_init(gc_object* gco){
 OBJECT_INIT_NEW(null,)
 OBJECT_INIT_NEW(number,)
 OBJECT_INIT_NEW(function,
-    o->fp=malloc(sizeof(function));
+    o->fp=malloc(sizeof(Function));
     CHECK_ALLOCATION(o->fp);
     gc_object_init(o->gco);
     o->gco->gc_type=t_function;
@@ -61,7 +61,7 @@ OBJECT_INIT_NEW(function,
 )
 OBJECT_INIT_NEW(string,)
 OBJECT_INIT_NEW(table,
-    o->tp=malloc(sizeof(table));
+    o->tp=malloc(sizeof(Table));
     CHECK_ALLOCATION(o->tp);
     gc_object_init(o->gco);
     o->gco->gc_type=t_table;
@@ -78,39 +78,39 @@ OBJECT_INIT_NEW(gc_pointer,
 #undef OBJECT_INIT
 #undef OBJECT_INIT_NEW
 
-object to_string(const char* s){
-    object o; 
+Object to_string(const char* s){
+    Object o; 
     string_init(&o);
-    /* String object can contain const string as long as it doesn't dereference it.
+    /* String Object can contain const string as long as it doesn't dereference it.
     If some object takes ownership over the string it will copy it by calling reference function.
     This way strings are allocated dynamically only if it's needed. */
     o.text=(char*)s;
     return o;
 }
 
-object to_number(float n){
-    object o; 
+Object to_number(float n){
+    Object o; 
     number_init(&o); 
     o.value=n;
     return o;
 }
 
-object to_gc_pointer(gc_pointer* p){
-    object o;
+Object to_gc_pointer(gc_pointer* p){
+    Object o;
     o.type=t_gc_pointer;
     o.gcp=p;
     return o;
 }
 
-object to_pointer(void* p){
-    object o; 
+Object to_pointer(void* p){
+    Object o; 
     pointer_init(&o); 
     o.p=p;
     return o;
 }
 
-object to_function(object_system_function f, char** argument_names, int arguments_count){
-    object o;
+Object to_function(ObjectSystemFunction f, char** argument_names, int arguments_count){
+    Object o;
     function_init(&o);
     
     o.fp->native_pointer=f;
@@ -119,13 +119,13 @@ object to_function(object_system_function f, char** argument_names, int argument
     return o;
 }
 
-object null_const={t_null};
+Object null_const={t_null};
 
-bool is_gc_object(object o){
+bool is_gc_object(Object o){
     return o.type==t_table || o.type==t_function;
 }
 
-void gc_object_unchain(gc_object* o){
+void gc_object_unchain(gc_Object* o){
     if(gc_root==o){
         gc_root=o->next;
     }
@@ -137,7 +137,7 @@ void gc_object_unchain(gc_object* o){
     }
 }
 
-void reference(object* o){
+void reference(Object* o){
     if(is_gc_object(*o) && o->gco->ref_count!=ALREADY_DESTROYED){
         o->gco->ref_count++;
     } else if(o->type==t_string){
@@ -148,22 +148,22 @@ void reference(object* o){
     }
 }
 
-void print_allocated_objects(executor* Ex){
-    gc_object* o=gc_root;
+void print_allocated_objects(Executor* E){
+    gc_Object* o=gc_root;
     while(o){
-        object wrapped={o->gc_type};
+        Object wrapped={o->gc_type};
         wrapped.gco=o;
-        USING_STRING(stringify(Ex, wrapped),
+        USING_STRING(stringify(E, wrapped),
             printf("%s\tref_count: %i\n", str, o->ref_count))
         o=o->next;
     }
 }
 
-void gc_mark(object o){
+void gc_mark(Object o){
     if(o.type==t_table){
         o.tp->gco.marked=true;
-        table_iterator it=start_iteration(o.tp);
-        for(iteration_result i=table_next(&it); !i.finished; i=table_next(&it)) {
+        TableIterator it=start_iteration(o.tp);
+        for(IterationResult i=table_next(&it); !i.finished; i=table_next(&it)) {
             gc_mark(i.key);
             gc_mark(i.value);
         }
@@ -174,19 +174,19 @@ void gc_mark(object o){
 }
 
 void gc_unmark_all(){
-    gc_object* o=gc_root;
+    gc_Object* o=gc_root;
     while(o){
         o->marked=false;
         o=o->next;
     }
 }
 
-void gc_sweep(executor* Ex){
-    gc_object* o=gc_root;
+void gc_sweep(Executor* E){
+    gc_Object* o=gc_root;
     #define FOREACH_GC_OBJECT(body) \
         o=gc_root; \
         while(o){ \
-            gc_object* next=o->next; \
+            gc_Object* next=o->next; \
             if(!o->marked){ \
                 body \
             } \
@@ -199,7 +199,7 @@ void gc_sweep(executor* Ex){
         if(o->ref_count>0){
             o->ref_count=0;
         }
-        gc_dereference(Ex, o);
+        gc_dereference(E, o);
     )
     // reset ref_count for the third pass to work
     FOREACH_GC_OBJECT(
@@ -208,7 +208,7 @@ void gc_sweep(executor* Ex){
     gc_state=gcs_freeing_memory;
     // free the memory
     FOREACH_GC_OBJECT(
-       gc_dereference(Ex, o);
+       gc_dereference(E, o);
     )
     gc_state=gcs_inactive;
     #undef FOREACH_GC_OBJECT
@@ -218,29 +218,29 @@ bool gc_should_run(){
     return allocations_count>MAX_ALLOCATIONS;
 }
 
-void gc_run(executor*Ex, object* roots, int roots_count){
+void gc_run(Executor*E, Object* roots, int roots_count){
     gc_unmark_all();
     for(int i=0; i<roots_count; i++){
         gc_mark(roots[i]);
     }
-    gc_sweep(Ex);
+    gc_sweep(E);
 }
 
 char* gc_text="<garbage collected text>";
 
-void gc_dereference(executor* Ex, gc_object* o){
-    object wrapped;
+void gc_dereference(Executor* E, gc_Object* o){
+    Object wrapped;
     wrapped.type=o->gc_type;
     wrapped.gco=o;
-    dereference(Ex, &wrapped);
+    dereference(E, &wrapped);
 }
 
-void dereference(executor* Ex, object* o){
+void dereference(Executor* E, Object* o){
     CHECK_OBJECT(o)
     if(is_gc_object(*o)) {
         if(o->gco->ref_count!=ALREADY_DESTROYED){
             o->gco->ref_count--;
-            destroy_unreferenced(Ex, o);
+            destroy_unreferenced(E, o);
         }
     } else if(o->type==t_string){
         if(gc_state!=gcs_deinitializing){
@@ -250,17 +250,17 @@ void dereference(executor* Ex, object* o){
     }
 }
 
-void destroy_unreferenced(executor* Ex, object* o){
+void destroy_unreferenced(Executor* E, Object* o){
     if(is_gc_object(*o) && o->gco->ref_count<=0){
         o->gco->ref_count=ALREADY_DESTROYED;
         switch(o->type){
             case t_function:
             {
-                dereference(Ex, &o->fp->enclosing_scope);
+                dereference(E, &o->fp->enclosing_scope);
 
                 // in freeing memory stage the function environment will free itself
                 if(o->fp->environment!=NULL && gc_state!=gcs_freeing_memory){
-                    gc_dereference(Ex, (gc_object*)o->fp->environment);
+                    gc_dereference(E, (gc_Object*)o->fp->environment);
                 }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(o->gco);
@@ -278,8 +278,8 @@ void destroy_unreferenced(executor* Ex, object* o){
             case t_table:
             {
                 if(gc_state!=gcs_freeing_memory){
-                    call_destroy(Ex, *o);
-                    dereference_children_table(Ex, o->tp);
+                    call_destroy(E, *o);
+                    dereference_children_table(E, o->tp);
                 }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(o->gco);
@@ -306,10 +306,10 @@ void object_system_init(){
     reference(&patching_table);
 }
 
-void object_system_deinit(executor* Ex){
+void object_system_deinit(Executor* E){
     // patching table might be used by destructors
-    gc_run(Ex, &patching_table, 1);
+    gc_run(E, &patching_table, 1);
 
     patching_table.gco->ref_count=0;
-    destroy_unreferenced(Ex, &patching_table);
+    destroy_unreferenced(E, &patching_table);
 }

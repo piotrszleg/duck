@@ -1,10 +1,10 @@
 #include "object_utility.h"
 
-void set_function(executor* Ex, object t, const char* name, int arguments_count, bool variadic, object_system_function f){
-    object function_object;
+void set_function(Executor* E, Object t, const char* name, int arguments_count, bool variadic, ObjectSystemFunction f){
+    Object function_object;
     function_init(&function_object);
     function_object.fp->arguments_count=arguments_count;
     function_object.fp->variadic=variadic;
     function_object.fp->native_pointer=f;
-    set(Ex, t, to_string(name), function_object);
+    set(E, t, to_string(name), function_object);
 }

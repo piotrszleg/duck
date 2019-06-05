@@ -4,35 +4,35 @@
 #include "object_operations.h"
 #include "../error/error.h"
 
-struct executor {
+struct Executor {
 void* nothing;
 };
 
-object call_function(executor* Ex, function* f, object* arguments, int arguments_count){
+Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count){
     if(f->ftype==f_native){
-        return f->native_pointer(Ex, arguments, arguments_count);
+        return f->native_pointer(E, arguments, arguments_count);
     } else {
         THROW_ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
         return null_const;
     }
 }
 
-void deinit_function(function* f){}
+void deinit_function(Function* f){}
 
-void get_execution_info(executor* Ex, char* buffer, int buffer_count){
+void get_execution_info(Executor* E, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
 }
 
-void assert_stringification(executor* Ex, object o, char* expected){
-    assert(strcmp(stringify(Ex, o), expected)==0);
+void assert_stringification(Executor* E, Object o, char* expected){
+    assert(strcmp(stringify(E, o), expected)==0);
 }
 
 void test_error_catching(){
     printf("TEST: %s\n", __FUNCTION__);
 
     TRY_CATCH(
-        object o;
-        o.type=(object_type)100;
+        Object o;
+        o.type=(ObjectType)100;
         is_falsy(o);// o has incorrect type value which should cause an error
     ,
         // TODO fix error type
@@ -43,84 +43,84 @@ void test_error_catching(){
     assert(0);// there should be an error catched in the block above
 }
 
-void adding_numbers(executor* Ex){// tests whether 1+2=3
+void adding_numbers(Executor* E){// tests whether 1+2=3
     printf("TEST: %s\n", __FUNCTION__);
     
-    object num1;
+    Object num1;
     number_init(&num1);
     num1.value=1;
-    object num2;
+    Object num2;
     number_init(&num2);
     num2.value=2;
-    assert_stringification(Ex, operator(Ex, num1, num2, "+"), "3");
+    assert_stringification(E, operator(E, num1, num2, "+"), "3");
 
-    dereference(Ex, &num1);
-    dereference(Ex, &num2);
+    dereference(E, &num1);
+    dereference(E, &num2);
     printf("test successful\n");
 }
 
-void adding_strings(executor* Ex){// tests whether "Hello "+"Cruel World"="Hello Cruel World"
+void adding_strings(Executor* E){// tests whether "Hello "+"Cruel World"="Hello Cruel World"
     printf("TEST: %s\n", __FUNCTION__);
     
-    object str1;
+    Object str1;
     string_init(&str1);
     str1.text="Hello ";
-    object str2;
+    Object str2;
     string_init(&str2);
     str2.text="Cruel World";
-    assert_stringification(Ex, (operator(Ex, str1, str2, "+")), "Hello Cruel World");
+    assert_stringification(E, (operator(E, str1, str2, "+")), "Hello Cruel World");
 
-    dereference(Ex, &str1);
-    dereference(Ex, &str2);
+    dereference(E, &str1);
+    dereference(E, &str2);
     printf("test successful\n");
 }
 
-object add_three(executor* Ex, object* arguments, int arguments_count){
+Object add_three(Executor* E, Object* arguments, int arguments_count){
     assert(arguments_count==1);
-    object three;
+    Object three;
     number_init(&three);
     three.value=3;
-    object result= operator(Ex, arguments[0], three, "+");
-    dereference(Ex, &three);
+    Object result= operator(E, arguments[0], three, "+");
+    dereference(E, &three);
     return result;
 }
 
-void function_calling(executor* Ex){// tests whether f(5)==8 where f(x)=x+3
+void function_calling(Executor* E){// tests whether f(5)==8 where f(x)=x+3
     printf("TEST: %s\n", __FUNCTION__);
 
-    object f;
+    Object f;
     function_init(&f);
     f.fp->native_pointer=add_three;
     f.fp->ftype=f_native;
     f.fp->arguments_count=1;
 
-    object five;
+    Object five;
     number_init(&five);
     five.value=5;
 
-    object arguments[]={five};
+    Object arguments[]={five};
 
-    assert_stringification(Ex, call(Ex, f, arguments, 1), "8");
+    assert_stringification(E, call(E, f, arguments, 1), "8");
 
-    dereference(Ex, &f);
-    dereference(Ex, &five);
+    dereference(E, &f);
+    dereference(E, &five);
     printf("test successful\n");
 }
 
-void table_indexing(executor* Ex){// t["name"]="John" => t["name"]=="John"
+void table_indexing(Executor* E){// t["name"]="John" => t["name"]=="John"
     printf("TEST: %s\n", __FUNCTION__);
-    object t;
+    Object t;
     table_init(&t);
 
     STRING_OBJECT(name_key, "name");
 
     // test if setting works
     #define TEST_SET(key, value) \
-        set(Ex, t, key, value); \
-        assert(compare(get(Ex, t, key), value)==0);
+        set(E, t, key, value); \
+        assert(compare(get(E, t, key), value)==0);
 
     // getting variable at key that wasn't set before should return null
-    #define TEST_EMPTY(key) assert(get(Ex, t, key).type==t_null);
+    #define TEST_EMPTY(key) assert(get(E, t, key).type==t_null);
 
     TEST_EMPTY(name_key)
     TEST_SET(name_key, to_string("John"))
@@ -130,41 +130,41 @@ void table_indexing(executor* Ex){// t["name"]="John" => t["name"]=="John"
     TEST_EMPTY(to_number(1))
     TEST_SET(to_number(1), to_number(2))
 
-    dereference(Ex, &t);// deleting t will also delete n
+    dereference(E, &t);// deleting t will also delete n
     printf("test successful\n");
 }
 
-void adding_number_string(executor* Ex){// tests whether "count: "+5="count: 5"
+void adding_number_string(Executor* E){// tests whether "count: "+5="count: 5"
     printf("TEST: %s\n", __FUNCTION__);
 
-    object str;
+    Object str;
     string_init(&str);
     str.text="count: ";
 
-    object num;
+    Object num;
     number_init(&num);
     num.value=5;
-    assert_stringification(Ex, operator(Ex, str, num, "+"), "count: 5");
+    assert_stringification(E, operator(E, str, num, "+"), "count: 5");
 
-    dereference(Ex, &num);
-    dereference(Ex, &str);
+    dereference(E, &num);
+    dereference(E, &str);
     printf("test successful\n");
 }
 
 int main(){
-    executor Ex;
+    Executor E;
     TRY_CATCH(
         // TODO test error objects
-        object_system_init(&Ex);
-        test_error_catching(&Ex);
-        adding_numbers(&Ex);
-        adding_strings(&Ex);
-        function_calling(&Ex);
-        table_indexing(&Ex);
-        adding_number_string(&Ex);
+        object_system_init(&E);
+        test_error_catching(&E);
+        adding_numbers(&E);
+        adding_strings(&E);
+        function_calling(&E);
+        table_indexing(&E);
+        adding_number_string(&E);
     ,
         printf(err_message);
         exit(-1);
     )
-    object_system_deinit(&Ex);
+    object_system_deinit(&E);
 }

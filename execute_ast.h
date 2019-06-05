@@ -9,6 +9,6 @@
 #include "error/execution_state.h"
 #include "utility.h"
 
-object execute_ast(executor* Ex, expression* exp, object scope, int keep_scope);
+Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope);
 
 #endif

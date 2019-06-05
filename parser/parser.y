@@ -62,7 +62,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %token <sval> PREFIX_OPERATOR
 
 %type <exp> block;
-%type <exp> table;
+%type <exp> Table;
 %type <exp> table_contents;
 %type <exp> path;
 %type <exp> lines_with_return;
@@ -146,7 +146,7 @@ table_contents:
 		$$->type=e_table_literal;
 	}
 	;
-table:
+Table:
 	'[' OPT_ENDLS table_contents OPT_ENDLS ']' { 
 		$$=$3;
 	}
@@ -177,7 +177,7 @@ expression:
 	| parentheses
 	| literal
 	| block
-	| table
+	| Table
 	| path
 	| assignment
 	| call

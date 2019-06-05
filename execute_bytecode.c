@@ -1,30 +1,30 @@
 #include "execute_bytecode.h"
 
-void push(stack* stack, object o){
+void push(stack* stack, Object o){
     reference(&o);
     stack_push(stack, (const void*)(&o));
 }
 
-object pop(stack* stack){
+Object pop(stack* stack){
     void* pop_result=stack_pop(stack);
-    object* o=pop_result;
+    Object* o=pop_result;
     return *o;
 }
 
-object peek(stack* stack){
-    return *(object*)stack_top(stack);
+Object peek(stack* stack){
+    return *(Object*)stack_top(stack);
 }
 
-char* stringify_object_stack(executor* Ex, const stack* s){
+char* stringify_object_stack(Executor* E, const stack* s){
     int pointer=0;
     int string_end=0;
     int result_size=64;
     char* result=calloc(64, sizeof(char));
     CHECK_ALLOCATION(result);
     
-    object* casted_items=(object*)s->items;
+    Object* casted_items=(Object*)s->items;
     while(pointer<s->top){
-        char* stringified_item=stringify(Ex, *(casted_items+pointer));
+        char* stringified_item=stringify(E, *(casted_items+pointer));
         int stringified_length=strlen(stringified_item);
         if(result_size-string_end+2<=stringified_length){// +2 for separator
             result_size*=2;
@@ -40,7 +40,7 @@ char* stringify_object_stack(executor* Ex, const stack* s){
 }
 
 #define INITIAL_LABELS_COUNT 4
-int* list_labels(instruction* code){
+int* list_labels(Instruction* code){
     int* labels=malloc(INITIAL_LABELS_COUNT*sizeof(int));
     int labels_count=INITIAL_LABELS_COUNT;
     int pointer=0;
@@ -57,51 +57,51 @@ int* list_labels(instruction* code){
     return labels;
 }
 
-void list_program_labels(bytecode_program* program){
+void list_program_labels(BytecodeProgram* program){
     program->labels=list_labels(program->code);
     for(int i=0; i<program->sub_programs_count; i++){
         list_program_labels(&program->sub_programs[i]);
     }
 }
 
-void move_to_function(executor* Ex, function* f, bool termainate){
-    // create and push return_point pointing to current location
-    return_point rp;
-    rp.program=Ex->bytecode_env.program;
-    rp.pointer=Ex->bytecode_env.pointer;
-    rp.scope=Ex->bytecode_env.scope;
-    rp.terminate=termainate;
-    stack_push(&Ex->bytecode_env.return_stack, &rp);
+void move_to_function(Executor* E, Function* f, bool termainate){
+    // create and push ReturnPoint pointing to current location
+    ReturnPoint return_point;
+    return_point.program=E->bytecode_environment.program;
+    return_point.pointer=E->bytecode_environment.pointer;
+    return_point.scope=E->bytecode_environment.scope;
+    return_point.terminate=termainate;
+    stack_push(&E->bytecode_environment.return_stack, &return_point);
 
-    object function_scope;
+    Object function_scope;
     table_init(&function_scope);
     if(f->enclosing_scope.type!=t_null){
-        inherit_scope(Ex, function_scope, f->enclosing_scope);
+        inherit_scope(E, function_scope, f->enclosing_scope);
     }
-    Ex->bytecode_env.scope=function_scope;
-    Ex->bytecode_env.program=f->source_pointer;
-    Ex->bytecode_env.pointer=0;
+    E->bytecode_environment.scope=function_scope;
+    E->bytecode_environment.program=f->source_pointer;
+    E->bytecode_environment.pointer=0;
 }
 
-void bytecode_environment_init(bytecode_environment* environment){
+void bytecode_environment_init(BytecodeEnvironment* environment){
     list_program_labels(environment->program);
     
     vector_init(&environment->debugger.breakpoints);
 
     environment->debugger.running=false;
-    stack_init(&environment->object_stack, sizeof(object), STACK_SIZE);
+    stack_init(&environment->object_stack, sizeof(Object), STACK_SIZE);
     push(&environment->object_stack, null_const);
-    stack_init(&environment->return_stack, sizeof(return_point), STACK_SIZE);
+    stack_init(&environment->return_stack, sizeof(ReturnPoint), STACK_SIZE);
 }
 
-void free_labels(bytecode_program* program){
+void free_labels(BytecodeProgram* program){
     free(program->labels);
     for(int i=0; i<program->sub_programs_count; i++){
         free_labels(&program->sub_programs[i]);
     }
 }
 
-void bytecode_environment_free(bytecode_environment* environment){
+void bytecode_environment_free(BytecodeEnvironment* environment){
     for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
         free(vector_get(&environment->debugger.breakpoints, i));
     }
@@ -114,16 +114,16 @@ void bytecode_environment_free(bytecode_environment* environment){
     free(environment);
 }
 
-object evaluate_string(executor* Ex, const char* s, object scope);
+Object evaluate_string(Executor* E, const char* s, Object scope);
 
-void debugger(executor* Ex){
-    bytecode_environment* environment=&Ex->bytecode_env;
+void debugger(Executor* E){
+    BytecodeEnvironment* environment=&E->bytecode_environment;
     if(environment->debugger.running){
         for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-            breakpoint* br=(breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+            Breakpoint* br=(Breakpoint*)vector_get(&environment->debugger.breakpoints, i);
 
-            if(strcmp(Ex->file, br->file)==0
-            && Ex->line==br->line) {
+            if(strcmp(E->file, br->file)==0
+            && E->line==br->line) {
                 environment->debugger.running=false;
             }
         }
@@ -153,35 +153,35 @@ void debugger(executor* Ex){
         )
         COMMAND("position",
             char e_info[128];
-            get_execution_info(Ex, e_info, sizeof(e_info));
+            get_execution_info(E, e_info, sizeof(e_info));
             printf("%s\n", e_info);
         )
         COMMAND("memory",
             print_allocated_objects();
         )
         COMMAND("stack",
-            USING_STRING(stringify_object_stack(Ex, &environment->object_stack),
+            USING_STRING(stringify_object_stack(E, &environment->object_stack),
                 printf("%s\n", str));
         )
         COMMAND("scope",
-            USING_STRING(stringify(Ex, environment->scope),
+            USING_STRING(stringify(E, environment->scope),
                 printf("%s\n", str));
         )
         COMMAND_PARAMETERIZED("eval", 
-            object result=evaluate_string(Ex, parameter, environment->scope);
-            USING_STRING(stringify(Ex, result),
+            Object result=evaluate_string(E, parameter, environment->scope);
+            USING_STRING(stringify(E, result),
                 printf("%s\n", str));
-            dereference(Ex, &result);
+            dereference(E, &result);
             return;
         )
         COMMAND("breakpoints", 
             for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-                breakpoint* br=(breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+                Breakpoint* br=(Breakpoint*)vector_get(&environment->debugger.breakpoints, i);
                 printf("%s:%i\n", br->file, br->line);
             }
         )
         COMMAND_PARAMETERIZED("break",
-            breakpoint* b=malloc(sizeof(breakpoint));
+            Breakpoint* b=malloc(sizeof(Breakpoint));
             CHECK_ALLOCATION(b)
 
             // parameter has syntax file:line_number
@@ -202,7 +202,7 @@ void debugger(executor* Ex){
             return;
         )
         COMMAND_PARAMETERIZED("remove",
-            breakpoint b;
+            Breakpoint b;
 
             int i=0;
             while(parameter[i]!=':' && parameter[i]!='\0') i++;
@@ -218,7 +218,7 @@ void debugger(executor* Ex){
             b.line=atoi(parameter+i+1);
 
             for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-                breakpoint* br=(breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+                Breakpoint* br=(Breakpoint*)vector_get(&environment->debugger.breakpoints, i);
                 if(strcmp(br->file, b.file)==0 && br->line==b.line){
                     vector_delete(&environment->debugger.breakpoints, i);
                 }
@@ -232,38 +232,38 @@ void debugger(executor* Ex){
     }
 }
 
-object execute_bytecode(executor* Ex){
-    int* pointer=&Ex->bytecode_env.pointer;// points to the current instruction
+Object execute_bytecode(Executor* E){
+    int* pointer=&E->bytecode_environment.pointer;// points to the current Instruction
 
     while(true){
-        if(Ex->opt.debug_mode){
-            debugger(Ex);
+        if(E->options.debug_mode){
+            debugger(E);
         }
-        bytecode_program* program=Ex->bytecode_env.program;
-        stack* object_stack=&Ex->bytecode_env.object_stack;
-        stack* return_stack=&Ex->bytecode_env.return_stack;
-        instruction* code=program->code;
+        BytecodeProgram* program=E->bytecode_environment.program;
+        stack* object_stack=&E->bytecode_environment.object_stack;
+        stack* return_stack=&E->bytecode_environment.return_stack;
+        Instruction* code=program->code;
         void* constants=program->constants;
-        object* scope=&Ex->bytecode_env.scope;
+        Object* scope=&E->bytecode_environment.scope;
 
-        instruction instr=code[*pointer];
-        Ex->line=program->information[*pointer].line;
-        Ex->column=program->information[*pointer].column;
+        Instruction instr=code[*pointer];
+        E->line=program->information[*pointer].line;
+        E->column=program->information[*pointer].column;
         switch(instr.type){
             case b_discard:
             {
                 // remove item from the stack and delete it if it's not referenced
-                object top=pop(object_stack);
-                dereference(Ex, &top);
+                Object top=pop(object_stack);
+                dereference(E, &top);
                 break;
             }
             case b_no_op:
                 break;
-            #define INDEX_STACK(index) ((object*)object_stack->items)[object_stack->top-1-(index)]
+            #define INDEX_STACK(index) ((Object*)object_stack->items)[object_stack->top-1-(index)]
             case b_move_top:
             {
                 for(int i=0; i<instr.argument; i++){
-                    object temporary=INDEX_STACK(i);
+                    Object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i+1);
                     INDEX_STACK(i+1)=temporary;
                 }
@@ -272,7 +272,7 @@ object execute_bytecode(executor* Ex){
             case b_push_to_top:
             {
                 for(int i=instr.argument; i>=1; i--){
-                    object temporary=INDEX_STACK(i);
+                    Object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i-1);
                     INDEX_STACK(i-1)=temporary;
                 }
@@ -286,7 +286,7 @@ object execute_bytecode(executor* Ex){
             #undef INDEX_STACK
             case b_load_string:
             {
-                object s;
+                Object s;
                 string_init(&s);
                 s.text=strdup(((char*)constants)+instr.argument);
                 push(object_stack, s);
@@ -294,7 +294,7 @@ object execute_bytecode(executor* Ex){
             }
             case b_load_number:
             {
-                object n;
+                Object n;
                 number_init(&n);
                 memcpy (&n.value, &instr.argument, sizeof n.value);
                 push(object_stack, n);
@@ -302,7 +302,7 @@ object execute_bytecode(executor* Ex){
             }
             case b_table_literal:
             {
-                object t;
+                Object t;
                 table_init(&t);
                 push(object_stack, t);
                 break;
@@ -314,55 +314,55 @@ object execute_bytecode(executor* Ex){
             }
             case b_get:
             {
-                object key=pop(object_stack);
-                push(object_stack, get(Ex, *scope, key));
-                dereference(Ex, &key);
+                Object key=pop(object_stack);
+                push(object_stack, get(E, *scope, key));
+                dereference(E, &key);
                 break;
             }
             case b_table_get:
             {
-                object key=pop(object_stack);
-                object indexed=pop(object_stack);
-                push(object_stack, get(Ex, indexed, key));
-                dereference(Ex, &indexed);
-                dereference(Ex, &key);
+                Object key=pop(object_stack);
+                Object indexed=pop(object_stack);
+                push(object_stack, get(E, indexed, key));
+                dereference(E, &indexed);
+                dereference(E, &key);
                 break;
             }
             case b_set:
             {
-                object key=pop(object_stack);
-                object value=pop(object_stack);
-                push(object_stack, set(Ex, *scope, key, value));
-                dereference(Ex, &key);
-                dereference(Ex, &value);
+                Object key=pop(object_stack);
+                Object value=pop(object_stack);
+                push(object_stack, set(E, *scope, key, value));
+                dereference(E, &key);
+                dereference(E, &value);
                 break;
             }
             case b_table_set:
             {
-                object key=pop(object_stack);
-                object indexed=pop(object_stack);
-                object value=pop(object_stack);
-                push(object_stack, set(Ex, indexed, key, value));
-                dereference(Ex, &indexed);
-                dereference(Ex, &key);
-                dereference(Ex, &value);
+                Object key=pop(object_stack);
+                Object indexed=pop(object_stack);
+                Object value=pop(object_stack);
+                push(object_stack, set(E, indexed, key, value));
+                dereference(E, &indexed);
+                dereference(E, &key);
+                dereference(E, &value);
                 break;
             }
             case b_table_set_keep:
             {
-                object key=pop(object_stack);
-                object value=pop(object_stack);
-                object indexed=pop(object_stack);
-                object set_result=set(Ex, indexed, key, value);
+                Object key=pop(object_stack);
+                Object value=pop(object_stack);
+                Object indexed=pop(object_stack);
+                Object set_result=set(E, indexed, key, value);
                 push(object_stack, indexed);
-                dereference(Ex, &indexed);
+                dereference(E, &indexed);
 
                 // make sure that set_result will only be deleted
-                // if it is not the same object as value
-                destroy_unreferenced(Ex, &set_result);
+                // if it is not the same Object as value
+                destroy_unreferenced(E, &set_result);
 
-                dereference(Ex, &key);
-                dereference(Ex, &value);
+                dereference(E, &key);
+                dereference(E, &value);
                 break;
             }
             case b_get_scope:
@@ -372,11 +372,11 @@ object execute_bytecode(executor* Ex){
             }
             case b_set_scope:
             {
-                dereference(Ex, scope);
-                object o=pop(object_stack);
+                dereference(E, scope);
+                Object o=pop(object_stack);
                 if(o.type!=t_table){
-                    USING_STRING(stringify(Ex, o),
-                        THROW_ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, *pointer));
+                    USING_STRING(stringify(E, o),
+                        THROW_ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a Table, number of Instruction is: %i\n", str, *pointer));
                 } else {
                     reference(&o);
                     *scope=o;
@@ -385,82 +385,82 @@ object execute_bytecode(executor* Ex){
             }
             case b_new_scope:
             {
-                object t;
+                Object t;
                 table_init(&t);
-                inherit_scope(Ex, t, *scope);
+                inherit_scope(E, t, *scope);
                 reference(&t);
-                dereference(Ex, scope);
+                dereference(E, scope);
                 *scope=t;
                 break;
             }
             case b_binary:
             {
-                object op=pop(object_stack);
-                object a=pop(object_stack);
-                object b=pop(object_stack); 
-                push(object_stack, operator(Ex, a, b, stringify(Ex, op)));
-                dereference(Ex, &op);
-                dereference(Ex, &a);
-                dereference(Ex, &b);
+                Object op=pop(object_stack);
+                Object a=pop(object_stack);
+                Object b=pop(object_stack); 
+                push(object_stack, operator(E, a, b, stringify(E, op)));
+                dereference(E, &op);
+                dereference(E, &a);
+                dereference(E, &b);
                 break;
             }
             case b_prefix:
             {
-                object op=pop(object_stack);
-                object a=pop(object_stack);
-                push(object_stack, operator(Ex, a, null_const, stringify(Ex, op)));
-                dereference(Ex, &op);
-                dereference(Ex, &a);
+                Object op=pop(object_stack);
+                Object a=pop(object_stack);
+                push(object_stack, operator(E, a, null_const, stringify(E, op)));
+                dereference(E, &op);
+                dereference(E, &a);
                 break;
             }
             case b_jump_not:
             {
-                object condition=pop(object_stack);
+                Object condition=pop(object_stack);
                 if(!is_falsy(condition)){
-                    dereference(Ex, &condition);
+                    dereference(E, &condition);
                     break;// go to the next line
                 }
-                dereference(Ex, &condition);
+                dereference(E, &condition);
                 // else go to case label underneath
             }
             case b_jump:
             {
-                *pointer=Ex->bytecode_env.program->labels[instr.argument];
+                *pointer=E->bytecode_environment.program->labels[instr.argument];
                 break;
             }
             case b_function:
             {
-                object f;
+                Object f;
                 function_init(&f);
 
                 f.fp->environment=NULL;
 
                 f.fp->enclosing_scope=*scope;
                 reference(scope);// remember to check the enclosing scope in destructor
-                object arguments_count_object=pop(object_stack);
+                Object arguments_count_object=pop(object_stack);
                 if(arguments_count_object.type!=t_number){
-                    THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", *pointer);
+                    THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of Instruction is: %i\n", *pointer);
                     break;
                 }
                 f.fp->arguments_count=(int)arguments_count_object.value;
 
-                object variadic_object=pop(object_stack);
+                Object variadic_object=pop(object_stack);
                 f.fp->variadic=!is_falsy(variadic_object);
 
-                dereference(Ex, &variadic_object);
-                dereference(Ex, &arguments_count_object);
+                dereference(E, &variadic_object);
+                dereference(E, &arguments_count_object);
                 f.fp->ftype=f_bytecode;
-                f.fp->source_pointer=Ex->bytecode_env.program->sub_programs+instr.argument;
+                f.fp->source_pointer=E->bytecode_environment.program->sub_programs+instr.argument;
                 push(object_stack, f);
                 break;
             }
             case b_call:
             {
-                object o=pop(object_stack);
+                Object o=pop(object_stack);
                 int provided_arguments=instr.argument;
 
                 #define CALL_ERROR(message, ...) \
-                    object err; \
+                    Object err; \
                     NEW_ERROR(err, "CALL_ERROR", o, message, ##__VA_ARGS__); \
                     push(object_stack, err); \
                     break;
@@ -468,13 +468,13 @@ object execute_bytecode(executor* Ex){
                 if(o.type==t_null){
                     CALL_ERROR("Called function is null.");
                 }
-                // provided object isn't a function but it can be called through using monkey patching or table call field
+                // provided Object isn't a function but it can be called through using monkey patching or Table call field
                 if(o.type!=t_function){
-                    object* arguments=malloc(sizeof(object)*provided_arguments);
+                    Object* arguments=malloc(sizeof(Object)*provided_arguments);
                     for (int i = 0; i < provided_arguments; i++){
                         arguments[i]=pop(object_stack);
                     }
-                    push(object_stack, call(Ex, o, arguments, provided_arguments));
+                    push(object_stack, call(E, o, arguments, provided_arguments));
                     free(arguments);
                     break;
                 }
@@ -483,18 +483,18 @@ object execute_bytecode(executor* Ex){
                     switch(o.fp->special_index){
                         case 0:// coroutine
                         {
-                            bytecode_environment* new_environment=malloc(sizeof(bytecode_environment));
+                            BytecodeEnvironment* new_environment=malloc(sizeof(BytecodeEnvironment));
                             new_environment->pointer=0;
-                            new_environment->program=malloc(sizeof(bytecode_program));
-                            object subscope;
+                            new_environment->program=malloc(sizeof(BytecodeProgram));
+                            Object subscope;
                             table_init(&subscope);
                             inherit_scope(subscope, environment->scope);
-                            object gcp;
+                            Object gcp;
                             gcp.gcp=(gc_pointer*)new_environment;
-                            gcp.gcp->destructor=(gc_pointer_destructor)bytecode_environment_free;
+                            gcp.gcp->destructor=(gc_PointerDestructorFunction)bytecode_environment_free;
                             gc_pointer_init(&gcp);
 
-                            // create coroutine object
+                            // create coroutine Object
                             // set it's owner environment to this environment
                         }
                         case 1:// yield
@@ -526,12 +526,12 @@ object execute_bytecode(executor* Ex){
                 }
 
                 if(o.fp->ftype==f_native){
-                    object* arguments=malloc(sizeof(object)*provided_arguments);
+                    Object* arguments=malloc(sizeof(Object)*provided_arguments);
                     // items are on stack in reverse order, but native function expect them to be in normal order
                     for (int i = provided_arguments-1; i >= 0; i--){
                         arguments[i]=pop(object_stack);
                     }
-                    object call_result=o.fp->native_pointer(Ex, arguments, provided_arguments);
+                    Object call_result=o.fp->native_pointer(E, arguments, provided_arguments);
                     push(object_stack, call_result);
                     free(arguments);
                 } else{
@@ -539,22 +539,22 @@ object execute_bytecode(executor* Ex){
                         if(arguments_count_difference<-1){
                             CALL_ERROR("Not enough arguments in variadic function call, expected at least %i, given %i.", o.fp->arguments_count-1, provided_arguments);
                         }
-                        // pack variadic arguments into a table and push the table back onto the stack
+                        // pack variadic arguments into a Table and push the Table back onto the stack
                         int variadic_arguments_count=arguments_count_difference+1;
-                        object variadic_table;
+                        Object variadic_table;
                         table_init(&variadic_table);
                         for(int i=variadic_arguments_count-1; i>=0; i--){
-                            set(Ex, variadic_table, to_number(i), pop(object_stack));
+                            set(E, variadic_table, to_number(i), pop(object_stack));
                         }
                         push(object_stack, variadic_table);
                     }
                     if(o.fp->ftype==f_bytecode){
-                        move_to_function(Ex, o.fp, false);
+                        move_to_function(E, o.fp, false);
                         continue;// don't increment the pointer
                     } else if(o.fp->ftype==f_ast) {
                         CALL_ERROR("Can't call ast function from bytecode.");
                     } else {
-                        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of instruction is: %i\n", *pointer);
+                        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of Instruction is: %i\n", *pointer);
                     }
                 }
                 #undef CALL_ERROR
@@ -563,19 +563,19 @@ object execute_bytecode(executor* Ex){
             case b_end:
             case b_return:
             {
-                if(Ex->opt.debug_mode){
-                    debugger(Ex);
+                if(E->options.debug_mode){
+                    debugger(E);
                 }
                 if(return_stack->top==0){
                     return pop(object_stack);
                 } else {
-                    return_point* rp=stack_pop(return_stack);
-                    Ex->bytecode_env.program=rp->program;
-                    Ex->bytecode_env.pointer=rp->pointer;
-                    dereference(Ex, scope);
-                    *scope=rp->scope;
-                    if(rp->terminate){
-                        object last=pop(object_stack);
+                    ReturnPoint* return_point=stack_pop(return_stack);
+                    E->bytecode_environment.program=return_point->program;
+                    E->bytecode_environment.pointer=return_point->pointer;
+                    dereference(E, scope);
+                    *scope=return_point->scope;
+                    if(return_point->terminate){
+                        Object last=pop(object_stack);
                         return last;
                     }
                 }
@@ -584,7 +584,7 @@ object execute_bytecode(executor* Ex){
             case b_label:
                 break;
             default:
-                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, *pointer);
+                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode Instruction type: %i, number of Instruction is: %i\n", instr.type, *pointer);
         }
         (*pointer)++;
     }

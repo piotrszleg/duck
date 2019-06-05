@@ -6,7 +6,7 @@
 
 static const char* version="0.0.1";
 
-const options default_options={
+const Options default_options={
     .ast_only=false,
     .print_ast=false,
     .print_ast_optimisations=false,
@@ -18,16 +18,16 @@ const options default_options={
 };
 
 void handle_arguments(int argc, char **argv) {
-    options opt=default_options;
+    Options options=default_options;
     #define OPTIONS \
-        X("ast_only", opt.ast_only=true;) \
-        X("print_ast", opt.print_ast=true;) \
-        X("print_ast_optimisations", opt.print_ast_optimisations=true;) \
-        X("print_bytecode", opt.print_bytecode=true;) \
-        X("print_bytecode_optimisations", opt.print_bytecode_optimisations=true;) \
-        X("disable_ast_optimisations", opt.optimise_ast=false;) \
-        X("disable_bytecode_optimisations", opt.optimise_bytecode=false;) \
-        X("debug", opt.debug_mode=true;) \
+        X("ast_only", options.ast_only=true;) \
+        X("print_ast", options.print_ast=true;) \
+        X("print_ast_optimisations", options.print_ast_optimisations=true;) \
+        X("print_bytecode", options.print_bytecode=true;) \
+        X("print_bytecode_optimisations", options.print_bytecode_optimisations=true;) \
+        X("disable_ast_optimisations", options.optimise_ast=false;) \
+        X("disable_bytecode_optimisations", options.optimise_bytecode=false;) \
+        X("debug", options.debug_mode=true;) \
         X("version", printf(version); exit(0); )\
         X("?", printf("duck %s\nAllowed options are: \n-version\n-ast_only\n-disable_ast_optimisations\n-disable_bytecode_optimisations\n-debug\n-?\n" \
                        "You can either provide a file path or a read-eval-print loop is started.", version); \
@@ -59,14 +59,14 @@ void handle_arguments(int argc, char **argv) {
         }
     }
 
-    executor Ex;
-    Ex.opt=opt;
+    Executor E;
+    E.options=options;
     
     object_system_init();
     TRY_CATCH(
         if(file_path!=NULL){
             
-            execute_file(&Ex, file_path);
+            execute_file(&E, file_path);
         } else {
             repl();
         }
@@ -75,5 +75,5 @@ void handle_arguments(int argc, char **argv) {
         printf(err_message);
         exit(-1);
     );
-    object_system_deinit(&Ex);
+    object_system_deinit(&E);
 }

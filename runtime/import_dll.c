@@ -29,7 +29,7 @@ void* get_dll_handle(char* module_name){
         dlclose(lib_handle);
         //RETURN_ERROR("DLL_IMPORT_ERROR", null_const, dlerror())
 	}
-    module_init_t init_function = (module_init_t)dlsym(lib_handle, "duck_module_init");
+    ModuleInitFunction init_function = (ModuleInitFunction)dlsym(lib_handle, "duck_module_init");
     char *error;
     if ((error = dlerror()) != NULL) {
         dlclose(lib_handle);
@@ -59,17 +59,17 @@ void close_dll(void* dll_handle){
     #endif
 }
 
-object import_dll(executor* Ex, const char* module_name){
-    typedef object (*module_init_t) (executor*);
-    object result;
+Object import_dll(Executor* E, const char* module_name){
+    typedef Object (*ModuleInitFunction) (Executor*);
+    Object result;
     #ifdef WINDOWS
     HINSTANCE lib_handle = LoadLibrary(module_name);
 
     if(lib_handle != NULL) {
-        module_init_t init_function = (module_init_t)GetProcAddress(lib_handle, "duck_module_init");   
+        ModuleInitFunction init_function = (ModuleInitFunction)GetProcAddress(lib_handle, "duck_module_init");   
         
         if (init_function != NULL){
-            result=init_function(Ex);
+            result=init_function(E);
         } else {
             result=null_const;
         }
@@ -96,7 +96,7 @@ object import_dll(executor* Ex, const char* module_name){
         dlclose(lib_handle);
         RETURN_ERROR("DLL_IMPORT_ERROR", null_const, dlerror())
 	}
-    module_init_t init_function = (module_init_t)dlsym(lib_handle, "duck_module_init");
+    ModuleInitFunction init_function = (ModuleInitFunction)dlsym(lib_handle, "duck_module_init");
     char *error;
     if ((error = dlerror()) != NULL) {
         dlclose(lib_handle);

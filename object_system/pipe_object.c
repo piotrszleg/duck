@@ -1,25 +1,25 @@
 #include "pipe_object.h"
 
-object pipe_add(executor* Ex, object* arguments, int arguments_count){
-    object pipe=arguments[0];
-    object f=arguments[1];
-    object count=get(Ex, pipe, to_string("count"));
+Object pipe_add(Executor* E, Object* arguments, int arguments_count){
+    Object pipe=arguments[0];
+    Object f=arguments[1];
+    Object count=get(E, pipe, to_string("count"));
     if(count.type==t_number){
-        USING_STRING(stringify(Ex, count),
-            set(Ex, pipe, to_string(str), f));
+        USING_STRING(stringify(E, count),
+            set(E, pipe, to_string(str), f));
         count.value++;
-        set(Ex, pipe, to_string("count"), count);
+        set(E, pipe, to_string("count"), count);
     }
     return pipe;
 }
 
-object pipe_call(executor* Ex, object* arguments, int arguments_count){
-    object pipe=arguments[0];
-    object count=get(Ex, pipe, to_string("count"));
+Object pipe_call(Executor* E, Object* arguments, int arguments_count){
+    Object pipe=arguments[0];
+    Object count=get(E, pipe, to_string("count"));
 
-    object* subfunction_arguments=arguments+1;
+    Object* subfunction_arguments=arguments+1;
     int subfunction_arguments_count=arguments_count-1;
-    object previous_result;
+    Object previous_result;
 
     if(count.type==t_number){
         for(int i=0; i<count.value; i++){
@@ -29,24 +29,24 @@ object pipe_call(executor* Ex, object* arguments, int arguments_count){
                 subfunction_arguments=&previous_result;
                 subfunction_arguments_count=1;
             }
-            previous_result=call(Ex, get(Ex, pipe, to_string(buffer)), subfunction_arguments, subfunction_arguments_count);
+            previous_result=call(E, get(E, pipe, to_string(buffer)), subfunction_arguments, subfunction_arguments_count);
         }
     }
     return previous_result;
 }
 
-object new_pipe(executor* Ex, object f1, object f2){
-    object pipe;
+Object new_pipe(Executor* E, Object f1, Object f2){
+    Object pipe;
     table_init(&pipe);
-    object count;
+    Object count;
     number_init(&count);
     count.value=2;
-    set(Ex, pipe, to_string("count"), count);
-    set(Ex, pipe, to_string("0"), f1);
-    set(Ex, pipe, to_string("1"), f2);
+    set(E, pipe, to_string("count"), count);
+    set(E, pipe, to_string("0"), f1);
+    set(E, pipe, to_string("1"), f2);
 
-    set_function(Ex, pipe, ">>", 2, false, pipe_add);
-    set_function(Ex, pipe, "call", 2, true, pipe_call);
+    set_function(E, pipe, ">>", 2, false, pipe_add);
+    set_function(E, pipe, "call", 2, true, pipe_call);
 
     return pipe;
 }

@@ -5,11 +5,11 @@
         printf(message, ##__VA_ARGS__); \
     }
 
-bool is_path_part(instruction instr){
+bool is_path_part(Instruction instr){
     return  instr.type==b_get || instr.type==b_table_get || instr.type==b_load_string;
 }
 
-int path_length(const instruction* code,  int path_start){
+int path_length(const Instruction* code,  int path_start){
     if(code[path_start].type!=b_get && code[path_start].type!=b_set){
         return 0;// path must start with either set or get
     }
@@ -18,7 +18,7 @@ int path_length(const instruction* code,  int path_start){
     return p;
 }
 
-/*int path_length(const instruction* code,  int path_start){
+/*int path_length(const Instruction* code,  int path_start){
     if(code[path_start].type!=b_get && code[path_start].type!=b_set){
         return 0;// path must start with either set or get
     }
@@ -34,11 +34,11 @@ int path_length(const instruction* code,  int path_start){
     }
 }*/
 
-bool instructions_equal(instruction a, instruction b){
+bool instructions_equal(Instruction a, Instruction b){
     return a.type==b.type && a.argument == b.argument;
 }
 
-bool paths_equal(const instruction* code, int path1, int path2){
+bool paths_equal(const Instruction* code, int path1, int path2){
     int p=0;
     while(is_path_part(code[path1+p]) && is_path_part(code[path2+p])){
         if(!instructions_equal(code[path1+p], code[path2+p])){
@@ -49,16 +49,16 @@ bool paths_equal(const instruction* code, int path1, int path2){
     return true;
 }
 
-int count_instructions(instruction* code){
+int count_instructions(Instruction* code){
     int p=0;
     for(; code[p].type!=b_end; p++);
     return p;
 }
 
-void move_instructions(bytecode_program* prog, int starting_index, int movement){
+void move_instructions(BytecodeProgram* prog, int starting_index, int movement){
     int initial_count=count_instructions(prog->code);
     int moved_count=initial_count+movement;
-    instruction* new_code=malloc((moved_count+1)*sizeof(instruction));
+    Instruction* new_code=malloc((moved_count+1)*sizeof(Instruction));
 
     //if(print_optimisations)
     //    printf("move_instructions(%i, %i)\n", starting_index, movement);
@@ -70,12 +70,12 @@ void move_instructions(bytecode_program* prog, int starting_index, int movement)
             new_code[i]=prog->code[i-movement];
         }
     }
-    instruction end_instruction={b_end, 0};
+    Instruction end_instruction={b_end, 0};
     new_code[moved_count]=end_instruction;
     prog->code=new_code;
 }
 
-void highlight_instructions(bytecode_program* prog, char symbol, int start, int end){
+void highlight_instructions(BytecodeProgram* prog, char symbol, int start, int end){
     stream s;
     init_stream(&s, 64);
 
@@ -99,7 +99,7 @@ void highlight_instructions(bytecode_program* prog, char symbol, int start, int 
     free(stream_get_data(&s));
 }
 
-void insert_instruction(bytecode_program* prog, int point, instruction instr, bool print_optimisations){
+void insert_instruction(BytecodeProgram* prog, int point, Instruction instr, bool print_optimisations){
     move_instructions(prog, point-1, 1);
     prog->code[point]=instr;
     if(print_optimisations){
@@ -107,15 +107,15 @@ void insert_instruction(bytecode_program* prog, int point, instruction instr, bo
     }
 }
 
-void remove_instructions(bytecode_program* prog, int start, int end, bool print_optimisations){
+void remove_instructions(BytecodeProgram* prog, int start, int end, bool print_optimisations){
     move_instructions(prog, end, start-end-1);// remove get path instructions
 }
 
-void fill_with_no_op(bytecode_program* prog, int start, int end, bool print_optimisations){
+void fill_with_no_op(BytecodeProgram* prog, int start, int end, bool print_optimisations){
     if(print_optimisations){
         highlight_instructions(prog, '-', start, end);
     }
-    instruction instr={b_no_op, 0};
+    Instruction instr={b_no_op, 0};
     
     for(int p=start; p<=end; p++){
         prog->code[p]=instr;
@@ -128,22 +128,22 @@ will be on top of the stack after end and all instructions between start and end
 still work correctly
 returns numbers of operations added
 */
-int keep_stack_top_unchanged(bytecode_program* prog, int start, int end, bool print_optimisations){
+int keep_stack_top_unchanged(BytecodeProgram* prog, int start, int end, bool print_optimisations){
     int instructions_added=0;
     // count how many objects are pushed to the stack and how many are taken from it
     int counter=0;
     for(int pointer=start; pointer<=end; pointer++){
         int stack_top_postion=counter;
         counter-=gets_from_stack(prog->code[pointer]);
-        // if the instruction takes more from the stack than was placed
+        // if the Instruction takes more from the stack than was placed
         // before start, then we need to move the current stack top back,
         // because it certainly wants the values placed on stack before start point
         if(counter<0){
             while(counter<0){
-                instruction push_to_top_instruction={b_push_to_top, stack_top_postion-counter};
+                Instruction push_to_top_instruction={b_push_to_top, stack_top_postion-counter};
                 insert_instruction(prog, pointer, push_to_top_instruction, print_optimisations);
                 instructions_added++;
-                // the instruction was added after the pointer, so it needs to be skipped
+                // the Instruction was added after the pointer, so it needs to be skipped
                 // also the end needs to be moved to compensate for that
                 pointer++;
                 end++;
@@ -153,7 +153,7 @@ int keep_stack_top_unchanged(bytecode_program* prog, int start, int end, bool pr
             // in the while block, so they need to be pushed back to the top so that the order
             // is preserved
             for(int i=0; i<stack_top_postion; i++){
-                instruction push_to_top_instruction={b_push_to_top, stack_top_postion};
+                Instruction push_to_top_instruction={b_push_to_top, stack_top_postion};
                 insert_instruction(prog, pointer, push_to_top_instruction, print_optimisations);
                 instructions_added++;
                 pointer++;
@@ -163,16 +163,16 @@ int keep_stack_top_unchanged(bytecode_program* prog, int start, int end, bool pr
         counter+=pushes_to_stack(prog->code[pointer].type);
     }
     if(counter>0){
-        // add push_to_top instruction that moves the object that was on top of the stack
+        // add push_to_top Instruction that moves the object that was on top of the stack
         // before start point back to the top
-        instruction push_to_top_instruction={b_push_to_top, counter};
+        Instruction push_to_top_instruction={b_push_to_top, counter};
         insert_instruction(prog, end+1, push_to_top_instruction, print_optimisations);
         instructions_added++;
     }
     return instructions_added;
 }
 
-void remove_no_ops(bytecode_program* prog, bool print_optimisations){
+void remove_no_ops(BytecodeProgram* prog, bool print_optimisations){
     int block_start=0;
     bool inside_block=false;
     for(int p=0; prog->code[p].type!=b_end; p++){
@@ -190,7 +190,7 @@ void remove_no_ops(bytecode_program* prog, bool print_optimisations){
     }
 }
 
-void optimise_bytecode(bytecode_program* prog, bool print_optimisations){
+void optimise_bytecode(BytecodeProgram* prog, bool print_optimisations){
     for(int i=0; i<prog->sub_programs_count; i++){
         optimise_bytecode(&prog->sub_programs[i], print_optimisations);
     }
@@ -201,9 +201,9 @@ void optimise_bytecode(bytecode_program* prog, bool print_optimisations){
     for(int pointer=count_instructions(prog->code); pointer>=0; pointer--){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
            && !prog->code[pointer].argument /* argument tells whether the variable is used in closure, we can't tell if the closure changes the variable*/
-           && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
+           && path_length(prog->code, pointer)<=2){// don't optimise nested paths like Table.key, only single name paths
             if(print_optimisations){
-                printf("Found a set instruction\n");
+                printf("Found a set Instruction\n");
                 highlight_instructions(prog, '>', pointer-path_length(prog->code, pointer)+1, pointer);
             }
             bool first_get_removal=true;
@@ -220,18 +220,18 @@ void optimise_bytecode(bytecode_program* prog, bool print_optimisations){
                 }
                 if(prog->code[search_pointer].type==b_get && paths_equal(prog->code, pointer-1, search_pointer-1)){
                     if(print_optimisations){
-                        printf("Found a corresponding get instruction\n");
+                        printf("Found a corresponding get Instruction\n");
                         highlight_instructions(prog, '>', search_pointer-path_length(prog->code, pointer)+1, search_pointer);
                     }
                     // for now only single name variables are optimised
                     int get_path_length=2;//path_length(prog->code, search_pointer);
 
                     if(first_get_removal){
-                        LOG_IF_ENABLED("Removing discard instruction after set instruction:\n");
+                        LOG_IF_ENABLED("Removing discard Instruction after set Instruction:\n");
                         fill_with_no_op(prog, pointer+1, pointer+1, print_optimisations);
                         first_get_removal=false;
                     } else{
-                        instruction double_instruction={b_double, 0};
+                        Instruction double_instruction={b_double, 0};
                         insert_instruction(prog, pointer+1, double_instruction, print_optimisations);
                         search_pointer++;
                     }
@@ -245,7 +245,7 @@ void optimise_bytecode(bytecode_program* prog, bool print_optimisations){
             }
             if(!used){
                 // the variable isn't used in it's own scope and in any closure, so it can be removed
-                LOG_IF_ENABLED("Removing set instruction:\n");
+                LOG_IF_ENABLED("Removing set Instruction:\n");
                 fill_with_no_op(prog, pointer-path_length(prog->code, pointer)+1, pointer, print_optimisations);
             }
         }

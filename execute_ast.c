@@ -1,18 +1,18 @@
 #include "execute_ast.h"
 
-object path_get(executor* Ex, object scope, path p){
-    object current=scope;
+Object path_get(Executor* E, Object scope, path p){
+    Object current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
-        object object_at_name;
+        Object object_at_name;
         if(e->type==e_name){
-            object_at_name=get(Ex, current, to_string(((name*)e)->value));
+            object_at_name=get(E, current, to_string(((name*)e)->value));
         } else {
-            object key=execute_ast(Ex, e, scope, 0);
+            Object key=execute_ast(E, e, scope, 0);
             reference(&key);
-            object_at_name=get(Ex, current, key);
-            dereference(Ex, &key);
+            object_at_name=get(E, current, key);
+            dereference(E, &key);
         }
         if(i==lines_count-1){
             return object_at_name;
@@ -23,43 +23,43 @@ object path_get(executor* Ex, object scope, path p){
     return null_const;
 } 
 
-void path_set(executor* Ex, object scope, path p, object value){
-    object current=scope;
+void path_set(Executor* E, Object scope, path p, Object value){
+    Object current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
-        object key;
+        Object key;
         if(e->type==e_name){
             key=to_string(((name*)e)->value);
         } else {
-            object key=execute_ast(Ex, e, scope, 0);
+            Object key=execute_ast(E, e, scope, 0);
             reference(&key);
         }
         if(i==lines_count-1){
-            set(Ex, current, key, value);
+            set(E, current, key, value);
         } else{
-            object object_at_name=get(Ex, current, key);
+            Object object_at_name=get(E, current, key);
             current=object_at_name;
         }
         if(e->type!=e_name){// we don't borrow name expression's string value
-            dereference(Ex, &key);
+            dereference(E, &key);
         }
     }
 }
 
-object execute_ast(executor* Ex, expression* exp, object scope, int keep_scope){
+Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     if(exp==NULL){
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
-    Ex->line=exp->line_number;
-    Ex->column=exp->column_number;
+    E->line=exp->line_number;
+    E->column=exp->column_number;
     switch(exp->type){
         case e_empty:
             return null_const;
         case e_literal:
         {
             literal* l=(literal*)exp;
-            object result;
+            Object result;
             switch(l->ltype){
                 case l_int:
                     number_init(&result);
@@ -79,86 +79,86 @@ object execute_ast(executor* Ex, expression* exp, object scope, int keep_scope){
         case e_table_literal:
         {
             block* b=(block*)exp;
-            object table_scope;
+            Object table_scope;
             table_init(&table_scope);
             reference(&table_scope);
             int array_counter=0;
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=(expression*)vector_get(&b->lines, i);
-                object set_result;
+                Object set_result;
                 if(line->type==e_assignment){
                     assignment* a=(assignment*)line;
-                    set_result=set(Ex, table_scope, to_string(table_literal_extract_key(a)), execute_ast(Ex, a->right, table_scope, 0));
+                    set_result=set(E, table_scope, to_string(table_literal_extract_key(a)), execute_ast(E, a->right, table_scope, 0));
                 } else {
-                    set_result=set(Ex, table_scope, to_number(array_counter++), execute_ast(Ex, line, table_scope, 0));
+                    set_result=set(E, table_scope, to_number(array_counter++), execute_ast(E, line, table_scope, 0));
                 }
-                destroy_unreferenced(Ex, &set_result);
+                destroy_unreferenced(E, &set_result);
             }
             return table_scope;
         }
         case e_block:
         {
             block* b=(block*)exp;
-            object block_scope;
+            Object block_scope;
             if(keep_scope){
                 block_scope=scope;
             } else {
                 table_init(&block_scope);
-                inherit_scope(Ex, block_scope, scope);
+                inherit_scope(E, block_scope, scope);
             }
-            object result;
+            Object result;
             for (int i = 0; i < vector_total(&b->lines); i++){
-                object line_result=execute_ast(Ex, vector_get(&b->lines, i), block_scope, 0);
+                Object line_result=execute_ast(E, vector_get(&b->lines, i), block_scope, 0);
                 reference(&line_result);
-                if(Ex->ast_returning || i == vector_total(&b->lines)-1){
+                if(E->ast_returning || i == vector_total(&b->lines)-1){
                     result=line_result;
                     break;
                 } else {
-                    dereference(Ex, &line_result);
+                    dereference(E, &line_result);
                 }
             }
             if(!keep_scope){
-                dereference(Ex, &block_scope);
+                dereference(E, &block_scope);
             }
             return result;
         }
         case e_name:
         {
-            return get(Ex, scope, to_string(((name*)exp)->value));
+            return get(E, scope, to_string(((name*)exp)->value));
         }
         case e_assignment:
         {
             assignment* a=(assignment*)exp;
-            object result=execute_ast(Ex, a->right, scope, 0);
-            path_set(Ex, scope, *a->left, result);
+            Object result=execute_ast(E, a->right, scope, 0);
+            path_set(E, scope, *a->left, result);
             return result;
         }
         case e_binary:
         {
             binary* u=(binary*)exp;
-            object left=execute_ast(Ex, u->left, scope, 0);
-            object right=execute_ast(Ex, u->right, scope, 0);
-            object result=operator(Ex, left, right, u->op);
-            dereference(Ex, &left);
-            dereference(Ex, &right);
+            Object left=execute_ast(E, u->left, scope, 0);
+            Object right=execute_ast(E, u->right, scope, 0);
+            Object result=operator(E, left, right, u->op);
+            dereference(E, &left);
+            dereference(E, &right);
             return result;
         }
         case e_prefix:
         {
             prefix* p=(prefix*)exp;
-            object left=execute_ast(Ex, p->right, scope, 0);
-            object right=null_const;
-            object result=operator(Ex, left, right, p->op);
-            dereference(Ex, &left);
+            Object left=execute_ast(E, p->right, scope, 0);
+            Object right=null_const;
+            Object result=operator(E, left, right, p->op);
+            dereference(E, &left);
             return result;
         }
         case e_conditional:
         {
             conditional* c=(conditional*)exp;
-            if(is_falsy(execute_ast(Ex, c->condition, scope, 0))){
-                return execute_ast(Ex, (expression*)c->onfalse, scope, 0);
+            if(is_falsy(execute_ast(E, c->condition, scope, 0))){
+                return execute_ast(E, (expression*)c->onfalse, scope, 0);
             } else{
-                return execute_ast(Ex, (expression*)c->ontrue, scope, 0);
+                return execute_ast(E, (expression*)c->ontrue, scope, 0);
             }
         }
         case e_function_declaration:
@@ -166,7 +166,7 @@ object execute_ast(executor* Ex, expression* exp, object scope, int keep_scope){
             function_declaration* d=(function_declaration*)exp;
             int arguments_count=vector_total(d->arguments);
 
-            object f;
+            Object f;
             function_init(&f);
             f.fp->argument_names=malloc(sizeof(char*)*arguments_count);
             f.fp->arguments_count=arguments_count;
@@ -186,27 +186,27 @@ object execute_ast(executor* Ex, expression* exp, object scope, int keep_scope){
         {
             function_call* c=(function_call*)exp;
             
-            object f=execute_ast(Ex, c->called, scope, 0);
+            Object f=execute_ast(E, c->called, scope, 0);
             int arguments_count=vector_total(&c->arguments->lines);
-            object* arguments=malloc(arguments_count*sizeof(object));
+            Object* arguments=malloc(arguments_count*sizeof(Object));
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                object argument_value=execute_ast(Ex, vector_get(&c->arguments->lines, i), scope, 0);
+                Object argument_value=execute_ast(E, vector_get(&c->arguments->lines, i), scope, 0);
                 arguments[i]=argument_value;
             }
-            object result=call(Ex, f, arguments, arguments_count);
-            Ex->ast_returning=false;
+            Object result=call(E, f, arguments, arguments_count);
+            E->ast_returning=false;
             free(arguments);
             return result;
         }
         case e_path:
         {
-            return path_get(Ex, scope, *(path*)exp);
+            return path_get(E, scope, *(path*)exp);
         }
         case e_function_return:
         {
             function_return* r=(function_return*)exp;
-            object result=execute_ast(Ex, r->value, scope, 0);
-            Ex->ast_returning=true;
+            Object result=execute_ast(E, r->value, scope, 0);
+            E->ast_returning=true;
             return result;
         }
         default:

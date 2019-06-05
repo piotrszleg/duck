@@ -114,7 +114,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 # define YYERROR_VERBOSE 0
 #endif
 
-/* Enabling the token table.  */
+/* Enabling the token Table.  */
 #ifndef YYTOKEN_TABLE
 # define YYTOKEN_TABLE 0
 #endif
@@ -123,7 +123,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 /* Tokens.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
+   /* Put the tokens into the symbol Table, so that GDB and other debuggers
       know about them.  */
    enum yytokentype {
      ENDL = 258,
@@ -505,7 +505,7 @@ static const char *const yytname[] =
   "PREFIX_OPERATOR", "','", "'!'", "'{'", "'}'", "'['", "']'", "'.'",
   "'('", "')'", "'='", "'-'", "$accept", "program", "lines_separator",
   "lines_separators", "optional_lines_separators", "lines_with_return",
-  "lines", "block", "table_contents", "table", "path", "expression",
+  "lines", "block", "table_contents", "Table", "path", "expression",
   "parentheses", "conditional", "conditional_else", "arguments",
   "function", "literal", "null", "name", "assignment", "call", "message",
   "binary", "prefix", "OPT_ENDLS", "ENDLS", 0

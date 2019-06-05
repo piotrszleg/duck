@@ -10,7 +10,7 @@
 #include "../utility.h"
 #include "../datatypes/vector.h"
 
-typedef struct executor executor;
+typedef struct Executor Executor;
 
 #define OBJECT_TYPES \
     X(null) \
@@ -21,109 +21,103 @@ typedef struct executor executor;
     X(pointer) \
     X(gc_pointer)
 
-// TODO: Change this declaration to X macro
-typedef enum object_type object_type;
-enum object_type{
+typedef enum {
     #define X(type) t_##type,
     OBJECT_TYPES
     #undef X
-};
+} ObjectType;
 
-extern const char* OBJECT_TYPE_NAMES[];// array mapping enum object_type to their names as strings
+extern const char* OBJECT_TYPE_NAMES[];// array mapping enum ObjectType to their names as strings
 extern const int OBJECT_TYPE_NAMES_COUNT;
 
-typedef struct gc_object gc_object;
-struct gc_object {
+typedef struct gc_Object gc_Object;
+struct gc_Object {
     int ref_count;
     // gc_objects form a double linked list starting from gc_root
-    struct gc_object* previous;
-    struct gc_object* next;
+    struct gc_Object* previous;
+    struct gc_Object* next;
 
     bool marked;
-    object_type gc_type;
+    ObjectType gc_type;
 };
-extern gc_object* gc_root;
+extern gc_Object* gc_root;
 
-typedef enum gc_state_type gc_state_type;
-enum gc_state_type {
+typedef enum {
     gcs_inactive,
     gcs_deinitializing,
     gcs_freeing_memory
-};
-extern gc_state_type gc_state;
+} gc_StateType;
+extern gc_StateType gc_state;
 // when allocations_count in gc_object_init is greater than MAX_ALLOCATIONS the garbage collector will be activated
 #define MAX_ALLOCATIONS 100
 extern int allocations_count;
 
 #define ALREADY_DESTROYED INT_MIN
 
-typedef struct table table;
-typedef struct function function;
+typedef struct Table Table;
+typedef struct Function Function;
 typedef struct gc_pointer gc_pointer;
 
-typedef struct object object;
-struct object{
-    enum object_type type;
+typedef struct {
+    ObjectType type;
     union {
         float value;
         char* text;
         void* p;
         gc_pointer* gcp;
-        function* fp;
-        table* tp;
-        /* function, table and gc_pointer structs have exact same memory layout as gc_object
+        Function* fp;
+        Table* tp;
+        /* Function, Table and gc_pointer structs have exact same memory layout as gc_Object
            and can be safely casted to it */
-        gc_object* gco;
+        gc_Object* gco;
     };
-};
+} Object;
 
-extern object null_const;
+extern Object null_const;
 
 #define OBJECT_INIT_NEW_DECLARATIONS(t) \
-    object* new_##t(); \
-    void t##_init(object* o);
+    Object* new_##t(); \
+    void t##_init(Object* o);
 
 #define X(type) OBJECT_INIT_NEW_DECLARATIONS(type)
 OBJECT_TYPES
 #undef X
 
-#define STRING_OBJECT(name, string_text) object name; string_init(&name); name.text=(char*)string_text;
+#define STRING_OBJECT(name, string_text) Object name; string_init(&name); name.text=(char*)string_text;
 
 #define CHECK_OBJECT(checked) \
     if(checked==NULL) { \
-        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); \
+        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to Function %s is null", __FUNCTION__); \
     } \
     if(checked->type<t_null||checked->type>t_gc_pointer) { \
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
     }
 
 // declaration of function pointer type used in function objects
-typedef object (*object_system_function)(executor* Ex, object* arguments, int arguments_count);
+typedef Object (*ObjectSystemFunction)(Executor* E, Object* arguments, int arguments_count);
 
-typedef void (*gc_pointer_destructor)(void*);
+typedef void (*gc_PointerDestructorFunction)(void*);
 
 typedef struct gc_pointer gc_pointer;
 struct gc_pointer {
-    gc_object gco;
-    gc_pointer_destructor destructor;
+    gc_Object gco;
+    gc_PointerDestructorFunction destructor;
 };
 
-typedef enum function_type function_type;
-enum function_type {
+typedef enum {
     f_native,
     f_ast,
     f_bytecode,
     f_special
-};
+} FunctionType;
 
-typedef struct function function;
-struct function {
-    // gc_object fields
-    gc_object gco;
+struct Function {
+    // gc_Object fields
+    gc_Object gco;
 
-    function_type ftype;
+    FunctionType ftype;
     union {
-        object_system_function native_pointer;
+        ObjectSystemFunction native_pointer;
         void* source_pointer;
         int special_index;
     };
@@ -131,36 +125,36 @@ struct function {
     char** argument_names;
     int arguments_count;
     bool variadic;
-    object enclosing_scope;
+    Object enclosing_scope;
 };
 
 void print_allocated_objects();
-bool is_gc_object(object o);
-void gc_run(executor* Ex, object* roots, int roots_count);
-void call_destroy(executor* Ex, object o);
+bool is_gc_object(Object o);
+void gc_run(Executor* E, Object* roots, int roots_count);
+void call_destroy(Executor* E, Object o);
 
-object to_string(const char* s);
-object to_number(float n);
-object to_pointer(void* p);
-object to_gc_pointer(gc_pointer* p);
-object to_function(object_system_function f, char** argument_names, int arguments_count);
+Object to_string(const char* s);
+Object to_number(float n);
+Object to_pointer(void* p);
+Object to_gc_pointer(gc_pointer* p);
+Object to_function(ObjectSystemFunction f, char** argument_names, int arguments_count);
 
-void reference(object* o);
-void object_init(object* o, object_type type);
-void gc_dereference(executor* Ex, gc_object* o);
-void dereference(executor* Ex, object* o);
-void destroy_unreferenced(executor* Ex, object* o);
+void reference(Object* o);
+void object_init(Object* o, ObjectType type);
+void gc_dereference(Executor* E, gc_Object* o);
+void dereference(Executor* E, Object* o);
+void destroy_unreferenced(Executor* E, Object* o);
 
-char* stringify_object(executor* Ex, object o);
-char* stringify(executor* Ex, object o);
+char* stringify_object(Executor* E, Object o);
+char* stringify(Executor* E, Object o);
 
 void object_system_init();
-void object_system_deinit(executor* Ex);
+void object_system_deinit(Executor* E);
 
 // these functions should be implemented in higher level module
-object call_function(executor* Ex, function* f, object* arguments, int arguments_count);
-void deinit_function(function* f);
+Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
+void deinit_function(Function* f);
 
-#include "table.h"
+#include "Table.h"
 
 #endif

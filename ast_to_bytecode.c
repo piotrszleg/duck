@@ -6,17 +6,17 @@
 
 int labels_count=0;
 
-void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, bool keep_scope);
-bytecode_program closure_to_bytecode(function_declaration* d);
+void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation, bool keep_scope);
+BytecodeProgram closure_to_bytecode(function_declaration* d);
 
-void repeat_information(bytecode_translation* translation){
-    stream_push(&translation->information, &translation->last_information, sizeof(instruction_information));
+void repeat_information(BytecodeTranslation* translation){
+    stream_push(&translation->information, &translation->last_information, sizeof(InstructionInformation));
 }
 
-void push_instruction(bytecode_translation* translation, instruction_type type, long value){
-    instruction instr={type, value};
+void push_instruction(BytecodeTranslation* translation, InstructionType type, long value){
+    Instruction instr={type, value};
     repeat_information(translation);
-    stream_push(&translation->code, &instr, sizeof(instruction));
+    stream_push(&translation->code, &instr, sizeof(Instruction));
 }
 
 char* stream_search_string(stream* s, const char* str){
@@ -33,7 +33,7 @@ char* stream_search_string(stream* s, const char* str){
     return NULL;// string wasn't found inside of the stream
 }
 
-void push_string_load(bytecode_translation* translation, const char* string_constant){
+void push_string_load(BytecodeTranslation* translation, const char* string_constant){
     repeat_information(translation);
     char* search_result=stream_search_string(&translation->constants, string_constant);
     if(search_result){
@@ -45,7 +45,7 @@ void push_string_load(bytecode_translation* translation, const char* string_cons
     }
 }
 
-void push_number_load(bytecode_translation* translation, float number_constant){
+void push_number_load(BytecodeTranslation* translation, float number_constant){
     repeat_information(translation);
     long argument;
     memcpy (&argument, &number_constant, sizeof argument);
@@ -59,15 +59,15 @@ void stream_repeat_last(stream* s, unsigned repetitions, size_t element_size){
     }
 }
 
-instruction_information information_from_ast(expression* exp){
-    instruction_information info;
+InstructionInformation information_from_ast(expression* exp){
+    InstructionInformation info;
     info.line=exp->line_number;
     info.column=exp->column_number;
     info.file=0;
     return info;
 }
 
-void bytecode_path_get(bytecode_translation* translation, path p){
+void bytecode_path_get(BytecodeTranslation* translation, path p){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
@@ -80,7 +80,7 @@ void bytecode_path_get(bytecode_translation* translation, path p){
     }
 } 
 
-void bytecode_path_set(bytecode_translation* translation, path p, bool used_in_closure){
+void bytecode_path_set(BytecodeTranslation* translation, path p, bool used_in_closure){
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
         expression* e= vector_get(&p.lines, i);
@@ -98,7 +98,7 @@ void bytecode_path_set(bytecode_translation* translation, path p, bool used_in_c
     }
 }
 
-void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translation, bool keep_scope){
+void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation, bool keep_scope){
     translation->last_information=information_from_ast(exp);
 
     switch(exp->type){
@@ -134,7 +134,7 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
                     if(line->type==e_assignment){
                         assignment* assignment_line=((assignment*)line);
                         ast_to_bytecode_recursive(assignment_line->right, translation, 1);
-                        push_string_load(translation, table_literal_extract_key(assignment_line));// assuming that assignment_line inside of table always has one item
+                        push_string_load(translation, table_literal_extract_key(assignment_line));// assuming that assignment_line inside of Table always has one item
                         push_instruction(translation, b_table_set_keep, 0);
                     } else {
                         // if the expression isn't assignment use last index as a key
@@ -231,9 +231,9 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
 
             push_number_load(translation, (float)d->variadic);
             push_number_load(translation, (float)arguments_count);
-            bytecode_program prog=closure_to_bytecode(d);
-            stream_push(&translation->sub_programs, &prog, sizeof(bytecode_program));
-            int sub_program_index=(translation->sub_programs.position/sizeof(bytecode_program))-1;
+            BytecodeProgram prog=closure_to_bytecode(d);
+            stream_push(&translation->sub_programs, &prog, sizeof(BytecodeProgram));
+            int sub_program_index=(translation->sub_programs.position/sizeof(BytecodeProgram))-1;
             push_instruction(translation, b_function, sub_program_index);
             break;
         }
@@ -262,20 +262,20 @@ void ast_to_bytecode_recursive(expression* exp, bytecode_translation* translatio
         }
         default:
         {
-            THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched expression instruction type: %i\n", exp->type);
+            THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched expression Instruction type: %i\n", exp->type);
         }
     }
 }
 
-void bytecode_translation_init(bytecode_translation* translation){
+void bytecode_translation_init(BytecodeTranslation* translation){
     init_stream(&translation->constants, CONSTANTS_SIZE);
     init_stream(&translation->code, CODE_SIZE);
     init_stream(&translation->information, CODE_SIZE);
     init_stream(&translation->sub_programs, SUB_PROGRAMS_SIZE);
 }
 
-bytecode_program translation_to_bytecode(bytecode_translation* translation){
-    bytecode_program prog;
+BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
+    BytecodeProgram prog;
     stream_truncate(&translation->code);
     stream_truncate(&translation->information);
     stream_truncate(&translation->constants);
@@ -285,12 +285,12 @@ bytecode_program translation_to_bytecode(bytecode_translation* translation){
     prog.constants_size=translation->constants.position;
     prog.information=stream_get_data(&translation->information);
     prog.sub_programs=stream_get_data(&translation->sub_programs);
-    prog.sub_programs_count=translation->sub_programs.position/sizeof(bytecode_program);
+    prog.sub_programs_count=translation->sub_programs.position/sizeof(BytecodeProgram);
     return prog;
 }
 
-bytecode_program closure_to_bytecode(function_declaration* d){
-    bytecode_translation translation;
+BytecodeProgram closure_to_bytecode(function_declaration* d){
+    BytecodeTranslation translation;
     bytecode_translation_init(&translation);
 
     int arguments_count=vector_total(d->arguments);
@@ -301,19 +301,19 @@ bytecode_program closure_to_bytecode(function_declaration* d){
     }
 
     ast_to_bytecode_recursive(d->body, &translation, true);
-    instruction instr={b_end, 0};
-    stream_push(&translation.code, &instr, sizeof(instruction));
+    Instruction instr={b_end, 0};
+    stream_push(&translation.code, &instr, sizeof(Instruction));
 
     return translation_to_bytecode(&translation);
 }
 
-bytecode_program ast_to_bytecode(expression* exp, bool keep_scope){
-    bytecode_translation translation;
+BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope){
+    BytecodeTranslation translation;
     bytecode_translation_init(&translation);
 
     ast_to_bytecode_recursive(exp, &translation, keep_scope);
-    instruction instr={b_end, 0};
-    stream_push(&translation.code, &instr, sizeof(instruction));
+    Instruction instr={b_end, 0};
+    stream_push(&translation.code, &instr, sizeof(Instruction));
 
     return translation_to_bytecode(&translation);
 }
