@@ -42,8 +42,8 @@ void bytecode_environment_init(bytecode_environment* e);
 void bytecode_environment_free(bytecode_environment* e);
 
 void push(stack* stack, object o);
-object execute_bytecode(executor* Ex, bytecode_environment* environment);
-void move_to_function(executor* Ex, bytecode_environment* environment, function* f, bool termainate);
+object execute_bytecode(executor* Ex);
+void move_to_function(executor* Ex, function* f, bool termainate);
 
 #include "error/execution_state.h"
 

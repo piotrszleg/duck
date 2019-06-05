@@ -64,23 +64,23 @@ void list_program_labels(bytecode_program* program){
     }
 }
 
-void move_to_function(executor* Ex, bytecode_environment* environment, function* f, bool termainate){
+void move_to_function(executor* Ex, function* f, bool termainate){
     // create and push return_point pointing to current location
     return_point rp;
-    rp.program=environment->program;
-    rp.pointer=environment->pointer;
-    rp.scope=environment->scope;
+    rp.program=Ex->bytecode_env.program;
+    rp.pointer=Ex->bytecode_env.pointer;
+    rp.scope=Ex->bytecode_env.scope;
     rp.terminate=termainate;
-    stack_push(&environment->return_stack, &rp);
+    stack_push(&Ex->bytecode_env.return_stack, &rp);
 
     object function_scope;
     table_init(&function_scope);
     if(f->enclosing_scope.type!=t_null){
         inherit_scope(Ex, function_scope, f->enclosing_scope);
     }
-    environment->scope=function_scope;
-    environment->program=f->source_pointer;
-    environment->pointer=0;
+    Ex->bytecode_env.scope=function_scope;
+    Ex->bytecode_env.program=f->source_pointer;
+    Ex->bytecode_env.pointer=0;
 }
 
 void bytecode_environment_init(bytecode_environment* environment){
@@ -117,7 +117,8 @@ void bytecode_environment_free(bytecode_environment* environment){
 
 object evaluate_string(executor* Ex, const char* s, object scope);
 
-void debugger(executor* Ex, bytecode_environment* environment){
+void debugger(executor* Ex){
+    bytecode_environment* environment=&Ex->bytecode_env;
     if(environment->debugger.running){
         for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
             breakpoint* br=(breakpoint*)vector_get(&environment->debugger.breakpoints, i);
@@ -232,18 +233,19 @@ void debugger(executor* Ex, bytecode_environment* environment){
     }
 }
 
-object execute_bytecode(executor* Ex, bytecode_environment* environment){
-    int* pointer=&environment->pointer;// points to the current instruction
+object execute_bytecode(executor* Ex){
+    int* pointer=&Ex->bytecode_env.pointer;// points to the current instruction
 
     while(true){
         if(g_debug_mode){
-            debugger(Ex, environment);
+            debugger(Ex);
         }
-        bytecode_program* program=environment->program;
-        stack* object_stack=&environment->object_stack;
-        stack* return_stack=&environment->return_stack;
+        bytecode_program* program=Ex->bytecode_env.program;
+        stack* object_stack=&Ex->bytecode_env.object_stack;
+        stack* return_stack=&Ex->bytecode_env.return_stack;
         instruction* code=program->code;
         void* constants=program->constants;
+        object* scope=&Ex->bytecode_env.scope;
 
         instruction instr=code[*pointer];
         Ex->line=program->information[*pointer].line;
@@ -314,7 +316,7 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
             case b_get:
             {
                 object key=pop(object_stack);
-                push(object_stack, get(Ex, environment->scope, key));
+                push(object_stack, get(Ex, *scope, key));
                 dereference(Ex, &key);
                 break;
             }
@@ -331,7 +333,7 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
             {
                 object key=pop(object_stack);
                 object value=pop(object_stack);
-                push(object_stack, set(Ex, environment->scope, key, value));
+                push(object_stack, set(Ex, *scope, key, value));
                 dereference(Ex, &key);
                 dereference(Ex, &value);
                 break;
@@ -366,19 +368,19 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
             }
             case b_get_scope:
             {
-                push(object_stack, environment->scope);
+                push(object_stack, *scope);
                 break;
             }
             case b_set_scope:
             {
-                dereference(Ex, &environment->scope);
+                dereference(Ex, scope);
                 object o=pop(object_stack);
                 if(o.type!=t_table){
                     USING_STRING(stringify(Ex, o),
                         THROW_ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a table, number of instruction is: %i\n", str, *pointer));
                 } else {
                     reference(&o);
-                    environment->scope=o;
+                    *scope=o;
                 }
                 break;
             }
@@ -386,10 +388,10 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
             {
                 object t;
                 table_init(&t);
-                inherit_scope(Ex, t, environment->scope);
+                inherit_scope(Ex, t, *scope);
                 reference(&t);
-                dereference(Ex, &environment->scope);
-                environment->scope=t;
+                dereference(Ex, scope);
+                *scope=t;
                 break;
             }
             case b_binary:
@@ -424,7 +426,7 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
             }
             case b_jump:
             {
-                *pointer=environment->program->labels[instr.argument];
+                *pointer=Ex->bytecode_env.program->labels[instr.argument];
                 break;
             }
             case b_function:
@@ -432,13 +434,10 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
                 object f;
                 function_init(&f);
 
-                object environment_object=to_gc_pointer((gc_pointer*)environment);
-                reference(&environment_object);
+                f.fp->environment=NULL;
 
-                f.fp->environment=(gc_pointer*)environment;
-
-                f.fp->enclosing_scope=environment->scope;
-                reference(&environment->scope);// remember to check the enclosing scope in destructor
+                f.fp->enclosing_scope=*scope;
+                reference(scope);// remember to check the enclosing scope in destructor
                 object arguments_count_object=pop(object_stack);
                 if(arguments_count_object.type!=t_number){
                     THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of instruction is: %i\n", *pointer);
@@ -452,7 +451,7 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
                 dereference(Ex, &variadic_object);
                 dereference(Ex, &arguments_count_object);
                 f.fp->ftype=f_bytecode;
-                f.fp->source_pointer=environment->program->sub_programs+instr.argument;
+                f.fp->source_pointer=Ex->bytecode_env.program->sub_programs+instr.argument;
                 push(object_stack, f);
                 break;
             }
@@ -551,7 +550,7 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
                         push(object_stack, variadic_table);
                     }
                     if(o.fp->ftype==f_bytecode){
-                        move_to_function(Ex, environment, o.fp, false);
+                        move_to_function(Ex, o.fp, false);
                         continue;// don't increment the pointer
                     } else if(o.fp->ftype==f_ast) {
                         CALL_ERROR("Can't call ast function from bytecode.");
@@ -566,16 +565,16 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
             case b_return:
             {
                 if(g_debug_mode){
-                    debugger(Ex, environment);
+                    debugger(Ex);
                 }
                 if(return_stack->top==0){
                     return pop(object_stack);
                 } else {
                     return_point* rp=stack_pop(return_stack);
-                    environment->program=rp->program;
-                    environment->pointer=rp->pointer;
-                    dereference(Ex, &environment->scope);
-                    environment->scope=rp->scope;
+                    Ex->bytecode_env.program=rp->program;
+                    Ex->bytecode_env.pointer=rp->pointer;
+                    dereference(Ex, scope);
+                    *scope=rp->scope;
                     if(rp->terminate){
                         object last=pop(object_stack);
                         return last;

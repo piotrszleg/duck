@@ -23,19 +23,14 @@ object evaluate(executor* Ex, expression* parsing_result, object scope, bool ast
             USING_STRING(stringify_bytecode(&prog),
                 printf("Bytecode:\n%s\n", str));
         }
-        
-        bytecode_environment* environment=malloc(sizeof(bytecode_environment));
-        environment->pointer=0;
-        environment->program=malloc(sizeof(bytecode_program));
-        memcpy(environment->program, &prog, sizeof(bytecode_program));
-        environment->scope=scope;
-        object gcp;
-        gcp.gcp=(gc_pointer*)environment;
-        gcp.gcp->destructor=(gc_pointer_destructor)bytecode_environment_free;
-        gc_pointer_init(&gcp);
 
-        bytecode_environment_init(environment);
-        execution_result=execute_bytecode(Ex, environment);
+        Ex->bytecode_env.pointer=0;
+        Ex->bytecode_env.program=malloc(sizeof(bytecode_program));
+        memcpy(Ex->bytecode_env.program, &prog, sizeof(bytecode_program));
+        Ex->bytecode_env.scope=scope;
+
+        bytecode_environment_init(&Ex->bytecode_env);
+        execution_result=execute_bytecode(Ex);
     }
     return execution_result;
 }
@@ -83,11 +78,11 @@ object call_function_processed(executor* Ex, function* f, object* arguments, int
         bytecode_environment* environment=(bytecode_environment*)f->environment;
         environment->scope=function_scope;
 
-        move_to_function(Ex, environment, f, true);
+        move_to_function(Ex, f, true);
         for(int i=0; i<arguments_count; i++){
             push(&environment->object_stack, arguments[i]);
         }
-        object result=execute_bytecode(Ex, environment);
+        object result=execute_bytecode(Ex);
         return result;
     } else {
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
