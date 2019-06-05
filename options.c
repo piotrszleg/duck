@@ -56,13 +56,13 @@ void handle_arguments(int argc, char **argv) {
         }
     }
 
-    executor* Ex=NULL;
+    executor Ex;
     
     object_system_init();
     TRY_CATCH(
         if(file_path!=NULL){
             
-            execute_file(Ex, file_path);
+            execute_file(&Ex, file_path);
         } else {
             repl();
         }
@@ -71,5 +71,5 @@ void handle_arguments(int argc, char **argv) {
         printf(err_message);
         exit(-1);
     );
-    object_system_deinit(Ex);
+    object_system_deinit(&Ex);
 }

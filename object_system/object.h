@@ -10,7 +10,7 @@
 #include "../utility.h"
 #include "../datatypes/vector.h"
 
-#define executor void
+typedef struct executor executor;
 
 #define OBJECT_TYPES \
     X(null) \

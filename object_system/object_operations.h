@@ -22,7 +22,7 @@ object call(executor* Ex, object o, object* arguments, int arguments_count);
 object get(executor* Ex, object o, object key);
 object set(executor* Ex, object o, object key, object value);
 
-void get_execution_info(char* buffer, int buffer_count);
+void get_execution_info(executor* Ex, char* buffer, int buffer_count);
 object multiple_causes(executor* Ex, object* causes, int causes_count);
 object new_error(executor* Ex, char* type, object cause, char* message, char* location);
 

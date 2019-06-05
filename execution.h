@@ -22,4 +22,14 @@ object evaluate_file(executor* Ex, const char* file_name, object scope);
 void execute_file(executor* Ex, const char* file_name);
 object call_function(executor* Ex, function* f, object* arguments, int arguments_count);
 
+struct executor {
+    unsigned line;
+    unsigned column;
+    unsigned* traceback;
+    const char* file;
+
+    bool ast_returning;
+    bytecode_environment bytecode_env;
+};
+
 #endif

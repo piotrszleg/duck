@@ -4,6 +4,10 @@
 #include "object_operations.h"
 #include "../error/error.h"
 
+struct executor {
+void* nothing;
+};
+
 object call_function(executor* Ex, function* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
         return f->native_pointer(Ex, arguments, arguments_count);
@@ -15,7 +19,7 @@ object call_function(executor* Ex, function* f, object* arguments, int arguments
 
 void deinit_function(function* f){}
 
-void get_execution_info(char* buffer, int buffer_count){
+void get_execution_info(executor* Ex, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
 }
 
@@ -148,19 +152,19 @@ void adding_number_string(executor* Ex){// tests whether "count: "+5="count: 5"
 }
 
 int main(){
-    executor* Ex=NULL;
+    executor Ex;
     TRY_CATCH(
         // TODO test error objects
-        object_system_init(Ex);
-        test_error_catching(Ex);
-        adding_numbers(Ex);
-        adding_strings(Ex);
-        function_calling(Ex);
-        table_indexing(Ex);
-        adding_number_string(Ex);
+        object_system_init(&Ex);
+        test_error_catching(&Ex);
+        adding_numbers(&Ex);
+        adding_strings(&Ex);
+        function_calling(&Ex);
+        table_indexing(&Ex);
+        adding_number_string(&Ex);
     ,
         printf(err_message);
         exit(-1);
     )
-    object_system_deinit(Ex);
+    object_system_deinit(&Ex);
 }

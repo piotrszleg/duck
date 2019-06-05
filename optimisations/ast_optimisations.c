@@ -67,16 +67,16 @@ expression* to_literal(object o){
 }
 
 object evaluate_expression(executor* Ex, expression* exp){
-    ast_executor_state state;
     object scope;
     table_init(&scope);
-    object execution_result=execute_ast(Ex, &state, exp, scope, 0);
+    object execution_result=execute_ast(Ex, exp, scope, 0);
     dereference(Ex, &scope);
     return execution_result;
 }
 
 ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
-    executor* Ex=NULL;
+    executor* Ex=(executor*)data;
+
     // remove statements that have no side effects and whose result isn't used anywhere
     if(exp->type==e_block){
         block* b=(block*)exp;
@@ -130,8 +130,8 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
     return request;
 }
 
-void optimise_ast(expression* ast){
-    visit_ast(ast, optimise_ast_visitor, NULL);
+void optimise_ast(executor* Ex, expression* ast){
+    visit_ast(ast, optimise_ast_visitor, Ex);
 }
 
 #undef LOG_CHANGE

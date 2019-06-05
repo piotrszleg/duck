@@ -1,6 +1,6 @@
 #include "execute_ast.h"
 
-object path_get(executor* Ex, ast_executor_state* state, object scope, path p){
+object path_get(executor* Ex, object scope, path p){
     object current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
@@ -9,7 +9,7 @@ object path_get(executor* Ex, ast_executor_state* state, object scope, path p){
         if(e->type==e_name){
             object_at_name=get(Ex, current, to_string(((name*)e)->value));
         } else {
-            object key=execute_ast(Ex, state, e, scope, 0);
+            object key=execute_ast(Ex, e, scope, 0);
             reference(&key);
             object_at_name=get(Ex, current, key);
             dereference(Ex, &key);
@@ -23,7 +23,7 @@ object path_get(executor* Ex, ast_executor_state* state, object scope, path p){
     return null_const;
 } 
 
-void path_set(executor* Ex, ast_executor_state* state, object scope, path p, object value){
+void path_set(executor* Ex, object scope, path p, object value){
     object current=scope;
     int lines_count=vector_total(&p.lines);
     for (int i = 0; i < lines_count; i++){
@@ -32,7 +32,7 @@ void path_set(executor* Ex, ast_executor_state* state, object scope, path p, obj
         if(e->type==e_name){
             key=to_string(((name*)e)->value);
         } else {
-            object key=execute_ast(Ex, state, e, scope, 0);
+            object key=execute_ast(Ex, e, scope, 0);
             reference(&key);
         }
         if(i==lines_count-1){
@@ -47,12 +47,12 @@ void path_set(executor* Ex, ast_executor_state* state, object scope, path p, obj
     }
 }
 
-object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, object scope, int keep_scope){
+object execute_ast(executor* Ex, expression* exp, object scope, int keep_scope){
     if(exp==NULL){
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "AST expression pointer is null.");
     }
-    exec_state.line=exp->line_number;
-    exec_state.column=exp->column_number;
+    Ex->line=exp->line_number;
+    Ex->column=exp->column_number;
     switch(exp->type){
         case e_empty:
             return null_const;
@@ -88,9 +88,9 @@ object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, obj
                 object set_result;
                 if(line->type==e_assignment){
                     assignment* a=(assignment*)line;
-                    set_result=set(Ex, table_scope, to_string(table_literal_extract_key(a)), execute_ast(Ex, state, a->right, table_scope, 0));
+                    set_result=set(Ex, table_scope, to_string(table_literal_extract_key(a)), execute_ast(Ex, a->right, table_scope, 0));
                 } else {
-                    set_result=set(Ex, table_scope, to_number(array_counter++), execute_ast(Ex, state, line, table_scope, 0));
+                    set_result=set(Ex, table_scope, to_number(array_counter++), execute_ast(Ex, line, table_scope, 0));
                 }
                 destroy_unreferenced(Ex, &set_result);
             }
@@ -108,9 +108,9 @@ object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, obj
             }
             object result;
             for (int i = 0; i < vector_total(&b->lines); i++){
-                object line_result=execute_ast(Ex, state, vector_get(&b->lines, i), block_scope, 0);
+                object line_result=execute_ast(Ex, vector_get(&b->lines, i), block_scope, 0);
                 reference(&line_result);
-                if(state->returning || i == vector_total(&b->lines)-1){
+                if(Ex->ast_returning || i == vector_total(&b->lines)-1){
                     result=line_result;
                     break;
                 } else {
@@ -129,15 +129,15 @@ object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, obj
         case e_assignment:
         {
             assignment* a=(assignment*)exp;
-            object result=execute_ast(Ex, state, a->right, scope, 0);
-            path_set(Ex, state, scope, *a->left, result);
+            object result=execute_ast(Ex, a->right, scope, 0);
+            path_set(Ex, scope, *a->left, result);
             return result;
         }
         case e_binary:
         {
             binary* u=(binary*)exp;
-            object left=execute_ast(Ex, state, u->left, scope, 0);
-            object right=execute_ast(Ex, state, u->right, scope, 0);
+            object left=execute_ast(Ex, u->left, scope, 0);
+            object right=execute_ast(Ex, u->right, scope, 0);
             object result=operator(Ex, left, right, u->op);
             dereference(Ex, &left);
             dereference(Ex, &right);
@@ -146,7 +146,7 @@ object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, obj
         case e_prefix:
         {
             prefix* p=(prefix*)exp;
-            object left=execute_ast(Ex, state, p->right, scope, 0);
+            object left=execute_ast(Ex, p->right, scope, 0);
             object right=null_const;
             object result=operator(Ex, left, right, p->op);
             dereference(Ex, &left);
@@ -155,10 +155,10 @@ object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, obj
         case e_conditional:
         {
             conditional* c=(conditional*)exp;
-            if(is_falsy(execute_ast(Ex, state, c->condition, scope, 0))){
-                return execute_ast(Ex, state, (expression*)c->onfalse, scope, 0);
+            if(is_falsy(execute_ast(Ex, c->condition, scope, 0))){
+                return execute_ast(Ex, (expression*)c->onfalse, scope, 0);
             } else{
-                return execute_ast(Ex, state, (expression*)c->ontrue, scope, 0);
+                return execute_ast(Ex, (expression*)c->ontrue, scope, 0);
             }
         }
         case e_function_declaration:
@@ -177,9 +177,7 @@ object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, obj
             }
             f.fp->ftype=f_ast;
             f.fp->source_pointer=(void*)copy_expression(d->body);
-            object environment_object=to_gc_pointer((gc_pointer*)state);
-            reference(&environment_object);
-            f.fp->environment=(gc_pointer*)state;
+            f.fp->environment=NULL;
             f.fp->enclosing_scope=scope;
             reference(&scope);
             return f;
@@ -188,27 +186,27 @@ object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, obj
         {
             function_call* c=(function_call*)exp;
             
-            object f=execute_ast(Ex, state, c->called, scope, 0);
+            object f=execute_ast(Ex, c->called, scope, 0);
             int arguments_count=vector_total(&c->arguments->lines);
             object* arguments=malloc(arguments_count*sizeof(object));
             for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                object argument_value=execute_ast(Ex, state, vector_get(&c->arguments->lines, i), scope, 0);
+                object argument_value=execute_ast(Ex, vector_get(&c->arguments->lines, i), scope, 0);
                 arguments[i]=argument_value;
             }
             object result=call(Ex, f, arguments, arguments_count);
-            state->returning=false;
+            Ex->ast_returning=false;
             free(arguments);
             return result;
         }
         case e_path:
         {
-            return path_get(Ex, state, scope, *(path*)exp);
+            return path_get(Ex, scope, *(path*)exp);
         }
         case e_function_return:
         {
             function_return* r=(function_return*)exp;
-            object result=execute_ast(Ex, state, r->value, scope, 0);
-            state->returning=true;
+            object result=execute_ast(Ex, r->value, scope, 0);
+            Ex->ast_returning=true;
             return result;
         }
         default:

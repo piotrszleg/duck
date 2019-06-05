@@ -115,15 +115,15 @@ void bytecode_environment_free(bytecode_environment* environment){
     free(environment);
 }
 
-object evaluate_string(const char* s, object scope);
+object evaluate_string(executor* Ex, const char* s, object scope);
 
 void debugger(executor* Ex, bytecode_environment* environment){
     if(environment->debugger.running){
         for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-            execution_state break_point=*(execution_state*)vector_get(&environment->debugger.breakpoints, i);
+            breakpoint* br=(breakpoint*)vector_get(&environment->debugger.breakpoints, i);
 
-            if(strcmp(exec_state.file, break_point.file)==0
-            && exec_state.line==break_point.line) {
+            if(strcmp(Ex->file, br->file)==0
+            && Ex->line==br->line) {
                 environment->debugger.running=false;
             }
         }
@@ -153,7 +153,7 @@ void debugger(executor* Ex, bytecode_environment* environment){
         )
         COMMAND("position",
             char e_info[128];
-            get_execution_info(e_info, sizeof(e_info));
+            get_execution_info(Ex, e_info, sizeof(e_info));
             printf("%s\n", e_info);
         )
         COMMAND("memory",
@@ -168,7 +168,7 @@ void debugger(executor* Ex, bytecode_environment* environment){
                 printf("%s\n", str));
         )
         COMMAND_PARAMETERIZED("eval", 
-            object result=evaluate_string(parameter, environment->scope);
+            object result=evaluate_string(Ex, parameter, environment->scope);
             USING_STRING(stringify(Ex, result),
                 printf("%s\n", str));
             dereference(Ex, &result);
@@ -176,13 +176,13 @@ void debugger(executor* Ex, bytecode_environment* environment){
         )
         COMMAND("breakpoints", 
             for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-                execution_state* break_point=(execution_state*)vector_get(&environment->debugger.breakpoints, i);
-                printf("%s:%i\n", break_point->file, break_point->line);
+                breakpoint* br=(breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+                printf("%s:%i\n", br->file, br->line);
             }
         )
         COMMAND_PARAMETERIZED("break",
-            execution_state* s=malloc(sizeof(execution_state));
-            CHECK_ALLOCATION(s)
+            breakpoint* b=malloc(sizeof(breakpoint));
+            CHECK_ALLOCATION(b)
 
             // parameter has syntax file:line_number
             int i=0;
@@ -195,14 +195,14 @@ void debugger(executor* Ex, bytecode_environment* environment){
             memcpy(buf, parameter, i);
             buf[i]='\0';
 
-            s->file=buf;
-            s->line=atoi(parameter+i+1);
+            b->file=buf;
+            b->line=atoi(parameter+i+1);
             
-            vector_add(&environment->debugger.breakpoints, s);
+            vector_add(&environment->debugger.breakpoints, b);
             return;
         )
         COMMAND_PARAMETERIZED("remove",
-            execution_state s;
+            breakpoint b;
 
             int i=0;
             while(parameter[i]!=':' && parameter[i]!='\0') i++;
@@ -214,12 +214,12 @@ void debugger(executor* Ex, bytecode_environment* environment){
             memcpy(buf, parameter, i);
             buf[i]='\0';
 
-            s.file=buf;
-            s.line=atoi(parameter+i+1);
+            b.file=buf;
+            b.line=atoi(parameter+i+1);
 
             for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-                execution_state break_point=*(execution_state*)vector_get(&environment->debugger.breakpoints, i);
-                if(strcmp(break_point.file, s.file)==0 && break_point.line==s.line){
+                breakpoint* br=(breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+                if(strcmp(br->file, b.file)==0 && br->line==b.line){
                     vector_delete(&environment->debugger.breakpoints, i);
                 }
             }
@@ -246,8 +246,8 @@ object execute_bytecode(executor* Ex, bytecode_environment* environment){
         void* constants=program->constants;
 
         instruction instr=code[*pointer];
-        exec_state.line=program->information[*pointer].line;
-        exec_state.column=program->information[*pointer].column;
+        Ex->line=program->information[*pointer].line;
+        Ex->column=program->information[*pointer].column;
         switch(instr.type){
             case b_discard:
             {

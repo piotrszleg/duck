@@ -231,12 +231,12 @@ void struct_descriptor_nested_tests(executor* Ex){
 
 int main(){
     table_init(&patching_table);
-    executor* Ex=NULL;
+    executor Ex;
     TRY_CATCH(
-        evaluation_tests(Ex);
-        path_length_test(Ex);
-        struct_descriptor_tests(Ex);
-        struct_descriptor_nested_tests(Ex);
+        evaluation_tests(&Ex);
+        path_length_test(&Ex);
+        struct_descriptor_tests(&Ex);
+        struct_descriptor_nested_tests(&Ex);
     ,
         printf(err_message);
         exit(-1);

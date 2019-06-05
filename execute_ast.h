@@ -9,13 +9,6 @@
 #include "error/execution_state.h"
 #include "utility.h"
 
-typedef struct {
-    gc_pointer gco;
-    int line_number;
-    int column_number;
-    bool returning;
-} ast_executor_state;
-
-object execute_ast(executor* Ex, ast_executor_state* state, expression* exp, object scope, int keep_scope);
+object execute_ast(executor* Ex, expression* exp, object scope, int keep_scope);
 
 #endif

@@ -5,26 +5,14 @@ object evaluate(executor* Ex, expression* parsing_result, object scope, bool ast
         return null_const;// there was an error while parsing
     }
 
-    optimise_ast(parsing_result);
+    optimise_ast(Ex, parsing_result);
     if(g_print_ast){
         USING_STRING(stringify_expression(parsing_result, 0),
             printf("Abstract Syntax Tree:\n%s\n", str));
     }
     object execution_result;
     if(ast_only){
-        ast_executor_state* state=malloc(sizeof(ast_executor_state));
-        state->returning=false;
-        object gcp;
-        gcp.gcp=(gc_pointer*)state;
-        gcp.gcp->destructor=(gc_pointer_destructor)free;
-        gc_pointer_init(&gcp);
-        TRY_CATCH(
-            execution_result=execute_ast(Ex, state, parsing_result, scope, 1);
-        ,
-            printf("Error occured on line %i, column %i of source code:\n", state->line_number, state->column_number);
-            printf(err_message);
-            return null_const;
-        );
+        execution_result=execute_ast(Ex, parsing_result, scope, 1);
         delete_expression(parsing_result);
     } else {
         bytecode_program prog=ast_to_bytecode(parsing_result, true);
@@ -54,13 +42,13 @@ object evaluate(executor* Ex, expression* parsing_result, object scope, bool ast
 
 object evaluate_string(executor* Ex, const char* s, object scope){
     expression* parsing_result=parse_string(s);
-    exec_state.file="string";
+    Ex->file="string";
     return evaluate(Ex, parsing_result, scope, true);
 }
 
 object evaluate_file(executor* Ex, const char* file_name, object scope){
     expression* parsing_result=parse_file(file_name);
-    exec_state.file=file_name;
+    Ex->file=file_name;
     return evaluate(Ex, parsing_result, scope, g_ast_only);
 }
 
@@ -90,7 +78,7 @@ object call_function_processed(executor* Ex, function* f, object* arguments, int
             STRING_OBJECT(argument_name, f->argument_names[i]);
             set(Ex, function_scope, argument_name, arguments[i]);
         }
-        return execute_ast(Ex, (ast_executor_state*)f->environment, (expression*)f->source_pointer, function_scope, 1);
+        return execute_ast(Ex, (expression*)f->source_pointer, function_scope, 1);
     } else if(f->ftype==f_bytecode){
         bytecode_environment* environment=(bytecode_environment*)f->environment;
         environment->scope=function_scope;
