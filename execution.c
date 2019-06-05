@@ -1,6 +1,6 @@
 #include "execution.h"
 
-object evaluate(expression* parsing_result, object scope, bool ast_only){
+object evaluate(executor* Ex, expression* parsing_result, object scope, bool ast_only){
     if(parsing_result==NULL){
         return null_const;// there was an error while parsing
     }
@@ -19,7 +19,7 @@ object evaluate(expression* parsing_result, object scope, bool ast_only){
         gcp.gcp->destructor=(gc_pointer_destructor)free;
         gc_pointer_init(&gcp);
         TRY_CATCH(
-            execution_result=execute_ast(state, parsing_result, scope, 1);
+            execution_result=execute_ast(Ex, state, parsing_result, scope, 1);
         ,
             printf("Error occured on line %i, column %i of source code:\n", state->line_number, state->column_number);
             printf(err_message);
@@ -47,59 +47,59 @@ object evaluate(expression* parsing_result, object scope, bool ast_only){
         gc_pointer_init(&gcp);
 
         bytecode_environment_init(environment);
-        execution_result=execute_bytecode(environment);
+        execution_result=execute_bytecode(Ex, environment);
     }
     return execution_result;
 }
 
-object evaluate_string(const char* s, object scope){
+object evaluate_string(executor* Ex, const char* s, object scope){
     expression* parsing_result=parse_string(s);
     exec_state.file="string";
-    return evaluate(parsing_result, scope, true);
+    return evaluate(Ex, parsing_result, scope, true);
 }
 
-object evaluate_file(const char* file_name, object scope){
+object evaluate_file(executor* Ex, const char* file_name, object scope){
     expression* parsing_result=parse_file(file_name);
     exec_state.file=file_name;
-    return evaluate(parsing_result, scope, g_ast_only);
+    return evaluate(Ex, parsing_result, scope, g_ast_only);
 }
 
-void execute_file(const char* file_name){
+void execute_file(executor* Ex, const char* file_name){
     object global_scope;
     table_init(&global_scope);
     reference(&global_scope);
-    register_builtins(global_scope);
-    object execution_result=evaluate_file(file_name, global_scope);
-    USING_STRING(stringify(execution_result), 
+    register_builtins(Ex, global_scope);
+    object execution_result=evaluate_file(Ex, file_name, global_scope);
+    USING_STRING(stringify(Ex, execution_result), 
         printf("Execution result:\n%s\n", str));
-    USING_STRING(stringify(global_scope), 
+    USING_STRING(stringify(Ex, global_scope), 
        printf("Global scope:\n%s\n", str));
-    dereference(&execution_result);
-    dereference(&global_scope);
+    dereference(Ex, &execution_result);
+    dereference(Ex, &global_scope);
 }
 
 // this function should only be called from call_function, it's there to simplify the code structure
-object call_function_processed(function* f, object* arguments, int arguments_count){
+object call_function_processed(executor* Ex, function* f, object* arguments, int arguments_count){
     object function_scope;
     table_init(&function_scope);
     if(f->enclosing_scope.type!=t_null){
-        inherit_scope(function_scope, f->enclosing_scope);
+        inherit_scope(Ex, function_scope, f->enclosing_scope);
     }
     if(f->ftype==f_ast){
         for(int i=0; i<arguments_count; i++){
             STRING_OBJECT(argument_name, f->argument_names[i]);
-            set(function_scope, argument_name, arguments[i]);
+            set(Ex, function_scope, argument_name, arguments[i]);
         }
-        return execute_ast((ast_executor_state*)f->environment, (expression*)f->source_pointer, function_scope, 1);
+        return execute_ast(Ex, (ast_executor_state*)f->environment, (expression*)f->source_pointer, function_scope, 1);
     } else if(f->ftype==f_bytecode){
         bytecode_environment* environment=(bytecode_environment*)f->environment;
         environment->scope=function_scope;
 
-        move_to_function(environment, f, true);
+        move_to_function(Ex, environment, f, true);
         for(int i=0; i<arguments_count; i++){
             push(&environment->object_stack, arguments[i]);
         }
-        object result=execute_bytecode(environment);
+        object result=execute_bytecode(Ex, environment);
         return result;
     } else {
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
@@ -108,9 +108,9 @@ object call_function_processed(function* f, object* arguments, int arguments_cou
 }
 
 // return error if arguments count is incorrect and proccess variadic functions, then call the function using call_function_processed
-object call_function(function* f, object* arguments, int arguments_count){
+object call_function(executor* Ex, function* f, object* arguments, int arguments_count){
     if(f->ftype==f_native){
-        return f->native_pointer(arguments, arguments_count);
+        return f->native_pointer(Ex, arguments, arguments_count);
     } else {
         int arguments_count_difference=arguments_count-f->arguments_count;
         if(f->variadic){
@@ -129,18 +129,18 @@ object call_function(function* f, object* arguments, int arguments_count){
             object variadic_table;
             table_init(&variadic_table);
             for(int i=variadic_arguments_count-1; i>=0; i--){
-                set(variadic_table, to_number(i), arguments[f->arguments_count-1+i]);
+                set(Ex, variadic_table, to_number(i), arguments[f->arguments_count-1+i]);
             }
             // append the variadic array to the end of processed arguments array
             processed_arguments[f->arguments_count-1]=variadic_table;
 
-            return call_function_processed(f, processed_arguments, processed_arguments_count);
+            return call_function_processed(Ex, f, processed_arguments, processed_arguments_count);
         } else if(arguments_count_difference<0){
             RETURN_ERROR("CALL_ERROR", null_const, "Not enough arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
         } else if(arguments_count_difference>0) {
             RETURN_ERROR("CALL_ERROR", null_const, "Too many arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
         } else {
-            return call_function_processed(f, arguments, arguments_count);
+            return call_function_processed(Ex, f, arguments, arguments_count);
         }
     }
 }

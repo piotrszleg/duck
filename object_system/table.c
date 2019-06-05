@@ -131,7 +131,7 @@ char* stringify_kvp(const char* key, const char* value){// kvp = key value pair
     return buf;
 }
 
-char* stringify_table(table* t){
+char* stringify_table(executor* Ex, table* t){
     table_iterator it=start_iteration(t);
     stream s;
     init_stream(&s, 64);
@@ -152,7 +152,7 @@ char* stringify_table(table* t){
         if(self_reference){
             stringified_value="<self>";
         } else {
-            stringified_value=stringify(i.value);
+            stringified_value=stringify(Ex, i.value);
         }
         // detect if there are holes in array part
         if(i.inside_array && !array_part_holey && i.key.type==t_number){
@@ -172,7 +172,7 @@ char* stringify_table(table* t){
             // print the array part without keys
             stream_push(&s, stringified_value, strlen(stringified_value));
         } else {
-            char* stringified_key=stringify(i.key);
+            char* stringified_key=stringify(Ex, i.key);
             USING_STRING(stringify_kvp(stringified_key, stringified_value),
                 stream_push(&s, str, strlen(str)));
             free(stringified_key);
@@ -186,15 +186,15 @@ char* stringify_table(table* t){
     return (char*)stream_get_data(&s);
 }
 
-void dereference_children_table(table* t){
+void dereference_children_table(executor* Ex, table* t){
     for(int i=0; i<t->array_size; i++){
-        dereference(&t->array[i]);
+        dereference(Ex, &t->array[i]);
     }
     for(int i=0; i<t->map_size; i++){
         map_element* e=t->map[i];
         while(e){
-            dereference(&e->key);
-            dereference(&e->value);
+            dereference(Ex, &e->key);
+            dereference(Ex, &e->value);
             e=e->next;
         }
     }
@@ -214,7 +214,7 @@ void free_table(table* t){
     free(t);
 }
 
-void set_table(table* t, object key, object value) {
+void set_table(executor* Ex, table* t, object key, object value) {
     reference(&value);
     // try to insert value into array
     if(key.type==t_number && key.value>=0) {
@@ -236,7 +236,7 @@ void set_table(table* t, object key, object value) {
     while(e){
         if(e!=NULL && compare(e->key, key)==0) {
             // there is a map_element with this key, so we replace it's value
-            dereference(&e->value);
+            dereference(Ex, &e->value);
             e->value=value;
             return;
         }
@@ -250,44 +250,44 @@ void set_table(table* t, object key, object value) {
     t->map[hashed]=new_element;
 }
 
-object get(object o, object key);
-object set(object o, object key, object value);
+object get(executor* Ex, object o, object key);
+object set(executor* Ex, object o, object key, object value);
 
-object iterator_next_function(object* arguments, int arguments_count){
+object iterator_next_function(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
     object result_object;
     table_init(&result_object);
 
-    object iterator_address=get(self, to_number(0));
+    object iterator_address=get(Ex, self, to_number(0));
     REQUIRE_TYPE(iterator_address, t_number);
     table_iterator* it=(table_iterator*)(intptr_t)iterator_address.value;
     iteration_result result=table_next(it);
-    set(result_object, to_string("key"), result.key);
-    set(result_object, to_string("value"), result.value);
-    set(result_object, to_string("finished"), to_number(result.finished));
-    set(result_object, to_string("inside_array"), to_number(result.inside_array));
+    set(Ex, result_object, to_string("key"), result.key);
+    set(Ex, result_object, to_string("value"), result.value);
+    set(Ex, result_object, to_string("finished"), to_number(result.finished));
+    set(Ex, result_object, to_string("inside_array"), to_number(result.inside_array));
     return result_object;
 }
 
-object destroy_iterator(object* arguments, int arguments_count){
+object destroy_iterator(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
-    object iterator_address=get(self, to_number(0));
+    object iterator_address=get(Ex, self, to_number(0));
     REQUIRE_TYPE(iterator_address, t_number);
     free((table_iterator*)(intptr_t)iterator_address.value);
     return null_const;
 }
 
 // TODO: protect pointer from overriding from script for safety reasons
-object get_table_iterator(object* arguments, int arguments_count){
+object get_table_iterator(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
     object iterator;
     table_init(&iterator);
     REQUIRE_TYPE(self, t_table);
     table_iterator* it=malloc(sizeof(table_iterator));
     *it=start_iteration(self.tp);
-    set(iterator, to_number(0), to_number((intptr_t)it));
-    set(iterator, to_string("table"), self);
-    set(iterator, to_string("call"), to_function(iterator_next_function, NULL, 1));
-    set(iterator, to_string("destroy"), to_function(destroy_iterator, NULL, 1));
+    set(Ex, iterator, to_number(0), to_number((intptr_t)it));
+    set(Ex, iterator, to_string("table"), self);
+    set(Ex, iterator, to_string("call"), to_function(iterator_next_function, NULL, 1));
+    set(Ex, iterator, to_string("destroy"), to_function(destroy_iterator, NULL, 1));
     return iterator;
 }

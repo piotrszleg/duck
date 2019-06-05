@@ -10,6 +10,8 @@
 #include "../utility.h"
 #include "../datatypes/vector.h"
 
+#define executor void
+
 #define OBJECT_TYPES \
     X(null) \
     X(number) \
@@ -96,7 +98,7 @@ OBJECT_TYPES
     }
 
 // declaration of function pointer type used in function objects
-typedef object (*object_system_function)(object* arguments, int arguments_count);
+typedef object (*object_system_function)(executor* Ex, object* arguments, int arguments_count);
 
 typedef void (*gc_pointer_destructor)(void*);
 
@@ -134,8 +136,8 @@ struct function {
 
 void print_allocated_objects();
 bool is_gc_object(object o);
-void gc_run(object* roots, int roots_count);
-void call_destroy(object o);
+void gc_run(executor* Ex, object* roots, int roots_count);
+void call_destroy(executor* Ex, object o);
 
 object to_string(const char* s);
 object to_number(float n);
@@ -145,18 +147,18 @@ object to_function(object_system_function f, char** argument_names, int argument
 
 void reference(object* o);
 void object_init(object* o, object_type type);
-void gc_dereference(gc_object* o);
-void dereference(object* o);
-void destroy_unreferenced(object* o);
+void gc_dereference(executor* Ex, gc_object* o);
+void dereference(executor* Ex, object* o);
+void destroy_unreferenced(executor* Ex, object* o);
 
-char* stringify_object(object o);
-char* stringify(object o);
+char* stringify_object(executor* Ex, object o);
+char* stringify(executor* Ex, object o);
 
 void object_system_init();
-void object_system_deinit();
+void object_system_deinit(executor* Ex);
 
 // these functions should be implemented in higher level module
-object call_function(function* f, object* arguments, int arguments_count);
+object call_function(executor* Ex, function* f, object* arguments, int arguments_count);
 void deinit_function(function* f);
 
 #include "table.h"

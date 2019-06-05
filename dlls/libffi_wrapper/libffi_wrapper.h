@@ -9,4 +9,6 @@
 #include "../../datatypes/map.h"
 #include "../../runtime/import_dll.h"
 
+object duck_module_init(executor* Ex);
+
 #endif

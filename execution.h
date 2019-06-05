@@ -17,10 +17,9 @@
 #include "execute_ast.h"
 #include "options.h"
 
-object detach_function(function* f);
-object evaluate_string(const char* s, object scope);
-object evaluate_file(const char* file_name, object scope);
-void execute_file(const char* file_name);
-object call_function(function* f, object* arguments, int arguments_count);
+object evaluate_string(executor* Ex, const char* s, object scope);
+object evaluate_file(executor* Ex, const char* file_name, object scope);
+void execute_file(executor* Ex, const char* file_name);
+object call_function(executor* Ex, function* f, object* arguments, int arguments_count);
 
 #endif

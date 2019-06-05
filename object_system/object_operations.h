@@ -13,38 +13,38 @@ extern object patching_table;
 bool is_falsy(object o);
 
 int compare(object a, object b);
-object operator(object a, object b, const char* op);
+object operator(executor* Ex, object a, object b, const char* op);
 
-object cast(object o, object_type type);
+object cast(executor* Ex, object o, object_type type);
 
-object call(object o, object* arguments, int arguments_count);
+object call(executor* Ex, object o, object* arguments, int arguments_count);
 
-object get(object o, object key);
-object set(object o, object key, object value);
+object get(executor* Ex, object o, object key);
+object set(executor* Ex, object o, object key, object value);
 
 void get_execution_info(char* buffer, int buffer_count);
-object multiple_causes(object* causes, int causes_count);
-object new_error(char* type, object cause, char* message, char* location);
+object multiple_causes(executor* Ex, object* causes, int causes_count);
+object new_error(executor* Ex, char* type, object cause, char* message, char* location);
 
 char* suprintf (const char * format, ...);
-char* stringify_object(object o);
-char* stringify(object o);
-object get_iterator(object o);
+char* stringify_object(executor* Ex, object o);
+char* stringify(executor* Ex, object o);
+object get_iterator(executor* Ex, object o);
 
 // iterated and receiver should be of object type, executes body with receiver becoming subsequential elements of iterated
 #define FOREACH(iterated, receiver, body) \
     { \
-        object iterator=get_iterator(iterated); \
+        object iterator=get_iterator(Ex, iterated); \
         reference(&iterator); \
         \
-        receiver=call(iterator, NULL, 0); \
+        receiver=call(Ex, iterator, NULL, 0); \
         while(true) { \
             reference(&receiver); \
             {body} \
-            dereference(&receiver); \
-            receiver=call(iterator, NULL, 0); \
-            if(!is_falsy(get(receiver, to_string("finished")))){ \
-                dereference(&iterator); \
+            dereference(Ex, &receiver); \
+            receiver=call(Ex, iterator, NULL, 0); \
+            if(!is_falsy(get(Ex, receiver, to_string("finished")))){ \
+                dereference(Ex, &iterator); \
                 break; \
             } \
         } \

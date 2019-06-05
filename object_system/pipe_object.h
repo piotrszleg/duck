@@ -5,6 +5,6 @@
 #include "object_operations.h"
 #include "object_utility.h"
 
-object new_pipe(object f1, object f2);
+object new_pipe(executor* Ex, object f1, object f2);
 
 #endif

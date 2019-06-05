@@ -47,7 +47,7 @@
     X(long long,   FFI_TYPE_POINTER,    ffi_type_pointer     )
     // leaving out complex numbers
 
-void* to_ffi_type(object o, ffi_type* t, object type_object){
+void* to_ffi_type(executor* Ex, object o, ffi_type* t, object type_object){
     switch(o.type){
         case t_string:
             return (void*)strdup(o.text);
@@ -72,12 +72,12 @@ void* to_ffi_type(object o, ffi_type* t, object type_object){
             CHECK_ALLOCATION(result)
             int position=0;
             for(int i=0; t->elements[i]!=NULL; i++){
-                object field_object=get(type_object, to_number(i));
-                object field_name=get(field_object, to_number(0));
-                object field_type=get(field_object, to_number(1));
-                object field_value=get(o, field_name);
+                object field_object=get(Ex, type_object, to_number(i));
+                object field_name=get(Ex, field_object, to_number(0));
+                object field_type=get(Ex, field_object, to_number(1));
+                object field_value=get(Ex, o, field_name);
                 int size=t->elements[i]->size;
-                void* converted_field=to_ffi_type(field_value, t->elements[i], field_type);
+                void* converted_field=to_ffi_type(Ex, field_value, t->elements[i], field_type);
                 memcpy(result+position, converted_field, size);
                 free(converted_field);
                 position+=size;
@@ -85,12 +85,12 @@ void* to_ffi_type(object o, ffi_type* t, object type_object){
             return result;
         }
     }
-    USING_STRING(stringify(o),
+    USING_STRING(stringify(Ex, o),
         THROW_ERROR(WRONG_ARGUMENT_TYPE, "Couldn't convert %s to ffi type.", str));
     return NULL;
 }
 
-object from_ffi_type(void* v, ffi_type* t, object type_object){
+object from_ffi_type(executor* Ex, void* v, ffi_type* t, object type_object){
     switch(t->type){
         #define X(type, type_id, _) \
         case type_id: \
@@ -106,10 +106,10 @@ object from_ffi_type(void* v, ffi_type* t, object type_object){
             int position=0;
             for(int i=0; t->elements[i]!=NULL; i++){
                 void* field=(char*)v+position;
-                object field_object=get(type_object, to_number(i));
-                object field_name=get(field_object, to_number(0));
-                object field_type=get(field_object, to_number(1));
-                set(o, field_name, from_ffi_type(field, t->elements[i], field_type));
+                object field_object=get(Ex, type_object, to_number(i));
+                object field_name=get(Ex, field_object, to_number(0));
+                object field_type=get(Ex, field_object, to_number(1));
+                set(Ex, o, field_name, from_ffi_type(Ex, field, t->elements[i], field_type));
                 int size=t->elements[i]->size;
                 position+=size;
             }
@@ -119,12 +119,12 @@ object from_ffi_type(void* v, ffi_type* t, object type_object){
     return null_const;
 }
 
-object ffi_function_call(object* arguments, int arguments_count){
+object ffi_function_call(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
-    object cif_pointer=get(self, to_string("cif"));
+    object cif_pointer=get(Ex, self, to_string("cif"));
     REQUIRE_TYPE(cif_pointer, t_pointer);
 
-    object function_pointer=get(self, to_string("function"));
+    object function_pointer=get(Ex, self, to_string("function"));
     REQUIRE_TYPE(function_pointer, t_pointer);
 
     ffi_cif* cif=(ffi_cif*)cif_pointer.p;
@@ -132,13 +132,13 @@ object ffi_function_call(object* arguments, int arguments_count){
     void** values=malloc(sizeof(void*)*(arguments_count-1));
     CHECK_ALLOCATION(values);
     for(int i=0; i<arguments_count-1; i++){
-        object type_object=get(self, to_number(i));
-        values[i]=to_ffi_type(arguments[i+1], cif->arg_types[i], type_object);
+        object type_object=get(Ex, self, to_number(i));
+        values[i]=to_ffi_type(Ex, arguments[i+1], cif->arg_types[i], type_object);
     }
     void* returned=malloc(cif->rtype->size);// hopefuly size works also on structs
     ffi_call(cif, FFI_FN(function_pointer.p), returned, values);
 
-    object result=from_ffi_type(returned, cif->rtype, get(self, to_number(arguments_count-1)));
+    object result=from_ffi_type(Ex, returned, cif->rtype, get(Ex, self, to_number(arguments_count-1)));
 
     for(int i=0; i<arguments_count-1; i++){
         free(values[i]);
@@ -150,9 +150,9 @@ object ffi_function_call(object* arguments, int arguments_count){
     return result;
 }
 
-object ffi_function_destroy(object* arguments, int arguments_count){
+object ffi_function_destroy(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
-    object cif_pointer=get(self, to_string("cif"));
+    object cif_pointer=get(Ex, self, to_string("cif"));
     REQUIRE_TYPE(cif_pointer, t_pointer);
 
     ffi_cif* cif=(ffi_cif*)cif_pointer.p;
@@ -164,8 +164,8 @@ object ffi_function_destroy(object* arguments, int arguments_count){
     return null_const;
 }
 
-void* ffi_find_function(object self, char* function_name){
-    object lib_pointer=get(self, to_number(0));
+void* ffi_find_function(executor* Ex, object self, char* function_name){
+    object lib_pointer=get(Ex, self, to_number(0));
     if(lib_pointer.type!=t_pointer){
         return NULL;
     }
@@ -178,10 +178,10 @@ void* ffi_find_function(object self, char* function_name){
         if((type_object).type==t_string){ \
             /*if provided argument type is a string use it as a key
             to get one of the basic types in types dictionary*/ \
-            ffi_type_pointer=get((basic_types_table), (type_object)); \
+            ffi_type_pointer=get(Ex, (basic_types_table), (type_object)); \
         } else { \
             /* treat argument as a table returned by ffi_struct function */ \
-            ffi_type_pointer=get((type_object), to_string("type")); \
+            ffi_type_pointer=get(Ex, (type_object), to_string("type")); \
         } \
         REQUIRE_TYPE(ffi_type_pointer, t_pointer); \
         (result)=(ffi_type*)ffi_type_pointer.p; \
@@ -189,11 +189,11 @@ void* ffi_find_function(object self, char* function_name){
 
 #define DEBUG_PRINT printf("<%i>\n", __COUNTER__);
 
-object ffi_function(object* arguments, int arguments_count){
+object ffi_function(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
     object function_name=arguments[1];
     REQUIRE_TYPE(function_name, t_string);
-    object types=get(self, to_string("types"));
+    object types=get(Ex, self, to_string("types"));
  
     object result;
     table_init(&result);
@@ -203,11 +203,11 @@ object ffi_function(object* arguments, int arguments_count){
     CHECK_ALLOCATION(argument_types)
     for(int i=0; i<argument_types_count; i++){
         GET_FFI_TYPE(arguments[2+i], types, argument_types[i]);
-        set(result, to_number(i), arguments[2+i]);
+        set(Ex, result, to_number(i), arguments[2+i]);
     }
     ffi_type* return_type;
     GET_FFI_TYPE(arguments[arguments_count-1], types, return_type);
-    set(result, to_number(argument_types_count), arguments[arguments_count-1]);
+    set(Ex, result, to_number(argument_types_count), arguments[arguments_count-1]);
 
     ffi_cif* cif=malloc(sizeof(ffi_cif));
     CHECK_ALLOCATION(cif)
@@ -219,17 +219,17 @@ object ffi_function(object* arguments, int arguments_count){
         RETURN_ERROR("FFI_ERROR", arguments[0], "ffi_prep_cif failed: %d\n", status);
     }
 
-    set(result, to_string("cif"), to_pointer(cif));
-    set(result, to_string("function"), to_pointer(ffi_find_function(self, function_name.text)));
-    set_function(result, "call", 1, true, ffi_function_call);
-    set_function(result, "destroy", 1, false, ffi_function_destroy);
+    set(Ex, result, to_string("cif"), to_pointer(cif));
+    set(Ex, result, to_string("function"), to_pointer(ffi_find_function(Ex, self, function_name.text)));
+    set_function(Ex, result, "call", 1, true, ffi_function_call);
+    set_function(Ex, result, "destroy", 1, false, ffi_function_destroy);
 
     return result;
 }
 
-object ffi_struct_destroy(object* arguments, int arguments_count){
+object ffi_struct_destroy(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
-    object type_pointer=get(self, to_string("type"));
+    object type_pointer=get(Ex, self, to_string("type"));
     REQUIRE_TYPE(type_pointer, t_pointer);
 
     ffi_type* struct_type=(ffi_type*)type_pointer.p;
@@ -241,9 +241,9 @@ object ffi_struct_destroy(object* arguments, int arguments_count){
     return null_const;
 }
 
-object ffi_struct(object* arguments, int arguments_count){
+object ffi_struct(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
-    object types=get(self, to_string("types"));
+    object types=get(Ex, self, to_string("types"));
 
     ffi_type* struct_type=malloc(sizeof(ffi_type));
     CHECK_ALLOCATION(struct_type)
@@ -254,31 +254,31 @@ object ffi_struct(object* arguments, int arguments_count){
 
     object result;
     table_init(&result);
-    set(result, to_string("type"), to_pointer(struct_type));
+    set(Ex, result, to_string("type"), to_pointer(struct_type));
 
     for(int i=1; i<arguments_count; i++){
         // fields passed as arguments to this function are in format:
         // [field_name, field_type] 
-        object field_type=get(arguments[i], to_number(1));
+        object field_type=get(Ex, arguments[i], to_number(1));
         GET_FFI_TYPE(field_type, types, struct_type->elements[i-1]);
 
-        set(result, to_number(i-1), arguments[i]);
+        set(Ex, result, to_number(i-1), arguments[i]);
     }
     struct_type->elements[arguments_count]=NULL;
 
-    set_function(result, "destroy", 1, false, ffi_struct_destroy);
+    set_function(Ex, result, "destroy", 1, false, ffi_struct_destroy);
     return result;
 }
 
-object ffi_destroy(object* arguments, int arguments_count){
+object ffi_destroy(executor* Ex, object* arguments, int arguments_count){
     object self=arguments[0];
-    object lib_pointer=get(self, to_number(0));
+    object lib_pointer=get(Ex, self, to_number(0));
     REQUIRE_TYPE(lib_pointer, t_pointer);
     close_dll(lib_pointer.p);
     return null_const;
 }
 
-object ffi_open(object* arguments, int arguments_count){
+object ffi_open(executor* Ex, object* arguments, int arguments_count){
     object library_name=arguments[0];
     object result;
     table_init(&result);
@@ -290,28 +290,28 @@ object ffi_open(object* arguments, int arguments_count){
         REQUIRE_TYPE(library_name, t_string);
         dll_handle=get_dll_handle(library_name.text);
     }
-    set(result, to_number(0), to_pointer(dll_handle));
+    set(Ex, result, to_number(0), to_pointer(dll_handle));
     
-    set_function(result, "struct", 1, true, ffi_struct);
-    set_function(result, "function", 2, true, ffi_function);
-    set_function(result, "destroy", 1, false, ffi_destroy);
+    set_function(Ex, result, "struct", 1, true, ffi_struct);
+    set_function(Ex, result, "function", 2, true, ffi_function);
+    set_function(Ex, result, "destroy", 1, false, ffi_destroy);
     
     object types;
     table_init(&types);
     #define X(type, type_id, type_variable) \
-        set(types, to_string(#type), to_pointer(&type_variable));
+        set(Ex, types, to_string(#type), to_pointer(&type_variable));
 
     NUMERIC_TYPES
     #undef X
-    set(result, to_string("types"), types);
+    set(Ex, result, to_string("types"), types);
     
     return result;
 }
 
-object duck_module_init(){
+object duck_module_init(executor* Ex){
     object module;
     table_init(&module);
-    set_function(module, "open", 1, false, ffi_open);
+    set_function(Ex, module, "open", 1, false, ffi_open);
     return module;
 }
 

@@ -13,7 +13,7 @@
     sprintf(location, "at:\t(%s)\nsrc:\t(%s:%d)", e_info, __FILE__, __LINE__); \
     char* message_formatted=malloc(ERROR_BUFFER_SIZE *sizeof(char)); \
     snprintf(message_formatted, ERROR_BUFFER_SIZE, message, ##__VA_ARGS__); \
-    result=new_error(type, cause, message_formatted, location); \
+    result=new_error(Ex, type, cause, message_formatted, location); \
     }
 #define RETURN_ERROR(type, cause, message, ...) \
     { char* location=malloc(ERROR_BUFFER_SIZE*sizeof(char)); \
@@ -22,9 +22,9 @@
     sprintf(location, "at:\t(%s)\nsrc:\t(%s:%d)", e_info, __FILE__, __LINE__); \
     char* message_formatted=malloc(ERROR_BUFFER_SIZE *sizeof(char)); \
     snprintf(message_formatted, ERROR_BUFFER_SIZE, message, ##__VA_ARGS__); \
-    return new_error(type, cause, message_formatted, location); }
+    return new_error(Ex, type, cause, message_formatted, location); }
 
-object multiple_causes(object* causes, int causes_count);
-object new_error(char* type, object cause, char* message, char* location);
+object multiple_causes(executor* Ex, object* causes, int causes_count);
+object new_error(executor* Ex, char* type, object cause, char* message, char* location);
 
 #endif

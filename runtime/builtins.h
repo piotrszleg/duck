@@ -14,7 +14,7 @@
     RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
 
 
-void register_builtins(object scope);
-void inherit_scope(object scope, object base);
+void register_builtins(executor* Ex, object scope);
+void inherit_scope(executor* Ex, object scope, object base);
 
 #endif

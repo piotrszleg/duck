@@ -59,8 +59,8 @@ void close_dll(void* dll_handle){
     #endif
 }
 
-object import_dll(const char* module_name){
-    typedef object (*module_init_t) (void);
+object import_dll(executor* Ex, const char* module_name){
+    typedef object (*module_init_t) (executor*);
     object result;
     #ifdef WINDOWS
     HINSTANCE lib_handle = LoadLibrary(module_name);
@@ -69,7 +69,7 @@ object import_dll(const char* module_name){
         module_init_t init_function = (module_init_t)GetProcAddress(lib_handle, "duck_module_init");   
         
         if (init_function != NULL){
-            result=init_function();
+            result=init_function(Ex);
         } else {
             result=null_const;
         }

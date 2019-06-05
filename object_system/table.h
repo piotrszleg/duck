@@ -49,12 +49,12 @@ struct iteration_result{
 };
 
 object get_table(table* t, object key);
-void set_table(table* t, object key, object value);
+void set_table(executor* Ex, table* t, object key, object value);
 void free_table(table* t);
-void dereference_children_table(table* t);
-char* stringify_table(table* t);
+void dereference_children_table(executor* Ex, table* t);
+char* stringify_table(executor* Ex, table* t);
 void table_component_init(table* t);
-object get_table_iterator(object* arguments, int arguments_count);
+object get_table_iterator(executor* Ex, object* arguments, int arguments_count);
 table_iterator start_iteration(table* iterated);
 iteration_result table_next(table_iterator* it);
 

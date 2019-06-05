@@ -148,12 +148,12 @@ void reference(object* o){
     }
 }
 
-void print_allocated_objects(){
+void print_allocated_objects(executor* Ex){
     gc_object* o=gc_root;
     while(o){
         object wrapped={o->gc_type};
         wrapped.gco=o;
-        USING_STRING(stringify(wrapped),
+        USING_STRING(stringify(Ex, wrapped),
             printf("%s\tref_count: %i\n", str, o->ref_count))
         o=o->next;
     }
@@ -181,7 +181,7 @@ void gc_unmark_all(){
     }
 }
 
-void gc_sweep(){
+void gc_sweep(executor* Ex){
     gc_object* o=gc_root;
     #define FOREACH_GC_OBJECT(body) \
         o=gc_root; \
@@ -199,7 +199,7 @@ void gc_sweep(){
         if(o->ref_count>0){
             o->ref_count=0;
         }
-        gc_dereference(o);
+        gc_dereference(Ex, o);
     )
     // reset ref_count for the third pass to work
     FOREACH_GC_OBJECT(
@@ -208,7 +208,7 @@ void gc_sweep(){
     gc_state=gcs_freeing_memory;
     // free the memory
     FOREACH_GC_OBJECT(
-       gc_dereference(o);
+       gc_dereference(Ex, o);
     )
     gc_state=gcs_inactive;
     #undef FOREACH_GC_OBJECT
@@ -218,29 +218,29 @@ bool gc_should_run(){
     return allocations_count>MAX_ALLOCATIONS;
 }
 
-void gc_run(object* roots, int roots_count){
+void gc_run(executor*Ex, object* roots, int roots_count){
     gc_unmark_all();
     for(int i=0; i<roots_count; i++){
         gc_mark(roots[i]);
     }
-    gc_sweep();
+    gc_sweep(Ex);
 }
 
 char* gc_text="<garbage collected text>";
 
-void gc_dereference(gc_object* o){
+void gc_dereference(executor* Ex, gc_object* o){
     object wrapped;
     wrapped.type=o->gc_type;
     wrapped.gco=o;
-    dereference(&wrapped);
+    dereference(Ex, &wrapped);
 }
 
-void dereference(object* o){
+void dereference(executor* Ex, object* o){
     CHECK_OBJECT(o)
     if(is_gc_object(*o)) {
         if(o->gco->ref_count!=ALREADY_DESTROYED){
             o->gco->ref_count--;
-            destroy_unreferenced(o);
+            destroy_unreferenced(Ex, o);
         }
     } else if(o->type==t_string){
         if(gc_state!=gcs_deinitializing){
@@ -250,17 +250,17 @@ void dereference(object* o){
     }
 }
 
-void destroy_unreferenced(object* o){
+void destroy_unreferenced(executor* Ex, object* o){
     if(is_gc_object(*o) && o->gco->ref_count<=0){
         o->gco->ref_count=ALREADY_DESTROYED;
         switch(o->type){
             case t_function:
             {
-                dereference(&o->fp->enclosing_scope);
+                dereference(Ex, &o->fp->enclosing_scope);
 
                 // in freeing memory stage the function environment will free itself
                 if(o->fp->environment!=NULL && gc_state!=gcs_freeing_memory){
-                    gc_dereference((gc_object*)o->fp->environment);
+                    gc_dereference(Ex, (gc_object*)o->fp->environment);
                 }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(o->gco);
@@ -278,8 +278,8 @@ void destroy_unreferenced(object* o){
             case t_table:
             {
                 if(gc_state!=gcs_freeing_memory){
-                    call_destroy(*o);
-                    dereference_children_table(o->tp);
+                    call_destroy(Ex, *o);
+                    dereference_children_table(Ex, o->tp);
                 }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(o->gco);
@@ -306,10 +306,10 @@ void object_system_init(){
     reference(&patching_table);
 }
 
-void object_system_deinit(){
+void object_system_deinit(executor* Ex){
     // patching table might be used by destructors
-    gc_run(&patching_table, 1);
+    gc_run(Ex, &patching_table, 1);
 
     patching_table.gco->ref_count=0;
-    destroy_unreferenced(&patching_table);
+    destroy_unreferenced(Ex, &patching_table);
 }

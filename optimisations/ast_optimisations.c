@@ -66,16 +66,17 @@ expression* to_literal(object o){
     }
 }
 
-object evaluate_expression(expression* exp){
+object evaluate_expression(executor* Ex, expression* exp){
     ast_executor_state state;
     object scope;
     table_init(&scope);
-    object execution_result=execute_ast(&state, exp, scope, 0);
-    dereference(&scope);
+    object execution_result=execute_ast(Ex, &state, exp, scope, 0);
+    dereference(Ex, &scope);
     return execution_result;
 }
 
 ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
+    executor* Ex=NULL;
     // remove statements that have no side effects and whose result isn't used anywhere
     if(exp->type==e_block){
         block* b=(block*)exp;
@@ -103,7 +104,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
     else if(exp->type==e_conditional){
         conditional* c=(conditional*)exp;
         if(is_constant(c->condition)){
-            object evaluated=evaluate_expression(c->condition);
+            object evaluated=evaluate_expression(Ex, c->condition);
             ast_visitor_request request={next};
             if(is_falsy(evaluated)){
                 request.replacement=copy_expression(c->onfalse);
@@ -111,17 +112,17 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
                 request.replacement=copy_expression(c->ontrue);
             }
             LOG_CHANGE("constant conditional", exp, request.replacement);
-            dereference(&evaluated);
+            dereference(Ex, &evaluated);
             return request;
         }
     }
     // constants folding
     else if(!is_literal(exp) && is_constant(exp)){
         ast_visitor_request request={next};
-        object evaluated=evaluate_expression(exp);
+        object evaluated=evaluate_expression(Ex, exp);
         request.replacement=to_literal(evaluated);
         //replace current expression with the literal
-        dereference(&evaluated);
+        dereference(Ex, &evaluated);
         LOG_CHANGE("constants folding", exp, request.replacement);
         return request;
     }

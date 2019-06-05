@@ -55,10 +55,21 @@ void handle_arguments(int argc, char **argv) {
             }
         }
     }
+
+    executor* Ex=NULL;
     
-    if(file_path!=NULL){
-        execute_file(file_path);
-    } else {
-        repl();
-    }
+    object_system_init();
+    TRY_CATCH(
+        if(file_path!=NULL){
+            
+            execute_file(Ex, file_path);
+        } else {
+            repl();
+        }
+    ,
+        printf("Error occured:\n");
+        printf(err_message);
+        exit(-1);
+    );
+    object_system_deinit(Ex);
 }
