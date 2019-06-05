@@ -232,6 +232,7 @@ void struct_descriptor_nested_tests(executor* Ex){
 int main(){
     table_init(&patching_table);
     executor Ex;
+    Ex.opt=default_options;
     TRY_CATCH(
         evaluation_tests(&Ex);
         path_length_test(&Ex);

@@ -12,6 +12,8 @@ typedef struct {
     bool debug_mode;
 } options;
 
+extern const options default_options;
+
 void handle_arguments(int argc, char **argv);
 
 #endif

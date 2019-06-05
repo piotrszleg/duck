@@ -6,17 +6,19 @@
 
 static const char* version="0.0.1";
 
+const options default_options={
+    .ast_only=false,
+    .print_ast=false,
+    .print_ast_optimisations=false,
+    .print_bytecode=false,
+    .print_bytecode_optimisations=false,
+    .optimise_ast=true,
+    .optimise_bytecode=true,
+    .debug_mode=false
+};
+
 void handle_arguments(int argc, char **argv) {
-    options opt={
-        .ast_only=false,
-        .print_ast=false,
-        .print_ast_optimisations=false,
-        .print_bytecode=false,
-        .print_bytecode_optimisations=false,
-        .optimise_ast=true,
-        .optimise_bytecode=true,
-        .debug_mode=false
-    };
+    options opt=default_options;
     #define OPTIONS \
         X("ast_only", opt.ast_only=true;) \
         X("print_ast", opt.print_ast=true;) \

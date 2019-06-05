@@ -42,6 +42,7 @@
         "iosfwd": "c",
         "initializer_list": "c",
         "set": "c",
-        "xtree": "c"
+        "xtree": "c",
+        "string.h": "c"
     }
 }
