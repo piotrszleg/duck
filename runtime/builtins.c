@@ -1,5 +1,55 @@
 #include "builtins.h"
 
+Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
+    Object function=arguments[0];
+    Object coroutine;
+    coroutine_init(E, &coroutine);
+    
+    coroutine.co->executor=malloc(sizeof(Executor));
+    coroutine.co->executor->options=E->options;
+    coroutine.co->executor->bytecode_environment.main_program=malloc(sizeof(BytecodeProgram));
+    bytecode_program_copy(E->bytecode_environment.main_program, coroutine.co->executor->bytecode_environment.main_program);
+    bytecode_environment_init(&coroutine.co->executor->bytecode_environment);
+
+    garbage_collector_init(&coroutine.co->executor->gc);
+    table_init(E, &coroutine.co->executor->bytecode_environment.scope);
+    register_builtins(E, coroutine.co->executor->bytecode_environment.scope);
+    coroutine.co->executor->coroutine=coroutine.co;
+    coroutine.co->state=co_uninitialized;
+    REQUIRE_TYPE(function, t_function)
+    REQUIRE(function.fp->ftype==f_bytecode, function)
+    coroutine.co->executor->bytecode_environment.executed_program=function.fp->source_pointer;
+    REQUIRE(function.fp->arguments_count==arguments_count-1, function)
+    for(int i=1; i<arguments_count; i++){
+        push(&coroutine.co->executor->bytecode_environment.object_stack, arguments[i]);
+    }
+
+    return coroutine;
+}
+
+Object coroutine_call(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count){
+    switch(coroutine->state){
+        case co_uninitialized:
+            if(arguments_count!=0){
+                RETURN_ERROR("COROUTINE_ERROR", wrap_gc_object((gc_Object*)coroutine), "First call to coroutine shouldn't have any arguments, %i given", arguments_count)
+            } else {
+                coroutine->state=co_running;
+                return execute_bytecode(coroutine->executor);
+            }
+        case co_running:
+            if(arguments_count==1){
+                push(&coroutine->executor->bytecode_environment.object_stack, arguments[0]);
+            } else if(arguments_count==0){
+                push(&coroutine->executor->bytecode_environment.object_stack, null_const);
+            } else {
+                RETURN_ERROR("COROUTINE_ERROR", wrap_gc_object((gc_Object*)coroutine), "Coroutines can accept either zero or one argument, %i given", arguments_count)
+            }
+            return execute_bytecode(coroutine->executor);
+        case co_finished: return null_const;
+        default: RETURN_ERROR("COROUTINE_ERROR", wrap_gc_object((gc_Object*)coroutine), "Unknown coroutine state: %i", coroutine->state)
+    }
+}
+
 Object builtin_print(Executor* E, Object* arguments, int arguments_count){
     USING_STRING(stringify(E, arguments[0]),
         printf("%s\n", str));
@@ -175,10 +225,8 @@ Object builtin_native_call(Executor* E, Object* arguments, int arguments_count){
 }
 
 Object builtin_iterator(Executor* E, Object* arguments, int arguments_count){
-    Object self=arguments[0];
-    REQUIRE_TYPE(self, t_table);
-    // TODO
-    return null_const;
+    Object o=arguments[0];
+    return get_iterator(E, o);
 }
 
 Object builtin_test(Executor* E, Object* arguments, int arguments_count){
@@ -189,21 +237,22 @@ Object builtin_test(Executor* E, Object* arguments, int arguments_count){
     return null_const;
 }
 
-Object evaluate_file(const char* file_name, int use_bytecode);
+// TOFIX: don't use current scope
+Object evaluate_file(Executor* E, const char* file_name, Object scope);
 Object builtin_include(Executor* E, Object* arguments, int arguments_count){
     Object path=arguments[0];
     Object result;
     REQUIRE_TYPE(path, t_string)
-    result=evaluate_file(path.text, true);
+    result=evaluate_file(E, path.text, E->bytecode_environment.scope);
     return result;
 }
 
-Object evaluate_string(const char* s, bool use_bytecode);
+Object evaluate_string(Executor* E, const char* s, Object scope);
 Object builtin_eval(Executor* E, Object* arguments, int arguments_count){
     Object text=arguments[0];
     Object result;
     REQUIRE_TYPE(text, t_string)
-    result=evaluate_string(text.text, true);
+    result=evaluate_string(E, text.text, E->bytecode_environment.scope);
     return result;
 }
 
@@ -294,9 +343,17 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(open_file, 2)
     REGISTER_FUNCTION(remove_file, 1)
     REGISTER_FUNCTION(import_dll, 1)
-    //REGISTER_FUNCTION(test, 2);
-    set(E, scope, to_string("iterator"), to_function(E, get_table_iterator, NULL, 1));
+    REGISTER_FUNCTION(iterator, 1)
 
+    Object yield;
+    function_init(E, &yield);
+    yield.fp->ftype=f_special;
+    yield.fp->special_index=0;
+    set(E, scope, to_string("yield"), yield);
+
+    set_function(E, scope, "table_iterator", 1, false, get_table_iterator);
+
+    set_function(E, scope, "coroutine", 1, true, builtin_coroutine);
     set_function(E, scope, "format", 1, true, builtin_format);
 
     #undef REGISTER_FUNCTION

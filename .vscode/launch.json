@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/duck.exe",
-            "args": ["input", "-ast_only"],
+            "args": ["input"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

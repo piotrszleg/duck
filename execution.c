@@ -25,8 +25,8 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope){
         }
 
         E->bytecode_environment.pointer=0;
-        E->bytecode_environment.program=malloc(sizeof(BytecodeProgram));
-        memcpy(E->bytecode_environment.program, &prog, sizeof(BytecodeProgram));
+        E->bytecode_environment.main_program=malloc(sizeof(BytecodeProgram));
+        memcpy(E->bytecode_environment.main_program, &prog, sizeof(BytecodeProgram));
         E->bytecode_environment.scope=scope;
 
         bytecode_environment_init(&E->bytecode_environment);
@@ -84,7 +84,7 @@ Object call_function_processed(Executor* E, Function* f, Object* arguments, int 
         Object result=execute_bytecode(E);
         return result;
     } else {
-        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Function type has incorrect value of %i", f->ftype);
+        RETURN_ERROR("FUNCTION_TYPE_ERROR", wrap_gc_object((gc_Object*)f), "Function type has incorrect type value of %i", f->ftype);
         return null_const;
     }
 }

@@ -1,3 +1,1 @@
-tab=[a=[1, 4, 6, 8, 9], b=6]
-tab["a a"]=10
-tab
+coroutine(->{yield(9), yield(8), yield(7)}) `#` x->print("->"+x)

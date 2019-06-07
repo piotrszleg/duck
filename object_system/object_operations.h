@@ -37,16 +37,17 @@ Object get_iterator(Executor* E, Object o);
         Object iterator=get_iterator(E, iterated); \
         reference(&iterator); \
         \
-        receiver=call(E, iterator, NULL, 0); \
         while(true) { \
-            reference(&receiver); \
-            {body} \
-            dereference(E, &receiver); \
             receiver=call(E, iterator, NULL, 0); \
+            reference(&receiver); \
             if(!is_falsy(get(E, receiver, to_string("finished")))){ \
+                dereference(E, &receiver); \
                 dereference(E, &iterator); \
                 break; \
+            } else { \
+                body \
             } \
+            dereference(E, &receiver); \
         } \
     }
 

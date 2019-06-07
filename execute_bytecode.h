@@ -4,7 +4,6 @@
 #include "object_system/object.h"
 #include "error/error.h"
 #include "datatypes/stack.h"
-#include "runtime/builtins.h"
 #include "bytecode.h"
 #include "utility.h"
 #include "bytecode.h"
@@ -25,7 +24,8 @@ typedef struct {
     gc_Pointer gcp;
     int pointer;
     Object scope;
-    BytecodeProgram* program;
+    BytecodeProgram* main_program;
+    BytecodeProgram* executed_program;
     stack object_stack;
     stack return_stack;
     debugger_state debugger;
@@ -42,9 +42,11 @@ void bytecode_environment_init(BytecodeEnvironment* e);
 void bytecode_environment_free(BytecodeEnvironment* e);
 
 void push(stack* stack, Object o);
+Object pop(stack* stack);
 Object execute_bytecode(Executor* E);
 void move_to_function(Executor* E, Function* f, bool termainate);
 
+#include "runtime/builtins.h"
 #include "error/execution_state.h"
 
 #endif

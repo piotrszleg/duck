@@ -67,7 +67,7 @@ void list_program_labels(BytecodeProgram* program){
 void move_to_function(Executor* E, Function* f, bool termainate){
     // create and push ReturnPoint pointing to current location
     ReturnPoint return_point;
-    return_point.program=E->bytecode_environment.program;
+    return_point.program=E->bytecode_environment.executed_program;
     return_point.pointer=E->bytecode_environment.pointer;
     return_point.scope=E->bytecode_environment.scope;
     return_point.terminate=termainate;
@@ -79,15 +79,16 @@ void move_to_function(Executor* E, Function* f, bool termainate){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
     E->bytecode_environment.scope=function_scope;
-    E->bytecode_environment.program=f->source_pointer;
+    E->bytecode_environment.executed_program=f->source_pointer;
     E->bytecode_environment.pointer=0;
 }
 
 void bytecode_environment_init(BytecodeEnvironment* environment){
-    list_program_labels(environment->program);
+    list_program_labels(environment->main_program);
     
+    environment->pointer=0;
+    environment->executed_program=environment->main_program;
     vector_init(&environment->debugger.breakpoints);
-
     environment->debugger.running=false;
     stack_init(&environment->object_stack, sizeof(Object), STACK_SIZE);
     push(&environment->object_stack, null_const);
@@ -109,8 +110,8 @@ void bytecode_environment_free(BytecodeEnvironment* environment){
     stack_deinit(&environment->object_stack);
     stack_deinit(&environment->return_stack);
 
-    free_labels(environment->program);
-    bytecode_program_free(environment->program);
+    free_labels(environment->main_program);
+    bytecode_program_free(environment->main_program);
     free(environment);
 }
 
@@ -239,7 +240,7 @@ Object execute_bytecode(Executor* E){
         if(E->options.debug_mode){
             debugger(E);
         }
-        BytecodeProgram* program=E->bytecode_environment.program;
+        BytecodeProgram* program=E->bytecode_environment.executed_program;
         stack* object_stack=&E->bytecode_environment.object_stack;
         stack* return_stack=&E->bytecode_environment.return_stack;
         Instruction* code=program->code;
@@ -249,6 +250,13 @@ Object execute_bytecode(Executor* E){
         Instruction instr=code[*pointer];
         E->line=program->information[*pointer].line;
         E->column=program->information[*pointer].column;
+
+        #define BYTECODE_ERROR(cause, message, ...) \
+            {   Object err; \
+                NEW_ERROR(err, "BYTECODE_ERROR", cause, message ", number of instruction is %i", ##__VA_ARGS__, *pointer); \
+                push(object_stack, err); \
+                break;   }
+
         switch(instr.type){
             case b_discard:
             {
@@ -375,8 +383,7 @@ Object execute_bytecode(Executor* E){
                 dereference(E, scope);
                 Object o=pop(object_stack);
                 if(o.type!=t_table){
-                    USING_STRING(stringify(E, o),
-                        THROW_ERROR(WRONG_ARGUMENT_TYPE, "b_set_scope: %s isn't a Table, number of Instruction is: %i\n", str, *pointer));
+                    BYTECODE_ERROR(o, "b_set_scope: Object isn't a table.");
                 } else {
                     reference(&o);
                     *scope=o;
@@ -398,7 +405,10 @@ Object execute_bytecode(Executor* E){
                 Object op=pop(object_stack);
                 Object a=pop(object_stack);
                 Object b=pop(object_stack); 
-                push(object_stack, operator(E, a, b, stringify(E, op)));
+                if(op.type!=t_string){
+                    BYTECODE_ERROR(op, "Operator must be of string type, it's type is %s", OBJECT_TYPE_NAMES[op.type]);
+                }
+                push(object_stack, operator(E, a, b, op.text));
                 dereference(E, &op);
                 dereference(E, &a);
                 dereference(E, &b);
@@ -425,7 +435,7 @@ Object execute_bytecode(Executor* E){
             }
             case b_jump:
             {
-                *pointer=E->bytecode_environment.program->labels[instr.argument];
+                *pointer=E->bytecode_environment.executed_program->labels[instr.argument];
                 break;
             }
             case b_function:
@@ -450,7 +460,7 @@ Object execute_bytecode(Executor* E){
                 dereference(E, &variadic_object);
                 dereference(E, &arguments_count_object);
                 f.fp->ftype=f_bytecode;
-                f.fp->source_pointer=E->bytecode_environment.program->sub_programs+instr.argument;
+                f.fp->source_pointer=E->bytecode_environment.executed_program->sub_programs+instr.argument;
                 push(object_stack, f);
                 break;
             }
@@ -460,15 +470,15 @@ Object execute_bytecode(Executor* E){
                 int provided_arguments=instr.argument;
 
                 #define CALL_ERROR(message, ...) \
-                    Object err; \
+                {   Object err; \
                     NEW_ERROR(err, "CALL_ERROR", o, message, ##__VA_ARGS__); \
                     push(object_stack, err); \
-                    break;
+                    break;  }
                 
                 if(o.type==t_null){
                     CALL_ERROR("Called function is null.");
                 }
-                // provided Object isn't a function but it can be called through using monkey patching or Table call field
+                // if object isn't a function it can be called through using monkey patching or Table call field
                 if(o.type!=t_function){
                     Object* arguments=malloc(sizeof(Object)*provided_arguments);
                     for (int i = 0; i < provided_arguments; i++){
@@ -478,38 +488,30 @@ Object execute_bytecode(Executor* E){
                     free(arguments);
                     break;
                 }
-                /*
-                if(o.fp->ftype=f_special){
+                if(o.fp->ftype==f_special){
                     switch(o.fp->special_index){
-                        case 0:// coroutine
+                        case 0:// coroutine yield
                         {
-                            BytecodeEnvironment* new_environment=malloc(sizeof(BytecodeEnvironment));
-                            new_environment->pointer=0;
-                            new_environment->program=malloc(sizeof(BytecodeProgram));
-                            Object subscope;
-                            table_init(E, &subscope);
-                            inherit_scope(subscope, environment->scope);
-                            Object gcp;
-                            gcp.gcp=(gc_Pointer*)new_environment;
-                            gcp.gcp->destructor=(gc_PointerDestructorFunction)bytecode_environment_free;
-                            gc_pointer_init(&gcp);
-
-                            // create coroutine Object
-                            // set it's owner environment to this environment
+                            if(E->coroutine==NULL){
+                                RETURN_ERROR("COROUTINE_ERROR", o, "Yield from outisde of coroutine.");
+                            }
+                            // simply return the value from stack top
+                            if(E->options.debug_mode){
+                                debugger(E);
+                            }
+                            (*pointer)++;
+                            if(provided_arguments==1){
+                                return pop(object_stack);
+                            } else if(provided_arguments==0){
+                                return null_const;
+                            } else {
+                                RETURN_ERROR("COROUTINE_ERROR", o, "Incorrect number of arguments (%i) was passed to coroutine yield.", provided_arguments);
+                            }
                         }
-                        case 1:// yield
-                        {
-                            // push the value from stack into the owner's stack
-                            // return control to the owner
-                        }
-                        case 2:// coroutine call
-                        {
-                            // get coroutine from the stack
-                            // push the value from stack into the coroutine's stack
-                            // return control to the coroutine
-                        }
+                        default:
+                            CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
                     }
-                }*/
+                }
                 int arguments_count_difference=provided_arguments-o.fp->arguments_count;
                 // check arguments count
                 if(o.fp->variadic){
@@ -554,7 +556,7 @@ Object execute_bytecode(Executor* E){
                     } else if(o.fp->ftype==f_ast) {
                         CALL_ERROR("Can't call ast function from bytecode.");
                     } else {
-                        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect function pointer, number of Instruction is: %i\n", *pointer);
+                        BYTECODE_ERROR(o, "Incorrect function type %i", o.fp->ftype);
                     }
                 }
                 #undef CALL_ERROR
@@ -567,10 +569,13 @@ Object execute_bytecode(Executor* E){
                     debugger(E);
                 }
                 if(return_stack->top==0){
+                    if(E->coroutine!=NULL){
+                        E->coroutine->state=co_finished;
+                    }
                     return pop(object_stack);
                 } else {
                     ReturnPoint* return_point=stack_pop(return_stack);
-                    E->bytecode_environment.program=return_point->program;
+                    E->bytecode_environment.executed_program=return_point->program;
                     E->bytecode_environment.pointer=return_point->pointer;
                     dereference(E, scope);
                     *scope=return_point->scope;
@@ -584,7 +589,7 @@ Object execute_bytecode(Executor* E){
             case b_label:
                 break;
             default:
-                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode Instruction type: %i, number of Instruction is: %i\n", instr.type, *pointer);
+                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, *pointer);
         }
         (*pointer)++;
     }

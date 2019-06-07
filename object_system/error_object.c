@@ -2,7 +2,11 @@
 
 char* get_and_stringify(Executor* E, Object t, const char* key){
     Object at_key=get(E, t, to_string(key));
-    return stringify(E, at_key);
+    if(at_key.type!=t_string){
+        return stringify(E, at_key);
+    } else {
+        return at_key.text;
+    }
 }
 
 Object stringify_multiple_causes(Executor* E, Object* arguments, int arguments_count){

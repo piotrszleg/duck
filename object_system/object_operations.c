@@ -2,11 +2,6 @@
 
 #define INITIAL_BUFFER_SIZE 16
 
-#define ALREADY_DESTROYED_CHECK(o) \
-    if(is_gc_object(o) && o.gco->ref_count==ALREADY_DESTROYED){ \
-        RETURN_ERROR("INCOERR_OBJECT_ACCESS", o, "Attempted to call function %s on object that was previously garbage collected.", __FUNCTION__) \
-    }
-
 Object patching_table={t_table};
 
 bool is_number(const char *s)
@@ -22,14 +17,16 @@ bool is_falsy(Object o){
     switch(o.type){
         case t_null:
             return 1;// null is falsy
-        case t_function:
-            return 0;// every function isn't falsy
         case t_string:
             return strlen(o.text)==0;// "" (string of length 0) is falsy
         case t_number:
             return o.value==0;// 0 is falsy
         case t_table:
             return o.tp->array_size==0 && o.tp->map_size==0;// empty Table is falsy
+        case t_function:
+        case t_gc_pointer:
+        case t_coroutine:
+            return 0;
         default:
             THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object pointer passed to is_falsy function.");
     }
@@ -132,6 +129,28 @@ int compare(Object a, Object b){
     }
 }
 
+Object coroutine_iterator_next(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    Object coroutine=get(E, self, to_string("coroutine"));
+    Object value=call(E, coroutine, NULL, 0);
+    Object result;
+    table_init(E, &result);
+    set(E, result, to_string("value"), value);
+
+    REQUIRE_TYPE(coroutine, t_coroutine);
+    set(E, result, to_string("finished"), to_number(coroutine.co->state==co_finished));
+
+    return result;
+}
+
+Object coroutine_iterator(Executor* E, Object coroutine){
+    Object iterator;
+    table_init(E, &iterator);
+    set(E, iterator, to_string("coroutine"), coroutine);
+    set_function(E, iterator, "call", 1, false, coroutine_iterator_next);
+    return iterator;
+}
+
 Object get_iterator(Executor* E, Object o){
     MONKEY_PATCH("iterator", &o, 1);
     if(o.type==t_table){
@@ -141,14 +160,14 @@ Object get_iterator(Executor* E, Object o){
         } else {
             return get_table_iterator(E, &o, 1);
         }
+    } else if(o.type==t_coroutine){
+        return coroutine_iterator(E, o);
     } else {
         RETURN_ERROR("OperatorError", o, "Can't get operator of object of type %s.", OBJECT_TYPE_NAMES[o.type]);
     }
 }
 
 Object operator(Executor* E, Object a, Object b, const char* op){
-    //ALREADY_DESTROYED_CHECK(a)
-    //ALREADY_DESTROYED_CHECK(b)
     MONKEY_PATCH(op, ((Object[]){a, b}), 2);
     if(a.type==t_table){
         Object operator_function=find_function(E, a, op);
@@ -286,7 +305,11 @@ char* stringify(Executor* E, Object o){
         Object stringify_override=find_function(E, o, "stringify");
         if(stringify_override.type!=t_null){
             Object result=call(E, stringify_override, &o, 1);
-            return stringify_object(E, result);
+            if(result.type!=t_string){
+                return stringify_object(E, result);
+            } else {
+                return result.text;
+            }
         }
     }
     return stringify_object(E, o);
@@ -445,6 +468,8 @@ char* stringify_object(Executor* E, Object o){
                 return strdup("function()");
             }
         }
+        case t_coroutine:
+            return strdup("<coroutine>");
         case t_pointer:
             return strdup("<pointer>");
         case t_null:
@@ -526,6 +551,10 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
         case t_function:
         {
             return call_function(E, o.fp, arguments, arguments_count);
+        }
+        case t_coroutine:
+        {
+            return coroutine_call(E, o.co, arguments, arguments_count);
         }
         case t_table:
         {

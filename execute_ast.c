@@ -202,6 +202,10 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         {
             return path_get(E, scope, *(path*)exp);
         }
+        case e_parentheses:
+        {
+            return execute_ast(E, ((parentheses*)exp)->value, scope, 0);
+        }
         case e_function_return:
         {
             function_return* r=(function_return*)exp;

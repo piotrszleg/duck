@@ -24,6 +24,13 @@ void gc_object_init(Executor* E, gc_Object* gco){
     gc_root=gco;
 }
 
+Object wrap_gc_object(gc_Object* o){
+    Object wrapped;
+    wrapped.type=o->gc_type;
+    wrapped.gco=o;
+    return wrapped;
+}
+
 #define OBJECT_INIT(t) \
     void t##_init (Object* o){  \
         o->type=t_##t; \
@@ -57,6 +64,14 @@ void table_init(Executor* E, Object* o){
     gc_object_init(E, o->gco);
     o->gco->gc_type=t_table;
     table_component_init(o->tp);
+}
+
+void coroutine_init(Executor* E, Object* o){
+    o->type=t_coroutine;
+    o->co=malloc(sizeof(Coroutine));
+    CHECK_ALLOCATION(o->co);
+    gc_object_init(E, o->gco);
+    o->gco->gc_type=t_coroutine;
 }
 
 void table_gc_pointer(Executor* E, Object* o){
@@ -109,7 +124,7 @@ Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, i
 Object null_const={t_null};
 
 bool is_gc_object(Object o){
-    return o.type==t_table || o.type==t_function;
+    return o.type==t_table || o.type==t_function || o.type==t_gc_pointer || o.type==t_coroutine;
 }
 
 void gc_object_unchain(Executor* E, gc_Object* o){
@@ -218,9 +233,7 @@ void gc_run(Executor*E, Object* roots, int roots_count){
 char* gc_text="<garbage collected text>";
 
 void gc_dereference(Executor* E, gc_Object* o){
-    Object wrapped;
-    wrapped.type=o->gc_type;
-    wrapped.gco=o;
+    Object wrapped=wrap_gc_object(o);
     dereference(E, &wrapped);
 }
 
@@ -240,7 +253,7 @@ void dereference(Executor* E, Object* o){
 }
 
 void destroy_unreferenced(Executor* E, Object* o){
-    gc_StateType gc_state=get_garbage_collector(E)->state;
+    GarbageCollectorState gc_state=get_garbage_collector(E)->state;
     if(is_gc_object(*o) && o->gco->ref_count<=0){
         o->gco->ref_count=ALREADY_DESTROYED;
         switch(o->type){

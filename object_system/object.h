@@ -19,13 +19,16 @@ typedef struct Executor Executor;
     X(string) \
     X(table) \
     X(pointer) \
-    X(gc_pointer)
+    X(gc_pointer) \
+    X(coroutine)
 
 typedef enum {
     #define X(type) t_##type,
     OBJECT_TYPES
     #undef X
 } ObjectType;
+
+#define LAST_OBJECT_TYPE t_coroutine
 
 extern const char* OBJECT_TYPE_NAMES[];// array mapping enum ObjectType to their names as strings
 extern const int OBJECT_TYPE_NAMES_COUNT;
@@ -45,7 +48,7 @@ typedef enum {
     gcs_inactive,
     gcs_deinitializing,
     gcs_freeing_memory
-} gc_StateType;
+} GarbageCollectorState;
 
 // when allocations_count in gc_object_init is greater than MAX_ALLOCATIONS the garbage collector will be activated
 #define MAX_ALLOCATIONS 100
@@ -53,7 +56,7 @@ typedef enum {
 
 typedef struct {
     gc_Object* root;
-    gc_StateType state;
+    GarbageCollectorState state;
     int allocations_count;
 } GarbageCollector;
 
@@ -64,6 +67,7 @@ void garbage_collector_init(GarbageCollector*);
 // forward declarations of allocated object components
 typedef struct Table Table;
 typedef struct Function Function;
+typedef struct Coroutine Coroutine;
 typedef struct gc_Pointer gc_Pointer;
 
 typedef struct {
@@ -75,7 +79,8 @@ typedef struct {
         gc_Pointer* gcp;
         Function* fp;
         Table* tp;
-        /* Function, Table and gc_Pointer structs have exact same memory layout as gc_Object
+        Coroutine* co;
+        /* Function, Coroutine and Table and gc_Pointer structs have exact same memory layout as gc_Object
            and can be safely casted to it */
         gc_Object* gco;
     };
@@ -94,6 +99,7 @@ OBJECT_INIT(number)
 OBJECT_INIT(string)
 OBJECT_INIT(pointer)
 
+OBJECT_INIT_E(coroutine)
 OBJECT_INIT_E(function)
 OBJECT_INIT_E(table)
 
@@ -108,7 +114,7 @@ void gc_object_init_init (Executor* E, gc_Object* o);
     if(checked==NULL) { \
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to Function %s is null", __FUNCTION__); \
     } \
-    if(checked->type<t_null||checked->type>t_gc_pointer) { \
+    if(checked->type<t_null||checked->type>LAST_OBJECT_TYPE) { \
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
     }
 
@@ -131,7 +137,6 @@ typedef enum {
 } FunctionType;
 
 struct Function {
-    // gc_Object fields
     gc_Object gco;
 
     FunctionType ftype;
@@ -140,16 +145,27 @@ struct Function {
         void* source_pointer;
         int special_index;
     };
-    gc_Pointer* environment;
+    gc_Object* environment;
     char** argument_names;
     int arguments_count;
     bool variadic;
     Object enclosing_scope;
 };
 
+struct Coroutine {
+    gc_Object gco;
+    Executor* executor;
+    enum State {
+        co_uninitialized,
+        co_running,
+        co_finished
+    } state;
+};
+
 void print_allocated_objects(Executor* E);
 bool is_gc_object(Object o);
 void gc_run(Executor* E, Object* roots, int roots_count);
+Object wrap_gc_object(gc_Object* o);
 void call_destroy(Executor* E, Object o);
 
 Object to_string(const char* s);
@@ -174,6 +190,8 @@ void object_system_deinit(Executor* E);
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 void deinit_function(Function* f);
 
-#include "Table.h"
+Object coroutine_call(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
+
+#include "table.h"
 
 #endif

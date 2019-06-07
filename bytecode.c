@@ -70,8 +70,11 @@ void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy)
     int c=0;
     for(; source->code[c].type!=b_end; c++);
 
+    copy->code=malloc(sizeof(Instruction)*c);
     memcpy(copy->code, source->code, c);
+    copy->information=malloc(sizeof(InstructionInformation)*c);
     memcpy(copy->information, source->information, c);
+    copy->constants=malloc(source->constants_size);
     memcpy(copy->constants, source->constants, source->constants_size);
     copy->constants_size=source->constants_size;
     copy->labels=NULL;
@@ -79,7 +82,7 @@ void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy)
     copy->sub_programs_count=source->sub_programs_count;
     copy->sub_programs=malloc(sizeof(BytecodeProgram)*copy->sub_programs_count);
     for(int i=0; i<source->sub_programs_count; i++){
-       bytecode_program_copy(&source->sub_programs[i], &source->sub_programs[i]);
+       bytecode_program_copy(&source->sub_programs[i], &copy->sub_programs[i]);
     }
 }
 

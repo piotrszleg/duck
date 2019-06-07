@@ -248,6 +248,11 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             push_instruction(translation, b_call, lines_count);
             break;
         }
+        case e_parentheses:
+        {
+            ast_to_bytecode_recursive(((parentheses*)exp)->value, translation, false);
+            break;
+        }
         case e_function_return:
         {
             function_return* r=(function_return*)exp;

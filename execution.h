@@ -29,6 +29,8 @@ struct Executor {
     unsigned* traceback;
     const char* file;
 
+    Coroutine* coroutine;
+
     bool ast_returning;
     BytecodeEnvironment bytecode_environment;
     Options options;
