@@ -61,9 +61,8 @@ void handle_arguments(int argc, char **argv) {
 
     Executor E;
     E.options=options;
-    garbage_collector_init(&E.gc);
-    
     object_system_init(&E);
+
     TRY_CATCH(
         if(file_path!=NULL){   
             execute_file(&E, file_path);

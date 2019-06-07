@@ -305,14 +305,9 @@ void destroy_unreferenced(Executor* E, Object* o){
 }
 
 void object_system_init(Executor* E){
-    table_init(E, &patching_table);
-    reference(&patching_table);
+    garbage_collector_init(get_garbage_collector(E));
 }
 
 void object_system_deinit(Executor* E){
-    // patching table might be used by destructors
-    gc_run(E, &patching_table, 1);
-
-    patching_table.gco->ref_count=0;
-    destroy_unreferenced(E, &patching_table);
+    gc_run(E, NULL, 0);
 }

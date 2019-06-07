@@ -2,8 +2,6 @@
 
 #define INITIAL_BUFFER_SIZE 16
 
-Object patching_table={t_table};
-
 bool is_number(const char *s)
 {
     while (*s) {
@@ -80,24 +78,6 @@ Object find_function(Executor* E, Object o, const char* function_name){
     return find_call_function(E, get(E, o, function_name_string));
 }
 
-Object monkey_patching(Executor* E, const char* function_name, Object* arguments, int arguments_count){
-    // attempt to get object from field named after a's type in operations_table
-    Object type_table=get(E, patching_table, to_string(OBJECT_TYPE_NAMES[arguments[0].type]));
-    if(type_table.type!=t_null){
-        Object operator_function=find_function(E, type_table, function_name);
-        if(operator_function.type!=t_null){
-            // call get_function a and b as arguments
-            Object result=call(E, operator_function, arguments, arguments_count);
-            return result;
-        }
-    }
-    return null_const;
-}
-
-#define MONKEY_PATCH(function_name, arguments, arguments_count) \
-    Object patching_result=monkey_patching(E, function_name, arguments, arguments_count); \
-    if(patching_result.type!=t_null) return patching_result;
-
 int sign(int x){
     return (x > 0) - (x < 0);
 }
@@ -152,7 +132,6 @@ Object coroutine_iterator(Executor* E, Object coroutine){
 }
 
 Object get_iterator(Executor* E, Object o){
-    MONKEY_PATCH("iterator", &o, 1);
     if(o.type==t_table){
         Object iterator_override=find_function(E, o, "iterator");
         if(iterator_override.type!=t_null){
@@ -168,7 +147,6 @@ Object get_iterator(Executor* E, Object o){
 }
 
 Object operator(Executor* E, Object a, Object b, const char* op){
-    MONKEY_PATCH(op, ((Object[]){a, b}), 2);
     if(a.type==t_table){
         Object operator_function=find_function(E, a, op);
         if(operator_function.type!=t_null){
@@ -297,10 +275,6 @@ Object operator(Executor* E, Object a, Object b, const char* op){
 }
 
 char* stringify(Executor* E, Object o){
-    Object patching_result=monkey_patching(E, "stringify", &o, 1);
-    if(patching_result.type!=t_null){
-        return stringify_object(E, patching_result);
-    }
     if(o.type==t_table){
         Object stringify_override=find_function(E, o, "stringify");
         if(stringify_override.type!=t_null){
@@ -480,9 +454,6 @@ char* stringify_object(Executor* E, Object o){
 }
 
 Object get(Executor* E, Object o, Object key){
-    if(o.tp!=patching_table.tp) {// avoid cycling call to get in patching Table
-        MONKEY_PATCH("get", ((Object[]){o, key}), 2);
-    }
     if(o.type==t_table){
         // try to get "get" operator overriding function from the Table and use it
         Object map_get_override=get_table(o.tp, to_string("get"));
@@ -516,7 +487,6 @@ Object get(Executor* E, Object o, Object key){
 }
 
 Object set(Executor* E, Object o, Object key, Object value){
-    //MONKEY_PATCH("set", ((Object[]){o, key, value}), 3);
     if(o.type==t_table){
         // try to get "get" operator overriding function from the Table and use it
         Object set_override=get_table(o.tp, to_string("set"));
@@ -542,11 +512,6 @@ Object* concat_arguments(Object head, Object* tail, int tail_count){
 
 Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
     Object* arguments_with_self=concat_arguments(o, arguments, arguments_count);
-    Object patching_result=monkey_patching(E, "call", arguments_with_self, arguments_count+1);
-    if(patching_result.type!=t_null){
-        free(arguments_with_self);
-        return patching_result;
-    }
     switch(o.type){
         case t_function:
         {

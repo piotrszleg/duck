@@ -27,6 +27,10 @@ void get_execution_info(Executor* E, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
 }
 
+Object coroutine_call(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count){
+    return null_const;
+}
+
 void assert_stringification(Executor* E, Object o, char* expected){
     assert(strcmp(stringify(E, o), expected)==0);
 }
@@ -157,7 +161,7 @@ void adding_number_string(Executor* E){// tests whether "count: "+5="count: 5"
 
 int main(){
     Executor E;
-    garbage_collector_init(&E.gc);
+    object_system_init(&E);
     TRY_CATCH(
         // TODO test error objects
         object_system_init(&E);

@@ -1,7 +1,0 @@
-number_patch=[]
-number_patch["+"]=(a, b)->a*b
-number_patch.stringify=n->"|"+native_stringify(n)+"|"
-global.patches.number=number_patch
-a=17
-b=9
-print(a+b)

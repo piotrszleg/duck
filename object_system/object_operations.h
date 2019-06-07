@@ -8,8 +8,6 @@
 
 #define STRINGIFY_BUFFER_SIZE 32
 
-extern Object patching_table;
-
 bool is_falsy(Object o);
 
 int compare(Object a, Object b);

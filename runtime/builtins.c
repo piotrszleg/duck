@@ -322,7 +322,6 @@ void register_builtins(Executor* E, Object scope){
         f##_function.fp->native_pointer=&builtin_##f; \
         set(E, scope, to_string(#f), f##_function);
     
-    set(E, scope, to_string("patches"), patching_table);
     set(E, scope, to_string("global"), scope);
     REGISTER_FUNCTION(print, 1)
     REGISTER_FUNCTION(input, 0)
