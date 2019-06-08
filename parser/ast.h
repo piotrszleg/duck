@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#ifdef COUNT_AST_ALLOCATIONS
+bool ast_allocations_zero();
+#endif
+
 #define AST_EXPRESSIONS \
     EXPRESSION(expression) \
     END \
@@ -144,5 +148,6 @@ char* stringify_expression(expression*, int);
 void delete_expression(expression*);
 expression* copy_expression(expression*);
 char* table_literal_extract_key(assignment* a);
+bool expressions_equal(expression* expression_a, expression* expression_b);
 
 #endif

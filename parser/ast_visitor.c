@@ -1,9 +1,9 @@
 #include "ast_visitor.h"
 
-ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
+ast_visitor_request call_for_replacements(expression* exp, visitor_function f, void* data){
     ast_visitor_request request=f(exp, data);
-    // we want to pass the last replacement that isn't NULL
 
+    // we want to pass the last replacement that isn't NULL
     expression* replacement=request.replacement;
     while(request.replacement){
         // call visitor function on replacing expression
@@ -13,8 +13,13 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
         }
     }
     request.replacement=replacement;
+    return request;
+}
 
-    if(request.move!=down){
+ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
+    ast_visitor_request request=call_for_replacements(exp, f, data);
+
+    if(request.replacement!=NULL || request.move!=down){
         return request;
     }
 
@@ -120,6 +125,9 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
         {
             function_declaration* d=(function_declaration*)exp;
             SUBEXPRESSION(d->body)
+
+            // function declaration calls f two times to allow finding closures
+            request=call_for_replacements(exp, f, data);
             break;
         }
         case e_function_return:

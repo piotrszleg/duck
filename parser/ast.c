@@ -2,10 +2,24 @@
 
 #define STRINGIFY_BUFFER_SIZE 64
 
+#ifdef COUNT_AST_ALLOCATIONS
+static int ast_allocations_count=0;
+#define AST_ALLOCATION   ast_allocations_count++;
+#define AST_DEALLOCATION ast_allocations_count--;
+// used for checking if all expressions were properly deleted
+bool ast_allocations_zero(){
+    return ast_allocations_count==0;
+}
+#else
+#define AST_ALLOCATION
+#define AST_DEALLOCATION
+#endif
+
 #define EXPRESSION(t) \
 t* new_ ## t(){  \
     t* instance=malloc(sizeof(t)); \
     CHECK_ALLOCATION(instance); \
+    AST_ALLOCATION \
 	instance->type=e_ ## t; \
 
 #define SPECIFIED_EXPRESSION_FIELD(type, field_name) instance->field_name=(type*)NULL;
@@ -115,23 +129,11 @@ char* stringify_expression(expression* exp, int indentation){
     return stream_get_data(&s); 
 }
 
-void trap(expression* exp){
-    allow_unused_variable("don't remove me");
-    allow_unused_variable(exp);
-    allow_unused_variable("don't remove me");
-    allow_unused_variable("don't remove me");
-    allow_unused_variable("don't remove me");
-    allow_unused_variable("don't remove me");
-    allow_unused_variable("don't remove me");
-}
-
 void delete_expression(expression* exp){
     if(exp==NULL){
         return;
     }
-    if(exp->type==e_binary){
-        trap(exp);
-    }
+    AST_DEALLOCATION
     switch(exp->type){
         #define EXPRESSION(type) \
             case e_##type: {\
@@ -200,6 +202,67 @@ expression* copy_expression(expression* exp){
 
         AST_EXPRESSIONS
 
+        #undef EXPRESSION
+        #undef SPECIFIED_EXPRESSION_FIELD
+        #undef EXPRESSION_FIELD               
+        #undef BOOL_FIELD                   
+        #undef STRING_FIELD
+        #undef VECTOR_FIELD
+        #undef LITERAL_UNION
+        #undef END
+    }
+}
+
+bool compare_strings(char* a, char* b){
+    if(a==NULL && b==NULL) {
+        return true;
+    } else if(a==NULL || b==NULL) {
+        return false;
+    } else {
+        return strcmp(a, b)==0;
+    }
+}
+
+bool expressions_equal(expression* expression_a, expression* expression_b){
+    if(expression_a==NULL && expression_b==NULL){
+        return true;
+    } else if(expression_a==NULL || expression_b==NULL || expression_a->type!=expression_b->type){
+        return false;
+    }
+    switch(expression_a->type){
+        #define EXPRESSION(type) \
+            case e_##type: { \
+            type* a=(type*)expression_a; \
+            type* b=(type*)expression_b; \
+            allow_unused_variable(a); \
+            allow_unused_variable(b);
+
+        #define COMPARISON(c) if(!(c)) { return false; }
+        
+        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) COMPARISON(expressions_equal((expression*)a->field_name, (expression*)b->field_name))
+        #define EXPRESSION_FIELD(field_name)                 COMPARISON(expressions_equal(a->field_name, b->field_name))
+        #define BOOL_FIELD(field_name)                       COMPARISON(a->field_name==b->field_name)
+        #define STRING_FIELD(field_name)                     COMPARISON(compare_strings(a->field_name, b->field_name))
+        #define LITERAL_UNION \
+            switch(a->ltype) { \
+                case l_string: COMPARISON(compare_strings(a->sval, b->sval)) break; \
+                case l_int:    COMPARISON(a->ival==b->ival) break; \
+                case l_float:  COMPARISON(a->fval==b->fval) break; \
+            }
+        #define VECTOR_FIELD(field_name) \
+            COMPARISON(vector_total(&a->field_name)==vector_total(&b->field_name)) \
+            for (int i = 0; i < vector_total(&a->field_name); i++){ \
+                COMPARISON(expressions_equal(vector_get(&a->field_name, i), vector_get(&b->field_name, i)))  \
+            }
+        #define END \
+                return true; \
+            }
+        
+        default: THROW_ERROR(AST_ERROR, "Can't compare expressions of type %i", expression_a->type);
+
+        AST_EXPRESSIONS
+
+        #undef COMPARE
         #undef EXPRESSION
         #undef SPECIFIED_EXPRESSION_FIELD
         #undef EXPRESSION_FIELD               

@@ -2,8 +2,6 @@
 #include <string.h>
 #include "parser.h"
 
-extern expression* parsing_result;
-
 block* parse_block(char* code, int expected_lines_count){
     expression* parsing_result=parse_string(code);
     assert(parsing_result!=NULL);
@@ -37,7 +35,7 @@ void literals(){
     assert( text2->type==e_literal );
     assert(strcmp(text2->sval, "text_text")==0);
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -63,7 +61,7 @@ void operators(){
         assert(strcmp(((binary*)e)->op, tested_operators[i])==0);
     }
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -88,7 +86,7 @@ void assignment_operators(){
         }
     }
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -108,7 +106,7 @@ void prefixes(){
         assert(strcmp(((prefix*)e)->op, tested_operators[i])==0);
     }
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -122,7 +120,7 @@ void table_literals(){
         assert(e->type==e_table_literal);
     }
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -136,7 +134,7 @@ void paths(){
         assert(e->type==e_path);
     }
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -150,7 +148,7 @@ void function_declarations(){
         assert(e->type==e_function_declaration);
     }
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -169,7 +167,7 @@ void function_calls(){
         assert(vector_total(&f->arguments->lines)==argument_counts[i]);
     }
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -190,7 +188,7 @@ void function_returns(){
     expression* second_line=(expression*)vector_get(&((block*)last_line_block)->lines, 1);
     assert(second_line->type==e_function_return);
 
-    delete_expression(parsing_result);
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -223,6 +221,7 @@ void conditionals(){
             }
         }
     }
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -244,7 +243,7 @@ void blocks(){
         assert(e->type==e_block);
         assert(vector_total(&((block*)e)->lines)==counts[i]);
     }
-
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -265,6 +264,30 @@ void message_translation(){
         assert(((function_call*)e)->called->type==e_path);
         assert(vector_total(&((function_call*)e)->arguments->lines)==counts[i]);
     }
+    delete_expression((expression*)as_block);
+    printf("test successful\n");
+}
+
+void closures(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+
+    #define ASSERT_CAST(exp, expected_type) (assert((exp)->type==e_##expected_type), (expected_type*)(exp))
+    #define GET_LINE(blc, index) (assert((blc)->type==e_block), (expression*)vector_get(&((block*)blc)->lines, index))
+    #define FIRST_LINE(blck) GET_LINE(blck, 0)
+
+    block* as_block=parse_block(
+    "{a=1, ->a}\n"
+    "{->a=1, ->a}\n"
+    "{a=1, ->->a}"
+    , 3);
+    
+    // TODO: some kind of pattern matching traversal instead of these macros
+    assert(ASSERT_CAST(FIRST_LINE(FIRST_LINE(as_block)), assignment)->used_in_closure=true);
+    assert(ASSERT_CAST(ASSERT_CAST(FIRST_LINE(GET_LINE(as_block, 1)), function_declaration)->body, assignment)->used_in_closure==false);
+    assert(ASSERT_CAST(FIRST_LINE(GET_LINE(as_block, 2)), assignment)->used_in_closure=true);
+    
+    delete_expression((expression*)as_block);
     printf("test successful\n");
 }
 
@@ -324,18 +347,23 @@ expression* type_exhausted_ast_uninitialized(){
     return (expression*)root;
 }
 
+void test_ast_functions(expression* exp){
+    char* stringified=stringify_expression(exp, 0);
+    assert(stringified!=NULL);
+    free(stringified);
+    expression* copy=copy_expression(exp);
+    assert(expressions_equal(exp, copy));
+    delete_expression(copy);
+    delete_expression(exp);
+}
+
 void ast_tests(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    expression* exp=type_exhausted_ast();
-    free(stringify_expression(exp, 0));
-    delete_expression(copy_expression(exp));
-    delete_expression(exp);
-
-    expression* exp2=type_exhausted_ast_uninitialized();
-    free(stringify_expression(exp2, 0));
-    delete_expression(copy_expression(exp2));
-    delete_expression(exp2);
+    test_ast_functions(type_exhausted_ast());
+    assert(ast_allocations_zero());
+    test_ast_functions(type_exhausted_ast_uninitialized());
+    assert(ast_allocations_zero());
 
     printf("test successful\n");
 }
@@ -354,4 +382,5 @@ int main(){
     blocks();
     message_translation();
     ast_tests();
+    closures();
 }

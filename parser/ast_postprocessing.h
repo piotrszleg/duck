@@ -3,6 +3,7 @@
 
 #include "ast_visitor.h"
 #include "../datatypes/map.h"
+#include "../datatypes/stack.h"
 
 void postprocess_ast(expression* ast);
 

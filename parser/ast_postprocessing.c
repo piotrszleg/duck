@@ -13,7 +13,7 @@ typedef struct {
 
 typedef struct {
     map_t(declaration) declarations;
-    function_declaration* current_function;
+    stack functions;
 } postprocessing_state;
 
 char* get_variable_name(path* p){
@@ -76,9 +76,14 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
             return request;
         }
     }
-    // ast_vistor entered a function
     if(exp->type==e_function_declaration){
-        state->current_function=(function_declaration*)exp;
+        // if the function is already on the stack then ast_visitor is escaping it
+        if(stack_top(&state->functions)==exp) {
+            stack_pop(&state->functions);
+        } else {
+            // ast_visitor entered this function
+            stack_push(&state->functions, (function_declaration*)exp);
+        }
     }
     if(exp->type==e_assignment){
         assignment* a=(assignment*)exp;
@@ -86,7 +91,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         if(variable!=NULL){
             // first assignment to variable is it's declaration
             if(map_get(&state->declarations, variable)==NULL){
-                declaration decl={state->current_function, a};
+                declaration decl={(function_declaration*)stack_top(&state->functions), a};
                 map_set(&state->declarations, variable, decl);
             }
         }
@@ -95,7 +100,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         char* variable=get_variable_name((path*)exp);
         if(variable!=NULL){
             declaration* decl=map_get(&state->declarations, variable);
-            if(decl!=NULL && decl->owning_function!=state->current_function){
+            if(decl!=NULL && decl->owning_function!=(function_declaration*)stack_top(&state->functions)){
                 decl->first_assignment->used_in_closure=true;
             }
         }
@@ -105,7 +110,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
 
 void postprocess_ast(expression* ast){
     postprocessing_state state;
-    state.current_function=NULL;
+    stack_init(&state.functions, sizeof(function_declaration*), STACK_SIZE);
     map_init(&state.declarations);
     
     visit_ast(ast, postprocess_ast_visitor, &state);
