@@ -5,7 +5,10 @@ void repl(){
     char input[128];
 
     Executor E;
-
+    E.options=default_options;
+    E.options.ast_only=true;
+    E.gc=malloc(sizeof(Executor));
+    object_system_init(&E);
     Object global_scope;
     table_init(&E, &global_scope);
     reference(&global_scope);
@@ -29,4 +32,6 @@ void repl(){
         )
     }
     dereference(&E, &global_scope);
+    object_system_deinit(&E);
+    free(E.gc);
 }
