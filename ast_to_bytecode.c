@@ -227,7 +227,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
-            int arguments_count=vector_total(d->arguments);
+            int arguments_count=vector_total(&d->arguments);
 
             push_number_load(translation, (float)d->variadic);
             push_number_load(translation, (float)arguments_count);
@@ -298,9 +298,9 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
 
-    int arguments_count=vector_total(d->arguments);
+    int arguments_count=vector_total(&d->arguments);
     for (int i = 0; i < arguments_count; i++){
-        push_string_load(&translation, ((name*)vector_get(d->arguments, arguments_count-1-i))->value);
+        push_string_load(&translation, ((name*)vector_get(&d->arguments, arguments_count-1-i))->value);
         push_instruction(&translation, b_set, 0);
         push_instruction(&translation, b_discard, 0);
     }

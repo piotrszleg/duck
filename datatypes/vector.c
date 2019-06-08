@@ -30,6 +30,14 @@ static void vector_resize(vector *v, int capacity)
     }
 }
 
+void vector_copy(vector* source, vector* destination){
+    vector_resize(destination, source->capacity);
+    for(int i=0; i<source->total; i++){
+        destination->items[i]=source->items[i];
+    }
+    destination->total=source->total;
+}
+
 void* vector_last(vector *v){
     return v->items[v->total-1];
 }

@@ -50,6 +50,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %token ELLIPSIS
 %token ARROW
 %token FOUR_DOTS
+%token AT
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
@@ -62,7 +63,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %token <sval> PREFIX_OPERATOR
 
 %type <exp> block;
-%type <exp> Table;
+%type <exp> table;
 %type <exp> table_contents;
 %type <exp> path;
 %type <exp> lines_with_return;
@@ -81,6 +82,8 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %type <exp> conditional_else;
 %type <exp> message;
 %type <exp> parentheses;
+%type <exp> macro;
+%type <exp> macro_declaration;
 
 %%
 program:
@@ -132,7 +135,6 @@ lines:
 	| expression {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
-		vector_init(&b->lines);
 		vector_add_ignore_duplicate(&b->lines, $1);
 		$$=(expression*)b;
 	}
@@ -146,14 +148,13 @@ table_contents:
 		$$->type=e_table_literal;
 	}
 	;
-Table:
+table:
 	'[' OPT_ENDLS table_contents OPT_ENDLS ']' { 
 		$$=$3;
 	}
 	| '[' ']' {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
-		vector_init(&b->lines);
 		b->type=e_table_literal;
 		$$=(expression*)b;
 	}
@@ -162,7 +163,6 @@ path:
 	name {
 		path* p=new_path();
 		ADD_DEBUG_INFO(p)
-		vector_init(&p->lines);
 		vector_add(&p->lines, $1);
 		$$=(expression*)p;
 	}
@@ -177,7 +177,7 @@ expression:
 	| parentheses
 	| literal
 	| block
-	| Table
+	| table
 	| path
 	| assignment
 	| call
@@ -187,6 +187,8 @@ expression:
 	| prefix
 	| null
 	| message
+	| macro
+	| macro_declaration
 	;
 parentheses:
 	'(' expression ')' {
@@ -195,6 +197,15 @@ parentheses:
 		p->value=$2;
 		$$=(expression*)p;
 	}
+	;
+macro:
+	AT path {
+		macro* m=new_macro();
+		ADD_DEBUG_INFO(m)
+		m->pth=(path*)$2;
+		$$=(expression*)m;
+	}
+	;
 conditional:
 	IF '(' expression ')' expression  {	
 		conditional* c=new_conditional();
@@ -251,7 +262,9 @@ function:
 	'(' arguments ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		f->arguments=$2;
+		vector_copy($2, &f->arguments);
+		vector_free($2);
+		free($2);
 		f->variadic=false;
 		f->body=$5;
 		$$=(expression*)f;
@@ -259,7 +272,9 @@ function:
 	| '(' arguments ELLIPSIS ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		f->arguments=$2;
+		vector_copy($2, &f->arguments);
+		vector_free($2);
+		free($2);
 		f->variadic=true;
 		f->body=$6;
 		$$=(expression*)f;
@@ -267,11 +282,7 @@ function:
 	| name ELLIPSIS ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		vector* args=malloc(sizeof(vector));
-		CHECK_ALLOCATION(args);
-		vector_init(args);
-		vector_add(args, $1);
-		f->arguments=args;
+		vector_add(&f->arguments, $1);
 		f->variadic=true;
 		f->body=$4;
 		$$=(expression*)f;
@@ -279,22 +290,14 @@ function:
 	| name ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		vector* args=malloc(sizeof(vector));
-		CHECK_ALLOCATION(args);
-		vector_init(args);
-		vector_add(args, $1);
-		f->arguments=args;
+		vector_add(&f->arguments, $1);
 		f->variadic=false;
 		f->body=$3;
 		$$=(expression*)f;
 	}
 	| ARROW expression {
 		function_declaration* f=new_function_declaration();
-		vector* args=malloc(sizeof(vector));
-		CHECK_ALLOCATION(args);
-		vector_init(args);
 		ADD_DEBUG_INFO(f)
-		f->arguments=args;
 		f->variadic=false;
 		f->body=$2;
 		$$=(expression*)f;
@@ -346,7 +349,7 @@ assignment:
 		a->left=(path*)$1;
 		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
-		u->left=$1;
+		u->left=copy_expression($1);
 		u->op=$2;
 		u->right=$3;
 		a->right=(expression*)u;
@@ -363,6 +366,16 @@ assignment:
 		$$=(expression*)a;
 	}
 	;
+macro_declaration:
+	macro '=' expression 
+	{
+		macro_declaration* md=new_macro_declaration();
+		ADD_DEBUG_INFO(md)
+		md->left=(macro*)$1;
+		md->right=$3;
+		$$=(expression*)md;
+	}
+	;
 call:
 	expression '(' lines ')' {
 		function_call* c=new_function_call();
@@ -377,7 +390,6 @@ call:
 		ADD_DEBUG_INFO(c)
 		c->called=$1;
 		c->arguments=(table_literal*)new_block();
-		vector_init(&c->arguments->lines);
 		$$=(expression*)c;
 	}
 	;
@@ -386,7 +398,7 @@ message:
 		message* m=new_message();
 		ADD_DEBUG_INFO(m)
 		m->messaged_object=$1;
-		m->message_name=$3;
+		m->message_name=(name*)$3;
 		m->arguments=(table_literal*)$5;
 		$$=(expression*)m;
 	}
@@ -394,7 +406,7 @@ message:
 		message* m=new_message();
 		ADD_DEBUG_INFO(m)
 		m->messaged_object=$1;
-		m->message_name=$3;
+		m->message_name=(name*)$3;
 		m->arguments=(table_literal*)new_block();
 		$$=(expression*)m;
 	}

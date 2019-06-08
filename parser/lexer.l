@@ -22,7 +22,9 @@ char* remove_last_character(const char* source){
 	int length=strlen(source);
 	char* result=malloc(length);
 	CHECK_ALLOCATION(result);
-	strncpy(result, source, length);
+	for(int i=0; i<length-1; i++){
+		result[i]=source[i];
+	}
 	result[length-1]='\0';
 	return result;
 }
@@ -45,7 +47,8 @@ if                      { COUNT_COLUMNS; return IF; }
 elif                    { COUNT_COLUMNS; return ELIF; }
 else                    { COUNT_COLUMNS; return ELSE; }
 null				    { COUNT_COLUMNS; return NULL_LITERAL; }
-\.\.\.						{ COUNT_COLUMNS; return ELLIPSIS; }
+@						{ COUNT_COLUMNS; return AT; }	
+\.\.\.					{ COUNT_COLUMNS; return ELLIPSIS; }
 ->                      { COUNT_COLUMNS; return ARROW; }
 ::                      { COUNT_COLUMNS; return FOUR_DOTS; }
 [0-9]+\.[0-9]+          { COUNT_COLUMNS; yylval.fval = atof(yytext); return FLOAT; }

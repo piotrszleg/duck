@@ -41,8 +41,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         }
         vector_add(&((path*)c->called)->lines, copy_expression((expression*)m->message_name));
 
-        c->arguments=new_block();
-        vector_init(&c->arguments->lines);
+        c->arguments=new_table_literal();
         vector_add(&c->arguments->lines, copy_expression(m->messaged_object));
         for(int i=0; i<vector_total(&m->arguments->lines); i++){
             vector_add(&c->arguments->lines, copy_expression(vector_get(&m->arguments->lines, i)));
@@ -50,30 +49,30 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         c->column_number=m->column_number;
         c->line_number=m->line_number;
 
-        request.replacement=c;
+        request.replacement=(expression*)c;
         return request;
     }
     // changing order of operations from right to left to left to right
     if(exp->type==e_binary){
-        binary* u=(binary*)exp;
-        if(u->right->type==e_binary){
-            binary* u2=(binary*)u->right;
+        binary* b=(binary*)exp;
+        if(b->right->type==e_binary){
+            binary* b2=(binary*)b->right;
 
-            binary* ru=new_binary();
-            ru->left=copy_expression(u->left);
-            ru->right=copy_expression(u2->left);
-            ru->op=strdup(u->op);
-            ru->line_number=u->line_number;
-            ru->column_number=u->column_number;
+            binary* replacement=new_binary();
+            replacement->left=copy_expression(b->left);
+            replacement->right=copy_expression(b2->left);
+            replacement->op=strdup(b->op);
+            replacement->line_number=b->line_number;
+            replacement->column_number=b->column_number;
 
-            binary* ru2=new_binary();
-            ru2->left=(expression*)ru;
-            ru2->right=copy_expression(u2->right);
-            ru2->op=strdup(u2->op);
-            ru2->line_number=u2->line_number;
-            ru2->column_number=u2->column_number;
+            binary* replacement_2=new_binary();
+            replacement_2->left=(expression*)replacement;
+            replacement_2->right=copy_expression(b2->right);
+            replacement_2->op=strdup(b2->op);
+            replacement_2->line_number=b2->line_number;
+            replacement_2->column_number=b2->column_number;
 
-            request.replacement=(expression*)ru2;
+            request.replacement=(expression*)replacement_2;
             return request;
         }
     }

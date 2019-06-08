@@ -1,9 +1,9 @@
 archive-path := parser.a
 tests-path := tests.exe
 repl-path := repl.exe
-headers := parser.tab.h ast.h ast_visitor.h ast_postprocessing.h ../datatypes/vector.h ../datatypes/map.h ../error/error.h
+headers := parser.tab.h ast.h ast_visitor.h ast_postprocessing.h ../datatypes/vector.h ../datatypes/map.h ../error/error.h ../datatypes/stream.h
 source-files := parser.tab.c lex.yy.c ast.c ast_visitor.c ast_postprocessing.c ../datatypes/vector.c ../datatypes/map.c
-executable-only-source-files := ../error/error.c
+executable-only-source-files := ../error/error.c ../datatypes/stream.c
 object-files := parser.tab.o lex.yy.o ast.o ast_visitor.o ast_postprocessing.o vector.o  map.o
 
 all: $(archive-path)

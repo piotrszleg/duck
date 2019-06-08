@@ -142,3 +142,12 @@ sin=ffi::function('sin, 'float, 'float)
 sin(10)
 imaginary=ffi::struct(real_part, 'float, imaginary_part, 'float)
 add_imaginary=ffi::function('add_imaginary, imaginary, imaginary, imaginary)
+
+First option:
+Add symbol to macro definitions and declarations:
+@syntax.switch=exp->new_function_call('print, exp)
+@syntax.switch event.type
+{
+    "mouse", print(event.x+" "event.y)
+    "keyboard", print(event.key)
+}

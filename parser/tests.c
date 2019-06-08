@@ -268,6 +268,78 @@ void message_translation(){
     printf("test successful\n");
 }
 
+expression* type_exhausted_ast(){
+    block* root=new_block();
+    #define EXPRESSION(type) \
+        { type* exp=new_##type(); \
+    
+    #define SPECIFIED_EXPRESSION_FIELD(type, field_name) exp->field_name=new_##type();
+    #define EXPRESSION_FIELD(field_name)                 exp->field_name=new_expression();
+    #define BOOL_FIELD(field_name)                       exp->field_name=false;
+    #define STRING_FIELD(field_name)                     exp->field_name=strdup("test");
+    #define LITERAL_UNION \
+        exp->ltype=l_string; \
+        exp->sval=strdup("test");
+    #define VECTOR_FIELD(field_name)
+    #define END vector_add(&root->lines, exp); }
+
+    AST_EXPRESSIONS
+
+    #undef EXPRESSION
+    #undef SPECIFIED_EXPRESSION_FIELD
+    #undef EXPRESSION_FIELD               
+    #undef BOOL_FIELD                   
+    #undef STRING_FIELD
+    #undef VECTOR_FIELD
+    #undef LITERAL_UNION
+    #undef END
+
+    return (expression*)root;
+}
+
+expression* type_exhausted_ast_uninitialized(){
+    block* root=new_block();
+    #define EXPRESSION(type) \
+        { type* exp=new_##type(); \
+    
+    #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
+    #define EXPRESSION_FIELD(field_name)
+    #define BOOL_FIELD(field_name)
+    #define STRING_FIELD(field_name)
+    #define LITERAL_UNION
+    #define VECTOR_FIELD(field_name)
+    #define END vector_add(&root->lines, exp); }
+
+    AST_EXPRESSIONS
+
+    #undef EXPRESSION
+    #undef SPECIFIED_EXPRESSION_FIELD
+    #undef EXPRESSION_FIELD               
+    #undef BOOL_FIELD                   
+    #undef STRING_FIELD
+    #undef VECTOR_FIELD
+    #undef LITERAL_UNION
+    #undef END
+
+    return (expression*)root;
+}
+
+void ast_tests(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    expression* exp=type_exhausted_ast();
+    free(stringify_expression(exp, 0));
+    delete_expression(copy_expression(exp));
+    delete_expression(exp);
+
+    expression* exp2=type_exhausted_ast_uninitialized();
+    free(stringify_expression(exp2, 0));
+    delete_expression(copy_expression(exp2));
+    delete_expression(exp2);
+
+    printf("test successful\n");
+}
+
 int main(){
     literals();
     operators();
@@ -281,4 +353,5 @@ int main(){
     conditionals();
     blocks();
     message_translation();
+    ast_tests();
 }

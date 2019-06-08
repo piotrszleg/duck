@@ -47,6 +47,8 @@
         "string": "c",
         "xtr1common": "c",
         "streambuf": "c",
-        "xmemory0": "c"
+        "xmemory0": "c",
+        "ios": "c",
+        "xiosbase": "c"
     }
 }

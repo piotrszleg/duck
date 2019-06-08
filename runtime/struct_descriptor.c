@@ -98,7 +98,10 @@ Object pointer_set(Executor* E, void* position, Object field, Object value){
             break;
         case n_string:
             REQUIRE_TYPE(value, t_string)
-            *((char**)position)=value.text;
+            if(*((char**)position)!=NULL){
+                free(*((char**)position));
+            }
+            *((char**)position)=strdup(value.text);
             break;
         case n_struct:
         {

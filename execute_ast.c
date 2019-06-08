@@ -164,7 +164,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
-            int arguments_count=vector_total(d->arguments);
+            int arguments_count=vector_total(&d->arguments);
 
             Object f;
             function_init(E, &f);
@@ -173,7 +173,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             f.fp->variadic=d->variadic;
 
             for (int i = 0; i < arguments_count; i++){
-                f.fp->argument_names[i]=strdup(((name*)vector_get(d->arguments, i))->value);
+                f.fp->argument_names[i]=strdup(((name*)vector_get(&d->arguments, i))->value);
             }
             f.fp->ftype=f_ast;
             f.fp->source_pointer=(void*)copy_expression(d->body);

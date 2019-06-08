@@ -36,7 +36,7 @@
 /* Tokens.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-   /* Put the tokens into the symbol Table, so that GDB and other debuggers
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
       know about them.  */
    enum yytokentype {
      ENDL = 258,
@@ -47,13 +47,14 @@
      ELLIPSIS = 263,
      ARROW = 264,
      FOUR_DOTS = 265,
-     INT = 266,
-     FLOAT = 267,
-     STRING = 268,
-     NAME = 269,
-     ASSIGN_BINARY_OPERATOR = 270,
-     BINARY_OPERATOR = 271,
-     PREFIX_OPERATOR = 272
+     AT = 266,
+     INT = 267,
+     FLOAT = 268,
+     STRING = 269,
+     NAME = 270,
+     ASSIGN_BINARY_OPERATOR = 271,
+     BINARY_OPERATOR = 272,
+     PREFIX_OPERATOR = 273
    };
 #endif
 
@@ -75,7 +76,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 79 "parser.tab.h"
+#line 80 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
