@@ -60,6 +60,7 @@ void handle_arguments(int argc, char **argv) {
     }
 
     Executor E;
+    E.gc=malloc(sizeof(GarbageCollector));
     E.options=options;
     object_system_init(&E);
 
@@ -75,4 +76,5 @@ void handle_arguments(int argc, char **argv) {
         exit(-1);
     );
     object_system_deinit(&E);
+    free(E.gc);
 }

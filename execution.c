@@ -128,7 +128,7 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
 }
 
 GarbageCollector* get_garbage_collector(Executor* E){
-    return &E->gc;
+    return E->gc;
 }
 
 void deinit_function(Function* f){

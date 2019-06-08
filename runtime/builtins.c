@@ -5,25 +5,34 @@ Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
     Object coroutine;
     coroutine_init(E, &coroutine);
     
-    coroutine.co->executor=malloc(sizeof(Executor));
-    coroutine.co->executor->options=E->options;
-    coroutine.co->executor->bytecode_environment.main_program=malloc(sizeof(BytecodeProgram));
-    bytecode_program_copy(E->bytecode_environment.main_program, coroutine.co->executor->bytecode_environment.main_program);
-    bytecode_environment_init(&coroutine.co->executor->bytecode_environment);
+    Executor* coroutine_executor=malloc(sizeof(Executor));
 
-    garbage_collector_init(&coroutine.co->executor->gc);
-    table_init(E, &coroutine.co->executor->bytecode_environment.scope);
-    register_builtins(E, coroutine.co->executor->bytecode_environment.scope);
-    coroutine.co->executor->coroutine=coroutine.co;
+    // copy bytecode program
+    coroutine_executor->options=E->options;
+    coroutine_executor->bytecode_environment.main_program=malloc(sizeof(BytecodeProgram));
+    bytecode_program_copy(E->bytecode_environment.main_program, coroutine_executor->bytecode_environment.main_program);
+    bytecode_environment_init(&coroutine_executor->bytecode_environment);
+
+    // coroutine shares garbage collector with owner
+    coroutine_executor->gc=E->gc;
+
+    // create a coroutine scope inheriting from global scope
+    table_init(coroutine_executor, &coroutine_executor->bytecode_environment.scope);
+    inherit_scope(coroutine_executor, coroutine_executor->bytecode_environment.scope, get(E, E->bytecode_environment.scope, to_string("global")));
+
+    coroutine_executor->coroutine=coroutine.co;
     coroutine.co->state=co_uninitialized;
+
+    // pass arguments and move to given function but don't call it yet
     REQUIRE_TYPE(function, t_function)
     REQUIRE(function.fp->ftype==f_bytecode, function)
-    coroutine.co->executor->bytecode_environment.executed_program=function.fp->source_pointer;
+    coroutine_executor->bytecode_environment.executed_program=function.fp->source_pointer;
     REQUIRE(function.fp->arguments_count==arguments_count-1, function)
     for(int i=1; i<arguments_count; i++){
-        push(&coroutine.co->executor->bytecode_environment.object_stack, arguments[i]);
+        push(&coroutine_executor->bytecode_environment.object_stack, arguments[i]);
     }
 
+    coroutine.co->executor=coroutine_executor;
     return coroutine;
 }
 
@@ -37,6 +46,7 @@ Object coroutine_call(Executor* E, Coroutine* coroutine, Object* arguments, int 
                 return execute_bytecode(coroutine->executor);
             }
         case co_running:
+            // coroutine expects one value to be emitted from yield call
             if(arguments_count==1){
                 push(&coroutine->executor->bytecode_environment.object_stack, arguments[0]);
             } else if(arguments_count==0){

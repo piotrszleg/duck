@@ -231,6 +231,7 @@ void struct_descriptor_nested_tests(Executor* E){
 
 int main(){
     Executor E;
+    E.gc=malloc(sizeof(GarbageCollector));
     object_system_init(&E);
     E.options=default_options;
     TRY_CATCH(
@@ -243,6 +244,7 @@ int main(){
         exit(-1);
     )
     object_system_deinit(&E);
+    free(E.gc);
 }
 
 #undef FIELD
