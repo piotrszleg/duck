@@ -4,7 +4,7 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope){
     if(parsing_result==NULL){
         return null_const;// there was an error while parsing
     }
-
+    execute_macros(E, parsing_result);
     optimise_ast(E, parsing_result);
     if(E->options.print_ast){
         USING_STRING(stringify_expression(parsing_result, 0),

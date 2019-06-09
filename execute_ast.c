@@ -213,6 +213,9 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             E->ast_returning=true;
             return result;
         }
+        case e_macro_declaration:
+        case e_macro:
+            return null_const;
         default:
         {
             printf("uncatched expression type: %i\n", exp->type);

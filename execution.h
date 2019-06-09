@@ -16,6 +16,7 @@
 #include "execute_ast.h"
 #include "execute_ast.h"
 #include "options.h"
+#include "macros.h"
 
 Object evaluate_string(Executor* E, const char* s, Object scope);
 Object evaluate_file(Executor* E, const char* file_name, Object scope);

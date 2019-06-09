@@ -1,1 +1,4 @@
-coroutine(->{yield(9), yield(8), yield(7)}) `#` x->print("->"+x)
+{
+@adder=(a, b)->a*b
+@adder, 4, 10
+}

@@ -17,6 +17,10 @@ ast_visitor_request call_for_replacements(expression* exp, visitor_function f, v
 }
 
 ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
+    if(exp==NULL) {
+        ast_visitor_request request={down};
+        return request;
+    }
     ast_visitor_request request=call_for_replacements(exp, f, data);
 
     if(request.replacement!=NULL || request.move!=down){
