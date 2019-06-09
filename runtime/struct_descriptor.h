@@ -18,5 +18,9 @@ typedef enum {
 
 Object new_struct_descriptor(Executor* E, void* position, Object sclass);
 Object to_field(Executor* E, int offset, NativeType type);
+Object to_struct_field(Executor* E, int offset, Object class);
+Object to_struct_pointer_field(Executor* E, int offset, Object class);
+
+#define OFFSET(structure, field) (int)&(structure).field-(int)&(structure)
 
 #endif

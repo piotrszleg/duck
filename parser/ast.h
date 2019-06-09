@@ -104,7 +104,7 @@ enum expression_type{
     #undef END
 };
 
-#define EXPRESSION_TYPES_COUNT t_literal
+#define EXPRESSION_TYPES_COUNT (int)e_literal
 
 typedef enum literal_type literal_type;
 enum literal_type{ l_int, l_float, l_string };
@@ -149,5 +149,6 @@ void delete_expression(expression*);
 expression* copy_expression(expression*);
 char* table_literal_extract_key(assignment* a);
 bool expressions_equal(expression* expression_a, expression* expression_b);
+void allow_unused_variable(void* variable);
 
 #endif

@@ -122,22 +122,13 @@ typedef struct {
     int* c;
 } ExampleStructNested;
 
-Object to_struct_field(Executor* E, int offset, Object class){
-    Object struct_field=to_field(E, offset, n_struct);
-    set(E, struct_field, to_string("class"), class);
-    return struct_field;
-}
-
 Object example_struct_nested_class(Executor* E){
     ExampleStructNested st;
     Object class;
     table_init(E, &class);
 
     set(E, class, to_string("a"), to_struct_field(E, OFFSET(st, a), example_struct_class(E)));
-
-    Object b_field=to_field(E, OFFSET(st, b), n_pointer);
-    set(E, b_field, to_string("pointed"), to_struct_field(E, 0, example_struct_class(E)));
-    set(E, class, to_string("b"), b_field);
+    set(E, class, to_string("b"), to_struct_pointer_field(E, OFFSET(st, b), example_struct_class(E)));
 
     Object c_field=to_field(E, OFFSET(st, c), n_pointer);
     set(E, c_field, to_string("pointed"), to_field(E, 0, n_int));

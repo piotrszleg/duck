@@ -1,4 +1,2 @@
-{
-@adder=(a, b)->a*b
-@adder, 4, 10
-}
+@take_left=x->x.right
+@take_left, 12+15

@@ -185,6 +185,18 @@ Object to_field(Executor* E, int offset, NativeType type){
     return field;
 }
 
+Object to_struct_field(Executor* E, int offset, Object class){
+    Object struct_field=to_field(E, offset, n_struct);
+    set(E, struct_field, to_string("class"), class);
+    return struct_field;
+}
+
+Object to_struct_pointer_field(Executor* E, int offset, Object class) {
+    Object struct_pointer_field=to_field(E, offset, n_pointer);
+    set(E, struct_pointer_field, to_string("pointed"), to_struct_field(E, 0, class));
+    return struct_pointer_field;
+}
+
 /*
 // this needs to go into libffi module to handle allignment on different architectures
 Object new_struct_descriptor_class(Object* arguments, int arguments_count){

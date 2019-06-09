@@ -18,6 +18,7 @@
 #include "options.h"
 #include "macros.h"
 
+Object evaluate(Executor* E, expression* parsing_result, Object scope, bool delete_ast);
 Object evaluate_string(Executor* E, const char* s, Object scope);
 Object evaluate_file(Executor* E, const char* file_name, Object scope);
 void execute_file(Executor* E, const char* file_name);

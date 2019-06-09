@@ -1,11 +1,13 @@
 #include "execution.h"
 
-Object evaluate(Executor* E, expression* parsing_result, Object scope){
+Object evaluate(Executor* E, expression* parsing_result, Object scope, bool delete_ast){
     if(parsing_result==NULL){
         return null_const;// there was an error while parsing
     }
     execute_macros(E, parsing_result);
-    optimise_ast(E, parsing_result);
+    if(E->options.optimise_ast){
+        optimise_ast(E, parsing_result);
+    }
     if(E->options.print_ast){
         USING_STRING(stringify_expression(parsing_result, 0),
             printf("Abstract Syntax Tree:\n%s\n", str));
@@ -13,11 +15,13 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope){
     Object execution_result;
     if(E->options.ast_only){
         execution_result=execute_ast(E, parsing_result, scope, 1);
-        delete_expression(parsing_result);
+        if(delete_ast) delete_expression(parsing_result);
     } else {
         BytecodeProgram prog=ast_to_bytecode(parsing_result, true);
-        delete_expression(parsing_result);// at this point ast is useless and only wastes memory
-        optimise_bytecode(&prog, E->options.print_bytecode_optimisations);
+        if(delete_ast) delete_expression(parsing_result);// at this point ast is useless and only wastes memory
+        if(E->options.optimise_bytecode){
+            optimise_bytecode(&prog, E->options.print_bytecode_optimisations);
+        }
 
         if(E->options.print_bytecode){
             USING_STRING(stringify_bytecode(&prog),
@@ -38,13 +42,13 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope){
 Object evaluate_string(Executor* E, const char* s, Object scope){
     expression* parsing_result=parse_string(s);
     E->file="string";
-    return evaluate(E, parsing_result, scope);
+    return evaluate(E, parsing_result, scope, true);
 }
 
 Object evaluate_file(Executor* E, const char* file_name, Object scope){
     expression* parsing_result=parse_file(file_name);
     E->file=file_name;
-    return evaluate(E, parsing_result, scope);
+    return evaluate(E, parsing_result, scope, true);
 }
 
 void execute_file(Executor* E, const char* file_name){
