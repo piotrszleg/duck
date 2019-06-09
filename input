@@ -1,2 +1,2 @@
-@add=x->print(x.left)
+@add=x->string(x.right.value)+"+"+string(x.left.value)
 @add, 12+15

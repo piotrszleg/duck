@@ -3,6 +3,38 @@
 map_t(Object) expression_classes_map;
 Object expression_classes_array[EXPRESSION_TYPES_COUNT];
 
+Object get_expression_downcasted(Executor* E, Object* arguments, int argumets_count);
+Object expression_class(Executor* E, expression* exp);
+
+void postproccess_expression_descriptor(Executor* E, Table* descriptor){
+    set_table(E, descriptor, to_string("is_expression"), to_number(1));
+    if(get_table(descriptor, to_string("replaced_get")).type==t_null){
+        set_table(E, descriptor, to_string("replaced_get"), get_table(descriptor, to_string("get")));
+        set_table(E, descriptor, to_string("get"), to_function(E, get_expression_downcasted, NULL, 2));
+    }
+}
+
+Object get_expression_downcasted(Executor* E, Object* arguments, int argumets_count){
+    Object self=arguments[0];
+    REQUIRE_TYPE(self, t_table);
+    Object replaced_get=get_table(self.tp, to_string("replaced_get"));
+    Object get_result=call(E, replaced_get, arguments, argumets_count);
+    if(get_result.type==t_table && is_falsy(get_table(get_result.tp, to_string("error")))){
+        if(get_table(get_result.tp, to_string("type")).value==n_pointer){
+            Object pointed_field=get_table(get_result.tp, to_string("pointed"));
+            expression** pointed=(expression**)get_table(get_result.tp, to_string("position")).p;
+            REQUIRE_TYPE(pointed_field, t_table)
+            set_table(E, pointed_field.tp, to_string("class"), expression_class(E,  *pointed));
+        } else{
+            Object type=call(E, replaced_get, (Object[]){get_result, to_string("expression_type")}, 2);
+            REQUIRE_TYPE(type, t_number)
+            set_table(E, get_result.tp, to_string("class"), expression_classes_array[(int)type.value]);
+        }
+        postproccess_expression_descriptor(E, get_result.tp);
+    }
+    return get_result;
+}
+
 Object expression_class(Executor* E, expression* exp) {
     if(exp==NULL){
         return null_const;
@@ -10,17 +42,17 @@ Object expression_class(Executor* E, expression* exp) {
         return expression_classes_array[exp->type];
     }
     switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: {\
-            type* casted=new_##type();\
+        #define EXPRESSION(etype) \
+            case e_##etype: {\
+            etype* casted=new_##etype();\
             allow_unused_variable(&casted);\
             Object class;\
             table_init(E, &class);\
-            map_set(&expression_classes_map, #type, class);\
-            expression_classes_array[e_##type]=class;
+            map_set(&expression_classes_map, #etype, class);\
+            expression_classes_array[e_##etype]=class;\
+            set(E, class, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int));
         #define FIELD(field_name, field_descriptor) \
             { Object field_temp=field_descriptor; \
-            set(E, field_temp, to_string("is_expression"), to_number(1)); \
             set(E, class, to_string(#field_name), field_temp); }
         #define SPECIFIED_EXPRESSION_FIELD(type, field_name)\
             casted->field_name=new_##type();\
@@ -53,7 +85,7 @@ Object expression_class(Executor* E, expression* exp) {
 Object wrap_expression(Executor* E, expression* exp){
     Object wrapped=new_struct_descriptor(E, (void*)exp, expression_class(E, exp));
     REQUIRE_TYPE(wrapped, t_table)
-    set_table(E, wrapped.tp, to_string("is_expression"), to_number(1));
+    postproccess_expression_descriptor(E, wrapped.tp);
     return wrapped;
 }
 
