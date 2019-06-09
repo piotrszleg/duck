@@ -26,7 +26,8 @@ t* new_ ## t(){  \
 #define EXPRESSION_FIELD(field_name) instance->field_name=NULL;
 #define BOOL_FIELD(field_name) instance->field_name=false;
 #define STRING_FIELD(field_name) instance->field_name=NULL;
-#define LITERAL_UNION instance->ltype=l_int; instance->ival=0;
+#define INT_FIELD(field_name) instance->field_name=0;
+#define FLOAT_FIELD(field_name) instance->field_name=0;
 #define VECTOR_FIELD(field_name) vector_init(&instance->field_name);
 #define END \
         return instance; \
@@ -40,7 +41,10 @@ AST_EXPRESSIONS
 #undef BOOL_FIELD                   
 #undef STRING_FIELD
 #undef VECTOR_FIELD
-#undef LITERAL_UNION
+#undef FLOAT_FIELD
+#undef INT_FIELD
+#undef FLOAT_FIELD
+#undef INT_FIELD
 #undef END
 
 void allow_unused_variable(void* variable){}
@@ -83,23 +87,12 @@ char* stringify_expression(expression* exp, int indentation){
         #define EXPRESSION_FIELD(field_name)                 WRITE_EXPRESSION_FIELD(field_name)
         #define BOOL_FIELD(field_name)                       WRITE_FIELD(field_name, casted->field_name ? "true" : "false")
         #define STRING_FIELD(field_name)                     if(casted->field_name!=NULL) { WRITE_FIELD(field_name, casted->field_name) }
-        
+        #define FLOAT_FIELD(field_name)                      WRITE_FORMATTED("%f", casted->field_name)
+        #define INT_FIELD(field_name)                        WRITE_FORMATTED("%i", casted->field_name)
         #define VECTOR_FIELD(field_name) \
             WRITE_FORMATTED("\n%s->" #field_name ": ", indentation_string) \
             for (int i = 0; i < vector_total(&casted->field_name); i++){ \
                 WRITE(stringify_expression(vector_get(&casted->field_name, i), indentation+1)) \
-            }
-        #define LITERAL_UNION \
-            switch(casted->ltype){ \
-                case l_int: \
-                    WRITE_FORMATTED("%i", casted->ival) \
-                    break; \
-                case l_float: \
-                    WRITE_FORMATTED("%f", casted->fval) \
-                    break; \
-                case l_string: \
-                    if(casted->sval!=NULL) { WRITE_FORMATTED("%s", casted->sval) } \
-                    break; \
             }
         #define END \
                 break; \
@@ -113,7 +106,8 @@ char* stringify_expression(expression* exp, int indentation){
         #undef BOOL_FIELD                   
         #undef STRING_FIELD
         #undef VECTOR_FIELD
-        #undef LITERAL_UNION
+        #undef FLOAT_FIELD
+#undef INT_FIELD
         #undef END
     }
     WRITE_CONST("\0")
@@ -142,7 +136,8 @@ void delete_expression(expression* exp){
         #define EXPRESSION_FIELD(field_name)                 delete_expression(casted->field_name);
         #define BOOL_FIELD(field_name)
         #define STRING_FIELD(field_name)                     free(casted->field_name);
-        #define LITERAL_UNION    if(casted->ltype==l_string) free(casted->sval);
+        #define FLOAT_FIELD(field_name)
+        #define INT_FIELD(field_name)
         #define VECTOR_FIELD(field_name) \
             for (int i = 0; i < vector_total(&casted->field_name); i++){ \
                 delete_expression(vector_get(&casted->field_name, i)); \
@@ -162,7 +157,8 @@ void delete_expression(expression* exp){
         #undef BOOL_FIELD                   
         #undef STRING_FIELD
         #undef VECTOR_FIELD
-        #undef LITERAL_UNION
+        #undef FLOAT_FIELD
+#undef INT_FIELD
         #undef END
     }
 }
@@ -183,13 +179,9 @@ expression* copy_expression(expression* exp){
         #define SPECIFIED_EXPRESSION_FIELD(type, field_name) copy->field_name=(type*)copy_expression((expression*)casted->field_name);
         #define EXPRESSION_FIELD(field_name)                 copy->field_name=copy_expression(casted->field_name);
         #define BOOL_FIELD(field_name)                       copy->field_name=casted->field_name;
+        #define INT_FIELD(field_name)                        copy->field_name=casted->field_name;
+        #define FLOAT_FIELD(field_name)                        copy->field_name=casted->field_name;
         #define STRING_FIELD(field_name)                     copy->field_name=strdup(casted->field_name);
-        #define LITERAL_UNION \
-            switch(casted->ltype) { \
-                case l_string: copy->sval=strdup(casted->sval); break; \
-                case l_int:    copy->ival=casted->ival; break; \
-                case l_float:  copy->fval=casted->fval; break; \
-            }
         #define VECTOR_FIELD(field_name) \
             for (int i = 0; i < vector_total(&casted->field_name); i++){ \
                 vector_add(&copy->field_name, copy_expression((expression*)vector_get(&casted->field_name, i))); \
@@ -208,7 +200,8 @@ expression* copy_expression(expression* exp){
         #undef BOOL_FIELD                   
         #undef STRING_FIELD
         #undef VECTOR_FIELD
-        #undef LITERAL_UNION
+        #undef FLOAT_FIELD
+#undef INT_FIELD
         #undef END
     }
 }
@@ -242,13 +235,9 @@ bool expressions_equal(expression* expression_a, expression* expression_b){
         #define SPECIFIED_EXPRESSION_FIELD(type, field_name) COMPARISON(expressions_equal((expression*)a->field_name, (expression*)b->field_name))
         #define EXPRESSION_FIELD(field_name)                 COMPARISON(expressions_equal(a->field_name, b->field_name))
         #define BOOL_FIELD(field_name)                       COMPARISON(a->field_name==b->field_name)
+        #define FLOAT_FIELD(field_name)                      COMPARISON(a->field_name==b->field_name)
+        #define INT_FIELD(field_name)                        COMPARISON(a->field_name==b->field_name)
         #define STRING_FIELD(field_name)                     COMPARISON(compare_strings(a->field_name, b->field_name))
-        #define LITERAL_UNION \
-            switch(a->ltype) { \
-                case l_string: COMPARISON(compare_strings(a->sval, b->sval)) break; \
-                case l_int:    COMPARISON(a->ival==b->ival) break; \
-                case l_float:  COMPARISON(a->fval==b->fval) break; \
-            }
         #define VECTOR_FIELD(field_name) \
             COMPARISON(vector_total(&a->field_name)==vector_total(&b->field_name)) \
             for (int i = 0; i < vector_total(&a->field_name); i++){ \
@@ -269,7 +258,8 @@ bool expressions_equal(expression* expression_a, expression* expression_b){
         #undef BOOL_FIELD                   
         #undef STRING_FIELD
         #undef VECTOR_FIELD
-        #undef LITERAL_UNION
+        #undef FLOAT_FIELD
+#undef INT_FIELD
         #undef END
     }
 }

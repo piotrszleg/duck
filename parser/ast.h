@@ -76,9 +76,15 @@ bool ast_allocations_zero();
         SPECIFIED_EXPRESSION_FIELD(macro, left) \
         EXPRESSION_FIELD(right) \
     END \
-    EXPRESSION(literal) \
-        LITERAL_UNION \
+    EXPRESSION(int_literal) \
+        INT_FIELD(value) \
     END \
+    EXPRESSION(float_literal) \
+        FLOAT_FIELD(value) \
+    END \
+    EXPRESSION(string_literal) \
+        STRING_FIELD(value) \
+    END
 
 // generate enum of expression types, each value is prepended with "e_"
 typedef enum expression_type expression_type;
@@ -89,7 +95,8 @@ enum expression_type{
     #define BOOL_FIELD(field_name)    
     #define STRING_FIELD(field_name)
     #define VECTOR_FIELD(field_name)
-    #define LITERAL_UNION
+    #define INT_FIELD(field_name)
+    #define FLOAT_FIELD(field_name)
     #define END 
 
     AST_EXPRESSIONS
@@ -100,11 +107,12 @@ enum expression_type{
     #undef BOOL_FIELD                   
     #undef STRING_FIELD
     #undef VECTOR_FIELD
-    #undef LITERAL_UNION
+    #undef FLOAT_FIELD
+    #undef INT_FIELD
     #undef END
 };
 
-#define EXPRESSION_TYPES_COUNT (int)e_literal
+#define EXPRESSION_TYPES_COUNT (int)e_string_literal
 
 typedef enum literal_type literal_type;
 enum literal_type{ l_int, l_float, l_string };
@@ -122,13 +130,8 @@ enum literal_type{ l_int, l_float, l_string };
 #define BOOL_FIELD(field_name)                       bool field_name;
 #define STRING_FIELD(field_name)                     char* field_name;
 #define VECTOR_FIELD(field_name)                     vector field_name;
-#define LITERAL_UNION \
-        literal_type ltype; \
-        union { \
-            int ival; \
-            float fval; \
-            char* sval; \
-        };
+#define INT_FIELD(field_name)                        int field_name;
+#define FLOAT_FIELD(field_name)                      float field_name;
 #define END \
     };
 
@@ -140,7 +143,8 @@ AST_EXPRESSIONS
 #undef BOOL_FIELD                   
 #undef STRING_FIELD
 #undef VECTOR_FIELD
-#undef LITERAL_UNION
+#undef FLOAT_FIELD
+#undef INT_FIELD
 #undef END
 
 bool check_expression(expression* e);

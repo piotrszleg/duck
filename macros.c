@@ -29,8 +29,9 @@ Object expression_class(Executor* E, expression* exp) {
             casted->field_name=new_expression();\
             FIELD(field_name, to_struct_pointer_field(E, OFFSET(*casted, field_name), expression_class(E, casted->field_name)));
         #define BOOL_FIELD(field_name)                       set(E, class, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_int));
+        #define FLOAT_FIELD(field_name)                      set(E, class, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_float));
+        #define INT_FIELD(field_name)                        set(E, class, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_int));
         #define STRING_FIELD(field_name)                     set(E, class, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_string));
-        #define LITERAL_UNION                                // TODO
         #define VECTOR_FIELD(field_name)                     // TODO
         #define END delete_expression((expression*)casted); return class; }
         default: return null_const;
@@ -43,7 +44,8 @@ Object expression_class(Executor* E, expression* exp) {
         #undef BOOL_FIELD                   
         #undef STRING_FIELD
         #undef VECTOR_FIELD
-        #undef LITERAL_UNION
+        #undef FLOAT_FIELD
+        #undef INT_FIELD
         #undef END
     }
 }

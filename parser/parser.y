@@ -304,25 +304,22 @@ function:
 	}
 	;
 literal: 
-	INT { 
-		literal* l=new_literal();
+	INT {
+		int_literal* l=new_int_literal();
 		ADD_DEBUG_INFO(l)
-		l->ival=$1;
-		l->ltype=l_int;
+		l->value=$1;
 		$$=(expression*)l;
 	}
 	| FLOAT { 
-		literal* l=new_literal();
+		float_literal* l=new_float_literal();
 		ADD_DEBUG_INFO(l)
-		l->fval=$1;
-		l->ltype=l_float;
+		l->value=$1;
 		$$=(expression*)l;
 	}
 	| STRING { 
-		literal* l=new_literal();
+		string_literal* l=new_string_literal();
 		ADD_DEBUG_INFO(l)
-		l->sval=$1;
-		l->ltype=l_string;
+		l->value=$1;
 		$$=(expression*)l;
 	}
 	;
@@ -409,7 +406,7 @@ message:
 		m->message_name=(name*)$3;
 		m->arguments=(table_literal*)new_block();
 		$$=(expression*)m;
-	}
+
 	;
 binary:
 	expression BINARY_OPERATOR expression 

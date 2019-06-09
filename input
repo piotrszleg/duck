@@ -1,2 +1,2 @@
-@take_left=x->x.right
-@take_left, 12+15
+@add=x->print(x.left)
+@add, 12+15

@@ -19,21 +19,21 @@ void literals(){
     block* as_block=parse_block("5, 0.5, \"text text\", 'text_text", 4);
 
     // check if each line contains literal of correct type and value
-    literal* five=(literal*)vector_get(&as_block->lines, 0);
-    assert(five->type==e_literal);
-    assert(five->ival==5);
+    int_literal* five=(int_literal*)vector_get(&as_block->lines, 0);
+    assert(five->type==e_int_literal);
+    assert(five->value==5);
     
-    literal* half=(literal*)vector_get(&as_block->lines, 1);
-    assert( half->type==e_literal );
-    assert(half->fval==0.5);
+    float_literal* half=(float_literal*)vector_get(&as_block->lines, 1);
+    assert(half->type==e_float_literal );
+    assert(half->value==0.5);
 
-    literal* text1=(literal*)vector_get(&as_block->lines, 2);
-    assert( text1->type==e_literal );
-    assert(strcmp(text1->sval, "text text")==0);
+    string_literal* text1=(string_literal*)vector_get(&as_block->lines, 2);
+    assert( text1->type==e_string_literal );
+    assert(strcmp(text1->value, "text text")==0);
 
-    literal* text2=(literal*)vector_get(&as_block->lines, 3);
-    assert( text2->type==e_literal );
-    assert(strcmp(text2->sval, "text_text")==0);
+    string_literal* text2=(string_literal*)vector_get(&as_block->lines, 3);
+    assert( text2->type==e_string_literal );
+    assert(strcmp(text2->value, "text_text")==0);
 
     delete_expression((expression*)as_block);
     printf("test successful\n");
@@ -300,9 +300,8 @@ expression* type_exhausted_ast(){
     #define EXPRESSION_FIELD(field_name)                 exp->field_name=new_expression();
     #define BOOL_FIELD(field_name)                       exp->field_name=false;
     #define STRING_FIELD(field_name)                     exp->field_name=strdup("test");
-    #define LITERAL_UNION \
-        exp->ltype=l_string; \
-        exp->sval=strdup("test");
+    #define FLOAT_FIELD(field_name)                      exp->field_name=0;
+    #define INT_FIELD(field_name)                        exp->field_name=0;
     #define VECTOR_FIELD(field_name)
     #define END vector_add(&root->lines, exp); }
 
@@ -314,7 +313,8 @@ expression* type_exhausted_ast(){
     #undef BOOL_FIELD                   
     #undef STRING_FIELD
     #undef VECTOR_FIELD
-    #undef LITERAL_UNION
+    #undef FLOAT_FIELD
+#undef INT_FIELD
     #undef END
 
     return (expression*)root;
@@ -329,7 +329,8 @@ expression* type_exhausted_ast_uninitialized(){
     #define EXPRESSION_FIELD(field_name)
     #define BOOL_FIELD(field_name)
     #define STRING_FIELD(field_name)
-    #define LITERAL_UNION
+    #define FLOAT_FIELD(field_name)
+    #define INT_FIELD(field_name)
     #define VECTOR_FIELD(field_name)
     #define END vector_add(&root->lines, exp); }
 
@@ -341,7 +342,8 @@ expression* type_exhausted_ast_uninitialized(){
     #undef BOOL_FIELD                   
     #undef STRING_FIELD
     #undef VECTOR_FIELD
-    #undef LITERAL_UNION
+    #undef FLOAT_FIELD
+    #undef INT_FIELD
     #undef END
 
     return (expression*)root;

@@ -54,28 +54,17 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     E->line=exp->line_number;
     E->column=exp->column_number;
     switch(exp->type){
+        case e_expression:
+        case e_macro:
+        case e_macro_declaration:
         case e_empty:
             return null_const;
-        case e_literal:
-        {
-            literal* l=(literal*)exp;
-            Object result;
-            switch(l->ltype){
-                case l_int:
-                    number_init(&result);
-                    result.value=l->ival;
-                    break;
-                case l_float:
-                    number_init(&result);
-                    result.value=l->fval;
-                    break;
-                case l_string:
-                    string_init(&result);
-                    result.text=strdup(l->sval);
-                    break;
-            }
-            return result;
-        }
+        case e_float_literal:
+            return to_number(((float_literal*)exp)->value);
+        case e_int_literal:
+            return to_number(((int_literal*)exp)->value);
+        case e_string_literal:
+            return to_string(((string_literal*)exp)->value);
         case e_table_literal:
         {
             block* b=(block*)exp;
@@ -213,9 +202,6 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             E->ast_returning=true;
             return result;
         }
-        case e_macro_declaration:
-        case e_macro:
-            return null_const;
         default:
         {
             printf("uncatched expression type: %i\n", exp->type);

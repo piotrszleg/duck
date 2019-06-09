@@ -12,7 +12,9 @@
 bool is_literal(expression* exp){
     switch(exp->type){
         case e_empty:
-        case e_literal:
+        case e_int_literal:
+        case e_float_literal:
+        case e_string_literal:
             return true;
         default:
             return false;
@@ -22,7 +24,10 @@ bool is_literal(expression* exp){
 bool is_constant(expression* exp){
     switch(exp->type){
         case e_empty:
-        case e_literal:
+        case e_expression:
+        case e_int_literal:
+        case e_float_literal:
+        case e_string_literal:
             return true;
         case e_binary:
         {
@@ -47,16 +52,14 @@ expression* to_literal(Object o){
     switch(o.type){
         case t_string:
         {
-            literal* l=new_literal();
-            l->sval=strdup(o.text);
-            l->ltype=l_string;
+            string_literal* l=new_string_literal();
+            l->value=strdup(o.text);
             return (expression*)l;
         }
         case t_number:
         {
-            literal* l=new_literal();
-            l->fval=o.value;
-            l->ltype=l_float;
+            float_literal* l=new_float_literal();
+            l->value=o.value;
             return (expression*)l;
         }
         case t_table:

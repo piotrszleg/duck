@@ -102,28 +102,20 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
     translation->last_information=information_from_ast(exp);
 
     switch(exp->type){
+        case e_expression:
         case e_macro_declaration:
         case e_macro:
         case e_empty:
             push_instruction(translation, b_null, 0);
             break;
-        case e_literal:
-        {
-            literal* l=(literal*)exp;
-            switch(l->ltype){
-                case l_int:
-                    // all numbers in duck are floats, so int must be converted to float
-                    push_number_load(translation, (float)l->ival);
-                    break;
-                case l_float:
-                    push_number_load(translation, l->fval);
-                    break;
-                case l_string:
-                    push_string_load(translation, l->sval);
-                    break;
-            }
+        case e_float_literal:
+            push_number_load(translation, ((float_literal*)exp)->value);
+        case e_int_literal:
+            push_number_load(translation, ((int_literal*)exp)->value);
             break;
-        }
+        case e_string_literal:
+            push_string_load(translation, ((string_literal*)exp)->value);
+            break;
         case e_table_literal:
         {
             table_literal* b=(table_literal*)exp;
