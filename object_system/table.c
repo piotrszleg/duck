@@ -299,6 +299,7 @@ void set_table(Executor* E, Table* t, Object key, Object value) {
                 } else {
                     t->map[hashed]=NULL;
                 }
+                dereference(E, &e->key);
                 free(e);
             } else {
                 e->value=value;

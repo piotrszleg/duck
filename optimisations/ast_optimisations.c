@@ -62,19 +62,6 @@ expression* to_literal(Object o){
             l->value=o.value;
             return (expression*)l;
         }
-        case t_table:
-        {
-            if(!is_falsy(get_table(o.tp, to_string("is_expression")))){
-                if(get_table(o.tp, to_string("type")).value==n_pointer){
-                    void** pointed=(void**)get_table(o.tp, to_string("position")).p;
-                    return *pointed;
-                } else {
-                    return get_table(o.tp, to_string("position")).p;
-                }
-            } else {
-                 return NULL;
-            }
-        }
         case t_null:
             return (expression*)new_empty();
         default:

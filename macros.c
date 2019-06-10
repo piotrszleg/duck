@@ -1,7 +1,8 @@
 #include "macros.h"
 
-map_t(Object) expression_classes_map;
-Object expression_classes_array[EXPRESSION_TYPES_COUNT];
+// TODO: Remove these globals
+static map_t(Object) expression_classes_map;
+static Object expression_classes_array[EXPRESSION_TYPES_COUNT];
 
 Object get_expression_downcasted(Executor* E, Object* arguments, int argumets_count);
 Object expression_class(Executor* E, expression* exp);
@@ -14,22 +15,18 @@ void postproccess_expression_descriptor(Executor* E, Table* descriptor){
     }
 }
 
+/* 
+get override function
+gets a field from expression struct descriptor and then downcasts it to proper type depedning on expression type field
+by changing it's class field to one gotten from expression_class
+*/
 Object get_expression_downcasted(Executor* E, Object* arguments, int argumets_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
     Object replaced_get=get_table(self.tp, to_string("replaced_get"));
     Object get_result=call(E, replaced_get, arguments, argumets_count);
-    if(get_result.type==t_table && is_falsy(get_table(get_result.tp, to_string("error")))){
-        if(get_table(get_result.tp, to_string("type")).value==n_pointer){
-            Object pointed_field=get_table(get_result.tp, to_string("pointed"));
-            expression** pointed=(expression**)get_table(get_result.tp, to_string("position")).p;
-            REQUIRE_TYPE(pointed_field, t_table)
-            set_table(E, pointed_field.tp, to_string("class"), expression_class(E,  *pointed));
-        } else{
-            Object type=call(E, replaced_get, (Object[]){get_result, to_string("expression_type")}, 2);
-            REQUIRE_TYPE(type, t_number)
-            set_table(E, get_result.tp, to_string("class"), expression_classes_array[(int)type.value]);
-        }
+    if(is_struct_descriptor(E, get_result)){
+        set_table(E, get_result.tp, to_string("class"), expression_class(E, (expression*)struct_descriptor_get_pointer(E, get_result.tp)));
         postproccess_expression_descriptor(E, get_result.tp);
     }
     return get_result;
@@ -50,6 +47,7 @@ Object expression_class(Executor* E, expression* exp) {
             table_init(E, &class);\
             map_set(&expression_classes_map, #etype, class);\
             expression_classes_array[e_##etype]=class;\
+            reference(&class);\
             set(E, class, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int));
         #define FIELD(field_name, field_descriptor) \
             { Object field_temp=field_descriptor; \
@@ -111,6 +109,17 @@ char* path_to_string(path* p){
 }
 
 expression* to_literal(Object o);
+expression* to_expression(Executor* E, Object o){
+    if(is_struct_descriptor(E, o)) {
+        Object is_expression=get_table(o.tp, to_string("is_expression"));
+        if(!is_falsy(is_expression)) {
+            dereference(E, &is_expression);
+            return struct_descriptor_get_pointer(E, o.tp);
+        }
+        dereference(E, &is_expression);
+    }
+    return to_literal(o);
+}
 
 Object evaluate_macro(Executor* E, Object macro_value, Object* arguments, int arguments_count) {
     if(macro_value.type!=t_function){
@@ -169,7 +178,7 @@ ast_visitor_request macro_visitor(expression* exp, void* data){
                     arguments[j]=wrap_expression(state->executor, copy_expression(vector_get(&b->lines, i+1+j)));
                 }
                 Object evaluation_result=evaluate_macro(state->executor, macro_value, arguments, expected_arguments);
-                expression* converted=to_literal(evaluation_result);
+                expression* converted=to_expression(state->executor, evaluation_result);
                 if(converted!=NULL) {
                     // replace macro with it's evaluation result
                     vector_set(&b->lines, i, converted);
@@ -197,7 +206,7 @@ ast_visitor_request macro_visitor(expression* exp, void* data){
             THROW_ERROR(AST_ERROR, "Unknown macro %s.", key)
         }
         Object evaluation_result=evaluate_macro(state->executor, *map_get_result, NULL, 0);
-        expression* converted=to_literal(evaluation_result);
+        expression* converted=to_expression(state->executor, evaluation_result);
         if(converted!=NULL) {
             ast_visitor_request request={next, converted};
             free(key);

@@ -156,6 +156,13 @@ void test_substructure(Executor* E, ExampleStructNested* st, Object substructure
     {Object evaluation_result=evaluate_string(expression, scope); \
     assert(!is_falsy(evaluation_result));}
 
+#define ASSERT_OBJECTS_EQUAL(a, b) \
+    {Object temp_a=a; \
+     Object temp_b=b; \
+     assert(compare(temp_a, temp_b)==0); \
+     destroy_unreferenced(E, &temp_a); \
+     destroy_unreferenced(E, &temp_b);}
+
 void struct_descriptor_nested_tests(Executor* E){
     printf("TEST: %s\n", __FUNCTION__);
     ExampleStructNested* st=malloc(sizeof(ExampleStructNested));
@@ -186,9 +193,9 @@ void struct_descriptor_nested_tests(Executor* E){
     dereference(E, &contained_replacement);
 
     Object c_pointer=get(E, sd, to_string("c"));
-    assert(compare(get(E, c_pointer, to_number(0)), to_number(32))==0);
+    ASSERT_OBJECTS_EQUAL(get(E, c_pointer, to_number(0)), to_number(32));
     set(E, c_pointer, to_number(0), to_number(16));
-    assert(compare(get(E, c_pointer, to_number(0)), to_number(16))==0);
+    ASSERT_OBJECTS_EQUAL(get(E, c_pointer, to_number(0)), to_number(16));
 
     /*
     // TODO reimplement it in the language
