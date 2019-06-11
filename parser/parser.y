@@ -406,7 +406,7 @@ message:
 		m->message_name=(name*)$3;
 		m->arguments=(table_literal*)new_block();
 		$$=(expression*)m;
-
+	}
 	;
 binary:
 	expression BINARY_OPERATOR expression 

@@ -110,6 +110,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             break;
         case e_float_literal:
             push_number_load(translation, ((float_literal*)exp)->value);
+            break;
         case e_int_literal:
             push_number_load(translation, ((int_literal*)exp)->value);
             break;

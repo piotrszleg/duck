@@ -36,13 +36,15 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=vector_get(&b->lines, i);
-                ast_visitor_request subexpression_request=visit_ast(line, f, data);
-                if(subexpression_request.replacement){
-                    delete_expression(line);
-                    vector_set(&b->lines, i, subexpression_request.replacement);
-                }
-                if(subexpression_request.move==up){
-                    break;// skip rest of the lines
+                if(line!=NULL){
+                    ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                    if(subexpression_request.replacement){
+                        delete_expression(line);
+                        vector_set(&b->lines, i, subexpression_request.replacement);
+                    }
+                    if(subexpression_request.move==up){
+                        break;// skip rest of the lines
+                    }
                 }
             }
             break;
@@ -65,13 +67,15 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             int lines_count=vector_total(&c->arguments->lines);
             for (int i = 0; i < lines_count; i++){
                 expression* line=vector_get(&c->arguments->lines, i);
-                ast_visitor_request subexpression_request=visit_ast(line, f, data);
-                if(subexpression_request.replacement!=NULL){
-                    delete_expression(line);
-                    vector_set(&c->arguments->lines, i, subexpression_request.replacement);
-                }
-                if(subexpression_request.move==up){
-                    break;// skip rest of the lines
+                if(line!=NULL){
+                    ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                    if(subexpression_request.replacement!=NULL){
+                        delete_expression(line);
+                        vector_set(&c->arguments->lines, i, subexpression_request.replacement);
+                    }
+                    if(subexpression_request.move==up){
+                        break;// skip rest of the lines
+                    }
                 }
             }
             break;
@@ -83,13 +87,15 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             int lines_count=vector_total(&m->arguments->lines);
             for (int i = 0; i < lines_count; i++){
                 expression* line=vector_get(&m->arguments->lines, i);
-                ast_visitor_request subexpression_request=visit_ast(line, f, data);
-                if(subexpression_request.replacement){
-                    delete_expression(line);
-                    vector_set(&m->arguments->lines, i, subexpression_request.replacement);
-                }
-                if(subexpression_request.move==up){
-                    break;// skip rest of the lines
+                if(line!=NULL){
+                    ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                    if(subexpression_request.replacement){
+                        delete_expression(line);
+                        vector_set(&m->arguments->lines, i, subexpression_request.replacement);
+                    }
+                    if(subexpression_request.move==up){
+                        break;// skip rest of the lines
+                    }
                 }
             }
             break;

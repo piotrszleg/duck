@@ -1,2 +1,8 @@
-@add=x->string(x.right.value)+"+"+string(x.left.value)
+@add=x->{
+    e=new_expression("binary")
+    e.left=copy_expression(x.left)
+    e.right=copy_expression(x.right)
+    e.op="-"
+    e
+}
 @add, 12+15

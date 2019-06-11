@@ -1,18 +1,40 @@
 #include "macros.h"
 
+typedef expression* (*ExpressionInitializer)(void);
+
 // TODO: Remove these globals
 static map_t(Object) expression_classes_map;
+typedef map_t(ExpressionInitializer) ExpressionInitializersMap;
+static ExpressionInitializersMap expression_initializers_map;
+static bool expression_initializers_map_initialized=false;
 static Object expression_classes_array[EXPRESSION_TYPES_COUNT];
 
 Object get_expression_downcasted(Executor* E, Object* arguments, int argumets_count);
 Object expression_class(Executor* E, expression* exp);
 
+Object expression_destroy(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    REQUIRE_TYPE(self, t_table);
+    delete_expression((expression*)struct_descriptor_get_pointer(E, self.tp));
+    return null_const;
+}
+
 void postproccess_expression_descriptor(Executor* E, Table* descriptor){
     set_table(E, descriptor, to_string("is_expression"), to_number(1));
+    set_table(E, descriptor, to_string("destroy"), to_function(E, expression_destroy, NULL, 1));
     if(get_table(descriptor, to_string("replaced_get")).type==t_null){
         set_table(E, descriptor, to_string("replaced_get"), get_table(descriptor, to_string("get")));
         set_table(E, descriptor, to_string("get"), to_function(E, get_expression_downcasted, NULL, 2));
     }
+}
+
+Object expression_copy(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    REQUIRE_TYPE(self, t_table);
+    expression* copy=copy_expression(struct_descriptor_get_pointer(E, self.tp));
+    Object sd=new_struct_descriptor(E, (void*)copy, expression_class(E, copy));
+    postproccess_expression_descriptor(E, sd.tp);
+    return sd;
 }
 
 /* 
@@ -69,6 +91,7 @@ Object expression_class(Executor* E, expression* exp) {
         AST_EXPRESSIONS
 
         #undef EXPRESSION
+        #undef FIELD
         #undef SPECIFIED_EXPRESSION_FIELD
         #undef EXPRESSION_FIELD               
         #undef BOOL_FIELD                   
@@ -78,6 +101,54 @@ Object expression_class(Executor* E, expression* exp) {
         #undef INT_FIELD
         #undef END
     }
+}
+
+Object make_expression(Executor* E, Object* arguments, int arguments_count){
+    Object expression_name=arguments[0];
+    REQUIRE_TYPE(expression_name, t_string);
+    ExpressionInitializer* initializer=map_get(&expression_initializers_map, expression_name.text);
+    if(initializer!=NULL){
+        expression* exp=(*initializer)();
+        exp->line_number=E->line;
+        exp->column_number=0;
+        Object sd=new_struct_descriptor(E, (void*)exp, expression_class(E, exp));
+        postproccess_expression_descriptor(E, sd.tp);
+        return sd;
+    } else {
+        return null_const;
+    }
+}
+
+void register_ast_types(Executor* E, Object scope){
+    if(expression_initializers_map_initialized){
+        return;
+    }
+    map_init(&expression_initializers_map);
+    #define EXPRESSION(type) map_set(&expression_initializers_map, #type, (ExpressionInitializer)&new_##type);
+    #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
+    #define EXPRESSION_FIELD(field_name)
+    #define BOOL_FIELD(field_name)                     
+    #define FLOAT_FIELD(field_name)                    
+    #define INT_FIELD(field_name)                      
+    #define STRING_FIELD(field_name)                   
+    #define VECTOR_FIELD(field_name) 
+    #define END
+
+    AST_EXPRESSIONS
+
+    #undef EXPRESSION
+    #undef SPECIFIED_EXPRESSION_FIELD
+    #undef EXPRESSION_FIELD               
+    #undef BOOL_FIELD                   
+    #undef STRING_FIELD
+    #undef VECTOR_FIELD
+    #undef FLOAT_FIELD
+    #undef INT_FIELD
+    #undef END
+
+    expression_initializers_map_initialized=true;
+    set_function(E, scope, "copy_expression", 1, false, expression_copy);
+    set_function(E, scope, "new_expression", 1, false, make_expression);
 }
 
 Object wrap_expression(Executor* E, expression* exp){
@@ -141,6 +212,7 @@ void proccess_macro_declaration(macro_declaration* md, MacroVisitorState* state)
     Object scope;
     table_init(state->executor, &scope);
     register_builtins(state->executor, scope);
+    register_ast_types(state->executor, scope);
     char* key=path_to_string(md->left->pth);
     map_set(&state->macro_definitions, key, evaluate(state->executor, md->right, scope, false));
     free(key);

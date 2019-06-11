@@ -22,6 +22,9 @@ bool is_literal(expression* exp){
 }
 
 bool is_constant(expression* exp){
+    if(exp==NULL){
+        return true;
+    }
     switch(exp->type){
         case e_empty:
         case e_expression:
@@ -32,7 +35,7 @@ bool is_constant(expression* exp){
         case e_binary:
         {
             binary* u=(binary*)exp;
-            return is_constant(u->left) && is_constant(u->right);
+            return  is_constant(u->left) && is_constant(u->right);
         }
         case e_prefix:
         {
