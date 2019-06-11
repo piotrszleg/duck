@@ -135,8 +135,8 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         case e_prefix:
         {
             prefix* p=(prefix*)exp;
-            Object left=execute_ast(E, p->right, scope, 0);
-            Object right=null_const;
+            Object left=null_const;
+            Object right=execute_ast(E, p->right, scope, 0);
             Object result=operator(E, left, right, p->op);
             dereference(E, &left);
             return result;

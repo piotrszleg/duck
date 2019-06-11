@@ -23,6 +23,8 @@ bool is_struct_descriptor(Executor* E, Object o){
     return result;
 }
 
+void add_struct_descriptor_fields(Executor* E, Table* sd, void* position);
+
 Object field_get(Executor* E, void* position, Object field){
     int type;
     REQUIRE_TYPE(field, t_table)
@@ -37,21 +39,22 @@ Object field_get(Executor* E, void* position, Object field){
         case n_string:
             return to_string(*(char**)position);
         case n_struct:
-            return new_struct_descriptor(E, position, get_table(field.tp, to_string("class")));
+            return new_struct_descriptor(E, position, get_table(field.tp, to_string("fields")));
         case n_pointer:
         {
             void* pointed_position=*(void**)position;
             Object pointed=get_table(field.tp, to_string("pointed"));
             REQUIRE_TYPE(pointed, t_table)
-            return new_struct_descriptor(E, pointed_position, get_table(pointed.tp, to_string("class")));
+            add_struct_descriptor_fields(E, pointed.tp, pointed_position);
+            return pointed;
         }
         default: RETURN_ERROR("STRUCTURE_GET_ERROR", field, "Field has incorrect type value %i.", type);
     }
 }
 
-Object struct_get_field(Executor* E, void* position, Object class, Object key){
-    REQUIRE_TYPE(class, t_table)
-    Object field=get_table(class.tp, key);
+Object struct_get_field(Executor* E, void* position, Object fields, Object key){
+    REQUIRE_TYPE(fields, t_table)
+    Object field=get_table(fields.tp, key);
     REQUIRE_TYPE(field, t_table)
 
     int field_offset;
@@ -67,6 +70,10 @@ Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count
 
     REQUIRE_TYPE(self, t_table)
 
+    if(key.type==t_string && strcmp(key.text, "destroy")==0){
+        return get_table(self.tp, key);
+    }
+
     int type;
     GET_INT(type, get_table(self.tp, to_string("type")));
     Object position=get_table(self.tp, to_string("position"));
@@ -76,14 +83,14 @@ Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count
     if(key.type==t_number && key.value==0) {
         return field_get(E, position.p, self);
     } else if(type==n_struct){
-        Object class=get_table(self.tp, to_string("class"));
-        return struct_get_field(E, position.p, class, key);
+        Object fields=get_table(self.tp, to_string("fields"));
+        return struct_get_field(E, position.p, fields, key);
     } else {
         RETURN_ERROR("STRUCT_GET_ERROR", self, "Can't get field");
     }
 }
 
-static Object struct_set_field(Executor* E, void* position, Object class, Object key, Object value);
+static Object struct_set_field(Executor* E, void* position, Object fields, Object key, Object value);
 
 Object field_set(Executor* E, void* position, Object field, Object value){
     int type;
@@ -109,10 +116,10 @@ Object field_set(Executor* E, void* position, Object field, Object value){
         case n_struct:
         {
             Object it;
-            Object class=get(E, field, to_string("class"));
-            // you should iterate over class instead to avoid setting eccess values
+            Object fields=get(E, field, to_string("fields"));
+            // you should iterate over fields instead to avoid setting eccess values
             FOREACH(value, it, 
-                struct_set_field(E, position, class, get(E, it, to_string("key")),  get(E, it, to_string("value")));
+                struct_set_field(E, position, fields, get(E, it, to_string("key")),  get(E, it, to_string("value")));
             )
             break;
         }
@@ -120,9 +127,10 @@ Object field_set(Executor* E, void* position, Object field, Object value){
         {
             void** pointed=(void**)position;
             if(is_struct_descriptor(E, value)){
+                set_table(E, field.tp, to_string("pointed"), value);
                 *pointed=struct_descriptor_get_pointer(E, value.tp);
             } else {
-                field_set(E, *pointed, get(E, field, to_string("pointed")), value);
+                field_set(E, *pointed, get_table(field.tp, to_string("pointed")), value);
             }
             break;
         }
@@ -131,8 +139,8 @@ Object field_set(Executor* E, void* position, Object field, Object value){
     return value;
 }
 
-Object struct_set_field(Executor* E, void* position, Object class, Object key, Object value) {
-    Object field=get_table(class.tp, key);
+Object struct_set_field(Executor* E, void* position, Object fields, Object key, Object value) {
+    Object field=get_table(fields.tp, key);
 
     int field_offset;
     GET_INT(field_offset, get(E, field, to_string("offset")));
@@ -159,22 +167,27 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
         field_set(E, position.p, self, value);
     }
     if(type==n_struct) {
-        Object class=get_table(self.tp, to_string("class"));
-        return struct_set_field(E, position.p, class, key, value);
+        Object fields=get_table(self.tp, to_string("fields"));
+        return struct_set_field(E, position.p, fields, key, value);
     } else {
          RETURN_ERROR("STRUCT_SET_ERROR", self, "Can't set field");
     }
 }
 
-Object new_struct_descriptor(Executor* E, void* position, Object sclass){
+void add_struct_descriptor_fields(Executor* E, Table* sd, void* position){
+    set_table(E, sd, to_string("type"), to_number(n_struct));
+    set_table(E, sd, to_string("position"), to_pointer(position));
+    set_table(E, sd, to_string("is_struct_descriptor"), to_number(1));
+    
+    set_table(E, sd, to_string("get"), to_function(E, struct_descriptor_get, NULL, 2));
+    set_table(E, sd, to_string("set"), to_function(E, struct_descriptor_set, NULL, 3));
+}
+
+Object new_struct_descriptor(Executor* E, void* position, Object fields){
     Object sd;
     table_init(E, &sd);
-    set(E, sd, to_string("type"), to_number(n_struct));
-    set(E, sd, to_string("position"), to_pointer(position));
-    set(E, sd, to_string("is_struct_descriptor"), to_number(1));
-    set(E, sd, to_string("class"), sclass);
-    set(E, sd, to_string("get"), to_function(E, struct_descriptor_get, NULL, 2));
-    set(E, sd, to_string("set"), to_function(E, struct_descriptor_set, NULL, 3));
+    set_table(E, sd.tp, to_string("fields"), copy(E, fields));
+    add_struct_descriptor_fields(E, sd.tp, position);
     return sd;
 }
 
@@ -186,15 +199,15 @@ Object to_field(Executor* E, int offset, NativeType type){
     return field;
 }
 
-Object to_struct_field(Executor* E, int offset, Object class){
+Object to_struct_field(Executor* E, int offset, Object fields){
     Object struct_field=to_field(E, offset, n_struct);
-    set(E, struct_field, to_string("class"), class);
+    set(E, struct_field, to_string("fields"), fields);
     return struct_field;
 }
 
-Object to_struct_pointer_field(Executor* E, int offset, Object class) {
+Object to_struct_pointer_field(Executor* E, int offset, Object fields) {
     Object struct_pointer_field=to_field(E, offset, n_pointer);
-    set(E, struct_pointer_field, to_string("pointed"), to_struct_field(E, 0, class));
+    set(E, struct_pointer_field, to_string("pointed"), to_struct_field(E, 0, fields));
     return struct_pointer_field;
 }
 
@@ -209,8 +222,8 @@ void* struct_descriptor_get_pointer(Executor* E, Table* sd){
 
 /*
 // this needs to go into libffi module to handle allignment on different architectures
-Object new_struct_descriptor_class(Object* arguments, int arguments_count){
-    Object class;
+Object new_struct_descriptor_fields(Object* arguments, int arguments_count){
+    Object fields;
 
     for(int i=0; i<arguments_count; i++){
         REQUIRE_TYPE(arguments[i], t_string);
@@ -225,7 +238,7 @@ Object new_struct_descriptor_class(Object* arguments, int arguments_count){
         }
     }
 
-    return class;
+    return fields;
 }
 
 int struct_size(Object st){
@@ -233,9 +246,9 @@ int struct_size(Object st){
 }
 
 Object struct_descriptor_allocate(Object* arguments, int arguments_count){
-    Object class=arguments[0];
+    Object fields=arguments[0];
     Object sd;
-    void* allocated=malloc(struct_size(class));
+    void* allocated=malloc(struct_size(fields));
 
-    return new_struct_descriptor(allocated, class);
+    return new_struct_descriptor(allocated, fields);
 }*/

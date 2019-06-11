@@ -24,6 +24,7 @@ void get_execution_info(Executor* E, char* buffer, int buffer_count);
 Object multiple_causes(Executor* E, Object* causes, int causes_count);
 Object new_error(Executor* E, char* type, Object cause, char* message, char* location);
 
+Object copy(Executor* E, Object o);
 char* suprintf (const char * format, ...);
 char* stringify_object(Executor* E, Object o);
 char* stringify(Executor* E, Object o);

@@ -22,9 +22,6 @@ bool is_literal(expression* exp){
 }
 
 bool is_constant(expression* exp){
-    if(exp==NULL){
-        return true;
-    }
     switch(exp->type){
         case e_empty:
         case e_expression:
@@ -48,10 +45,6 @@ bool is_constant(expression* exp){
 }
 
 expression* to_literal(Object o){
-    if(o.type==t_null){
-        return (expression*)new_empty();
-    }
-    
     switch(o.type){
         case t_string:
         {

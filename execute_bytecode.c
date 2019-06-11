@@ -418,7 +418,10 @@ Object execute_bytecode(Executor* E){
             {
                 Object op=pop(object_stack);
                 Object a=pop(object_stack);
-                push(object_stack, operator(E, a, null_const, stringify(E, op)));
+                if(op.type!=t_string){
+                    BYTECODE_ERROR(op, "Operator must be of string type, it's type is %s", OBJECT_TYPE_NAMES[op.type]);
+                }
+                push(object_stack, operator(E, null_const, a, op.text));
                 dereference(E, &op);
                 dereference(E, &a);
                 break;

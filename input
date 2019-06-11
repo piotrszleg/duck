@@ -1,8 +1,9 @@
 @add=x->{
     e=new_expression("binary")
-    e.left=copy_expression(x.left)
-    e.right=copy_expression(x.right)
-    e.op="-"
+    e.left=new_expression("int_literal")
+    e.left.value=100
+    e.right=x.right
+    e.op=x.op
     e
 }
 @add, 12+15

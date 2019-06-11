@@ -123,6 +123,38 @@ char* stringify_expression(expression* exp, int indentation){
     return stream_get_data(&s); 
 }
 
+void delete_expression_keep_children(expression* exp){
+    switch(exp->type){
+        #define EXPRESSION(type) \
+            case e_##type: {\
+                type* casted=(type*)exp;
+        #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
+        #define EXPRESSION_FIELD(field_name)
+        #define BOOL_FIELD(field_name)
+        #define STRING_FIELD(field_name)                     free(casted->field_name);
+        #define FLOAT_FIELD(field_name)
+        #define INT_FIELD(field_name)
+        #define VECTOR_FIELD(field_name)                     vector_free(&casted->field_name);
+        #define END \
+                free(casted); \
+                break; \
+            }
+        default: THROW_ERROR(AST_ERROR, "Can't delete expression of type %i", exp->type);
+
+        AST_EXPRESSIONS
+
+        #undef EXPRESSION
+        #undef SPECIFIED_EXPRESSION_FIELD
+        #undef EXPRESSION_FIELD               
+        #undef BOOL_FIELD                   
+        #undef STRING_FIELD
+        #undef VECTOR_FIELD
+        #undef FLOAT_FIELD
+        #undef INT_FIELD
+        #undef END
+    }
+}
+
 void delete_expression(expression* exp){
     if(exp==NULL){
         return;
@@ -158,7 +190,7 @@ void delete_expression(expression* exp){
         #undef STRING_FIELD
         #undef VECTOR_FIELD
         #undef FLOAT_FIELD
-#undef INT_FIELD
+        #undef INT_FIELD
         #undef END
     }
 }
@@ -259,7 +291,7 @@ bool expressions_equal(expression* expression_a, expression* expression_b){
         #undef STRING_FIELD
         #undef VECTOR_FIELD
         #undef FLOAT_FIELD
-#undef INT_FIELD
+        #undef INT_FIELD
         #undef END
     }
 }

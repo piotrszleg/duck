@@ -149,6 +149,7 @@ AST_EXPRESSIONS
 
 bool check_expression(expression* e);
 char* stringify_expression(expression*, int);
+void delete_expression_keep_children(expression* exp);
 void delete_expression(expression*);
 expression* copy_expression(expression*);
 char* table_literal_extract_key(assignment* a);

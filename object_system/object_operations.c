@@ -206,12 +206,11 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         }
     }
     OP_CASE("!"){
-        return to_number(is_falsy(a));
+        return to_number(is_falsy(b));
     }
     OP_CASE("-"){
-        if(a.type==t_number && b.type==t_null){
-            a.value=-a.value;
-            return a;
+        if(a.type==t_null && b.type==t_number){
+            return to_number(-b.value);
         }
     }
     OP_CASE(">>"){
@@ -533,6 +532,33 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
         }
         default:
             RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+    }
+}
+
+Object copy(Executor* E, Object o){
+    switch(o.type){
+        case t_string:
+        {
+            return to_string(strdup(o.text));
+        }
+        case t_table:
+        {
+            Object copy_override=find_function(E, o, "copy");
+            if(copy_override.type!=t_null){
+                Object result=call(E, copy_override, &o, 1);
+            } else {
+                Object copied;
+                table_init(E, &copied);
+                TableIterator it=start_iteration(o.tp);
+
+                for(IterationResult i=table_next(&it); !i.finished; i=table_next(&it)) {
+                    set_table(E, copied.tp, copy(E, i.key), copy(E, i.value));
+                }
+                return copied;
+            }
+        }
+        default: 
+            return o;
     }
 }
 
