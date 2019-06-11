@@ -383,7 +383,7 @@ Object execute_bytecode(Executor* E){
                 dereference(E, scope);
                 Object o=pop(object_stack);
                 if(o.type!=t_table){
-                    BYTECODE_ERROR(o, "b_set_scope: Object isn't a table.");
+                    BYTECODE_ERROR(o, "b_set_scope: Object isn't a table. It's type is: %i", o.type);
                 } else {
                     reference(&o);
                     *scope=o;
@@ -452,7 +452,7 @@ Object execute_bytecode(Executor* E){
                 reference(scope);// remember to check the enclosing scope in destructor
                 Object arguments_count_object=pop(object_stack);
                 if(arguments_count_object.type!=t_number){
-                    THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of function arguments isn't present or has a wrong type, number of Instruction is: %i\n", *pointer);
+                    BYTECODE_ERROR(arguments_count_object, "Number of function arguments has a wrong type :%i", arguments_count_object.type);
                     break;
                 }
                 f.fp->arguments_count=(int)arguments_count_object.value;

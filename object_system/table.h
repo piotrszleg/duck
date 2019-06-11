@@ -46,15 +46,15 @@ typedef struct {
     Object value;
 } IterationResult;
 
-Object get_table(Table* t, Object key);
-void set_table(Executor* E, Table* t, Object key, Object value);
+Object table_get(Table* t, Object key);
+void table_set(Executor* E, Table* t, Object key, Object value);
 void free_table(Table* t);
-void dereference_children_table(Executor* E, Table* t);
+void table_dereference_children(Executor* E, Table* t);
 char* stringify_table(Executor* E, Table* t);
 void table_component_init(Table* t);
-Object get_table_iterator(Executor* E, Object* arguments, int arguments_count);
-TableIterator start_iteration(Table* iterated);
-IterationResult table_next(TableIterator* it);
+Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_count);
+TableIterator table_get_iterator(Table* iterated);
+IterationResult table_iterator_next(TableIterator* it);
 
 bool is_valid_name(char* s);
 

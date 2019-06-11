@@ -165,8 +165,8 @@ void print_allocated_objects(Executor* E){
 void gc_mark(Object o){
     if(o.type==t_table){
         o.tp->gco.marked=true;
-        TableIterator it=start_iteration(o.tp);
-        for(IterationResult i=table_next(&it); !i.finished; i=table_next(&it)) {
+        TableIterator it=table_get_iterator(o.tp);
+        for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
             gc_mark(i.key);
             gc_mark(i.value);
         }
@@ -282,7 +282,7 @@ void destroy_unreferenced(Executor* E, Object* o){
             {
                 if(gc_state!=gcs_freeing_memory){
                     call_destroy(E, *o);
-                    dereference_children_table(E, o->tp);
+                    table_dereference_children(E, o->tp);
                 }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(E, o->gco);

@@ -1,7 +1,7 @@
 #include "ast_visitor.h"
 
-ast_visitor_request call_for_replacements(expression* exp, visitor_function f, void* data){
-    ast_visitor_request request=f(exp, data);
+ASTVisitorRequest call_for_replacements(expression* exp, visitor_function f, void* data){
+    ASTVisitorRequest request=f(exp, data);
 
     // we want to pass the last replacement that isn't NULL
     expression* replacement=request.replacement;
@@ -16,8 +16,8 @@ ast_visitor_request call_for_replacements(expression* exp, visitor_function f, v
     return request;
 }
 
-ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
-    ast_visitor_request request=call_for_replacements(exp, f, data);
+ASTVisitorRequest visit_ast(expression* exp, visitor_function f, void* data){
+    ASTVisitorRequest request=call_for_replacements(exp, f, data);
 
     if(request.replacement!=NULL || request.move!=down){
         return request;
@@ -32,7 +32,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             
             for (int i = 0; i < vector_total(&b->lines); i++){
                 expression* line=vector_get(&b->lines, i);
-                ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                ASTVisitorRequest subexpression_request=visit_ast(line, f, data);
                 if(subexpression_request.replacement){
                     delete_expression(line);
                     vector_set(&b->lines, i, subexpression_request.replacement);
@@ -44,7 +44,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             break;
         }
         #define SUBEXPRESSION(e) {\
-            ast_visitor_request subexpression_request=visit_ast((expression*)e, f, data); \
+            ASTVisitorRequest subexpression_request=visit_ast((expression*)e, f, data); \
             if(subexpression_request.replacement!=NULL){ \
                 delete_expression(e); \
                 e=subexpression_request.replacement; \
@@ -60,7 +60,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             int lines_count=vector_total(&c->arguments->lines);
             for (int i = 0; i < lines_count; i++){
                 expression* line=vector_get(&c->arguments->lines, i);
-                ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                ASTVisitorRequest subexpression_request=visit_ast(line, f, data);
                 if(subexpression_request.replacement!=NULL){
                     delete_expression(line);
                     vector_set(&c->arguments->lines, i, subexpression_request.replacement);
@@ -78,7 +78,7 @@ ast_visitor_request visit_ast(expression* exp, visitor_function f, void* data){
             int lines_count=vector_total(&m->arguments->lines);
             for (int i = 0; i < lines_count; i++){
                 expression* line=vector_get(&m->arguments->lines, i);
-                ast_visitor_request subexpression_request=visit_ast(line, f, data);
+                ASTVisitorRequest subexpression_request=visit_ast(line, f, data);
                 if(subexpression_request.replacement){
                     delete_expression(line);
                     vector_set(&m->arguments->lines, i, subexpression_request.replacement);

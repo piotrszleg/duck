@@ -9,28 +9,41 @@ static ExpressionInitializersMap expression_initializers_map;
 static bool expression_initializers_map_initialized=false;
 static Object expression_fields_array[EXPRESSION_TYPES_COUNT];
 
-Object expression_struct_descriptor_get(Executor* E, Object* arguments, int argumets_count);
+Object expression_descriptor_get(Executor* E, Object* arguments, int argumets_count);
 Object expression_fields(Executor* E, expression* exp);
 
-Object expression_destroy_recursively(Executor* E, Table* field, expression* expression_pointer){
+Object downcast_expression_descriptor(Executor* E, Table* sd){
+    Object fields_expression_type=table_get(sd, to_string("fields_expression_type"));
+    REQUIRE_TYPE(fields_expression_type, t_number);
+    expression* exp=(expression*)struct_descriptor_get_pointer(E, sd);
+    if(exp->type!=(int)fields_expression_type.value){
+        table_set(E, sd, to_string("fields"), copy(E, expression_fields(E, exp)));
+    }
+    return null_const;
+}
+
+Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, expression* expression_pointer){
+    downcast_expression_descriptor(E, sd);
     //printf("<%s>", stringify_expression(expression_pointer, 0));
-    Object fields=get_table(field, to_string("fields"));
+    Object fields=table_get(sd, to_string("fields"));
     REQUIRE_TYPE(fields, t_table);
-    TableIterator it=start_iteration(fields.tp);
-    for(IterationResult i=table_next(&it); !i.finished; i=table_next(&it)) {
-        REQUIRE_TYPE(i.value, t_table);
-        Object type_field=get_table(i.value.tp, to_string("type"));
+    TableIterator it=table_get_iterator(fields.tp);
+    for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+        if(i.value.type!=t_table){
+            continue;
+        }
+        Object type_field=table_get(i.value.tp, to_string("type"));
         REQUIRE_TYPE(type_field, t_number);
         if(type_field.value==n_pointer){
-            Object pointed=get_table(i.value.tp, to_string("pointed"));
+            Object pointed=table_get(i.value.tp, to_string("pointed"));
             REQUIRE_TYPE(i.value, t_table);
-            Object has_ownership=get_table(pointed.tp, to_string("has_ownership"));
+            Object has_ownership=table_get(pointed.tp, to_string("has_ownership"));
             if(is_falsy(has_ownership)){
-                Object offset=get_table(i.value.tp, to_string("offset"));
+                Object offset=table_get(i.value.tp, to_string("offset"));
                 REQUIRE_TYPE(offset, t_number);
                 expression** expression_position=(expression**)((int)expression_pointer+(int)offset.value);
                 //expression** expression_position=(expression**)position.p;
-                expression_destroy_recursively(E, pointed.tp, *expression_position);
+                expression_descriptor_destroy_recursively(E, pointed.tp, *expression_position);
             }
             destroy_unreferenced(E, &has_ownership);
         }
@@ -38,30 +51,30 @@ Object expression_destroy_recursively(Executor* E, Table* field, expression* exp
         if i.value is a expression pointer
         get it's pointed table and check if it contains destructor
         if not you should call this function on it
-        but id doesn't contain field position so you need to pass it by dereferencing pointer
+        but id doesn't contain sd position so you need to pass it by dereferencing pointer
         */
     }
     delete_expression_keep_children(expression_pointer);
     return null_const;
 }
 
-Object expression_destroy(Executor* E, Object* arguments, int arguments_count){
+Object expression_descriptor_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
-    return expression_destroy_recursively(E, self.tp, (expression*)struct_descriptor_get_pointer(E, self.tp));
+    return expression_descriptor_destroy_recursively(E, self.tp, (expression*)struct_descriptor_get_pointer(E, self.tp));
 }
 
 void postproccess_expression_descriptor(Executor* E, Table* descriptor){
-    set_table(E, descriptor, to_string("is_expression"), to_number(1));
-    set_table(E, descriptor, to_string("destroy"), to_function(E, expression_destroy, NULL, 1));
-    set_table(E, descriptor, to_string("has_ownership"), to_number(1));
-    if(get_table(descriptor, to_string("replaced_get")).type==t_null){
-        set_table(E, descriptor, to_string("replaced_get"), get_table(descriptor, to_string("get")));
-        set_table(E, descriptor, to_string("get"), to_function(E, expression_struct_descriptor_get, NULL, 2));
+    table_set(E, descriptor, to_string("is_expression"), to_number(1));
+    table_set(E, descriptor, to_string("destroy"), to_function(E, expression_descriptor_destroy, NULL, 1));
+    table_set(E, descriptor, to_string("has_ownership"), to_number(1));
+    if(table_get(descriptor, to_string("replaced_get")).type==t_null){
+        table_set(E, descriptor, to_string("replaced_get"), table_get(descriptor, to_string("get")));
+        table_set(E, descriptor, to_string("get"), to_function(E, expression_descriptor_get, NULL, 2));
     }
 }
 
-Object expression_copy(Executor* E, Object* arguments, int arguments_count){
+Object expression_descriptor_copy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
     expression* copy=copy_expression(struct_descriptor_get_pointer(E, self.tp));
@@ -75,14 +88,13 @@ get override function
 gets a field from expression struct descriptor and then downcasts it to proper type depedning on expression type field
 by changing it's fields table to one gotten from expression_fields
 */
-Object expression_struct_descriptor_get(Executor* E, Object* arguments, int argumets_count){
+Object expression_descriptor_get(Executor* E, Object* arguments, int argumets_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
-    Object replaced_get=get_table(self.tp, to_string("replaced_get"));
+    Object replaced_get=table_get(self.tp, to_string("replaced_get"));
     Object get_result=call(E, replaced_get, arguments, argumets_count);
     if(is_struct_descriptor(E, get_result)){
-        // downcast the value
-        set_table(E, get_result.tp, to_string("fields"), expression_fields(E, (expression*)struct_descriptor_get_pointer(E, get_result.tp)));
+        downcast_expression_descriptor(E, get_result.tp);
         postproccess_expression_descriptor(E, get_result.tp);
     }
     return get_result;
@@ -104,7 +116,8 @@ Object expression_fields(Executor* E, expression* exp) {
             map_set(&expression_fields_map, #etype, fields);\
             expression_fields_array[e_##etype]=fields;\
             reference(&fields);\
-            set(E, fields, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int));
+            set(E, fields, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int));\
+            set(E, fields, to_string("fields_expression_type"), to_number(exp->type));
         #define FIELD(field_name, field_descriptor) \
             { Object field_temp=field_descriptor; \
             set(E, fields, to_string(#field_name), field_temp); }
@@ -137,7 +150,7 @@ Object expression_fields(Executor* E, expression* exp) {
     }
 }
 
-Object make_expression(Executor* E, Object* arguments, int arguments_count){
+Object new_expression_descriptor(Executor* E, Object* arguments, int arguments_count){
     Object expression_name=arguments[0];
     REQUIRE_TYPE(expression_name, t_string);
     ExpressionInitializer* initializer=map_get(&expression_initializers_map, expression_name.text);
@@ -181,8 +194,8 @@ void register_ast_types(Executor* E, Object scope){
     #undef END
 
     expression_initializers_map_initialized=true;
-    set_function(E, scope, "copy_expression", 1, false, expression_copy);
-    set_function(E, scope, "new_expression", 1, false, make_expression);
+    set_function(E, scope, "copy_expression", 1, false, expression_descriptor_copy);
+    set_function(E, scope, "new_expression", 1, false, new_expression_descriptor);
 }
 
 Object wrap_expression(Executor* E, expression* exp){
@@ -199,7 +212,7 @@ typedef struct {
 
 char* path_to_string(path* p){
     stream s;
-    init_stream(&s, 32);
+    stream_init(&s, 32);
     for(int i=0; i<vector_total(&p->lines); i++){
         expression* line=vector_get(&p->lines, i);
         if(line->type!=e_name){
@@ -213,9 +226,9 @@ char* path_to_string(path* p){
     return stream_get_data(&s);
 }
 
-ast_visitor_request remove_nulls_from_expression_visitor(expression* exp, void* data){
+ASTVisitorRequest remove_nulls_from_expression_visitor(expression* exp, void* data){
     if(exp==NULL) {
-        ast_visitor_request request={down, (expression*)new_empty()};
+        ASTVisitorRequest request={down, (expression*)new_empty()};
         return request;
     }
     switch(exp->type){
@@ -245,7 +258,7 @@ ast_visitor_request remove_nulls_from_expression_visitor(expression* exp, void* 
         #undef INT_FIELD
         #undef END
     }
-    ast_visitor_request request={down, NULL};
+    ASTVisitorRequest request={down, NULL};
     return request;
 }
 
@@ -256,11 +269,11 @@ void remove_nulls_from_expression(expression* exp){
 expression* to_literal(Object o);
 expression* to_expression(Executor* E, Object o){
     if(is_struct_descriptor(E, o)) {
-        Object is_expression=get_table(o.tp, to_string("is_expression"));
+        Object is_expression=table_get(o.tp, to_string("is_expression"));
         if(!is_falsy(is_expression)) {
             dereference(E, &is_expression);
             expression* exp=(expression*)struct_descriptor_get_pointer(E, o.tp);
-            set_table(E, o.tp, to_string("destroy"), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression
+            table_set(E, o.tp, to_string("destroy"), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression
             if(exp!=NULL){
                 remove_nulls_from_expression(exp);
             }
@@ -297,11 +310,11 @@ void proccess_macro_declaration(macro_declaration* md, MacroVisitorState* state)
     free(key);
 }
 
-ast_visitor_request macro_visitor(expression* exp, void* data){
+ASTVisitorRequest macro_visitor(expression* exp, void* data){
     MacroVisitorState* state=(MacroVisitorState*)data;
     if(exp->type==e_macro_declaration){
         proccess_macro_declaration((macro_declaration*)exp, state);
-        ast_visitor_request request={next, NULL};
+        ASTVisitorRequest request={next, NULL};
         return request;
     } else if(exp->type==e_block){
         block* b=(block*)exp;
@@ -343,7 +356,7 @@ ast_visitor_request macro_visitor(expression* exp, void* data){
                     }
                     free(key);
                     dereference(state->executor, &evaluation_result);
-                    ast_visitor_request request={down};
+                    ASTVisitorRequest request={down};
                     return request;
                 } else {
                     free(key);
@@ -363,7 +376,7 @@ ast_visitor_request macro_visitor(expression* exp, void* data){
         Object evaluation_result=evaluate_macro(state->executor, *map_get_result, NULL, 0);
         expression* converted=to_expression(state->executor, evaluation_result);
         if(converted!=NULL) {
-            ast_visitor_request request={next, converted};
+            ASTVisitorRequest request={next, converted};
             free(key);
             return request;
         } else {
@@ -372,7 +385,7 @@ ast_visitor_request macro_visitor(expression* exp, void* data){
             free(key);
         }
     }
-    ast_visitor_request request={down, NULL};
+    ASTVisitorRequest request={down, NULL};
     return request;
 }
 

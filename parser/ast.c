@@ -55,7 +55,7 @@ char* stringify_expression(expression* exp, int indentation){
     }
 
     stream s;
-    init_stream(&s, STRINGIFY_BUFFER_SIZE);
+    stream_init(&s, STRINGIFY_BUFFER_SIZE);
 
     char* indentation_string=malloc(sizeof(char)*(indentation+1));
     CHECK_ALLOCATION(indentation_string);

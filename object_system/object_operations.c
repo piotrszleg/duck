@@ -137,7 +137,7 @@ Object get_iterator(Executor* E, Object o){
         if(iterator_override.type!=t_null){
             return call(E, iterator_override, &o, 1);
         } else {
-            return get_table_iterator(E, &o, 1);
+            return table_get_iterator_object(E, &o, 1);
         }
     } else if(o.type==t_coroutine){
         return coroutine_iterator(E, o);
@@ -455,7 +455,7 @@ char* stringify_object(Executor* E, Object o){
 Object get(Executor* E, Object o, Object key){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the Table and use it
-        Object map_get_override=get_table(o.tp, to_string("get"));
+        Object map_get_override=table_get(o.tp, to_string("get"));
         if(map_get_override.type!=t_null){
             Object arguments[]={o, key};
 
@@ -463,7 +463,7 @@ Object get(Executor* E, Object o, Object key){
             return result;
         } else {
             // simply get key from Table's map
-            return get_table(o.tp, key);
+            return table_get(o.tp, key);
         }
     } else if(o.type==t_string){
         Object number_key=cast(E, key, t_number);
@@ -488,11 +488,11 @@ Object get(Executor* E, Object o, Object key){
 Object set(Executor* E, Object o, Object key, Object value){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the Table and use it
-        Object set_override=get_table(o.tp, to_string("set"));
+        Object set_override=table_get(o.tp, to_string("set"));
         if(set_override.type!=t_null){
             return call(E, set_override, (Object[]){o, key, value}, 3);
         } else {
-            set_table(E, o.tp, key, value);
+            table_set(E, o.tp, key, value);
             return value;
         }
     } else {
@@ -518,7 +518,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
         }
         case t_coroutine:
         {
-            return coroutine_call(E, o.co, arguments, arguments_count);
+            return call_coroutine(E, o.co, arguments, arguments_count);
         }
         case t_table:
         {
@@ -549,10 +549,10 @@ Object copy(Executor* E, Object o){
             } else {
                 Object copied;
                 table_init(E, &copied);
-                TableIterator it=start_iteration(o.tp);
+                TableIterator it=table_get_iterator(o.tp);
 
-                for(IterationResult i=table_next(&it); !i.finished; i=table_next(&it)) {
-                    set_table(E, copied.tp, copy(E, i.key), copy(E, i.value));
+                for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+                    table_set(E, copied.tp, copy(E, i.key), copy(E, i.value));
                 }
                 return copied;
             }

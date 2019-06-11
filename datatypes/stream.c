@@ -1,6 +1,6 @@
 #include "stream.h"
 
-void init_stream(stream* s, size_t size){
+void stream_init(stream* s, size_t size){
     s->data=malloc(size);
     CHECK_ALLOCATION(s->data);
     s->position=0;

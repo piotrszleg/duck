@@ -78,16 +78,16 @@ Object new_binding(Executor* E, Object f, Object argument){
     return binding;
 }
 
-Object bind_call(Executor* E, Object f, Object* arguments, int arguments_count){
+Object new_binding_function(Executor* E, Object* arguments, int arguments_count){
     Object binding;
     table_init(E, &binding);
-    set(E, binding, to_string("f"), f);
-    set(E, binding, to_string("count"), to_number(arguments_count));
-    
+
     set_function(E, binding, "<<", 2, false, binding_bind);
     set_function(E, binding, "call", 1, true, binding_call);
 
-    for(int i=0; i<arguments_count; i++){
+    set(E, binding, to_string("f"), arguments[0]);
+    set(E, binding, to_string("count"), to_number(arguments_count-1));
+    for(int i=1; i<arguments_count; i++){
         set(E, binding, to_number(i), arguments[i]);
     }
 

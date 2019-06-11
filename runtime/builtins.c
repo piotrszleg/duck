@@ -36,7 +36,7 @@ Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
     return coroutine;
 }
 
-Object coroutine_call(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count){
+Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count){
     switch(coroutine->state){
         case co_uninitialized:
             if(arguments_count!=0){
@@ -131,7 +131,7 @@ Object builtin_format(Executor* E, Object* arguments, int arguments_count){
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
     stream s;
-    init_stream(&s, 64);
+    stream_init(&s, 64);
     int variadic_counter=0;
     int str_length=strlen(str.text);
 
@@ -190,7 +190,7 @@ Object builtin_native_get(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table)
     Object key =arguments[1];
-    return get_table(self.tp, key);
+    return table_get(self.tp, key);
 }
 
 Object builtin_native_set(Executor* E, Object* arguments, int arguments_count){
@@ -199,7 +199,7 @@ Object builtin_native_set(Executor* E, Object* arguments, int arguments_count){
     Object key  =arguments[1]; 
     Object value=arguments[2];
     USING_STRING(stringify(E, key),
-        set_table(E, self.tp, to_string(str), value));
+        table_set(E, self.tp, to_string(str), value));
     return value;
 }
 
@@ -360,7 +360,7 @@ void register_builtins(Executor* E, Object scope){
     yield.fp->special_index=0;
     set(E, scope, to_string("yield"), yield);
 
-    set_function(E, scope, "table_iterator", 1, false, get_table_iterator);
+    set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
 
     set_function(E, scope, "coroutine", 1, true, builtin_coroutine);
     set_function(E, scope, "format", 1, true, builtin_format);
@@ -374,15 +374,15 @@ Object scope_get_override(Executor* E, Object* arguments, int arguments_count){
     Object key=arguments[1];
 
     Object base=self;
-    Object map_get_result=get_table(self.tp, key);
+    Object map_get_result=table_get(self.tp, key);
 
     // we assume that all scopes are of type Table and have same get behaviour
     while(map_get_result.type==t_null){
-        base=get_table(base.tp, to_string("base"));
+        base=table_get(base.tp, to_string("base"));
         if(base.type!=t_table){
             return null_const;
         } else {
-            map_get_result=get_table(base.tp, key);
+            map_get_result=table_get(base.tp, key);
         }
     }
     return map_get_result;
@@ -395,21 +395,21 @@ Object scope_set_override(Executor* E, Object* arguments, int arguments_count){
     Object value=arguments[2];
 
     Object base=self;
-    Object map_get_result=get_table(self.tp, key);
+    Object map_get_result=table_get(self.tp, key);
 
     // we assume that all scopes are of type Table and have same get behaviour
     while(map_get_result.type==t_null){
-        base=get_table(base.tp, to_string("base"));
+        base=table_get(base.tp, to_string("base"));
         if(base.type!=t_table){
             // the variable isn't in any outer scope so assignment is a declaration
-            set_table(E, self.tp, key, value);
+            table_set(E, self.tp, key, value);
             return value;
         } else {
-            map_get_result=get_table(base.tp, key);
+            map_get_result=table_get(base.tp, key);
         }
     }
     // variable was found in outer scope so we change it's value
-    set_table(E, base.tp, key, value);
+    table_set(E, base.tp, key, value);
     return value;
 }
 

@@ -9,11 +9,11 @@ char* get_and_stringify(Executor* E, Object t, const char* key){
     }
 }
 
-Object stringify_multiple_causes(Executor* E, Object* arguments, int arguments_count){
+Object multiple_causes_stringify(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
 
     stream s;
-    init_stream(&s, 64);
+    stream_init(&s, 64);
 
     Object count_object=get(E, self, to_string("count"));
     REQUIRE_TYPE(count_object, t_number)
@@ -58,14 +58,14 @@ Object multiple_causes(Executor* E, Object* causes, int causes_count){
     Object stringify_f;
     function_init(E, &stringify_f);
     stringify_f.fp->arguments_count=1;
-    stringify_f.fp->native_pointer=stringify_multiple_causes;
+    stringify_f.fp->native_pointer=multiple_causes_stringify;
     set(E, result, to_string("stringify"), stringify_f);
 
     return result;
     return null_const;
 }
 
-Object stringify_error(Executor* E, Object* arguments, int arguments_count){
+Object error_stringify(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     char* type=get_and_stringify(E, self, "type");
     char* message=get_and_stringify(E, self, "message");
@@ -82,7 +82,7 @@ Object stringify_error(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
-Object destroy_error(Executor* E, Object* arguments, int arguments_count){
+Object error_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     if(is_falsy(get(E, self, to_string("handled")))){
         USING_STRING(stringify(E, self),
@@ -102,8 +102,8 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
     set(E, err, to_string("error"), to_number(1));
     set(E, err, to_string("handled"), to_number(0));
 
-    set(E, err, to_string("stringify"), to_function(E, stringify_error, NULL, 1));
-    set(E, err, to_string("destroy"), to_function(E, destroy_error, NULL, 1));
+    set(E, err, to_string("stringify"), to_function(E, error_stringify, NULL, 1));
+    set(E, err, to_string("destroy"), to_function(E, error_destroy, NULL, 1));
 
     set(E, err, to_string("cause"), cause);
 

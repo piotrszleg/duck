@@ -36,7 +36,7 @@ void stringify_instruction(const BytecodeProgram* prog, char* destination, Instr
 
 char* stringify_bytecode(const BytecodeProgram* prog){
     stream s;
-    init_stream(&s, 64);
+    stream_init(&s, 64);
 
     int pointer=0;
     while(prog->code[pointer].type!=b_end){

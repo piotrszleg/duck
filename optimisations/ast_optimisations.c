@@ -75,7 +75,7 @@ Object evaluate_expression(Executor* E, expression* exp){
     return execution_result;
 }
 
-ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
+ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
     Executor* E=(Executor*)data;
 
     // remove statements that have no side effects and whose result isn't used anywhere
@@ -84,7 +84,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
         if(vector_total(&b->lines)==1){
             expression* line=vector_get(&b->lines, 0);
             if(line->type!=e_assignment){
-                ast_visitor_request request={next, copy_expression(line)};
+                ASTVisitorRequest request={next, copy_expression(line)};
                 LOG_CHANGE("replacing one line block with this one line", exp, request.replacement);
                 return request;
             }
@@ -96,7 +96,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
                     printf("\ndeleting useless statement:%s\n", str));
                 delete_expression(line);
                 vector_delete(&b->lines, i);
-                ast_visitor_request request={down};
+                ASTVisitorRequest request={down};
                 return request;
             }
         }
@@ -106,7 +106,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
         conditional* c=(conditional*)exp;
         if(is_constant(c->condition)){
             Object evaluated=evaluate_expression(E, c->condition);
-            ast_visitor_request request={next};
+            ASTVisitorRequest request={next};
             if(is_falsy(evaluated)){
                 request.replacement=copy_expression(c->onfalse);
             } else {
@@ -119,7 +119,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
     }
     // constants folding
     else if(!is_literal(exp) && is_constant(exp)){
-        ast_visitor_request request={next};
+        ASTVisitorRequest request={next};
         Object evaluated=evaluate_expression(E, exp);
         request.replacement=to_literal(evaluated);
         //replace current expression with the literal
@@ -127,7 +127,7 @@ ast_visitor_request optimise_ast_visitor (expression* exp, void* data){
         LOG_CHANGE("constants folding", exp, request.replacement);
         return request;
     }
-    ast_visitor_request request={down};
+    ASTVisitorRequest request={down};
     return request;
 }
 

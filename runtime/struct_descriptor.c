@@ -17,7 +17,7 @@ bool is_struct_descriptor(Executor* E, Object o){
     if(o.type!=t_table){
         return false;
     }
-    Object is_struct_descriptor=get_table(o.tp, to_string("is_struct_descriptor"));
+    Object is_struct_descriptor=table_get(o.tp, to_string("is_struct_descriptor"));
     bool result=!is_falsy(is_struct_descriptor);
     destroy_unreferenced(E, &is_struct_descriptor);
     return result;
@@ -28,7 +28,7 @@ void add_struct_descriptor_fields(Executor* E, Table* sd, void* position);
 Object field_get(Executor* E, void* position, Object field){
     int type;
     REQUIRE_TYPE(field, t_table)
-    GET_INT(type, get_table(field.tp, to_string("type")));
+    GET_INT(type, table_get(field.tp, to_string("type")));
 
     switch(type){
         // TODO: error if value isn't a number
@@ -39,11 +39,11 @@ Object field_get(Executor* E, void* position, Object field){
         case n_string:
             return to_string(*(char**)position);
         case n_struct:
-            return new_struct_descriptor(E, position, get_table(field.tp, to_string("fields")));
+            return new_struct_descriptor(E, position, table_get(field.tp, to_string("fields")));
         case n_pointer:
         {
             void* pointed_position=*(void**)position;
-            Object pointed=get_table(field.tp, to_string("pointed"));
+            Object pointed=table_get(field.tp, to_string("pointed"));
             REQUIRE_TYPE(pointed, t_table)
             add_struct_descriptor_fields(E, pointed.tp, pointed_position);
             return pointed;
@@ -54,11 +54,11 @@ Object field_get(Executor* E, void* position, Object field){
 
 Object struct_get_field(Executor* E, void* position, Object fields, Object key){
     REQUIRE_TYPE(fields, t_table)
-    Object field=get_table(fields.tp, key);
+    Object field=table_get(fields.tp, key);
     REQUIRE_TYPE(field, t_table)
 
     int field_offset;
-    GET_INT(field_offset, get_table(field.tp, to_string("offset")));
+    GET_INT(field_offset, table_get(field.tp, to_string("offset")));
 
     char* field_position=(char*)position+field_offset;
     return field_get(E, field_position, field);
@@ -71,19 +71,19 @@ Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count
     REQUIRE_TYPE(self, t_table)
 
     if(key.type==t_string && strcmp(key.text, "destroy")==0){
-        return get_table(self.tp, key);
+        return table_get(self.tp, key);
     }
 
     int type;
-    GET_INT(type, get_table(self.tp, to_string("type")));
-    Object position=get_table(self.tp, to_string("position"));
+    GET_INT(type, table_get(self.tp, to_string("type")));
+    Object position=table_get(self.tp, to_string("position"));
     REQUIRE_TYPE(position, t_pointer);
 
     // zero index refers to self
     if(key.type==t_number && key.value==0) {
         return field_get(E, position.p, self);
     } else if(type==n_struct){
-        Object fields=get_table(self.tp, to_string("fields"));
+        Object fields=table_get(self.tp, to_string("fields"));
         return struct_get_field(E, position.p, fields, key);
     } else {
         RETURN_ERROR("STRUCT_GET_ERROR", self, "Can't get field");
@@ -94,7 +94,7 @@ static Object struct_set_field(Executor* E, void* position, Object fields, Objec
 
 Object field_set(Executor* E, void* position, Object field, Object value){
     int type;
-    GET_INT(type, get_table(field.tp, to_string("type")));
+    GET_INT(type, table_get(field.tp, to_string("type")));
     
     switch(type){
         // TODO: error if value isn't a number
@@ -127,10 +127,10 @@ Object field_set(Executor* E, void* position, Object field, Object value){
         {
             void** pointed=(void**)position;
             if(is_struct_descriptor(E, value)){
-                set_table(E, field.tp, to_string("pointed"), value);
+                table_set(E, field.tp, to_string("pointed"), value);
                 *pointed=struct_descriptor_get_pointer(E, value.tp);
             } else {
-                field_set(E, *pointed, get_table(field.tp, to_string("pointed")), value);
+                field_set(E, *pointed, table_get(field.tp, to_string("pointed")), value);
             }
             break;
         }
@@ -140,7 +140,7 @@ Object field_set(Executor* E, void* position, Object field, Object value){
 }
 
 Object struct_set_field(Executor* E, void* position, Object fields, Object key, Object value) {
-    Object field=get_table(fields.tp, key);
+    Object field=table_get(fields.tp, key);
 
     int field_offset;
     GET_INT(field_offset, get(E, field, to_string("offset")));
@@ -157,9 +157,9 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
     REQUIRE_TYPE(self, t_table);
 
     int type;
-    GET_INT(type, get_table(self.tp, to_string("type")));
+    GET_INT(type, table_get(self.tp, to_string("type")));
 
-    Object position=get_table(self.tp, to_string("position"));
+    Object position=table_get(self.tp, to_string("position"));
     REQUIRE_TYPE(position, t_pointer);
 
     // 0 key in pointer refers to the pointed value itself
@@ -167,7 +167,7 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
         field_set(E, position.p, self, value);
     }
     if(type==n_struct) {
-        Object fields=get_table(self.tp, to_string("fields"));
+        Object fields=table_get(self.tp, to_string("fields"));
         return struct_set_field(E, position.p, fields, key, value);
     } else {
          RETURN_ERROR("STRUCT_SET_ERROR", self, "Can't set field");
@@ -175,18 +175,18 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
 }
 
 void add_struct_descriptor_fields(Executor* E, Table* sd, void* position){
-    set_table(E, sd, to_string("type"), to_number(n_struct));
-    set_table(E, sd, to_string("position"), to_pointer(position));
-    set_table(E, sd, to_string("is_struct_descriptor"), to_number(1));
+    table_set(E, sd, to_string("type"), to_number(n_struct));
+    table_set(E, sd, to_string("position"), to_pointer(position));
+    table_set(E, sd, to_string("is_struct_descriptor"), to_number(1));
     
-    set_table(E, sd, to_string("get"), to_function(E, struct_descriptor_get, NULL, 2));
-    set_table(E, sd, to_string("set"), to_function(E, struct_descriptor_set, NULL, 3));
+    table_set(E, sd, to_string("get"), to_function(E, struct_descriptor_get, NULL, 2));
+    table_set(E, sd, to_string("set"), to_function(E, struct_descriptor_set, NULL, 3));
 }
 
 Object new_struct_descriptor(Executor* E, void* position, Object fields){
     Object sd;
     table_init(E, &sd);
-    set_table(E, sd.tp, to_string("fields"), copy(E, fields));
+    table_set(E, sd.tp, to_string("fields"), copy(E, fields));
     add_struct_descriptor_fields(E, sd.tp, position);
     return sd;
 }
@@ -212,7 +212,7 @@ Object to_struct_pointer_field(Executor* E, int offset, Object fields) {
 }
 
 void* struct_descriptor_get_pointer(Executor* E, Table* sd){
-    Object pointer=get_table(sd, to_string("position"));
+    Object pointer=table_get(sd, to_string("position"));
     if(pointer.type!=t_pointer){
         USING_STRING(stringify(E, wrap_gc_object((gc_Object*)sd)),
             THROW_ERROR(WRONG_ARGUMENT_TYPE, "Position field of struct descriptor should be of type pointer, it is %s", str))

@@ -54,7 +54,7 @@ unsigned hash(Object o) {
 
 int compare(Object a, Object b);
 
-Object get_table(Table* t, Object key) {
+Object table_get(Table* t, Object key) {
     if(key.type==t_number) {
         if(key.value<t->array_size && key.value>=0){
             return t->array[(int)key.value];
@@ -71,12 +71,12 @@ Object get_table(Table* t, Object key) {
     return null_const;
 }
 
-TableIterator start_iteration(Table* iterated){
+TableIterator table_get_iterator(Table* iterated){
     TableIterator result={iterated, true, 0, iterated->map[0]};
     return result;
 }
 
-IterationResult table_next(TableIterator* it){
+IterationResult table_iterator_next(TableIterator* it){
     IterationResult result;
     Table* iterated=it->iterated;
     result.finished=false;
@@ -120,16 +120,16 @@ IterationResult table_next(TableIterator* it){
 }
 
 char* stringify_table(Executor* E, Table* t){
-    TableIterator it=start_iteration(t);
+    TableIterator it=table_get_iterator(t);
     stream s;
-    init_stream(&s, 64);
+    stream_init(&s, 64);
     bool first=true;
     float last_array_index=-1;
     bool array_part_holey=false;
     int max_hole_size=3;
     
     stream_push(&s, "[", 1);
-    for(IterationResult i=table_next(&it); !i.finished; i=table_next(&it)) {
+    for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
         if(first){
             first=false;
         } else {
@@ -180,7 +180,7 @@ char* stringify_table(Executor* E, Table* t){
     return (char*)stream_get_data(&s);
 }
 
-void dereference_children_table(Executor* E, Table* t){
+void table_dereference_children(Executor* E, Table* t){
     for(int i=0; i<t->array_size; i++){
         dereference(E, &t->array[i]);
     }
@@ -208,15 +208,15 @@ void free_table(Table* t){
     free(t);
 }
 
-bool array_upsize_allowed(Table* t, int index){
+static bool array_upsize_allowed(Table* t, int index){
     return index<t->array_size*8;
 }
 
-bool array_downsize_allowed(Table* t, int index){
+static bool array_downsize_allowed(Table* t, int index){
     return index<t->array_size/3;
 }
 
-void move_from_map_to_array(Table* t){
+static void move_from_map_to_array(Table* t){
   for(int i=0; i<t->array_size; i++) {
     MapElement* previous=NULL;
     MapElement* e=t->map[i];
@@ -239,7 +239,7 @@ void move_from_map_to_array(Table* t){
 }
 
 // does array part contain elements after the index
-bool elements_after(Table* t, int index){
+static bool elements_after(Table* t, int index){
     for(int i=index+1; i<t->array_size; i++){
         if(t->array[i].type!=t_null){
             return true;
@@ -248,7 +248,7 @@ bool elements_after(Table* t, int index){
     return false;
 }
 
-void set_table(Executor* E, Table* t, Object key, Object value) {
+void table_set(Executor* E, Table* t, Object key, Object value) {
     reference(&value);
     // try to insert value into array
     if(key.type==t_number && key.value>=0) {
@@ -321,7 +321,7 @@ void set_table(Executor* E, Table* t, Object key, Object value) {
 Object get(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);
 
-Object iterator_next_function(Executor* E, Object* arguments, int arguments_count){
+Object table_iterator_object_next(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object result_object;
     table_init(E, &result_object);
@@ -329,7 +329,7 @@ Object iterator_next_function(Executor* E, Object* arguments, int arguments_coun
     Object iterator_address=get(E, self, to_number(0));
     REQUIRE_TYPE(iterator_address, t_number);
     TableIterator* it=(TableIterator*)(intptr_t)iterator_address.value;
-    IterationResult result=table_next(it);
+    IterationResult result=table_iterator_next(it);
     set(E, result_object, to_string("key"), result.key);
     set(E, result_object, to_string("value"), result.value);
     set(E, result_object, to_string("finished"), to_number(result.finished));
@@ -337,7 +337,7 @@ Object iterator_next_function(Executor* E, Object* arguments, int arguments_coun
     return result_object;
 }
 
-Object destroy_iterator(Executor* E, Object* arguments, int arguments_count){
+Object table_iterator_object_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object iterator_address=get(E, self, to_number(0));
     REQUIRE_TYPE(iterator_address, t_number);
@@ -346,16 +346,16 @@ Object destroy_iterator(Executor* E, Object* arguments, int arguments_count){
 }
 
 // TODO: protect pointer from overriding from script for safety reasons
-Object get_table_iterator(Executor* E, Object* arguments, int arguments_count){
+Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object iterator;
     table_init(E, &iterator);
     REQUIRE_TYPE(self, t_table);
     TableIterator* it=malloc(sizeof(TableIterator));
-    *it=start_iteration(self.tp);
+    *it=table_get_iterator(self.tp);
     set(E, iterator, to_number(0), to_number((intptr_t)it));
     set(E, iterator, to_string("Table"), self);
-    set(E, iterator, to_string("call"), to_function(E, iterator_next_function, NULL, 1));
-    set(E, iterator, to_string("destroy"), to_function(E, destroy_iterator, NULL, 1));
+    set(E, iterator, to_string("call"), to_function(E, table_iterator_object_next, NULL, 1));
+    set(E, iterator, to_string("destroy"), to_function(E, table_iterator_object_destroy, NULL, 1));
     return iterator;
 }

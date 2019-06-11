@@ -268,10 +268,10 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
 }
 
 void bytecode_translation_init(BytecodeTranslation* translation){
-    init_stream(&translation->constants, CONSTANTS_SIZE);
-    init_stream(&translation->code, CODE_SIZE);
-    init_stream(&translation->information, CODE_SIZE);
-    init_stream(&translation->sub_programs, SUB_PROGRAMS_SIZE);
+    stream_init(&translation->constants, CONSTANTS_SIZE);
+    stream_init(&translation->code, CODE_SIZE);
+    stream_init(&translation->information, CODE_SIZE);
+    stream_init(&translation->sub_programs, SUB_PROGRAMS_SIZE);
 }
 
 BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){

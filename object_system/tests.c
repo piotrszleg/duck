@@ -27,7 +27,7 @@ void get_execution_info(Executor* E, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
 }
 
-Object coroutine_call(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count){
+Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count){
     return null_const;
 }
 

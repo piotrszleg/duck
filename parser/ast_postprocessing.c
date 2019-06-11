@@ -9,12 +9,12 @@ if a there is a reference that is deeper than its corresponding declaration then
 typedef struct {
     function_declaration* owning_function;
     assignment* first_assignment;
-} declaration;
+} VariableDeclaration;
 
 typedef struct {
-    map_t(declaration) declarations;
+    map_t(VariableDeclaration) declarations;
     stack functions;
-} postprocessing_state;
+} PostprocessingState;
 
 char* get_variable_name(path* p){
     if(vector_total(&p->lines)!=1){
@@ -27,9 +27,9 @@ char* get_variable_name(path* p){
     return ((name*)path_first)->value;
 }
 
-ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
-    ast_visitor_request request={down, NULL};
-    postprocessing_state* state=data;
+ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
+    ASTVisitorRequest request={down, NULL};
+    PostprocessingState* state=data;
 
     // translate messages to functions
     if(exp->type==e_message){
@@ -91,7 +91,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
         if(variable!=NULL){
             // first assignment to variable is it's declaration
             if(map_get(&state->declarations, variable)==NULL){
-                declaration decl={(function_declaration*)stack_top(&state->functions), a};
+                VariableDeclaration decl={(function_declaration*)stack_top(&state->functions), a};
                 map_set(&state->declarations, variable, decl);
             }
         }
@@ -99,7 +99,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
     if(exp->type==e_path){
         char* variable=get_variable_name((path*)exp);
         if(variable!=NULL){
-            declaration* decl=map_get(&state->declarations, variable);
+            VariableDeclaration* decl=map_get(&state->declarations, variable);
             if(decl!=NULL && decl->owning_function!=(function_declaration*)stack_top(&state->functions)){
                 decl->first_assignment->used_in_closure=true;
             }
@@ -109,7 +109,7 @@ ast_visitor_request postprocess_ast_visitor(expression* exp, void* data){
 }
 
 void postprocess_ast(expression* ast){
-    postprocessing_state state;
+    PostprocessingState state;
     stack_init(&state.functions, sizeof(function_declaration*), STACK_SIZE);
     map_init(&state.declarations);
     

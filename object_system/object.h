@@ -189,7 +189,7 @@ void object_system_deinit(Executor* E);
 // these functions should be implemented in higher level module
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 void deinit_function(Function* f);
-Object coroutine_call(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
+Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
 
 #include "table.h"
 

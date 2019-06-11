@@ -77,7 +77,7 @@ void move_instructions(BytecodeProgram* prog, int starting_index, int movement){
 
 void highlight_instructions(BytecodeProgram* prog, char symbol, int start, int end){
     stream s;
-    init_stream(&s, 64);
+    stream_init(&s, 64);
 
     int pointer=0;
     while(prog->code[pointer].type!=b_end){
