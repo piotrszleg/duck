@@ -14,9 +14,9 @@ Object expression_fields(Executor* E, expression* exp);
 
 Object downcast_expression_descriptor(Executor* E, Table* sd){
     Object fields_expression_type=table_get(sd, to_string("fields_expression_type"));
-    REQUIRE_TYPE(fields_expression_type, t_number);
+    REQUIRE_TYPE(fields_expression_type, t_int);
     expression* exp=(expression*)struct_descriptor_get_pointer(E, sd);
-    if(exp->type!=(int)fields_expression_type.value){
+    if(exp->type!=(int)fields_expression_type.int_value){
         table_set(E, sd, to_string("fields"), copy(E, expression_fields(E, exp)));
     }
     return null_const;
@@ -33,15 +33,15 @@ Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, express
             continue;
         }
         Object type_field=table_get(i.value.tp, to_string("type"));
-        REQUIRE_TYPE(type_field, t_number);
-        if(type_field.value==n_pointer){
+        REQUIRE_TYPE(type_field, t_int);
+        if(type_field.int_value==n_pointer){
             Object pointed=table_get(i.value.tp, to_string("pointed"));
             REQUIRE_TYPE(i.value, t_table);
             Object has_ownership=table_get(pointed.tp, to_string("has_ownership"));
             if(is_falsy(has_ownership)){
                 Object offset=table_get(i.value.tp, to_string("offset"));
-                REQUIRE_TYPE(offset, t_number);
-                expression** expression_position=(expression**)((int)expression_pointer+(int)offset.value);
+                REQUIRE_TYPE(offset, t_int);
+                expression** expression_position=(expression**)((int)expression_pointer+(int)offset.int_value);
                 //expression** expression_position=(expression**)position.p;
                 expression_descriptor_destroy_recursively(E, pointed.tp, *expression_position);
             }
@@ -65,9 +65,9 @@ Object expression_descriptor_destroy(Executor* E, Object* arguments, int argumen
 }
 
 void postproccess_expression_descriptor(Executor* E, Table* descriptor){
-    table_set(E, descriptor, to_string("is_expression"), to_number(1));
+    table_set(E, descriptor, to_string("is_expression"), to_int(1));
     table_set(E, descriptor, to_string("destroy"), to_function(E, expression_descriptor_destroy, NULL, 1));
-    table_set(E, descriptor, to_string("has_ownership"), to_number(1));
+    table_set(E, descriptor, to_string("has_ownership"), to_int(1));
     if(table_get(descriptor, to_string("replaced_get")).type==t_null){
         table_set(E, descriptor, to_string("replaced_get"), table_get(descriptor, to_string("get")));
         table_set(E, descriptor, to_string("get"), to_function(E, expression_descriptor_get, NULL, 2));
@@ -117,7 +117,7 @@ Object expression_fields(Executor* E, expression* exp) {
             expression_fields_array[e_##etype]=fields;\
             reference(&fields);\
             set(E, fields, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int));\
-            set(E, fields, to_string("fields_expression_type"), to_number(exp->type));
+            set(E, fields, to_string("fields_expression_type"), to_int(exp->type));
         #define FIELD(field_name, field_descriptor) \
             { Object field_temp=field_descriptor; \
             set(E, fields, to_string(#field_name), field_temp); }

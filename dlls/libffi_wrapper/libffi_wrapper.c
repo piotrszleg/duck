@@ -51,14 +51,14 @@ void* to_ffi_type(Executor* E, Object o, ffi_type* t, Object type_object){
     switch(o.type){
         case t_string:
             return (void*)strdup(o.text);
-        case t_number:
+        case t_int:
             switch(t->type){
                 #define X(type, type_id, _) \
                 case type_id: \
                 { \
                     type* casted=malloc(sizeof(type)); \
                     CHECK_ALLOCATION(casted) \
-                    *casted=o.value; \
+                    *casted=o.int_value; \
                     return (void*)casted; \
                 }
                 

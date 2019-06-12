@@ -115,7 +115,7 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
             Object variadic_table;
             table_init(E, &variadic_table);
             for(int i=variadic_arguments_count-1; i>=0; i--){
-                set(E, variadic_table, to_number(i), arguments[f->arguments_count-1+i]);
+                set(E, variadic_table, to_int(i), arguments[f->arguments_count-1+i]);
             }
             // append the variadic array to the end of processed arguments array
             processed_arguments[f->arguments_count-1]=variadic_table;

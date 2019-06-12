@@ -14,7 +14,8 @@ typedef struct Executor Executor;
 
 #define OBJECT_TYPES \
     X(null) \
-    X(number) \
+    X(int) \
+    X(float) \
     X(function) \
     X(string) \
     X(table) \
@@ -73,14 +74,15 @@ typedef struct gc_Pointer gc_Pointer;
 typedef struct {
     ObjectType type;
     union {
-        float value;
+        float float_value;
+        int int_value;
         char* text;
         void* p;
         gc_Pointer* gcp;
         Function* fp;
         Table* tp;
         Coroutine* co;
-        /* Function, Coroutine and Table and gc_Pointer structs have exact same memory layout as gc_Object
+        /* gc_Pointer, Function, Table and Coroutine structs have same memory layout as gc_Object
            and can be safely casted to it */
         gc_Object* gco;
     };
@@ -95,7 +97,8 @@ extern Object null_const;
     void t##_init (Executor* E, Object* o);
 
 OBJECT_INIT(null)
-OBJECT_INIT(number)
+OBJECT_INIT(int)
+OBJECT_INIT(float)
 OBJECT_INIT(string)
 OBJECT_INIT(pointer)
 
@@ -169,7 +172,8 @@ Object wrap_gc_object(gc_Object* o);
 void call_destroy(Executor* E, Object o);
 
 Object to_string(const char* s);
-Object to_number(float n);
+Object to_int(int n);
+Object to_float(float n);
 Object to_pointer(void* p);
 Object to_gc_pointer(gc_Pointer* p);
 Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, int arguments_count);

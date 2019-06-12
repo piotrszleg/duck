@@ -54,12 +54,8 @@ void test_error_catching(){
 void adding_numbers(Executor* E){// tests whether 1+2=3
     printf("TEST: %s\n", __FUNCTION__);
     
-    Object num1;
-    number_init(&num1);
-    num1.value=1;
-    Object num2;
-    number_init(&num2);
-    num2.value=2;
+    Object num1=to_int(1);
+    Object num2=to_int(2);
     assert_stringification(E, operator(E, num1, num2, "+"), "3");
 
     dereference(E, &num1);
@@ -85,9 +81,7 @@ void adding_strings(Executor* E){// tests whether "Hello "+"Cruel World"="Hello 
 
 Object add_three(Executor* E, Object* arguments, int arguments_count){
     assert(arguments_count==1);
-    Object three;
-    number_init(&three);
-    three.value=3;
+    Object three=to_int(3);
     Object result= operator(E, arguments[0], three, "+");
     dereference(E, &three);
     return result;
@@ -102,9 +96,7 @@ void function_calling(Executor* E){// tests whether f(5)==8 where f(x)=x+3
     f.fp->ftype=f_native;
     f.fp->arguments_count=1;
 
-    Object five;
-    number_init(&five);
-    five.value=5;
+    Object five=to_int(5);
 
     Object arguments[]={five};
 
@@ -132,11 +124,11 @@ void table_indexing(Executor* E){// t["name"]="John" => t["name"]=="John"
 
     TEST_EMPTY(name_key)
     TEST_SET(name_key, to_string("John"))
-    TEST_SET(name_key, to_number(2))
-    TEST_EMPTY(to_number(0))
-    TEST_SET(to_number(0), to_number(2))
-    TEST_EMPTY(to_number(1))
-    TEST_SET(to_number(1), to_number(2))
+    TEST_SET(name_key, to_int(2))
+    TEST_EMPTY(to_int(0))
+    TEST_SET(to_int(0), to_int(2))
+    TEST_EMPTY(to_int(1))
+    TEST_SET(to_int(1), to_int(2))
 
     dereference(E, &t);// deleting t will also delete n
     printf("test successful\n");
@@ -149,9 +141,7 @@ void adding_number_string(Executor* E){// tests whether "count: "+5="count: 5"
     string_init(&str);
     str.text="count: ";
 
-    Object num;
-    number_init(&num);
-    num.value=5;
+    Object num=to_int(5);
     assert_stringification(E, operator(E, str, num, "+"), "\"count: 5\"");
 
     dereference(E, &num);

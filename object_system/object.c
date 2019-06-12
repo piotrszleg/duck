@@ -37,7 +37,8 @@ Object wrap_gc_object(gc_Object* o){
     }
 
 OBJECT_INIT(null)
-OBJECT_INIT(number)
+OBJECT_INIT(float)
+OBJECT_INIT(int)
 OBJECT_INIT(string)
 OBJECT_INIT(pointer)
 
@@ -90,10 +91,17 @@ Object to_string(const char* s){
     return o;
 }
 
-Object to_number(float n){
+Object to_int(int n){
     Object o; 
-    number_init(&o); 
-    o.value=n;
+    int_init(&o); 
+    o.int_value=n;
+    return o;
+}
+
+Object to_float(float n){
+    Object o; 
+    float_init(&o); 
+    o.float_value=n;
     return o;
 }
 

@@ -302,18 +302,12 @@ Object execute_bytecode(Executor* E){
             }
             case b_load_float:
             {
-                Object n;
-                number_init(&n);
-                n.value=instr.float_argument;
-                push(object_stack, n);
+                push(object_stack, to_float(instr.float_argument));
                 break;
             }
             case b_load_int:
             {
-                Object n;
-                number_init(&n);
-                n.value=(float)instr.int_argument;
-                push(object_stack, n);
+                push(object_stack, to_int(instr.int_argument));
                 break;
             }
             case b_table_literal:
@@ -551,7 +545,7 @@ Object execute_bytecode(Executor* E){
                         Object variadic_table;
                         table_init(E, &variadic_table);
                         for(int i=variadic_arguments_count-1; i>=0; i--){
-                            set(E, variadic_table, to_number(i), pop(object_stack));
+                            set(E, variadic_table, to_int(i), pop(object_stack));
                         }
                         push(object_stack, variadic_table);
                     }

@@ -17,8 +17,10 @@ bool is_falsy(Object o){
             return 1;// null is falsy
         case t_string:
             return strlen(o.text)==0;// "" (string of length 0) is falsy
-        case t_number:
-            return o.value==0;// 0 is falsy
+        case t_int:
+            return o.int_value==0;// 0 is falsy
+        case t_float:
+            return o.float_value==0;// 0 is falsy
         case t_table:
             return o.tp->array_size==0 && o.tp->map_size==0;// empty Table is falsy
         case t_function:
@@ -42,22 +44,35 @@ Object cast(Executor* E, Object o, ObjectType type){
             result.text=stringify(E, o);
             return result;
         }
-        case t_number:
+        case t_int:
         {
             Object result;
-            number_init(&result);
+            float_init(&result);
             if(o.type==t_null){
-                result.value=0;// null is zero
+                result.int_value=0;// null is zero
                 return result;
             } else if(o.type==t_string && is_number(o.text)){
-                result.value=atoi(o.text);// convert string to int if it contains number
+                result.int_value=strtol(o.text, NULL, 10);// convert string to int if it contains number
                 return result;
             }
-            // intentional fallthrough
+            break;
         }
-        default:
-            RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
+        case t_float:
+        {
+            Object result;
+            float_init(&result);
+            if(o.type==t_null){
+                result.float_value=0;// null is zero
+                return result;
+            } else if(o.type==t_string && is_number(o.text)){
+                result.float_value=strtof(o.text, NULL);// convert string to int if it contains number
+                return result;
+            }
+            break;
+        }
+        default:;
     }
+    RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
 }
 
 Object find_call_function(Executor* E, Object o){
@@ -101,8 +116,10 @@ int compare(Object a, Object b){
     switch(a.type){
         case t_string:
             return strcmp(a.text, b.text);
-        case t_number:
-            return sign(a.value-b.value);
+        case t_int:
+            return sign(a.int_value-b.int_value);
+        case t_float:
+            return sign(a.float_value-b.float_value);
         // avoid comparing tables for now
         default:
             return COMPARISION_ERROR;
@@ -118,7 +135,7 @@ Object coroutine_iterator_next(Executor* E, Object* arguments, int arguments_cou
     set(E, result, to_string("value"), value);
 
     REQUIRE_TYPE(coroutine, t_coroutine);
-    set(E, result, to_string("finished"), to_number(coroutine.co->state==co_finished));
+    set(E, result, to_string("finished"), to_int(coroutine.co->state==co_finished));
 
     return result;
 }
@@ -159,32 +176,32 @@ Object operator(Executor* E, Object a, Object b, const char* op){
     OP_CASE("=="){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
-            return to_number(comparision_result==0);
+            return to_int(comparision_result==0);
     }
     OP_CASE("!="){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
-            return to_number(comparision_result!=0);
+            return to_int(comparision_result!=0);
     }
     OP_CASE(">"){
         int comparision_result=compare(a, b);
         if(comparision_result!=COMPARISION_ERROR)
-            return to_number(comparision_result==1);
+            return to_int(comparision_result==1);
     }
     OP_CASE("<"){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
-            return to_number(comparison_result==-1);
+            return to_int(comparison_result==-1);
     }
     OP_CASE(">="){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
-            return to_number(comparison_result==1||comparison_result==0);
+            return to_int(comparison_result==1||comparison_result==0);
     }
     OP_CASE("<="){
         int comparison_result=compare(a, b);
         if(comparison_result!=COMPARISION_ERROR)
-            return to_number(comparison_result==-1||comparison_result==0);
+            return to_int(comparison_result==-1||comparison_result==0);
     }
     OP_CASE("||"){
         if(!is_falsy(a)){
@@ -206,11 +223,13 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         }
     }
     OP_CASE("!"){
-        return to_number(is_falsy(b));
+        return to_int(is_falsy(b));
     }
     OP_CASE("-"){
-        if(a.type==t_null && b.type==t_number){
-            return to_number(-b.value);
+        if(a.type==t_null && b.type==t_int){
+            return to_int(-b.int_value);
+        } else if(a.type==t_null && b.type==t_float){
+            return to_int(-b.float_value);
         }
     }
     OP_CASE(">>"){
@@ -237,9 +256,19 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         )
         return call_result;
     }
+    #define OP_CASE_NUMBERS(operator_name, operator, a_type) \
+        if(a.type==a_type && strcmp(op, operator_name)==0) { \
+            Object casted_b=cast(E, b, a_type); \
+            if(casted_b.type!=a_type){ \
+                return casted_b;/* casted_b must be type conversion error */ \
+            } \
+            Object result=a. operator casted_b; \
+            destroy_unreferenced(b_casted); \
+            return result; \
+        }
     if(a.type==t_string){
         if(a.type!=b.type){
-            b=cast(E, b, a.type);
+            b=cast(E, b, t_string);
         }
         OP_CASE("+"){
             char* buffer=malloc(sizeof(char)*1024);
@@ -251,24 +280,63 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             result.text=buffer;
             return result;
         }
-    } else if(a.type==t_number){
-        if(a.type!=b.type){
-            b=cast(E, b, a.type);
+    }
+    if(a.type==t_int) {
+        Object b_casted;
+        if(b.type!=t_int){
+            Object b_casted=cast(E, b, t_int);
+            if(b_casted.type!=t_int){
+                return b_casted;// b_casted is conversion error
+            }
+        } else {
+            b_casted=b;
         }
         Object result;
-        number_init(&result);
+        int_init(&result);
         OP_CASE("+"){
-            return to_number(a.value+b.value);
+            return to_int(a.int_value+b_casted.int_value);
         }
         OP_CASE("-"){
-            return to_number(a.value-b.value);
+            return to_int(a.int_value-b_casted.int_value);
         }
         OP_CASE("*"){
-            return to_number(a.value*b.value);
+            return to_int(a.int_value*b_casted.int_value);
+        }
+        OP_CASE("//"){
+            return to_int(a.int_value/b_casted.int_value);
+        }
+        OP_CASE("%"){
+            return to_int(a.int_value%b_casted.int_value);
         }
         OP_CASE("/"){
-            return to_number(a.value/b.value);
+            return to_float((float)a.int_value/b_casted.int_value);
         }
+        destroy_unreferenced(E, &b_casted);
+    } else if(a.type==t_float) {
+        Object b_casted;
+        if(b.type!=t_float){
+            Object b_casted=cast(E, b, t_float);
+            if(b_casted.type!=t_float){
+                return b_casted;// b_casted is conversion error
+            }
+        } else {
+            b_casted=b;
+        }
+        Object result;
+        float_init(&result);
+        OP_CASE("+"){
+            return to_float(a.float_value+b_casted.float_value);
+        }
+        OP_CASE("-"){
+            return to_float(a.float_value-b_casted.float_value);
+        }
+        OP_CASE("*"){
+            return to_float(a.float_value*b_casted.float_value);
+        }
+        OP_CASE("/"){
+            return to_float((float)a.int_value/b_casted.int_value);
+        }
+        destroy_unreferenced(E, &b_casted);
     }
     RETURN_ERROR("OperatorError", multiple_causes(E, (Object[]){a, b}, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
 }
@@ -379,15 +447,10 @@ char* stringify_object(Executor* E, Object o){
             return result;
            // return strdup(o.text);
         }
-        case t_number:
-        {
-            int ceiled=o.value;
-            if(((float)ceiled)==o.value){
-                return suprintf("%d", ceiled);
-            } else {
-                return suprintf("%f", o.value);
-            }
-        }
+        case t_int:
+            return suprintf("%d", o.int_value);
+        case t_float:
+            return suprintf("%f", o.float_value);
         case t_table:
             return stringify_table(E, o.tp);
         case t_function:
@@ -466,19 +529,18 @@ Object get(Executor* E, Object o, Object key){
             return table_get(o.tp, key);
         }
     } else if(o.type==t_string){
-        Object number_key=cast(E, key, t_number);
-        if(number_key.type==t_number){
-            if(number_key.value<strlen(o.text) && number_key.value>=0){
+        if(key.type==t_int){
+            if(key.int_value<strlen(o.text) && key.int_value>=0){
                 char* character_string=malloc(2*sizeof(char));
-                character_string[0]=o.text[(int)number_key.value];
+                character_string[0]=o.text[(int)key.int_value];
                 character_string[1]='\0';
                 return to_string(character_string);
             } else {
                 RETURN_ERROR("WRONG_ARGUMENT_TYPE", multiple_causes(E, (Object[]){o, key}, 2), 
-                "Index %i is out of bounds of string \"%s\"", (int)number_key.value, o.text);
+                "Index %i is out of bounds of string \"%s\"", key.int_value, o.text);
             }
         } else {
-            return number_key;// casting failed, return error object
+            RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Strings can be only indexed with ints");
         }
     } else {
         RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
@@ -545,7 +607,7 @@ Object copy(Executor* E, Object o){
         {
             Object copy_override=find_function(E, o, "copy");
             if(copy_override.type!=t_null){
-                Object result=call(E, copy_override, &o, 1);
+                return call(E, copy_override, &o, 1);
             } else {
                 Object copied;
                 table_init(E, &copied);

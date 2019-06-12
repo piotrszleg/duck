@@ -3,10 +3,10 @@
 #define GET_INT(result_name, exp) \
     { \
         Object o=exp;\
-        if(o.type!=t_number) { \
+        if(o.type!=t_int) { \
             RETURN_ERROR("INCORRECT_ARGUMENT_TYPE", o, "Field type should be number"); \
         } else { \
-            result_name=(int)o.value; \
+            result_name=(int)o.int_value; \
         } \
     }
 
@@ -33,9 +33,9 @@ Object field_get(Executor* E, void* position, Object field){
     switch(type){
         // TODO: error if value isn't a number
         case n_int:
-            return to_number(*(int*)position);
+            return to_int(*(int*)position);
         case n_float:
-            return to_number(*(float*)position);
+            return to_float(*(float*)position);
         case n_string:
             return to_string(*(char**)position);
         case n_struct:
@@ -80,7 +80,7 @@ Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count
     REQUIRE_TYPE(position, t_pointer);
 
     // zero index refers to self
-    if(key.type==t_number && key.value==0) {
+    if(key.type==t_int && key.int_value==0) {
         return field_get(E, position.p, self);
     } else if(type==n_struct){
         Object fields=table_get(self.tp, to_string("fields"));
@@ -99,12 +99,12 @@ Object field_set(Executor* E, void* position, Object field, Object value){
     switch(type){
         // TODO: error if value isn't a number
         case n_int:
-            REQUIRE_TYPE(value, t_number)
-            *((int*)position)=(int)value.value;
+            REQUIRE_TYPE(value, t_int)
+            *((int*)position)=(int)value.int_value;
             break;
         case n_float:
-            REQUIRE_TYPE(value, t_number)
-            *((float*)position)=value.value;
+            REQUIRE_TYPE(value, t_float)
+            *((float*)position)=value.float_value;
             break;
         case n_string:
             REQUIRE_TYPE(value, t_string)
@@ -163,7 +163,7 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
     REQUIRE_TYPE(position, t_pointer);
 
     // 0 key in pointer refers to the pointed value itself
-    if(key.type==t_number && key.value==0) {
+    if(key.type==t_int && key.int_value==0) {
         field_set(E, position.p, self, value);
     }
     if(type==n_struct) {
@@ -175,9 +175,9 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
 }
 
 void add_struct_descriptor_fields(Executor* E, Table* sd, void* position){
-    table_set(E, sd, to_string("type"), to_number(n_struct));
+    table_set(E, sd, to_string("type"), to_int(n_struct));
     table_set(E, sd, to_string("position"), to_pointer(position));
-    table_set(E, sd, to_string("is_struct_descriptor"), to_number(1));
+    table_set(E, sd, to_string("is_struct_descriptor"), to_int(1));
     
     table_set(E, sd, to_string("get"), to_function(E, struct_descriptor_get, NULL, 2));
     table_set(E, sd, to_string("set"), to_function(E, struct_descriptor_set, NULL, 3));
@@ -194,8 +194,8 @@ Object new_struct_descriptor(Executor* E, void* position, Object fields){
 Object to_field(Executor* E, int offset, NativeType type){
     Object field;
     table_init(E, &field);
-    set(E, field, to_string("offset"), to_number(offset));
-    set(E, field, to_string("type"), to_number(type));
+    set(E, field, to_string("offset"), to_int(offset));
+    set(E, field, to_string("type"), to_int(type));
     return field;
 }
 

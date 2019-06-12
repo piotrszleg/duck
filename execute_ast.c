@@ -60,9 +60,9 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         case e_empty:
             return null_const;
         case e_float_literal:
-            return to_number(((float_literal*)exp)->value);
+            return to_float(((float_literal*)exp)->value);
         case e_int_literal:
-            return to_number(((int_literal*)exp)->value);
+            return to_int(((int_literal*)exp)->value);
         case e_string_literal:
             return to_string(((string_literal*)exp)->value);
         case e_table_literal:
@@ -79,7 +79,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                     assignment* a=(assignment*)line;
                     set_result=set(E, table_scope, to_string(table_literal_extract_key(a)), execute_ast(E, a->right, table_scope, 0));
                 } else {
-                    set_result=set(E, table_scope, to_number(array_counter++), execute_ast(E, line, table_scope, 0));
+                    set_result=set(E, table_scope, to_int(array_counter++), execute_ast(E, line, table_scope, 0));
                 }
                 destroy_unreferenced(E, &set_result);
             }

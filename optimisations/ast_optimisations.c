@@ -52,10 +52,16 @@ expression* to_literal(Object o){
             l->value=strdup(o.text);
             return (expression*)l;
         }
-        case t_number:
+        case t_int:
+        {
+            int_literal* l=new_int_literal();
+            l->value=o.int_value;
+            return (expression*)l;
+        }
+        case t_float:
         {
             float_literal* l=new_float_literal();
-            l->value=o.value;
+            l->value=o.float_value;
             return (expression*)l;
         }
         case t_null:

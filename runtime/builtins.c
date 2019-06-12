@@ -83,15 +83,15 @@ Object builtin_substring(Executor* E, Object* arguments, int arguments_count){
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
     Object start=arguments[1];
-    REQUIRE_TYPE(start, t_number)
+    REQUIRE_TYPE(start, t_int)
     Object end=arguments[2];
-    REQUIRE_TYPE(end, t_number)
-    REQUIRE(start.value<end.value, multiple_causes(E, (Object[]){str, start, end}, 3))
-    REQUIRE(start.value>=0, multiple_causes(E, (Object[]){str, start}, 2))
-    REQUIRE(end.value<=strlen(str.text), multiple_causes(E, (Object[]){str, end}, 2))
-    int length=end.value-start.value;
+    REQUIRE_TYPE(end, t_int)
+    REQUIRE(start.int_value<end.int_value, multiple_causes(E, (Object[]){str, start, end}, 3))
+    REQUIRE(start.int_value>=0, multiple_causes(E, (Object[]){str, start}, 2))
+    REQUIRE(end.int_value<=strlen(str.text), multiple_causes(E, (Object[]){str, end}, 2))
+    int length=end.int_value-start.int_value;
     char* result=malloc(sizeof(char)*(length+1));
-    memcpy(result, str.text+(int)start.value, length);
+    memcpy(result, str.text+(int)start.int_value, length);
     result[length]='\0';
     return to_string(result);
 }
@@ -99,14 +99,14 @@ Object builtin_substring(Executor* E, Object* arguments, int arguments_count){
 Object builtin_string_length(Executor* E, Object* arguments, int arguments_count){
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
-    return to_number(strlen(str.text));
+    return to_int(strlen(str.text));
 }
 
 Object builtin_to_character(Executor* E, Object* arguments, int arguments_count){
     Object n=arguments[0];
-    REQUIRE_TYPE(n, t_number);
+    REQUIRE_TYPE(n, t_int);
     char* result=malloc(sizeof(char)*2);
-    result[0]=n.value;
+    result[0]=n.int_value;
     result[1]='\0';
     return to_string(result);
 }
@@ -115,7 +115,7 @@ Object builtin_from_character(Executor* E, Object* arguments, int arguments_coun
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
     REQUIRE(strlen(str.text)==1, str)
-    return to_number(str.text[0]);
+    return to_int(str.text[0]);
 }
 
 bool str_match(char* a, char* b, int length){
@@ -215,7 +215,7 @@ Object builtin_string(Executor* E, Object* arguments, int arguments_count){
 }
 
 Object builtin_number(Executor* E, Object* arguments, int arguments_count){
-    return cast(E, arguments[0], t_number);
+    return cast(E, arguments[0], t_int);
 }
 
 Object builtin_cast(Executor* E, Object* arguments, int arguments_count){
@@ -269,17 +269,17 @@ Object builtin_eval(Executor* E, Object* arguments, int arguments_count){
 Object file_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object pointer=get(E, self, to_string("pointer"));
-    REQUIRE(pointer.type==t_number, pointer);
-    fclose((FILE*)(int)pointer.value);
+    REQUIRE(pointer.type==t_int, pointer);
+    fclose((FILE*)(int)pointer.int_value);
     return null_const;
 }
 
 Object file_read(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object pointer=get(E, self, to_string("pointer"));
-    REQUIRE(pointer.type==t_number, pointer)
+    REQUIRE(pointer.type==t_int, pointer)
     char *buf=malloc(255*sizeof(char));
-    fgets(buf, 255, (FILE*)(int)pointer.value);
+    fgets(buf, 255, (FILE*)(int)pointer.int_value);
     return to_string(buf);
 }
 
@@ -288,8 +288,8 @@ Object file_write(Executor* E, Object* arguments, int arguments_count){
     Object text=arguments[1];
     REQUIRE_TYPE(text, t_string)
     Object pointer=get(E, self, to_string("pointer"));
-    REQUIRE(pointer.type==t_number, pointer)
-    fputs(text.text, (FILE*)(int)pointer.value);
+    REQUIRE(pointer.type==t_int, pointer)
+    fputs(text.text, (FILE*)(int)pointer.int_value);
     return text;
 }
 
@@ -303,7 +303,7 @@ Object builtin_open_file(Executor* E, Object* arguments, int arguments_count){
     table_init(E, &result);
     
     FILE* f=fopen(filename.text, mode.text);
-    set(E, result, to_string("pointer"), to_number((float)(int)f));
+    set(E, result, to_string("pointer"), to_int((float)(int)f));
     set_function(E, result, "read", 1, false, file_read);
     set_function(E, result, "write", 2, false, file_write);
     set_function(E, result, "destroy", 1, false, file_destroy);

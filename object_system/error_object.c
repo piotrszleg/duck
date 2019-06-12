@@ -16,8 +16,8 @@ Object multiple_causes_stringify(Executor* E, Object* arguments, int arguments_c
     stream_init(&s, 64);
 
     Object count_object=get(E, self, to_string("count"));
-    REQUIRE_TYPE(count_object, t_number)
-    int count=count_object.value;
+    REQUIRE_TYPE(count_object, t_int)
+    int count=count_object.int_value;
 
     for(int i=0; i<count; i++){
         char stringified_key[64];
@@ -51,8 +51,8 @@ Object multiple_causes(Executor* E, Object* causes, int causes_count){
     }
     
     Object count;
-    number_init(&count);
-    count.value=causes_count;
+    int_init(&count);
+    count.int_value=causes_count;
     set(E, result, to_string("count"), count);
 
     Object stringify_f;
@@ -78,7 +78,7 @@ Object error_stringify(Executor* E, Object* arguments, int arguments_count){
     free(message);
     free(location);
     free(cause);
-    set(E, self, to_string("handled"), to_number(1));
+    set(E, self, to_string("handled"), to_int(1));
     return result;
 }
 
@@ -99,8 +99,8 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
     set(E, err, to_string("message"), to_string(message));
     set(E, err, to_string("location"), to_string(location));
 
-    set(E, err, to_string("error"), to_number(1));
-    set(E, err, to_string("handled"), to_number(0));
+    set(E, err, to_string("error"), to_int(1));
+    set(E, err, to_string("handled"), to_int(0));
 
     set(E, err, to_string("stringify"), to_function(E, error_stringify, NULL, 1));
     set(E, err, to_string("destroy"), to_function(E, error_destroy, NULL, 1));

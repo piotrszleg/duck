@@ -37,13 +37,14 @@ unsigned hash(Object o) {
     switch(o.type){
         case t_string:
             return hash_string(o.text);
-        case t_number:
-            return o.value;
+        case t_int:
+            return o.int_value;
+        case t_float:
+            return o.float_value;
         case t_null:
             return 0;
         case t_table:
-            THROW_ERROR(NOT_IMPLEMENTED, "Hashing tables is not implemented yet.");
-            return 0;
+            return (unsigned)o.tp;
         case t_function:
             return (unsigned)o.fp;
         default:
@@ -55,9 +56,9 @@ unsigned hash(Object o) {
 int compare(Object a, Object b);
 
 Object table_get(Table* t, Object key) {
-    if(key.type==t_number) {
-        if(key.value<t->array_size && key.value>=0){
-            return t->array[(int)key.value];
+    if(key.type==t_int) {
+        if(key.int_value<t->array_size && key.int_value>=0){
+            return t->array[(int)key.int_value];
         }
     }
     int hashed=hash(key)%t->map_size;
@@ -97,7 +98,7 @@ IterationResult table_iterator_next(TableIterator* it){
     if(it->inside_array) {
         // iterate array part
         result.inside_array=true;
-        result.key=to_number(it->index);
+        result.key=to_int(it->index);
         result.value=it->iterated->array[it->index++];
     } else {
         // skip empty map_elements
@@ -143,8 +144,8 @@ char* stringify_table(Executor* E, Table* t){
             stringified_value=stringify(E, i.value);
         }
         // detect if there are holes in array part
-        if(i.inside_array && !array_part_holey && i.key.type==t_number){
-            float indexes_difference=i.key.value-last_array_index;
+        if(i.inside_array && !array_part_holey && i.key.type==t_int){
+            float indexes_difference=i.key.int_value-last_array_index;
             if(indexes_difference!=1){
                 if(indexes_difference-1<=max_hole_size){
                     for(int i=0; i<indexes_difference-1; i++){
@@ -154,7 +155,7 @@ char* stringify_table(Executor* E, Table* t){
                     array_part_holey=true;
                 }
             }
-            last_array_index=i.key.value;
+            last_array_index=i.key.int_value;
         }
         if(i.inside_array && !array_part_holey){
             // print the array part without keys
@@ -221,7 +222,7 @@ static void move_from_map_to_array(Table* t){
     MapElement* previous=NULL;
     MapElement* e=t->map[i];
     while(e) {
-        if(e->key.type==t_number){
+        if(e->key.type==t_int){
             t->array[i]=e->value;
             if(previous!=NULL){
                 previous->next=e->next;
@@ -251,9 +252,9 @@ static bool elements_after(Table* t, int index){
 void table_set(Executor* E, Table* t, Object key, Object value) {
     reference(&value);
     // try to insert value into array
-    if(key.type==t_number && key.value>=0) {
-        int index=(int)key.value;
-        if(key.value<t->array_size){
+    if(key.type==t_int && key.int_value>=0) {
+        int index=(int)key.int_value;
+        if(index<t->array_size){
             // key lies within array part
             if(value.type!=t_null){
                 if(t->array[index].type==t_null){
@@ -326,22 +327,22 @@ Object table_iterator_object_next(Executor* E, Object* arguments, int arguments_
     Object result_object;
     table_init(E, &result_object);
 
-    Object iterator_address=get(E, self, to_number(0));
-    REQUIRE_TYPE(iterator_address, t_number);
-    TableIterator* it=(TableIterator*)(intptr_t)iterator_address.value;
+    Object iterator_address=get(E, self, to_int(0));
+    REQUIRE_TYPE(iterator_address, t_pointer);
+    TableIterator* it=(TableIterator*)iterator_address.p;
     IterationResult result=table_iterator_next(it);
     set(E, result_object, to_string("key"), result.key);
     set(E, result_object, to_string("value"), result.value);
-    set(E, result_object, to_string("finished"), to_number(result.finished));
-    set(E, result_object, to_string("inside_array"), to_number(result.inside_array));
+    set(E, result_object, to_string("finished"), to_int(result.finished));
+    set(E, result_object, to_string("inside_array"), to_int(result.inside_array));
     return result_object;
 }
 
 Object table_iterator_object_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
-    Object iterator_address=get(E, self, to_number(0));
-    REQUIRE_TYPE(iterator_address, t_number);
-    free((TableIterator*)(intptr_t)iterator_address.value);
+    Object iterator_address=get(E, self, to_int(0));
+    REQUIRE_TYPE(iterator_address, t_pointer);
+    free((TableIterator*)iterator_address.p);
     return null_const;
 }
 
@@ -353,7 +354,7 @@ Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_c
     REQUIRE_TYPE(self, t_table);
     TableIterator* it=malloc(sizeof(TableIterator));
     *it=table_get_iterator(self.tp);
-    set(E, iterator, to_number(0), to_number((intptr_t)it));
+    set(E, iterator, to_int(0), to_pointer(it));
     set(E, iterator, to_string("Table"), self);
     set(E, iterator, to_string("call"), to_function(E, table_iterator_object_next, NULL, 1));
     set(E, iterator, to_string("destroy"), to_function(E, table_iterator_object_destroy, NULL, 1));
