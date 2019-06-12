@@ -311,6 +311,7 @@ BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
     prog.information=stream_get_data(&translation->information);
     prog.sub_programs=stream_get_data(&translation->sub_programs);
     prog.sub_programs_count=translation->sub_programs.position/sizeof(BytecodeProgram);
+    list_program_labels(&prog);
     return prog;
 }
 

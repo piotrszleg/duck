@@ -29,12 +29,16 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
         }
 
         E->bytecode_environment.pointer=0;
-        E->bytecode_environment.main_program=malloc(sizeof(BytecodeProgram));
-        memcpy(E->bytecode_environment.main_program, &prog, sizeof(BytecodeProgram));
+        E->bytecode_environment.executed_program=malloc(sizeof(BytecodeProgram));
+        memcpy(E->bytecode_environment.executed_program, &prog, sizeof(BytecodeProgram));
+        bytecode_program_init(E, E->bytecode_environment.executed_program);
+        gc_object_reference((gc_Object*)E->bytecode_environment.executed_program);
         E->bytecode_environment.scope=scope;
-
         bytecode_environment_init(&E->bytecode_environment);
+
         execution_result=execute_bytecode(E);
+        
+        gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
     }
     return execution_result;
 }
@@ -135,10 +139,12 @@ GarbageCollector* get_garbage_collector(Executor* E){
     return E->gc;
 }
 
-void deinit_function(Function* f){
-    // only ast functions own their source code for now
-    // bytecode functions hold their source code in their shared environment
-    if(f->ftype==f_ast){
-        delete_expression(f->source_pointer);
+void deinit_function(Executor* E, Function* f){
+    switch(f->ftype){
+        case f_ast:
+            delete_expression(f->source_pointer);
+        case f_bytecode:
+            gc_object_dereference(E, (gc_Object*)f->source_pointer);
+        default:;
     }
 }

@@ -21,10 +21,8 @@ typedef struct {
 } debugger_state;
 
 typedef struct {
-    gc_Pointer gcp;
     int pointer;
     Object scope;
-    BytecodeProgram* main_program;
     BytecodeProgram* executed_program;
     stack object_stack;
     stack return_stack;

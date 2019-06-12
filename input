@@ -1,1 +1,2 @@
-format("name: {}, surname: {}", "John", "Doe")
+f=(a, b)->a+b
+f(10, 45)

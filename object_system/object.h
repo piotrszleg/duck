@@ -106,8 +106,6 @@ OBJECT_INIT_E(coroutine)
 OBJECT_INIT_E(function)
 OBJECT_INIT_E(table)
 
-void gc_object_init_init (Executor* E, gc_Object* o);
-
 #undef OBJECT_INIT
 #undef OBJECT_INIT_E
 
@@ -124,13 +122,15 @@ void gc_object_init_init (Executor* E, gc_Object* o);
 // declaration of function pointer type used in function objects
 typedef Object (*ObjectSystemFunction)(Executor* E, Object* arguments, int arguments_count);
 
-typedef void (*gc_PointerDestructorFunction)(void*);
+typedef void (*gc_PointerDestructorFunction)(Executor*, void*);
 
 typedef struct gc_Pointer gc_Pointer;
 struct gc_Pointer {
     gc_Object gco;
     gc_PointerDestructorFunction destructor;
 };
+
+void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerDestructorFunction destructor);
 
 typedef enum {
     f_native,
@@ -148,7 +148,6 @@ struct Function {
         void* source_pointer;
         int special_index;
     };
-    gc_Object* environment;
     char** argument_names;
     int arguments_count;
     bool variadic;
@@ -180,7 +179,8 @@ Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, i
 
 void reference(Object* o);
 void object_init(Object* o, ObjectType type);
-void gc_dereference(Executor* E, gc_Object* o);
+void gc_object_dereference(Executor* E, gc_Object* o);
+void gc_object_reference(gc_Object* o);
 void dereference(Executor* E, Object* o);
 void destroy_unreferenced(Executor* E, Object* o);
 
@@ -192,7 +192,7 @@ void object_system_deinit(Executor* E);
 
 // these functions should be implemented in higher level module
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
-void deinit_function(Function* f);
+void deinit_function(Executor* E, Function* f);
 Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
 
 #include "table.h"

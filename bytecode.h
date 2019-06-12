@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include "utility.h"
 #include "datatypes/stream.h"
+#include "object_system/object.h"
 
 // () - instruction argument
 // [] - arguments on the stack
@@ -71,6 +72,7 @@ typedef struct {
 
 typedef struct BytecodeProgram BytecodeProgram;
 struct BytecodeProgram {
+    gc_Pointer gcp;
     Instruction* code;
     int* labels;
     InstructionInformation* information;
@@ -82,7 +84,9 @@ struct BytecodeProgram {
 
 void stringify_instruction(const BytecodeProgram* prog, char* destination, Instruction instr, int buffer_count);
 char* stringify_bytecode(const BytecodeProgram* prog);
+void bytecode_program_init(Executor* E, BytecodeProgram* program);
 void bytecode_program_free(BytecodeProgram* prog);
+void list_program_labels(BytecodeProgram* program);
 void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy);
 
 int gets_from_stack(Instruction instr);

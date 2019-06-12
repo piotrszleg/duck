@@ -49,6 +49,7 @@
         "streambuf": "c",
         "xmemory0": "c",
         "ios": "c",
-        "xiosbase": "c"
+        "xiosbase": "c",
+        "bytecode_program_gco.h": "c"
     }
 }

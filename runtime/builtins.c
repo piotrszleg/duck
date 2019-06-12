@@ -9,8 +9,6 @@ Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
 
     // copy bytecode program
     coroutine_executor->options=E->options;
-    coroutine_executor->bytecode_environment.main_program=malloc(sizeof(BytecodeProgram));
-    bytecode_program_copy(E->bytecode_environment.main_program, coroutine_executor->bytecode_environment.main_program);
     bytecode_environment_init(&coroutine_executor->bytecode_environment);
 
     // coroutine shares garbage collector with owner
@@ -26,7 +24,8 @@ Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
     // pass arguments and move to given function but don't call it yet
     REQUIRE_TYPE(function, t_function)
     REQUIRE(function.fp->ftype==f_bytecode, function)
-    coroutine_executor->bytecode_environment.executed_program=function.fp->source_pointer;
+    coroutine_executor->bytecode_environment.executed_program=(BytecodeProgram*)function.fp->source_pointer;
+    gc_object_reference((gc_Object*)function.fp->source_pointer);
     REQUIRE(function.fp->arguments_count==arguments_count-1, function)
     for(int i=1; i<arguments_count; i++){
         push(&coroutine_executor->bytecode_environment.object_stack, arguments[i]);

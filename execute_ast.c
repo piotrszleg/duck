@@ -166,7 +166,6 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             }
             f.fp->ftype=f_ast;
             f.fp->source_pointer=(void*)copy_expression(d->body);
-            f.fp->environment=NULL;
             f.fp->enclosing_scope=scope;
             reference(&scope);
             return f;

@@ -55,7 +55,6 @@ void function_init(Executor* E, Object* o){
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
     o->fp->enclosing_scope=null_const;
-    o->fp->environment=NULL;
 }
 
 void table_init(Executor* E, Object* o){
@@ -75,10 +74,10 @@ void coroutine_init(Executor* E, Object* o){
     o->gco->gc_type=t_coroutine;
 }
 
-void table_gc_pointer(Executor* E, Object* o){
-    o->type=t_gc_pointer;
-    gc_object_init(E, o->gco);
-    o->gco->gc_type=t_gc_pointer;
+void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerDestructorFunction destructor){
+    gc_object_init(E, &gcp->gco);
+    gcp->gco.gc_type=t_gc_pointer;
+    gcp->destructor=destructor;
 }
 
 Object to_string(const char* s){
@@ -211,7 +210,7 @@ void gc_sweep(Executor* E){
         if(o->ref_count>0){
             o->ref_count=0;
         }
-        gc_dereference(E, o);
+        gc_object_dereference(E, o);
     )
     // reset ref_count for the third pass to work
     FOREACH_GC_OBJECT(
@@ -220,7 +219,7 @@ void gc_sweep(Executor* E){
     gc->state=gcs_freeing_memory;
     // free the memory
     FOREACH_GC_OBJECT(
-       gc_dereference(E, o);
+       gc_object_dereference(E, o);
     )
     gc->state=gcs_inactive;
     #undef FOREACH_GC_OBJECT
@@ -240,9 +239,14 @@ void gc_run(Executor*E, Object* roots, int roots_count){
 
 char* gc_text="<garbage collected text>";
 
-void gc_dereference(Executor* E, gc_Object* o){
+void gc_object_dereference(Executor* E, gc_Object* o){
     Object wrapped=wrap_gc_object(o);
     dereference(E, &wrapped);
+}
+
+void gc_object_reference(gc_Object* o){
+    Object wrapped=wrap_gc_object(o);
+    reference(&wrapped);
 }
 
 void dereference(Executor* E, Object* o){
@@ -269,10 +273,6 @@ void destroy_unreferenced(Executor* E, Object* o){
             {
                 dereference(E, &o->fp->enclosing_scope);
 
-                // in freeing memory stage the function environment will free itself
-                if(o->fp->environment!=NULL && gc_state!=gcs_freeing_memory){
-                    gc_dereference(E, (gc_Object*)o->fp->environment);
-                }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(E, o->gco);
                     if(o->fp->argument_names!=NULL){
@@ -280,7 +280,7 @@ void destroy_unreferenced(Executor* E, Object* o){
                             free(o->fp->argument_names[i]);
                         }
                     }
-                    deinit_function(o->fp);
+                    deinit_function(E, o->fp);
                     free(o->fp);
                     o->fp=NULL;
                 }
@@ -303,7 +303,7 @@ void destroy_unreferenced(Executor* E, Object* o){
             {
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(E, o->gco);
-                    o->gcp->destructor(o->gcp);
+                    o->gcp->destructor(E, o->gcp);
                     o->gcp=NULL;
                 }
             }

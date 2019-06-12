@@ -97,14 +97,52 @@ void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy)
     }
 }
 
-void bytecode_program_free(BytecodeProgram* prog) {
-    free(prog->code);
-    free(prog->information);
-    free(prog->constants);
-    for(int i=0; i<prog->sub_programs_count; i++){
-        bytecode_program_free(&prog->sub_programs[i]);
+#define INITIAL_LABELS_COUNT 4
+int* list_labels(Instruction* code){
+    int* labels=malloc(INITIAL_LABELS_COUNT*sizeof(int));
+    int labels_count=INITIAL_LABELS_COUNT;
+    int pointer=0;
+    while(code[pointer].type!=b_end){
+        if(code[pointer].type==b_label){
+            while(code[pointer].uint_argument>labels_count){
+                labels_count*=2;
+                labels=realloc(labels, labels_count*sizeof(int));
+            }
+            labels[code[pointer].uint_argument]=pointer;
+        }
+        pointer++;
     }
-    free(prog);
+    return labels;
+}
+
+void list_program_labels(BytecodeProgram* program){
+    program->labels=list_labels(program->code);
+    for(int i=0; i<program->sub_programs_count; i++){
+        list_program_labels(&program->sub_programs[i]);
+    }
+}
+
+void bytecode_program_destructor(Executor* E, BytecodeProgram* program) {
+    for(int i=0; i<program->sub_programs_count; i++){
+        gc_object_dereference(E, (gc_Object*)&program->sub_programs[i]);
+    }
+    bytecode_program_free(program);
+}
+
+void bytecode_program_init(Executor* E, BytecodeProgram* program){
+    gc_pointer_init(E, (gc_Pointer*)&program->gcp, (gc_PointerDestructorFunction)bytecode_program_destructor);
+    for(int i=0; i<program->sub_programs_count; i++){
+        gc_pointer_init(E, (gc_Pointer*)&program->sub_programs[i], (gc_PointerDestructorFunction)bytecode_program_destructor);
+        gc_object_reference((gc_Object*)&program->sub_programs[i]);
+    }
+}
+
+void bytecode_program_free(BytecodeProgram* program) {
+    free(program->labels);
+    free(program->code);
+    free(program->information);
+    free(program->constants);
+    free(program);
 }
 
 #define X(t, result) case t: return result;
