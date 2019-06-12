@@ -59,6 +59,7 @@ void move_instructions(BytecodeProgram* prog, int starting_index, int movement){
     int initial_count=count_instructions(prog->code);
     int moved_count=initial_count+movement;
     Instruction* new_code=malloc((moved_count+1)*sizeof(Instruction));
+    InstructionInformation* new_information=malloc((moved_count+1)*sizeof(InstructionInformation));
 
     //if(print_optimisations)
     //    printf("move_instructions(%i, %i)\n", starting_index, movement);
@@ -66,13 +67,18 @@ void move_instructions(BytecodeProgram* prog, int starting_index, int movement){
     for(int i=0; i<moved_count; i++){
         if(i<=starting_index+movement){
             new_code[i]=prog->code[i];
+            new_information[i]=prog->information[i];
         } else {
             new_code[i]=prog->code[i-movement];
+            new_information[i]=prog->information[i-movement];
         }
     }
     Instruction end_instruction={b_end, 0};
     new_code[moved_count]=end_instruction;
+    free(prog->code);
     prog->code=new_code;
+    free(prog->information);
+    prog->information=new_information;
 }
 
 void highlight_instructions(BytecodeProgram* prog, char symbol, int start, int end){
@@ -102,6 +108,11 @@ void highlight_instructions(BytecodeProgram* prog, char symbol, int start, int e
 void insert_instruction(BytecodeProgram* prog, int point, Instruction instr, bool print_optimisations){
     move_instructions(prog, point-1, 1);
     prog->code[point]=instr;
+    if(point>0){
+        prog->information[point]=prog->information[point-1];
+    } else {
+        prog->information[point]=prog->information[point+1];
+    }
     if(print_optimisations){
         highlight_instructions(prog, '+', point, point);
     }

@@ -289,6 +289,11 @@ BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
     return prog;
 }
 
+void finish_translation(BytecodeTranslation* translation) {
+    push_instruction(translation, b_end, 0);
+    repeat_information(translation);
+}
+
 BytecodeProgram closure_to_bytecode(function_declaration* d){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
@@ -301,8 +306,7 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
     }
 
     ast_to_bytecode_recursive(d->body, &translation, true);
-    Instruction instr={b_end, 0};
-    stream_push(&translation.code, &instr, sizeof(Instruction));
+    finish_translation(&translation);
 
     return translation_to_bytecode(&translation);
 }
@@ -312,8 +316,7 @@ BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope){
     bytecode_translation_init(&translation);
 
     ast_to_bytecode_recursive(exp, &translation, keep_scope);
-    Instruction instr={b_end, 0};
-    stream_push(&translation.code, &instr, sizeof(Instruction));
+    finish_translation(&translation);
 
     return translation_to_bytecode(&translation);
 }
