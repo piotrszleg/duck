@@ -61,7 +61,7 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
 }
 
 Object builtin_print(Executor* E, Object* arguments, int arguments_count){
-    USING_STRING(stringify(E, arguments[0]),
+    USING_STRING(cast(E, arguments[0], t_string).text,
         printf("%s\n", str));
     return null_const;
 }
@@ -146,7 +146,7 @@ Object builtin_format(Executor* E, Object* arguments, int arguments_count){
         #define MATCH(s) (i+str_length>=COUNT_STR(s) && str_match(str.text+i, s, COUNT_STR(s)))
         if(MATCH("{}")){
             NEXT_OBJECT
-            USING_STRING(stringify(E, arguments[variadic_counter]),
+            USING_STRING(cast(E, arguments[variadic_counter], t_string).text,
                 stream_push(&s, str, strlen(str)*sizeof(char)))
             i++;
         } else if(MATCH("\\{}")) {
@@ -358,7 +358,14 @@ void register_builtins(Executor* E, Object scope){
     function_init(E, &yield);
     yield.fp->ftype=f_special;
     yield.fp->special_index=0;
+    yield.fp->variadic=true;
     set(E, scope, to_string("yield"), yield);
+
+    Object debug;
+    function_init(E, &debug);
+    debug.fp->ftype=f_special;
+    debug.fp->special_index=1;
+    set(E, scope, to_string("debug"), debug);
 
     set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
 

@@ -504,8 +504,24 @@ Object execute_bytecode(Executor* E){
                             } else if(provided_arguments==0){
                                 return null_const;
                             } else {
+                                for (int i = 0; i < provided_arguments; i++){
+                                    pop(object_stack);
+                                }
                                 RETURN_ERROR("COROUTINE_ERROR", o, "Incorrect number of arguments (%i) was passed to coroutine yield.", provided_arguments);
                             }
+                        }
+                        case 1:// debugger
+                        {
+                            for (int i = 0; i < provided_arguments; i++){
+                                pop(object_stack);
+                            }
+                            if(E->options.debug_mode){
+                                E->bytecode_environment.debugger.running=false;
+                                debugger(E);
+                            }
+                            push(object_stack, null_const);
+                            (*pointer)++;
+                            continue;
                         }
                         default:
                             CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
