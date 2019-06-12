@@ -7,6 +7,7 @@ char* INSTRUCTION_NAMES[]={
 };
 
 void stringify_instruction(const BytecodeProgram* prog, char* destination, Instruction instr, int buffer_count){
+    #define STRINGIFY_BOOL(b) ((b) ? "true" : "false")
     switch(instr.type){
         case b_end:
         case b_discard:
@@ -23,15 +24,25 @@ void stringify_instruction(const BytecodeProgram* prog, char* destination, Instr
         case b_table_get:
             snprintf(destination, buffer_count, "%s\n", INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
             break;
-        case b_load_number:
-            snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], *((float*)&instr.argument));
+        case b_set:
+            snprintf(destination, buffer_count, "%s %s\n", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.bool_argument));
+            break;
+        case b_load_float:
+            snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], instr.float_argument);
+            break;
+        case b_load_int:
+            snprintf(destination, buffer_count, "%s %i\n", INSTRUCTION_NAMES[instr.type], instr.int_argument);
             break;
         case b_load_string:
-            snprintf(destination, buffer_count, "%s %li \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.argument, ((char*)prog->constants)+instr.argument);// displays string value
+            snprintf(destination, buffer_count, "%s %u \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.uint_argument, ((char*)prog->constants)+instr.uint_argument);
+            break;
+        case b_pre_function:
+            snprintf(destination, buffer_count, "%s %s %u\n", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.bool_argument), instr.pre_function_argument.arguments_count);
             break;
         default:
-            snprintf(destination, buffer_count, "%s %li\n", INSTRUCTION_NAMES[instr.type], instr.argument);
+            snprintf(destination, buffer_count, "%s %u\n", INSTRUCTION_NAMES[instr.type], instr.uint_argument);
     }
+    #undef STRINGIFY_BOOL
 }
 
 char* stringify_bytecode(const BytecodeProgram* prog){
@@ -101,7 +112,6 @@ int gets_from_stack(Instruction instr){
     switch(instr.type){
         X(b_discard, 1)
         //X(b_move_top, 1)
-        X(b_function, 2 )
         X(b_return, 1)
         X(b_set_scope, 1)
         X(b_get, 1)
@@ -109,7 +119,7 @@ int gets_from_stack(Instruction instr){
         X(b_set, 2)
         X(b_table_set, 3)
         X(b_table_set_keep, 3)
-        X(b_call, instr.argument+1)
+        X(b_call, instr.uint_argument+1)
         X(b_binary, 3)
         X(b_prefix, 2)
         default: return 0;

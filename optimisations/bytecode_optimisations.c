@@ -35,7 +35,7 @@ int path_length(const Instruction* code,  int path_start){
 }*/
 
 bool instructions_equal(Instruction a, Instruction b){
-    return a.type==b.type && a.argument == b.argument;
+    return a.type==b.type && a.float_argument == b.float_argument;
 }
 
 bool paths_equal(const Instruction* code, int path1, int path2){
@@ -73,7 +73,7 @@ void move_instructions(BytecodeProgram* prog, int starting_index, int movement){
             new_information[i]=prog->information[i-movement];
         }
     }
-    Instruction end_instruction={b_end, 0};
+    Instruction end_instruction={b_end};
     new_code[moved_count]=end_instruction;
     free(prog->code);
     prog->code=new_code;
@@ -126,7 +126,7 @@ void fill_with_no_op(BytecodeProgram* prog, int start, int end, bool print_optim
     if(print_optimisations){
         highlight_instructions(prog, '-', start, end);
     }
-    Instruction instr={b_no_op, 0};
+    Instruction instr={b_no_op};
     
     for(int p=start; p<=end; p++){
         prog->code[p]=instr;
@@ -151,7 +151,8 @@ int keep_stack_top_unchanged(BytecodeProgram* prog, int start, int end, bool pri
         // because it certainly wants the values placed on stack before start point
         if(counter<0){
             while(counter<0){
-                Instruction push_to_top_instruction={b_push_to_top, stack_top_postion-counter};
+                Instruction push_to_top_instruction={b_push_to_top};
+                push_to_top_instruction.uint_argument=stack_top_postion-counter;
                 insert_instruction(prog, pointer, push_to_top_instruction, print_optimisations);
                 instructions_added++;
                 // the Instruction was added after the pointer, so it needs to be skipped
@@ -164,7 +165,8 @@ int keep_stack_top_unchanged(BytecodeProgram* prog, int start, int end, bool pri
             // in the while block, so they need to be pushed back to the top so that the order
             // is preserved
             for(int i=0; i<stack_top_postion; i++){
-                Instruction push_to_top_instruction={b_push_to_top, stack_top_postion};
+                Instruction push_to_top_instruction={b_push_to_top};
+                push_to_top_instruction.uint_argument=stack_top_postion;
                 insert_instruction(prog, pointer, push_to_top_instruction, print_optimisations);
                 instructions_added++;
                 pointer++;
@@ -176,7 +178,8 @@ int keep_stack_top_unchanged(BytecodeProgram* prog, int start, int end, bool pri
     if(counter>0){
         // add push_to_top Instruction that moves the object that was on top of the stack
         // before start point back to the top
-        Instruction push_to_top_instruction={b_push_to_top, counter};
+        Instruction push_to_top_instruction={b_push_to_top};
+        push_to_top_instruction.uint_argument=counter;
         insert_instruction(prog, end+1, push_to_top_instruction, print_optimisations);
         instructions_added++;
     }
@@ -211,7 +214,7 @@ void optimise_bytecode(BytecodeProgram* prog, bool print_optimisations){
     }
     for(int pointer=count_instructions(prog->code); pointer>=0; pointer--){
         if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
-           && !prog->code[pointer].argument /* argument tells whether the variable is used in closure, we can't tell if the closure changes the variable*/
+           && !prog->code[pointer].bool_argument /* argument tells whether the variable is used in closure, we can't tell if the closure changes the variable*/
            && path_length(prog->code, pointer)<=2){// don't optimise nested paths like Table.key, only single name paths
             if(print_optimisations){
                 printf("Found a set Instruction\n");
@@ -242,7 +245,7 @@ void optimise_bytecode(BytecodeProgram* prog, bool print_optimisations){
                         fill_with_no_op(prog, pointer+1, pointer+1, print_optimisations);
                         first_get_removal=false;
                     } else{
-                        Instruction double_instruction={b_double, 0};
+                        Instruction double_instruction={b_double};
                         insert_instruction(prog, pointer+1, double_instruction, print_optimisations);
                         search_pointer++;
                     }

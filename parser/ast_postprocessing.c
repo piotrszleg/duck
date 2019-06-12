@@ -78,11 +78,11 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
     }
     if(exp->type==e_function_declaration){
         // if the function is already on the stack then ast_visitor is escaping it
-        if(stack_top(&state->functions)==exp) {
+        if(*(expression**)(stack_top(&state->functions))==exp) {
             stack_pop(&state->functions);
         } else {
             // ast_visitor entered this function
-            stack_push(&state->functions, (function_declaration*)exp);
+            stack_push(&state->functions, (const void*)&exp);
         }
     }
     if(exp->type==e_assignment){

@@ -8,33 +8,36 @@
 #include "utility.h"
 #include "datatypes/stream.h"
 
-// [] - arguments on stack
+// () - instruction argument
+// [] - arguments on the stack
 #define INSTRUCTION_TYPES \
     X(end) /*           denotes the end of the program */ \
     X(no_op) /*         used in optimisation proccess, does nothing */ \
     X(discard) /*       removes one value from the stack */ \
-    X(move_top) /*      moves the top Object on the top down the stack by argument move_top(ABC, 1)=ACB move_top(ABC, 2)=CAB */ \
-    X(push_to_top)/*    moves the Object lying argument number of items from the top to the top move_top(ABC, 1)=ACB move_top(ABC, 2)=BCA */ \
+    X(move_top) /*      (uint_argument) moves the object on the top of the stack by argument move_top(ABC, 1)=ACB move_top(ABC, 2)=CAB */ \
+    X(push_to_top)/*    (uint_argument) moves the Object lying argument number of items from the top to the top move_top(ABC, 1)=ACB move_top(ABC, 2)=BCA */ \
     X(double) /*        creates a copy of topmost stack item */ \
-    X(load_string) /*   argument: position_in_constants */ \
-    X(load_number) /*   argument: bits of float value */ \
+    X(load_string) /*   (uint_argument position_in_constants) */ \
+    X(load_int) /*      (int_argument) */ \
+    X(load_float) /*    (float_argument) */ \
     X(table_literal) \
     X(null) \
-    X(function) /*      argument: sub_program_index, [arguments_count, is_variadic] */ \
+    X(pre_function)/*   (pre_function_argument) */\
+    X(function) /*      (uint_argument: sub_program_index */ \
     X(return) /*        [object_to_return] */ \
     X(get_scope) \
     X(set_scope) /*     sets the Object on the stack as the current scope */ \
     X(new_scope) /*     creates a new Table and sets it as the current scope */ \
-    X(label) /*         no effect, argument: label_index */ \
-    X(jump) /*          jump to a label argument: label_index */ \
-    X(jump_not) /*      jump to a label if value on stack is falsy argument: label_index */ \
+    X(label) /*         (uint_argument label_index) sets label */ \
+    X(jump) /*          (uint_argument label_index) jumps to label */ \
+    X(jump_not) /*      (uint_argument label_index) jump to a label if value on stack is falsy */ \
     X(get) /*           get the value at the key from the current scope, [key] */ \
     X(table_get) /*     get the value at the key from the Table, [key, Table] */ \
-    X(set) /*           sets field at key in the current scope to value, argument: is_used_in_closure, [key, value] */ \
-    X(table_set) /*     sets field at key in table to value, keeps the value on stack, [key, Table, value] */ \
-    X(table_set_keep) /*same as table_set but keeps the indexed Table on the stack, [key, Table, value] */ \
-    X(call) /*          argument: number_of_arguments, [function, arguments...] */ \
-    X(binary) /*         [a, b, operator] */ \
+    X(set) /*           (bool_argument is_used_in_closure) [key, value] sets field at key in the current scope to value  */ \
+    X(table_set) /*     [key, Table, value] sets field at key in table to value, keeps the value on stack */ \
+    X(table_set_keep) /*[key, Table, value] same as table_set but keeps the indexed Table on the stack */ \
+    X(call) /*          (uint_argument number_of_arguments) [function, arguments...] */ \
+    X(binary) /*        [a, b, operator] */ \
     X(prefix) /*        [a, operator] */
 
 typedef enum {
@@ -50,9 +53,20 @@ typedef struct {
     unsigned comment;
 } InstructionInformation;
 
+typedef struct{
+    bool is_variadic:1;
+    unsigned char arguments_count;
+} PreFunctionArgument;
+
 typedef struct {
     InstructionType type;
-    long argument;// long type ensures that 4bit float will fit
+    union {
+        PreFunctionArgument pre_function_argument;
+        float float_argument;// long type ensures that 4bit float will fit
+        unsigned int uint_argument;
+        int int_argument;
+        bool bool_argument;
+    };
 } Instruction;
 
 typedef struct BytecodeProgram BytecodeProgram;

@@ -1,9 +1,2 @@
-@add=x->{
-    e=new_expression("binary")
-    e.left=new_expression("int_literal")
-    e.left.value=100
-    e.right=x.right
-    e.op=x.op
-    e
-}
-@add, 12+15
+f=x->2*x
+f(10)

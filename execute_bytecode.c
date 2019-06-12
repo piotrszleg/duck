@@ -46,11 +46,11 @@ int* list_labels(Instruction* code){
     int pointer=0;
     while(code[pointer].type!=b_end){
         if(code[pointer].type==b_label){
-            while(code[pointer].argument>labels_count){
+            while(code[pointer].uint_argument>labels_count){
                 labels_count*=2;
                 labels=realloc(labels, labels_count*sizeof(int));
             }
-            labels[code[pointer].argument]=pointer;
+            labels[code[pointer].uint_argument]=pointer;
         }
         pointer++;
     }
@@ -270,7 +270,7 @@ Object execute_bytecode(Executor* E){
             #define INDEX_STACK(index) ((Object*)object_stack->items)[object_stack->top-1-(index)]
             case b_move_top:
             {
-                for(int i=0; i<instr.argument; i++){
+                for(int i=0; i<instr.uint_argument; i++){
                     Object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i+1);
                     INDEX_STACK(i+1)=temporary;
@@ -279,7 +279,7 @@ Object execute_bytecode(Executor* E){
             }
             case b_push_to_top:
             {
-                for(int i=instr.argument; i>=1; i--){
+                for(int i=instr.uint_argument; i>=1; i--){
                     Object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i-1);
                     INDEX_STACK(i-1)=temporary;
@@ -296,15 +296,23 @@ Object execute_bytecode(Executor* E){
             {
                 Object s;
                 string_init(&s);
-                s.text=strdup(((char*)constants)+instr.argument);
+                s.text=strdup(((char*)constants)+instr.uint_argument);
                 push(object_stack, s);
                 break;
             }
-            case b_load_number:
+            case b_load_float:
             {
                 Object n;
                 number_init(&n);
-                memcpy (&n.value, &instr.argument, sizeof n.value);
+                n.value=instr.float_argument;
+                push(object_stack, n);
+                break;
+            }
+            case b_load_int:
+            {
+                Object n;
+                number_init(&n);
+                n.value=(float)instr.int_argument;
                 push(object_stack, n);
                 break;
             }
@@ -438,39 +446,33 @@ Object execute_bytecode(Executor* E){
             }
             case b_jump:
             {
-                *pointer=E->bytecode_environment.executed_program->labels[instr.argument];
+                *pointer=E->bytecode_environment.executed_program->labels[instr.uint_argument];
+                break;
+            }
+            // these two instructions should always be called one after another
+            case b_pre_function:
+            {
+                Object f;
+                function_init(E, &f);
+                f.fp->environment=NULL;
+                f.fp->enclosing_scope=*scope;
+                reference(scope);// remember to check the enclosing scope in destructor
+                f.fp->arguments_count=instr.pre_function_argument.arguments_count;
+                f.fp->variadic=instr.pre_function_argument.is_variadic;
+                f.fp->ftype=f_bytecode;
+                push(object_stack, f);
                 break;
             }
             case b_function:
             {
-                Object f;
-                function_init(E, &f);
-
-                f.fp->environment=NULL;
-
-                f.fp->enclosing_scope=*scope;
-                reference(scope);// remember to check the enclosing scope in destructor
-                Object arguments_count_object=pop(object_stack);
-                if(arguments_count_object.type!=t_number){
-                    BYTECODE_ERROR(arguments_count_object, "Number of function arguments has a wrong type :%i", arguments_count_object.type);
-                    break;
-                }
-                f.fp->arguments_count=(int)arguments_count_object.value;
-
-                Object variadic_object=pop(object_stack);
-                f.fp->variadic=!is_falsy(variadic_object);
-
-                dereference(E, &variadic_object);
-                dereference(E, &arguments_count_object);
-                f.fp->ftype=f_bytecode;
-                f.fp->source_pointer=E->bytecode_environment.executed_program->sub_programs+instr.argument;
-                push(object_stack, f);
+                Object f=peek(object_stack);
+                f.fp->source_pointer=E->bytecode_environment.executed_program->sub_programs+instr.uint_argument;
                 break;
             }
             case b_call:
             {
                 Object o=pop(object_stack);
-                int provided_arguments=instr.argument;
+                int provided_arguments=instr.uint_argument;
 
                 #define CALL_ERROR(message, ...) \
                 {   Object err; \

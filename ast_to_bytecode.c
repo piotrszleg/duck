@@ -13,8 +13,22 @@ void repeat_information(BytecodeTranslation* translation){
     stream_push(&translation->information, &translation->last_information, sizeof(InstructionInformation));
 }
 
-void push_instruction(BytecodeTranslation* translation, InstructionType type, long value){
-    Instruction instr={type, value};
+void push_uint_instruction(BytecodeTranslation* translation, InstructionType type, unsigned int value){
+    Instruction instr={type};
+    instr.uint_argument=value;
+    repeat_information(translation);
+    stream_push(&translation->code, &instr, sizeof(Instruction));
+}
+
+void push_bool_instruction(BytecodeTranslation* translation, InstructionType type, bool value){
+    Instruction instr={type};
+    instr.bool_argument=value;
+    repeat_information(translation);
+    stream_push(&translation->code, &instr, sizeof(Instruction));
+}
+
+void push_instruction(BytecodeTranslation* translation, InstructionType type){
+    Instruction instr={type};
     repeat_information(translation);
     stream_push(&translation->code, &instr, sizeof(Instruction));
 }
@@ -38,18 +52,25 @@ void push_string_load(BytecodeTranslation* translation, const char* string_const
     char* search_result=stream_search_string(&translation->constants, string_constant);
     if(search_result){
         int relative_position=(search_result-((char*)translation->constants.data));
-        push_instruction(translation, b_load_string, relative_position/sizeof(char));// use existing
+        push_uint_instruction(translation, b_load_string, (unsigned int)(relative_position/sizeof(char)) );// use existing
     } else {
-        int push_position=stream_push(&translation->constants, (const void*)string_constant, (strlen(string_constant)+1));
-        push_instruction(translation, b_load_string, push_position);
+        unsigned int push_position=(unsigned int)stream_push(&translation->constants, (const void*)string_constant, (strlen(string_constant)+1));
+        push_uint_instruction(translation, b_load_string, push_position);
     }
 }
 
-void push_number_load(BytecodeTranslation* translation, float number_constant){
+void push_float_load(BytecodeTranslation* translation, float number_constant){
     repeat_information(translation);
-    long argument;
-    memcpy (&argument, &number_constant, sizeof argument);
-    push_instruction(translation, b_load_number, argument);
+    Instruction instr={b_load_float};
+    instr.float_argument=number_constant;
+    stream_push(&translation->code, &instr, sizeof(Instruction));
+}
+
+void push_int_load(BytecodeTranslation* translation, int number_constant){
+    repeat_information(translation);
+    Instruction instr={b_load_int};
+    instr.int_argument=number_constant;
+    stream_push(&translation->code, &instr, sizeof(Instruction));
 }
 
 void stream_repeat_last(stream* s, unsigned repetitions, size_t element_size){
@@ -76,7 +97,7 @@ void bytecode_path_get(BytecodeTranslation* translation, path p){
         } else{
             ast_to_bytecode_recursive(e, translation, 0);
         }
-        push_instruction(translation, i==0 ? b_get : b_table_get, 0);
+        push_instruction(translation, i==0 ? b_get : b_table_get);
     }
 } 
 
@@ -91,9 +112,9 @@ void bytecode_path_set(BytecodeTranslation* translation, path p, bool used_in_cl
         }
         if(i==lines_count-1){
             // final isntruction is always set
-            push_instruction(translation, i==0 ? b_set : b_table_set, used_in_closure);
+            push_bool_instruction(translation, i==0 ? b_set : b_table_set, used_in_closure);
         } else {
-            push_instruction(translation, i==0 ? b_get : b_table_get, 0);
+            push_instruction(translation, i==0 ? b_get : b_table_get);
         }
     }
 }
@@ -106,13 +127,13 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         case e_macro_declaration:
         case e_macro:
         case e_empty:
-            push_instruction(translation, b_null, 0);
+            push_uint_instruction(translation, b_null, 0);
             break;
         case e_float_literal:
-            push_number_load(translation, ((float_literal*)exp)->value);
+            push_float_load(translation, ((float_literal*)exp)->value);
             break;
         case e_int_literal:
-            push_number_load(translation, ((int_literal*)exp)->value);
+            push_int_load(translation, ((int_literal*)exp)->value);
             break;
         case e_string_literal:
             push_string_load(translation, ((string_literal*)exp)->value);
@@ -121,7 +142,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         {
             table_literal* b=(table_literal*)exp;
             int lines_count=vector_total(&b->lines);
-            push_instruction(translation, b_table_literal, 0);
+            push_uint_instruction(translation, b_table_literal, 0);
             if(lines_count>0){
                 int last_index=0;
                 for (int i = 0; i < lines_count; i++){
@@ -130,13 +151,13 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
                         assignment* assignment_line=((assignment*)line);
                         ast_to_bytecode_recursive(assignment_line->right, translation, 1);
                         push_string_load(translation, table_literal_extract_key(assignment_line));// assuming that assignment_line inside of Table always has one item
-                        push_instruction(translation, b_table_set_keep, 0);
+                        push_instruction(translation, b_table_set_keep);
                     } else {
                         // if the expression isn't assignment use last index as a key
                         // arr=[5, 4] => arr[0=5, 1=4]
                         ast_to_bytecode_recursive(line, translation, 1);
-                        push_number_load(translation, (float)last_index++);
-                        push_instruction(translation, b_table_set_keep, 0);
+                        push_int_load(translation, (float)last_index++);
+                        push_instruction(translation, b_table_set_keep);
                     }
                 }
             }
@@ -147,22 +168,22 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             block* b=(block*)exp;
 
             if(!keep_scope){
-                push_instruction(translation, b_get_scope, 0);
-                push_instruction(translation, b_new_scope, 0);
+                push_uint_instruction(translation, b_get_scope, 0);
+                push_uint_instruction(translation, b_new_scope, 0);
             }
 
             int lines_count=vector_total(&b->lines);
             for (int i = 0; i < lines_count; i++){
                 ast_to_bytecode_recursive(vector_get(&b->lines, i), translation, false);
                 if(i!=lines_count-1){// result of the last line isn't discarded
-                    push_instruction(translation, b_discard, 0);
+                    push_uint_instruction(translation, b_discard, 0);
                 }
             }
             if(!keep_scope){
                 // the result of evaluating the last line is now on top
                 // so the scope object needs to be pushed to the top instead
-                push_instruction(translation, b_push_to_top, 1);
-                push_instruction(translation, b_set_scope, 0);
+                push_uint_instruction(translation, b_push_to_top, 1);
+                push_uint_instruction(translation, b_set_scope, 0);
             }
 
             break;
@@ -171,7 +192,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         {
             name* n=(name*)exp;
             push_string_load(translation, n->value);
-            push_instruction(translation, b_get, 0);
+            push_uint_instruction(translation, b_get, 0);
             break;
         }
         case e_assignment:
@@ -188,7 +209,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             ast_to_bytecode_recursive(u->right, translation, false);
             ast_to_bytecode_recursive(u->left, translation, false);
             push_string_load(translation, u->op);
-            push_instruction(translation, b_binary, 0);
+            push_uint_instruction(translation, b_binary, 0);
             break;
         }
         case e_prefix:
@@ -197,7 +218,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             ast_to_bytecode_recursive(p->right, translation, false);
 
             push_string_load(translation, p->op);
-            push_instruction(translation, b_prefix, 0);
+            push_uint_instruction(translation, b_prefix, 0);
             break;
         }
         case e_conditional:
@@ -207,15 +228,15 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             int on_false=labels_count++;
 
             ast_to_bytecode_recursive(c->condition, translation, false);
-            push_instruction(translation, b_jump_not, on_false);// if condition is false jump to on_false label
+            push_uint_instruction(translation, b_jump_not, on_false);// if condition is false jump to on_false label
 
             ast_to_bytecode_recursive(c->ontrue, translation, false);
-            push_instruction(translation, b_jump, conditional_end);// jump over the on_false block to the end of conditional
+            push_uint_instruction(translation, b_jump, conditional_end);// jump over the on_false block to the end of conditional
 
-            push_instruction(translation, b_label, on_false);
+            push_uint_instruction(translation, b_label, on_false);
             ast_to_bytecode_recursive(c->onfalse, translation, false);
 
-            push_instruction(translation, b_label, conditional_end);
+            push_uint_instruction(translation, b_label, conditional_end);
 
             break;
         }
@@ -223,13 +244,17 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         {
             function_declaration* d=(function_declaration*)exp;
             int arguments_count=vector_total(&d->arguments);
+            int sub_program_index=(translation->sub_programs.position/sizeof(BytecodeProgram));
 
-            push_number_load(translation, (float)d->variadic);
-            push_number_load(translation, (float)arguments_count);
+            PreFunctionArgument argument={d->variadic, (unsigned char)arguments_count};
+            Instruction instr={b_pre_function};
+            instr.pre_function_argument=argument;
+            stream_push(&translation->code, &instr, sizeof(Instruction));
+            repeat_information(translation);
+
             BytecodeProgram prog=closure_to_bytecode(d);
             stream_push(&translation->sub_programs, &prog, sizeof(BytecodeProgram));
-            int sub_program_index=(translation->sub_programs.position/sizeof(BytecodeProgram))-1;
-            push_instruction(translation, b_function, sub_program_index);
+            push_uint_instruction(translation, b_function, sub_program_index);
             break;
         }
         case e_function_call:
@@ -240,7 +265,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
                 ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), translation, false);
             }
             ast_to_bytecode_recursive(c->called, translation, false);
-            push_instruction(translation, b_call, lines_count);
+            push_uint_instruction(translation, b_call, lines_count);
             break;
         }
         case e_parentheses:
@@ -252,7 +277,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         {
             function_return* r=(function_return*)exp;
             ast_to_bytecode_recursive((expression*)r->value, translation, false);
-            push_instruction(translation, b_return, 0);
+            push_instruction(translation, b_return);
             break;
         }
         case e_path:
@@ -290,7 +315,7 @@ BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
 }
 
 void finish_translation(BytecodeTranslation* translation) {
-    push_instruction(translation, b_end, 0);
+    push_uint_instruction(translation, b_end, 0);
     repeat_information(translation);
 }
 
@@ -301,8 +326,8 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
     int arguments_count=vector_total(&d->arguments);
     for (int i = 0; i < arguments_count; i++){
         push_string_load(&translation, ((name*)vector_get(&d->arguments, arguments_count-1-i))->value);
-        push_instruction(&translation, b_set, 0);
-        push_instruction(&translation, b_discard, 0);
+        push_bool_instruction(&translation, b_set, false);
+        push_instruction(&translation, b_discard);
     }
 
     ast_to_bytecode_recursive(d->body, &translation, true);
