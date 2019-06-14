@@ -1,0 +1,52 @@
+Set=initial->[
+    inner=initial
+    count=0
+    has=(self, value)->{
+        found=0
+        self.inner `#` x->{
+            if(x==value){
+                found=1
+            }
+        }
+        found
+    }
+    insert=(self, value)->{
+        if(!self::has(value)){
+            self.inner[self.count]=value
+            self.count+=1
+        }
+    }
+    remove=(self, value)->{
+        self.inner `##` (k, v)->{
+            if(v==value){
+                self.inner[k]=null
+            }
+        }
+    }
+    stringify=self->{
+        result="Set("
+        first=1
+        self.inner `#` i->{
+            if(first){
+                first=0
+            } else {
+                result+=", "
+            }
+            result+=string(i)
+        }
+        result+=")"
+        result
+    }
+]
+s=Set([])
+
+s::insert(8)
+s::insert(8)
+s::insert(11)
+s::insert(11)
+s::insert(3)
+print(s)
+
+s::remove(8)
+s::remove(11)
+print(s)

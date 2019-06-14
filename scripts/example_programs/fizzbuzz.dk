@@ -1,0 +1,22 @@
+range=(start, end, step)->[
+    iterator=self->{
+        [i=start, call=self->{
+            fin=self.i>end
+            result=[key=self.i, value=self.i, finished=fin]
+            self.i+=step
+            result
+        }]
+    }
+]
+# TODO: tail call optimisation
+range(1, 100, 1) `#` i->{
+    if(i`%`3==0) {
+        print("Fizz")
+        null!
+    }
+    if(i`%`5==0) {
+        print("Buzz")
+        null!
+    }
+    print(i)
+}

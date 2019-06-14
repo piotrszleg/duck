@@ -198,7 +198,7 @@ void table_dereference_children(Executor* E, Table* t){
 void free_table(Table* t){
     free(t->array);
     for(int i=0; i<t->map_size; i++){
-         MapElement* e=t->map[i];
+        MapElement* e=t->map[i];
         while(e){
             MapElement* next=e->next;
             free(e);
@@ -228,8 +228,8 @@ static void move_from_map_to_array(Table* t){
                 previous->next=e->next;
                 free(e);
             } else {
-                free(e);
                 t->map[i]=e->next;
+                free(e);
             }
             break;
         }

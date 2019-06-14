@@ -45,6 +45,19 @@ void stringify_instruction(const BytecodeProgram* prog, char* destination, Instr
     #undef STRINGIFY_BOOL
 }
 
+char* stringify_constants(const BytecodeProgram* prog){
+    char* result=malloc(prog->constants_size);
+    for(int i=0; i<prog->constants_size-1; i++){
+        if(prog->constants[i]=='\0'){
+            result[i]='\n';
+        } else {
+            result[i]=prog->constants[i];
+        }
+    }
+    result[prog->constants_size]='\0';
+    return result;
+}
+
 char* stringify_bytecode(const BytecodeProgram* prog){
     stream s;
     stream_init(&s, 64);
@@ -54,15 +67,23 @@ char* stringify_bytecode(const BytecodeProgram* prog){
         char line_number[8];
         snprintf(line_number, 8, "%i: ", pointer);
 
-        stream_push(&s, line_number, strlen(line_number));
+        stream_push_string(&s, line_number);
 
         char stringified_instruction[64];
         stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], 64);
-        int stringified_length=strlen(stringified_instruction);
-
-        stream_push(&s, stringified_instruction, stringified_length*sizeof(char));
+        stream_push_string(&s, stringified_instruction);
         pointer++;
     }
+    stream_push(&s, "CONSTANTS:", 10);
+    for(int i=0; i<prog->constants_size-1;){
+        char const_position[8];
+        snprintf(const_position, 8, "\n%i: ", i);
+        stream_push_string(&s, const_position);
+        int old_position=s.position;
+        stream_push_string(&s, prog->constants+i);
+        i+=s.position-old_position+1;
+    }
+    stream_push(&s, "\n", 1);
     
     if(prog->sub_programs_count>0){
         for(int i=0; i<prog->sub_programs_count; i++){

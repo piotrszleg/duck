@@ -1,0 +1,54 @@
+Vector=initial->[
+    inner=initial
+    count=0
+    push=(self, value)->{
+        self.inner[self.count]=value
+        self.count+=1
+    }
+    pop=self->{
+        self.count-=1
+        to_return=self.inner[self.count]
+        self.inner[self.count]=null
+        to_return
+    }
+    remove=(self, index)->{
+        self.inner[index]=null
+        if(index<self.count){
+            new_inner=[]
+            new_count=0
+            # TODO change iteration type
+            self.inner `#` i->{
+                if(i){
+                    new_inner[new_count]=i
+                    new_count+=1
+                }
+            }
+            self.inner=new_inner
+            self.count=count
+        }
+        self.count=index+1
+    }
+    last=self->self.inner[self.count-1]
+    set=(self, key, value)->{
+        if(key`>=`self.count){
+            self.count=key+1
+        } elif((value==null) && (key==(self.count-1)){
+            self.count-=1
+        }
+        self.inner[key]=value
+    }
+    stringify=self->{
+        result="Vector("
+        first=1
+        self.inner `#` i->{
+            if(first){
+                first=0
+            } else {
+                result+=", "
+            }
+            result+=string(i)
+        }
+        result+=")"
+        result
+    }
+]

@@ -7,6 +7,20 @@ void stream_init(stream* s, size_t size){
     s->size=size;
 }
 
+int stream_push_string(stream* s, const char* string){
+    int push_position=s->position;
+    for(int i=0; string[i]!='\0'; i++){
+        while(s->position>=s->size){
+            s->data=realloc(s->data, s->size*2);
+            CHECK_ALLOCATION(s->data);
+            s->size*=2;
+        }
+        ((char*)s->data)[s->position]=string[i];
+        s->position++;
+    }
+    return push_position;
+}
+
 int stream_push(stream* s, const void* data_pointer, size_t size){
     while(size>s->size-s->position){
         s->data=realloc(s->data, s->size*2);

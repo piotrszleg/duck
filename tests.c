@@ -232,6 +232,7 @@ int main(){
     E.gc=malloc(sizeof(GarbageCollector));
     object_system_init(&E);
     E.options=default_options;
+    bytecode_environment_init(&E.bytecode_environment);
     TRY_CATCH(
         evaluation_tests(&E);
         path_length_test(&E);

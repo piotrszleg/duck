@@ -63,6 +63,7 @@ void handle_arguments(int argc, char **argv) {
     E.gc=malloc(sizeof(GarbageCollector));
     E.options=options;
     object_system_init(&E);
+    bytecode_environment_init(&E.bytecode_environment);
 
     TRY_CATCH(
         if(file_path!=NULL){   

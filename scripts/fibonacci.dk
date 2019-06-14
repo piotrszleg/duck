@@ -1,5 +1,4 @@
 fib=n->{
-    global.fibcalls=1+global.fibcalls
     if(n==0){
         0!
     } elif(n==1){

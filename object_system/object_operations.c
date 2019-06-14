@@ -47,8 +47,11 @@ Object cast(Executor* E, Object o, ObjectType type){
         case t_int:
         {
             Object result;
-            float_init(&result);
-            if(o.type==t_null){
+            int_init(&result);
+            if(o.type==t_float){
+                result.int_value=o.float_value;
+                return result;
+            } else if(o.type==t_null){
                 result.int_value=0;// null is zero
                 return result;
             } else if(o.type==t_string && is_number(o.text)){
@@ -61,7 +64,10 @@ Object cast(Executor* E, Object o, ObjectType type){
         {
             Object result;
             float_init(&result);
-            if(o.type==t_null){
+            if(o.type==t_int){
+                result.float_value=o.int_value;
+                return result;
+            }else if(o.type==t_null){
                 result.float_value=0;// null is zero
                 return result;
             } else if(o.type==t_string && is_number(o.text)){
@@ -109,6 +115,12 @@ int compare(Object a, Object b){
     }
     if(b.type==t_null && a.type==t_null){
         return 0;
+    }
+    if(a.type==t_float && b.type==t_int){
+        return sign(a.float_value-b.int_value);
+    }
+    if(a.type==t_int && b.type==t_float){
+        return sign((float)a.int_value-b.float_value);
     }
     if(a.type!=b.type){
         return COMPARISION_ERROR;
@@ -505,9 +517,11 @@ char* stringify_object(Executor* E, Object o){
             }
         }
         case t_coroutine:
-            return strdup("<coroutine>");
+            return suprintf("coroutine(%#x)", (unsigned)o.co);
         case t_pointer:
-            return strdup("<pointer>");
+            return suprintf("pointer(%#x)", (unsigned)o.p);
+        case t_gc_pointer:
+            return suprintf("gc_pointer(%#x)", (unsigned)o.gcp);
         case t_null:
             return strdup("null");
         default:

@@ -38,7 +38,7 @@ char* stream_search_string(stream* s, const char* str){
     if(s->position==0){
         return NULL;// there is nothing inside of the stream
     }
-    for(int i=0; i<s->size; i++){
+    for(int i=0; i<s->position; i++){
         char* stream_part=casted+i;// take part of the stream starting from i, we assume it's \0 terminated
         if(strcmp(stream_part, str)==0){
             return stream_part;
@@ -311,7 +311,6 @@ BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
     prog.information=stream_get_data(&translation->information);
     prog.sub_programs=stream_get_data(&translation->sub_programs);
     prog.sub_programs_count=translation->sub_programs.position/sizeof(BytecodeProgram);
-    list_program_labels(&prog);
     return prog;
 }
 

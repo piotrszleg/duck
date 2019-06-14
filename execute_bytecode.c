@@ -39,23 +39,29 @@ char* stringify_object_stack(Executor* E, const stack* s){
     return result;
 }
 
-void move_to_function(Executor* E, Function* f, bool termainate){
-    // create and push ReturnPoint pointing to current location
-    ReturnPoint return_point;
-    return_point.program=E->bytecode_environment.executed_program;
-    return_point.pointer=E->bytecode_environment.pointer;
-    return_point.scope=E->bytecode_environment.scope;
-    return_point.terminate=termainate;
-    stack_push(&E->bytecode_environment.return_stack, &return_point);
+void move_to_function(Executor* E, Function* f, bool terminate){
+    gc_object_reference(f->source_pointer);
+    create_return_point(&E->bytecode_environment, terminate);
 
     Object function_scope;
     table_init(E, &function_scope);
     if(f->enclosing_scope.type!=t_null){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
+    reference(&function_scope);
     E->bytecode_environment.scope=function_scope;
     E->bytecode_environment.executed_program=f->source_pointer;
     E->bytecode_environment.pointer=0;
+}
+
+void create_return_point(BytecodeEnvironment* environment, bool terminate){
+    ReturnPoint return_point;
+    return_point.program=environment->executed_program;
+    return_point.pointer=environment->pointer;
+    reference(&environment->scope);
+    return_point.scope=environment->scope;
+    return_point.terminate=terminate;
+    stack_push(&environment->return_stack, &return_point);
 }
 
 void bytecode_environment_init(BytecodeEnvironment* environment){
@@ -560,6 +566,8 @@ Object execute_bytecode(Executor* E){
                 if(E->options.debug_mode){
                     debugger(E);
                 }
+                gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
+                dereference(E, scope);
                 if(return_stack->top==0){
                     if(E->coroutine!=NULL){
                         E->coroutine->state=co_finished;
@@ -567,9 +575,9 @@ Object execute_bytecode(Executor* E){
                     return pop(object_stack);
                 } else {
                     ReturnPoint* return_point=stack_pop(return_stack);
+                    
                     E->bytecode_environment.executed_program=return_point->program;
                     E->bytecode_environment.pointer=return_point->pointer;
-                    dereference(E, scope);
                     *scope=return_point->scope;
                     if(return_point->terminate){
                         Object last=pop(object_stack);

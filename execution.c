@@ -22,23 +22,23 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
         if(E->options.optimise_bytecode){
             optimise_bytecode(&prog, E->options.print_bytecode_optimisations);
         }
+        list_program_labels(&prog);
 
         if(E->options.print_bytecode){
             USING_STRING(stringify_bytecode(&prog),
                 printf("Bytecode:\n%s\n", str));
         }
-
+        create_return_point(&E->bytecode_environment, true);
         E->bytecode_environment.pointer=0;
         E->bytecode_environment.executed_program=malloc(sizeof(BytecodeProgram));
         memcpy(E->bytecode_environment.executed_program, &prog, sizeof(BytecodeProgram));
         bytecode_program_init(E, E->bytecode_environment.executed_program);
+        // the end instruction will dereference these later
         gc_object_reference((gc_Object*)E->bytecode_environment.executed_program);
+        reference(&scope);
         E->bytecode_environment.scope=scope;
-        bytecode_environment_init(&E->bytecode_environment);
 
         execution_result=execute_bytecode(E);
-        
-        gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
     }
     return execution_result;
 }
@@ -71,20 +71,18 @@ void execute_file(Executor* E, const char* file_name){
 
 // this function should only be called from call_function, it's there to simplify the code structure
 Object call_function_processed(Executor* E, Function* f, Object* arguments, int arguments_count){
-    Object function_scope;
-    table_init(E, &function_scope);
-    if(f->enclosing_scope.type!=t_null){
-        inherit_scope(E, function_scope, f->enclosing_scope);
-    }
     if(f->ftype==f_ast){
+        Object function_scope;
+        table_init(E, &function_scope);
+        if(f->enclosing_scope.type!=t_null){
+            inherit_scope(E, function_scope, f->enclosing_scope);
+        }
         for(int i=0; i<arguments_count; i++){
             STRING_OBJECT(argument_name, f->argument_names[i]);
             set(E, function_scope, argument_name, arguments[i]);
         }
         return execute_ast(E, (expression*)f->source_pointer, function_scope, 1);
     } else if(f->ftype==f_bytecode){
-        E->bytecode_environment.scope=function_scope;
-
         move_to_function(E, f, true);
         for(int i=0; i<arguments_count; i++){
             push(&E->bytecode_environment.object_stack, arguments[i]);

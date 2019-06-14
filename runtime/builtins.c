@@ -213,7 +213,11 @@ Object builtin_string(Executor* E, Object* arguments, int arguments_count){
     return cast(E, arguments[0], t_string);
 }
 
-Object builtin_number(Executor* E, Object* arguments, int arguments_count){
+Object builtin_float(Executor* E, Object* arguments, int arguments_count){
+    return cast(E, arguments[0], t_float);
+}
+
+Object builtin_int(Executor* E, Object* arguments, int arguments_count){
     return cast(E, arguments[0], t_int);
 }
 
@@ -252,7 +256,10 @@ Object builtin_include(Executor* E, Object* arguments, int arguments_count){
     Object path=arguments[0];
     Object result;
     REQUIRE_TYPE(path, t_string)
-    result=evaluate_file(E, path.text, E->bytecode_environment.scope);
+    Object scope;
+    table_init(E, &scope);
+    inherit_scope(E, scope, E->bytecode_environment.scope);
+    result=evaluate_file(E, path.text, scope);
     return result;
 }
 
@@ -346,7 +353,8 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(from_character, 1)
     REGISTER_FUNCTION(to_character, 1)
     REGISTER_FUNCTION(string, 1)
-    REGISTER_FUNCTION(number, 1)
+    REGISTER_FUNCTION(float, 1)
+    REGISTER_FUNCTION(int, 1)
     REGISTER_FUNCTION(cast, 2)
     REGISTER_FUNCTION(open_file, 2)
     REGISTER_FUNCTION(remove_file, 1)

@@ -84,6 +84,7 @@ void vector_add_ignore_duplicate(vector *v, void *item){
 %type <exp> parentheses;
 %type <exp> macro;
 %type <exp> macro_declaration;
+%type <exp> return;
 
 %%
 program:
@@ -189,6 +190,15 @@ expression:
 	| message
 	| macro
 	| macro_declaration
+	| return
+	;
+return:
+	expression '!' {
+		function_return* r=new_function_return();
+		ADD_DEBUG_INFO(r)
+		r->value=(expression*)$1;
+		$$=(expression*)r;
+	}
 	;
 parentheses:
 	'(' expression ')' {

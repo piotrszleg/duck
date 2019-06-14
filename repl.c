@@ -9,6 +9,7 @@ void repl(){
     E.options.ast_only=true;
     E.gc=malloc(sizeof(Executor));
     object_system_init(&E);
+    bytecode_environment_init(&E.bytecode_environment);
     Object global_scope;
     table_init(&E, &global_scope);
     reference(&global_scope);

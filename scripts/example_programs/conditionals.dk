@@ -1,0 +1,10 @@
+number=int(input())
+if(number==0) {
+    print("option 0")
+}elif(number==1) {
+    print("option 1")
+}elif(number==2) {
+    print("option 2")
+} else {
+    print("Other option")
+}
