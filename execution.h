@@ -32,10 +32,26 @@ struct Executor {
     const char* file;
 
     Coroutine* coroutine;
+    Object error;
 
     bool ast_returning;
     BytecodeEnvironment bytecode_environment;
     Options options;
 };
+
+#define INSERT_ERROR(type, cause, message, ...) \
+    { Object err; \
+    NEW_ERROR(err, type, cause, message, ##__VA_ARGS__) \
+    if(E->error) { \
+        dereference(E, E->error); \
+    } \
+    E->error=err; }
+
+#define CHECK_FOR_ERROR \
+    if(E->error.type!=t_null){ \
+        Object error_to_return=E->error; \
+        E->error=null_const; \
+        return error_to_return; \
+    }
 
 #endif

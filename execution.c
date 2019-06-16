@@ -20,7 +20,7 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
         BytecodeProgram prog=ast_to_bytecode(parsing_result, true);
         if(delete_ast) delete_expression(parsing_result);// at this point ast is useless and only wastes memory
         if(E->options.optimise_bytecode){
-            optimise_bytecode(&prog, E->options.print_bytecode_optimisations);
+            optimise_bytecode_with_stack(&prog, E->options.print_bytecode_optimisations);
         }
         list_program_labels(&prog);
 
@@ -83,7 +83,8 @@ Object call_function_processed(Executor* E, Function* f, Object* arguments, int 
         }
         return execute_ast(E, (expression*)f->source_pointer, function_scope, 1);
     } else if(f->ftype==f_bytecode){
-        move_to_function(E, f, true);
+        create_return_point(&E->bytecode_environment, true);
+        move_to_function(E, f);
         for(int i=0; i<arguments_count; i++){
             push(&E->bytecode_environment.object_stack, arguments[i]);
         }

@@ -16,7 +16,8 @@ enum error_type{
     STRINGIFICATION_ERROR,
     BYTECODE_ERROR,
     AST_ERROR,
-    STACK_OVERFLOW
+    STACK_OVERFLOW,
+    PRINTF_ERROR
 };
 
 extern jmp_buf error_buf;
@@ -45,5 +46,10 @@ extern char err_message[1024];
         THROW_ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
     }
 
+#define CRITICAL_ERROR(type, message, ...) \
+    char message_formatted[ERROR_BUFFER_SIZE]; \
+    snprintf(message_formatted, ERROR_BUFFER_SIZE, message, ##__VA_ARGS) \
+    printf("Critical error: %s \n%s", type, message_formatted); \
+    exit(-1);
 
 #endif

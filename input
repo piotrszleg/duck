@@ -1,29 +1,3 @@
-range=(start, end, step)->[
-    iterator=self->{
-        [i=start, call=self->{
-            fin=self.i>end
-            result=[key=self.i, value=self.i, finished=fin]
-            self.i+=step
-            result
-        }]
-    }
-]
-
-print("String to be searched:")
-searched=input()
-print("String to look for:")
-wanted=input()
-occurences=0
-
-range(0, string_length(searched)-string_length(wanted), 1) `#` i->{
-    correct=1
-    range(0, string_length(wanted)-1, 1) `#` j->{
-        if(searched[i+j]!=wanted[j]){
-            correct=0
-        }
-    }
-    if(correct){
-        occurences+=1
-    }
-}
-print(format("Found {} occurences", occurences))
+a=1
+b=2
+a+b

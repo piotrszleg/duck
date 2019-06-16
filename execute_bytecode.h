@@ -42,7 +42,7 @@ void bytecode_environment_free(BytecodeEnvironment* e);
 void push(stack* stack, Object o);
 Object pop(stack* stack);
 Object execute_bytecode(Executor* E);
-void move_to_function(Executor* E, Function* f, bool termainate);
+void move_to_function(Executor* E, Function* f);
 void create_return_point(BytecodeEnvironment* environment, bool terminate);
 
 #include "runtime/builtins.h"

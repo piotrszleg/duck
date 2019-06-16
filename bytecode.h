@@ -23,29 +23,33 @@
     X(load_float) /*    (float_argument) */ \
     X(table_literal) \
     X(null) \
-    X(pre_function)/*   (pre_function_argument) */\
+    X(pre_function)/*   (pre_function_argument) */ \
     X(function) /*      (uint_argument: sub_program_index */ \
     X(return) /*        [object_to_return] */ \
-    X(get_scope) \
-    X(set_scope) /*     sets the Object on the stack as the current scope */ \
+    X(get_scope) /*     pushes current scope onto the stack */ \
+    X(set_scope) /*     [scope] sets the Object on the stack as the current scope */ \
     X(new_scope) /*     creates a new Table and sets it as the current scope */ \
     X(label) /*         (uint_argument label_index) sets label */ \
     X(jump) /*          (uint_argument label_index) jumps to label */ \
-    X(jump_not) /*      (uint_argument label_index) jump to a label if value on stack is falsy */ \
+    X(jump_not) /*      [value] (uint_argument label_index) jump to a label if value on stack is falsy */ \
     X(get) /*           get the value at the key from the current scope, [key] */ \
     X(table_get) /*     get the value at the key from the Table, [key, Table] */ \
     X(set) /*           (bool_argument is_used_in_closure) [key, value] sets field at key in the current scope to value  */ \
     X(table_set) /*     [key, Table, value] sets field at key in table to value, keeps the value on stack */ \
     X(table_set_keep) /*[key, Table, value] same as table_set but keeps the indexed Table on the stack */ \
     X(call) /*          (uint_argument number_of_arguments) [function, arguments...] */ \
+    X(tail_call) \
     X(binary) /*        [a, b, operator] */ \
-    X(prefix) /*        [a, operator] */
+    X(prefix) /*        [a, operator] */ \
+    X(swap) /*          (swap_argument) */
 
 typedef enum {
     #define X(t) b_##t,
     INSTRUCTION_TYPES
     #undef X
 } InstructionType;
+
+extern char* INSTRUCTION_NAMES[];
 
 typedef struct {
     unsigned line;
@@ -59,10 +63,16 @@ typedef struct{
     unsigned char arguments_count;
 } PreFunctionArgument;
 
+typedef struct{
+    unsigned char left;
+    unsigned char right;
+} SwapArgument;
+
 typedef struct {
     InstructionType type;
     union {
         PreFunctionArgument pre_function_argument;
+        SwapArgument swap_argument;
         float float_argument;// long type ensures that 4bit float will fit
         unsigned int uint_argument;
         int int_argument;
@@ -90,7 +100,7 @@ void list_program_labels(BytecodeProgram* program);
 void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy);
 
 int gets_from_stack(Instruction instr);
-bool pushes_to_stack(InstructionType instr);
+int pushes_to_stack(Instruction instr);
 bool changes_flow(InstructionType instr);
 bool changes_scope(InstructionType instr);
 

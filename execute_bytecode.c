@@ -1,5 +1,7 @@
 #include "execute_bytecode.h"
 
+#define STACK_SIZE 16
+
 void push(stack* stack, Object o){
     reference(&o);
     stack_push(stack, (const void*)(&o));
@@ -23,7 +25,7 @@ char* stringify_object_stack(Executor* E, const stack* s){
     CHECK_ALLOCATION(result);
     
     Object* casted_items=(Object*)s->items;
-    while(pointer<s->top){
+    while(pointer<stack_count(s)){
         char* stringified_item=stringify(E, *(casted_items+pointer));
         int stringified_length=strlen(stringified_item);
         if(result_size-string_end+2<=stringified_length){// +2 for separator
@@ -39,23 +41,24 @@ char* stringify_object_stack(Executor* E, const stack* s){
     return result;
 }
 
-void move_to_function(Executor* E, Function* f, bool terminate){
+void move_to_function(Executor* E, Function* f){
     gc_object_reference(f->source_pointer);
-    create_return_point(&E->bytecode_environment, terminate);
 
     Object function_scope;
     table_init(E, &function_scope);
     if(f->enclosing_scope.type!=t_null){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
-    reference(&function_scope);
+    dereference(E, &E->bytecode_environment.scope);
     E->bytecode_environment.scope=function_scope;
+    gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
     E->bytecode_environment.executed_program=f->source_pointer;
     E->bytecode_environment.pointer=0;
 }
 
 void create_return_point(BytecodeEnvironment* environment, bool terminate){
     ReturnPoint return_point;
+    gc_object_reference((gc_Object*)environment->executed_program);
     return_point.program=environment->executed_program;
     return_point.pointer=environment->pointer;
     reference(&environment->scope);
@@ -236,7 +239,7 @@ Object execute_bytecode(Executor* E){
             }
             case b_no_op:
                 break;
-            #define INDEX_STACK(index) ((Object*)object_stack->items)[object_stack->top-1-(index)]
+            #define INDEX_STACK(index) ((Object*)object_stack->items)[object_stack->count-1-(index)]
             case b_move_top:
             {
                 for(int i=0; i<instr.uint_argument; i++){
@@ -253,6 +256,13 @@ Object execute_bytecode(Executor* E){
                     INDEX_STACK(i)=INDEX_STACK(i-1);
                     INDEX_STACK(i-1)=temporary;
                 }
+                break;
+            }
+            case b_swap:
+            {
+                Object temporary=INDEX_STACK(instr.swap_argument.left);
+                INDEX_STACK(instr.swap_argument.left)=INDEX_STACK(instr.swap_argument.right);
+                INDEX_STACK(instr.swap_argument.right)=temporary;
                 break;
             }
             case b_double:
@@ -435,6 +445,7 @@ Object execute_bytecode(Executor* E){
                 gc_object_reference((gc_Object*)f.fp->source_pointer);
                 break;
             }
+            case b_tail_call:
             case b_call:
             {
                 Object o=pop(object_stack);
@@ -546,7 +557,10 @@ Object execute_bytecode(Executor* E){
                         push(object_stack, variadic_table);
                     }
                     if(o.fp->ftype==f_bytecode){
-                        move_to_function(E, o.fp, false);
+                        if(instr.type!=b_tail_call){
+                            create_return_point(&E->bytecode_environment, false);
+                        }
+                        move_to_function(E, o.fp);
                         dereference(E, &o);
                         continue;// don't increment the pointer
                     } else if(o.fp->ftype==f_ast) {
@@ -568,7 +582,7 @@ Object execute_bytecode(Executor* E){
                 }
                 gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
                 dereference(E, scope);
-                if(return_stack->top==0){
+                if(stack_empty(return_stack)){
                     if(E->coroutine!=NULL){
                         E->coroutine->state=co_finished;
                     }

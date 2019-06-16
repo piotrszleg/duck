@@ -9,3 +9,9 @@ char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp) {
     }
     return 0;
 }
+
+int nearest_power_of_two(int number){
+    int i;
+    for(i=1; i<=number;i*=2);
+    return i;
+}
