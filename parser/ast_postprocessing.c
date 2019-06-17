@@ -110,7 +110,8 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
 
 void postprocess_ast(expression* ast){
     PostprocessingState state;
-    stack_init(&state.functions, sizeof(function_declaration*), STACK_SIZE);
+    stack_init(&state.functions, sizeof(function_declaration*), 16);
+    stack_push(&state.functions, ast);
     map_init(&state.declarations);
     
     visit_ast(ast, postprocess_ast_visitor, &state);

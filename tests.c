@@ -234,6 +234,7 @@ int main(){
     E.options=default_options;
     bytecode_environment_init(&E.bytecode_environment);
     TRY_CATCH(
+        stack_tests();
         evaluation_tests(&E);
         path_length_test(&E);
         struct_descriptor_tests(&E);

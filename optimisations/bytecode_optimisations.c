@@ -225,9 +225,85 @@ typedef struct
 {
     Dummy* inputs;
     Dummy* outputs;
-} InstructionExpectations;
+} InstructionTransformation;
 
-bool dummies_equal(Dummy* a, Dummy* b){
+ObjectType dummy_type(const Dummy* dummy){
+    if(dummy->type==d_known_type){
+        return dummy->known_type;
+    } else if(dummy->type==d_constant){
+        return dummy->constant_value.type;
+    } else {
+        return t_null;
+    }
+}
+
+// function writes to outputs
+// length of outputs array is deduced from instruction
+void predict_instruction_output(Instruction* instr, char* constants, unsigned int* id_counter, const Dummy* inputs, Dummy* outputs){
+    switch (instr->type){
+        case b_null:
+            outputs[0].id=(*id_counter)++;
+            outputs[0].type=d_constant;
+            outputs[0].constant_value=null_const;
+            break;
+        case b_load_int:
+            outputs[0].id=(*id_counter)++;
+            outputs[0].type=d_constant;
+            outputs[0].constant_value=to_int(instr->int_argument);
+            break;
+        case b_load_float:
+            outputs[0].id=(*id_counter)++;
+            outputs[0].type=d_constant;
+            outputs[0].constant_value=to_float(instr->float_argument);
+            break;
+        case b_load_string:
+            outputs[0].id=(*id_counter)++;
+            outputs[0].type=d_known_type;
+            outputs[0].known_type=t_string;
+            // outputs[0].type=d_constant;
+            // outputs[0].constant_value=to_string(constants+instr->uint_argument);
+            break;
+        case b_table_literal:
+            outputs[0].id=(*id_counter)++;
+            outputs[0].type=d_known_type;
+            outputs[0].known_type=t_table;
+            break;
+        case b_pre_function:
+            outputs[0].id=(*id_counter)++;
+            outputs[0].type=d_known_type;
+            outputs[0].known_type=t_function;
+            break;
+        case b_function:
+            outputs[0]=inputs[0];
+            break;
+        case b_double:
+        {
+            outputs[0]=inputs[0];
+            break;
+        }
+        case b_binary:
+        {
+            if((inputs[1].type==d_known_type||inputs[1].type==d_constant)
+            && (inputs[2].type==d_known_type||inputs[2].type==d_constant)
+            && dummy_type(&inputs[1])==dummy_type(&inputs[2])){
+                outputs[0].id=(*id_counter)++;
+                outputs[0].type=d_known_type;
+                outputs[0].known_type=dummy_type(&inputs[1]);
+                break;
+            }
+            // intentional fall through
+        }
+        default:
+        {
+            for(int i=0; i<pushes_to_stack(*instr); i++){
+                outputs[i].id=(*id_counter)++;
+                outputs[i].type=d_any_type;
+            }
+        }
+    }
+}
+
+bool dummies_equal(const Dummy* a, const Dummy* b){
     if(a->type==d_any || b->type==d_any){
         return true;
     }
@@ -242,7 +318,7 @@ static void print_id(unsigned int n){
     } while(n);
 }
 
-void dummy_print(Dummy* dummy){
+void dummy_print(const Dummy* dummy){
     switch(dummy->type){
         case d_any:
             printf("any");
@@ -255,24 +331,23 @@ void dummy_print(Dummy* dummy){
             print_id(dummy->id);
             break;
         case d_constant:
-            print_id(dummy->id);
             USING_STRING(stringify_object(NULL, dummy->constant_value),
-                printf("=%s", str));
+                printf("%s", str));
             break;
         default:
             THROW_ERROR(BYTECODE_ERROR, "Incorrect dummy type %i.", dummy->type);
     }
 }
 
-static void print_expectations(Instruction* instructions, InstructionExpectations* expectations, int instructions_count){
-    printf("Instructions expectations:\n");
+static void print_transformations(Instruction* instructions, InstructionTransformation* transformations, int instructions_count){
+    printf("Instructions transformations:\n");
     for(int p=0; p<instructions_count; p++){
         printf("%s (", INSTRUCTION_NAMES[instructions[p].type]);
         for(int i=0; i<gets_from_stack(instructions[p]); i++){
             if(i!=0){
                 printf(", ");
             }
-            dummy_print(&expectations[p].inputs[i]);
+            dummy_print(&transformations[p].inputs[i]);
         }
         printf(")");
         printf("->(");
@@ -280,28 +355,28 @@ static void print_expectations(Instruction* instructions, InstructionExpectation
             if(i!=0){
                 printf(", ");
             }
-            dummy_print(&expectations[p].outputs[i]);
+            dummy_print(&transformations[p].outputs[i]);
         }
         printf(")\n");
     }
 }
 
-void replace_dummy(Instruction* instructions, InstructionExpectations* expectations, int instructions_count, Dummy to_replace, Dummy replacement){
+void replace_dummy(Instruction* instructions, InstructionTransformation* transformations, int instructions_count, Dummy to_replace, Dummy replacement){
     for(int p=0; p<instructions_count; p++){
         for(int i=0; i<gets_from_stack(instructions[p]); i++){
-            if(dummies_equal(&to_replace, &expectations[p].inputs[i])){
-                expectations[p].inputs[i]=replacement;
+            if(dummies_equal(&to_replace, &transformations[p].inputs[i])){
+                transformations[p].inputs[i]=replacement;
             }
         }
         for(int i=0; i<pushes_to_stack(instructions[p]); i++){
-            if(dummies_equal(&to_replace, &expectations[p].outputs[i])){
-                expectations[p].outputs[i]=replacement;
+            if(dummies_equal(&to_replace, &transformations[p].outputs[i])){
+                transformations[p].outputs[i]=replacement;
             }
         }
     }
 }
 
-void remove_no_ops_stack(stack* instructions, stack* informations, stack* expectations){
+void remove_no_ops_stack(stack* instructions, stack* informations, stack* transformations){
     #define INSTRUCTION(nth) ((Instruction*)stack_index(instructions, (nth)))
     int block_start=0;
     bool inside_block=false;
@@ -310,7 +385,7 @@ void remove_no_ops_stack(stack* instructions, stack* informations, stack* expect
             if(INSTRUCTION(p)->type!=b_no_op || INSTRUCTION(p)->type==b_end){
                 stack_delete_range(instructions, block_start, p-1);
                 stack_delete_range(informations, block_start, p-1);
-                stack_delete_range(expectations, block_start, p-1);
+                stack_delete_range(transformations, block_start, p-1);
                 // move the pointer back by the number of instructions removed
                 p=p-1-block_start;
                 inside_block=false;
@@ -333,13 +408,13 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
             printf("Unoptimised bytecode:\n%s\n", str));
     }
     int instructions_count=count_instructions(prog->code)+1;
-    stack provided, dummy_stack, expectations;
+    stack provided, dummy_stack, transformations;
     stack_init(&provided, sizeof(Dummy), 64);
     stack_init(&dummy_stack, sizeof(Dummy), 128);
-    stack_init(&expectations, sizeof(InstructionExpectations), instructions_count);
+    stack_init(&transformations, sizeof(InstructionTransformation), instructions_count);
     unsigned int dummy_objects_counter=0;
     for(int p=0; p<instructions_count; p++){
-        InstructionExpectations instr;
+        InstructionTransformation instr;
         int inputs_count=gets_from_stack(prog->code[p]);
         instr.inputs=malloc(sizeof(Dummy)*inputs_count);
         for(int i=0; i<inputs_count; i++){
@@ -355,17 +430,16 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
         }
         int outputs_count=pushes_to_stack(prog->code[p]);
         instr.outputs=malloc(sizeof(Dummy)*outputs_count);
-        for(int i=0; i<outputs_count; i++){
-            Dummy new_dummy={dummy_objects_counter};
-            new_dummy.type=d_any_type;
-            dummy_objects_counter++;
-            instr.outputs[i]=new_dummy;
-            stack_push(&dummy_stack, &new_dummy);
+        if(outputs_count==1){
+            predict_instruction_output(&prog->code[p], (char*)prog->constants, &dummy_objects_counter, instr.inputs, instr.outputs);
+            for(int i=0; i<outputs_count; i++){
+                stack_push(&dummy_stack, &instr.outputs[i]);
+            }
         }
-        stack_push(&expectations, &instr);
+        stack_push(&transformations, &instr);
     }
 
-    print_expectations(prog->code, stack_get_data(&expectations), instructions_count);
+    print_transformations(prog->code, stack_get_data(&transformations), instructions_count);
 
     stack instructions, informations;
     stack_from(&instructions, sizeof(Instruction), prog->code, instructions_count);
@@ -374,7 +448,7 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
     #define FILL_WITH_NO_OP(start, end) \
         for(int i=start; i<=end; i++) { \
             ((Instruction*)stack_index(&instructions, i))->type=b_no_op; \
-            /* InstructionExpectations* exp=(InstructionExpectations*)stack_index(&instructions, i); */ \
+            /* InstructionTransformation* exp=(InstructionTransformation*)stack_index(&instructions, i); */ \
             /* free(exp->inputs); */ \
             /* exp->inputs=NULL; */ \
             /* free(exp->outputs); */ \
@@ -382,7 +456,7 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
         }
     
     #define INSTRUCTION(nth) ((Instruction*)stack_index(&instructions, (nth)))
-    #define EXPECTATION(nth) ((InstructionExpectations*)stack_index(&expectations, (nth)))
+    #define EXPECTATION(nth) ((InstructionTransformation*)stack_index(&transformations, (nth)))
     #define CODE ((Instruction*)stack_get_data(&instructions))
     for(int pointer=instructions_count-1; pointer>=0; pointer--){
         if(INSTRUCTION(pointer)->type==b_call){
@@ -391,7 +465,7 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
             }
         } else if(prog->code[pointer].type==b_set && prog->code[pointer+1].type==b_discard
            && !prog->code[pointer].bool_argument /* argument tells whether the variable is used in closure, we can't tell if the closure changes the variable*/
-           && path_length(prog->code, pointer)<=2){// don't optimise nested paths like Table.key, only single name paths
+           && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
             if(print_optimisations){
                 printf("Found a set Instruction\n");
                 prog->code=stack_get_data(&instructions);
@@ -425,21 +499,21 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
                     } else{
                         Instruction double_instruction={b_double};
                         stack_insert(&instructions, pointer+1, &double_instruction);
-                        InstructionExpectations expect;
-                        expect.inputs=malloc(sizeof(InstructionExpectations));
+                        InstructionTransformation expect;
+                        expect.inputs=malloc(sizeof(InstructionTransformation));
                         expect.inputs[0].type=d_any_type;
-                        expect.inputs[0].id=((InstructionExpectations*)stack_index(&expectations, pointer))->outputs[0].id;
-                        expect.outputs=malloc(sizeof(InstructionExpectations)*2);
+                        expect.inputs[0].id=((InstructionTransformation*)stack_index(&transformations, pointer))->outputs[0].id;
+                        expect.outputs=malloc(sizeof(InstructionTransformation)*2);
                         expect.outputs[0].type=d_any_type;
-                        expect.outputs[0].id=((InstructionExpectations*)stack_index(&expectations, pointer))->outputs[0].id;
+                        expect.outputs[0].id=((InstructionTransformation*)stack_index(&transformations, pointer))->outputs[0].id;
                         expect.outputs[1].type=d_any_type;
-                        expect.outputs[1].id=((InstructionExpectations*)stack_index(&expectations, pointer))->outputs[0].id;
-                        stack_insert(&expectations, pointer+1, &expect);
+                        expect.outputs[1].id=((InstructionTransformation*)stack_index(&transformations, pointer))->outputs[0].id;
+                        stack_insert(&transformations, pointer+1, &expect);
                         stack_insert(&informations, pointer+1, stack_index(&informations, pointer));
                         search_pointer++;
                     }
                     // search for references to dummy object and replace them with the one
-                    replace_dummy((Instruction*)stack_get_data(&instructions), (InstructionExpectations*)stack_get_data(&expectations), stack_count(&instructions),
+                    replace_dummy((Instruction*)stack_get_data(&instructions), (InstructionTransformation*)stack_get_data(&transformations), stack_count(&instructions),
                     EXPECTATION(search_pointer)->outputs[0], 
                     EXPECTATION(pointer)->outputs[0]);
                     //search_pointer+=keep_stack_top_unchanged(prog, pointer+1, search_pointer-get_path_length, print_optimisations);
@@ -453,7 +527,7 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
             if(!used){
                 // the variable isn't used in it's own scope and in any closure, so it can be removed
                 LOG_IF_ENABLED("Removing set Instruction:\n");
-                replace_dummy((Instruction*)stack_get_data(&instructions), (InstructionExpectations*)stack_get_data(&expectations), stack_count(&instructions),
+                replace_dummy((Instruction*)stack_get_data(&instructions), (InstructionTransformation*)stack_get_data(&transformations), stack_count(&instructions),
                 EXPECTATION(pointer)->outputs[0], 
                 EXPECTATION(pointer)->inputs[1]);
                 FILL_WITH_NO_OP(pointer-path_length(CODE, pointer)+1, pointer);
@@ -475,7 +549,7 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
                         Instruction swap_instruction={b_swap};
                         swap_instruction.swap_argument.left=j;
                         swap_instruction.swap_argument.right=i;
-                        InstructionExpectations push_expect;
+                        InstructionTransformation push_expect;
                         int affected=j+1;
                         push_expect.inputs=malloc(sizeof(Dummy)*affected);
                         push_expect.outputs=malloc(sizeof(Dummy)*affected);
@@ -492,7 +566,7 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
                         *STACK(swap_instruction.swap_argument.left)=*STACK(swap_instruction.swap_argument.right);
                         *STACK(swap_instruction.swap_argument.right)=temp;
                         stack_insert(&instructions, p-1, &swap_instruction);
-                        stack_insert(&expectations, p-1, &push_expect);
+                        stack_insert(&transformations, p-1, &push_expect);
                         stack_insert(&informations, p-1, stack_index(&informations, p));
                         p++;
                         instructions_count++;
@@ -508,17 +582,17 @@ void optimise_bytecode_with_stack(BytecodeProgram* prog, bool print_optimisation
         }
     }
     printf("\nbfeor removing noop");
-    print_expectations(stack_get_data(&instructions), stack_get_data(&expectations), stack_count(&instructions));
-    remove_no_ops_stack(&instructions, &informations, &expectations);
+    print_transformations(stack_get_data(&instructions), stack_get_data(&transformations), stack_count(&instructions));
+    remove_no_ops_stack(&instructions, &informations, &transformations);
     prog->code=stack_get_data(&instructions);
     prog->information=stack_get_data(&informations);
 
     printf("\n");
-    print_expectations(prog->code, stack_get_data(&expectations), stack_count(&instructions));
+    print_transformations(prog->code, stack_get_data(&transformations), stack_count(&instructions));
 
     stack_deinit(&provided);
     stack_deinit(&dummy_stack);
-    stack_deinit(&expectations);
+    stack_deinit(&transformations);
 
     #undef FILL_WITH_NO_OP
     #undef INSTRUCTION

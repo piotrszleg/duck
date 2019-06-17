@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "../error/error.h"
 #include "../utility.h"
 
@@ -23,6 +24,7 @@ void stack_deinit(stack* s);
 void stack_push(stack* s, const void* o);
 void stack_insert(stack* s, int index, const void* value);
 void stack_delete(stack* s, int index);
+void stack_clear(stack* s);
 void stack_delete_range(stack* s, int start, int end);
 void* stack_index(const stack* s, int index);
 void* stack_pop(stack* s);
@@ -30,5 +32,6 @@ void* stack_top(stack* s);
 int stack_count(const stack* s);
 bool stack_empty(const stack* s);
 void* stack_get_data(stack* s);
+void stack_tests();
 
 #endif

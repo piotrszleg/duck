@@ -1,3 +1,6 @@
-a=1
-b=2
-a+b
+loop=(start, end)->{
+    print(start)
+    if(start<end){
+        loop(start+1, end)
+    }
+}
