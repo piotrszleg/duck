@@ -164,7 +164,7 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
 
     // 0 key in pointer refers to the pointed value itself
     if(key.type==t_int && key.int_value==0) {
-        field_set(E, position.p, self, value);
+        return field_set(E, position.p, self, value);
     }
     if(type==n_struct) {
         Object fields=table_get(self.tp, to_string("fields"));
@@ -175,7 +175,6 @@ Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count
 }
 
 void add_struct_descriptor_fields(Executor* E, Table* sd, void* position){
-    table_set(E, sd, to_string("type"), to_int(n_struct));
     table_set(E, sd, to_string("position"), to_pointer(position));
     table_set(E, sd, to_string("is_struct_descriptor"), to_int(1));
     
@@ -187,6 +186,7 @@ Object new_struct_descriptor(Executor* E, void* position, Object fields){
     Object sd;
     table_init(E, &sd);
     table_set(E, sd.tp, to_string("fields"), copy(E, fields));
+    table_set(E, sd.tp, to_string("type"), to_int(n_struct));
     add_struct_descriptor_fields(E, sd.tp, position);
     return sd;
 }

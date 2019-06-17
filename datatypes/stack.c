@@ -24,6 +24,10 @@ void stack_deinit(stack* s){
     free(s->items);
 }
 
+void* stack_index(const stack* s, int index){
+    return (char*)s->items + index*s->item_size;
+}
+
 void* stack_index_checked(const stack* s, int index){
     if(index<0 || index>=s->count){
         return NULL;
@@ -31,12 +35,8 @@ void* stack_index_checked(const stack* s, int index){
     return (char*)s->items + index*s->item_size;
 }
 
-int stack_in_bounds(const stack* s, int index){
+bool stack_in_bounds(const stack* s, int index){
     return index>=0 && index<s->count;
-}
-
-void* stack_index(const stack* s, int index){
-    return (char*)s->items + index*s->item_size;
 }
 
 void stack_check_upsize(stack* s){
@@ -123,7 +123,7 @@ bool stack_empty(const stack* s){
 }
 
 // for debugging purposes
-static void print_int_array(int* array, int size){
+void print_int_array(int* array, int size){
     printf("{");
     for(int i=0; i<size-1; i++){
         printf("%i, ", array[i]);

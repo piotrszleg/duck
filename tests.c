@@ -101,11 +101,11 @@ void struct_descriptor_tests(Executor* E){
     assert(st.a==10);
     assert(get(E, sd, to_string("a")).int_value==10);
 
-    assert(get(E, sd, to_string("b")).type==t_int);
-    assert(float_equals(get(E, sd, to_string("b")).int_value, 0.5, 0.01));
+    assert(get(E, sd, to_string("b")).type==t_float);
+    assert(float_equals(get(E, sd, to_string("b")).float_value, 0.5, 0.01));
     set(E, sd, to_string("b"), to_float(0.1));
     assert(float_equals(st.b, 0.1, 0.01));
-    assert(float_equals(get(E, sd, to_string("b")).int_value, 0.1, 0.01));
+    assert(float_equals(get(E, sd, to_string("b")).float_value, 0.1, 0.01));
 
     assert(get(E, sd, to_string("c")).type==t_string);
     assert(strcmp(get(E, sd, to_string("c")).text, "hello struct")==0);
@@ -144,8 +144,8 @@ void test_substructure(Executor* E, ExampleStructNested* st, Object substructure
     assert(substructure_a.int_value==32);
     assert(float_equals(st->a.b, 0.1, 0.01));
     Object substructure_b=get(E, substructure_pointer, to_string("b"));
-    assert(substructure_b.type==t_int);
-    assert(float_equals(substructure_b.int_value, 0.1, 0.01));
+    assert(substructure_b.type==t_float);
+    assert(float_equals(substructure_b.float_value, 0.1, 0.01));
     assert(strcmp(st->a.c, "test test")==0);
     Object substructure_c=get(E, substructure_pointer, to_string("c"));
     assert(substructure_c.type==t_string);
@@ -195,7 +195,7 @@ void struct_descriptor_nested_tests(Executor* E){
     Object c_pointer=get(E, sd, to_string("c"));
     ASSERT_OBJECTS_EQUAL(get(E, c_pointer, to_int(0)), to_int(32));
     set(E, c_pointer, to_int(0), to_int(16));
-    ASSERT_OBJECTS_EQUAL(get(E, c_pointer, to_int(0)), to_float(16));
+    ASSERT_OBJECTS_EQUAL(get(E, c_pointer, to_int(0)), to_int(16));
 
     /*
     // TODO reimplement it in the language
