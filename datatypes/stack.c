@@ -163,6 +163,9 @@ void stack_tests(){
     
     FILL_STACK
     ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7 ,8, 9)
+    for(int i=0; i<stack_count(&s); i++){
+        assert(*(int*)stack_index(&s, i)==array[i]);
+    }
 
     stack_delete(&s, 0);
     ASSERT_CONTENT(1, 2, 3, 4, 5, 6, 7 ,8, 9)

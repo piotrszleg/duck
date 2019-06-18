@@ -435,14 +435,14 @@ char* stringify_object(Executor* E, Object o){
         case t_string:
         {
             // escape quotes
-            char* replacement_result=str_replace(o.text, "\"", "\\\"");
+            //char* replacement_result=str_replace(o.text, "\"", "\\\"");
             char* text;
             char* result;
-            if(replacement_result!=NULL){
-                text=replacement_result;
-            } else {
+            //if(replacement_result!=NULL){
+            //    text=replacement_result;
+            //} else {
                 text=o.text;
-            }
+            //}
             if(is_valid_name(text)){
                 int length=strlen(text)+2;
                 result=malloc(length*sizeof(char));
@@ -453,9 +453,9 @@ char* stringify_object(Executor* E, Object o){
                 snprintf(result, length, "\"%s\"", text);
             }
 
-            if(replacement_result!=NULL){
-                free(replacement_result);
-            }
+            //if(replacement_result!=NULL){
+            //    free(replacement_result);
+            //}
             return result;
            // return strdup(o.text);
         }

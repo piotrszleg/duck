@@ -24,119 +24,57 @@ ASTVisitorRequest visit_ast(expression* exp, visitor_function f, void* data){
     }
 
     switch(exp->type){
-        case e_block:
-        case e_table_literal:
-        case e_path:
-        {
-            block* b=(block*)exp;
-            
-            for (int i = 0; i < vector_total(&b->lines); i++){
-                expression* line=vector_get(&b->lines, i);
-                ASTVisitorRequest subexpression_request=visit_ast(line, f, data);
-                if(subexpression_request.replacement){
-                    delete_expression(line);
-                    vector_set(&b->lines, i, subexpression_request.replacement);
-                }
-                if(subexpression_request.move==up){
-                    break;// skip rest of the lines
-                }
-            }
-            break;
-        }
-        #define SUBEXPRESSION(e) {\
-            ASTVisitorRequest subexpression_request=visit_ast((expression*)e, f, data); \
+        #define EXPRESSION(type) \
+            case e_##type: {\
+            type* casted=(type*)exp; \
+            allow_unused_variable(casted);
+        #define SUBEXPRESSION(type, e) {\
+            ASTVisitorRequest subexpression_request=visit_ast((expression*)(e), f, data); \
             if(subexpression_request.replacement!=NULL){ \
-                delete_expression(e); \
-                e=subexpression_request.replacement; \
+                delete_expression((expression*)(e)); \
+                (e)=(type*)subexpression_request.replacement; \
             } \
             if(subexpression_request.move==up){ \
                 break; \
             } \
         }
-        case e_function_call:
-        {
-            function_call* c=(function_call*)exp;
-
-            int lines_count=vector_total(&c->arguments->lines);
-            for (int i = 0; i < lines_count; i++){
-                expression* line=vector_get(&c->arguments->lines, i);
-                ASTVisitorRequest subexpression_request=visit_ast(line, f, data);
-                if(subexpression_request.replacement!=NULL){
-                    delete_expression(line);
-                    vector_set(&c->arguments->lines, i, subexpression_request.replacement);
-                }
-                if(subexpression_request.move==up){
-                    break;// skip rest of the lines
-                }
+        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) SUBEXPRESSION(type, casted->field_name);
+        #define EXPRESSION_FIELD(field_name)                 SUBEXPRESSION(expression, casted->field_name);
+        #define BOOL_FIELD(field_name)
+        #define STRING_FIELD(field_name)
+        #define FLOAT_FIELD(field_name)
+        #define INT_FIELD(field_name)
+        #define VECTOR_FIELD(field_name) \
+            for (int i = 0; i < vector_total(&casted->field_name); i++){ \
+                expression* line=vector_get(&casted->field_name, i); \
+                ASTVisitorRequest subexpression_request=visit_ast(line, f, data); \
+                if(subexpression_request.replacement){ \
+                    delete_expression(line); \
+                    vector_set(&casted->field_name, i, subexpression_request.replacement); \
+                } \
+                if(subexpression_request.move==up){ \
+                    break;/* skip rest of the lines */ \
+                } \
             }
-            break;
-        }
-        case e_message:
-        {
-            message* m=(message*)exp;
+        #define END break; }
+        default: THROW_ERROR(AST_ERROR, "Incorrect expression type in vsit_ast function, type is %i", exp->type);
 
-            int lines_count=vector_total(&m->arguments->lines);
-            for (int i = 0; i < lines_count; i++){
-                expression* line=vector_get(&m->arguments->lines, i);
-                ASTVisitorRequest subexpression_request=visit_ast(line, f, data);
-                if(subexpression_request.replacement){
-                    delete_expression(line);
-                    vector_set(&m->arguments->lines, i, subexpression_request.replacement);
-                }
-                if(subexpression_request.move==up){
-                    break;// skip rest of the lines
-                }
-            }
-            break;
-        }
-        case e_assignment:
-        {
-            assignment* a=(assignment*)exp;
-            
-            visit_ast((expression*)a->left, f, data);// left hand of assignment can't be changed
-            SUBEXPRESSION(a->right)
-            break;
-        }
-        case e_binary:
-        {
-            binary* u=(binary*)exp;
+        AST_EXPRESSIONS
 
-            SUBEXPRESSION(u->right)
-            SUBEXPRESSION(u->left)
-            break;
-        }
-        case e_prefix:
-        {
-            prefix* p=(prefix*)exp;
-            SUBEXPRESSION(p->right)
-            break;
-        }
-        case e_conditional:
-        {
-            conditional* c=(conditional*)exp;
-
-            SUBEXPRESSION(c->condition)
-            SUBEXPRESSION(c->ontrue)
-            SUBEXPRESSION(c->onfalse)
-            break;
-        }
-        case e_function_declaration:
-        {
-            function_declaration* d=(function_declaration*)exp;
-            SUBEXPRESSION(d->body)
-
-            // function declaration calls f two times to allow finding closures
-            request=call_for_replacements(exp, f, data);
-            break;
-        }
-        case e_function_return:
-        {
-            function_return* r=(function_return*)exp;
-            SUBEXPRESSION(r->value)
-            break;
-        }
         #undef SUBEXPRESSION
-        default: ;
+        #undef EXPRESSION
+        #undef SPECIFIED_EXPRESSION_FIELD
+        #undef EXPRESSION_FIELD               
+        #undef BOOL_FIELD                   
+        #undef STRING_FIELD
+        #undef VECTOR_FIELD
+        #undef FLOAT_FIELD
+        #undef INT_FIELD
+        #undef END
+    }
+    // functions are visited two times to allow finding closures
+    if(exp->type==e_function_declaration){
+        request=call_for_replacements(exp, f, data);
     }
     return request;
 }

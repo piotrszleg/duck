@@ -112,7 +112,6 @@ void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy)
     copy->constants=malloc(source->constants_size);
     memcpy(copy->constants, source->constants, source->constants_size);
     copy->constants_size=source->constants_size;
-    copy->labels=NULL;
     
     copy->sub_programs_count=source->sub_programs_count;
     copy->sub_programs=malloc(sizeof(BytecodeProgram)*copy->sub_programs_count);
@@ -139,13 +138,6 @@ int* list_labels(Instruction* code){
     return labels;
 }
 
-void list_program_labels(BytecodeProgram* program){
-    program->labels=list_labels(program->code);
-    for(int i=0; i<program->sub_programs_count; i++){
-        list_program_labels(&program->sub_programs[i]);
-    }
-}
-
 void bytecode_program_destructor(Executor* E, BytecodeProgram* program) {
     for(int i=0; i<program->sub_programs_count; i++){
         gc_object_dereference(E, (gc_Object*)&program->sub_programs[i]);
@@ -154,8 +146,10 @@ void bytecode_program_destructor(Executor* E, BytecodeProgram* program) {
 }
 
 void bytecode_program_init(Executor* E, BytecodeProgram* program){
+    program->labels=list_labels(program->code);
     gc_pointer_init(E, (gc_Pointer*)&program->gcp, (gc_PointerDestructorFunction)bytecode_program_destructor);
     for(int i=0; i<program->sub_programs_count; i++){
+        program->sub_programs[i].labels=list_labels(program->sub_programs[i].code);
         gc_pointer_init(E, (gc_Pointer*)&program->sub_programs[i], (gc_PointerDestructorFunction)bytecode_program_destructor);
         gc_object_reference((gc_Object*)&program->sub_programs[i]);
     }
@@ -217,8 +211,6 @@ int pushes_to_stack(Instruction instr){
 #define X(i) || instr==i
 bool changes_flow(InstructionType instr){
     return false
-    X(b_return)
-    X(b_label)
     X(b_jump)
     X(b_jump_not);
 }

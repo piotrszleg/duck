@@ -20,9 +20,8 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
         BytecodeProgram prog=ast_to_bytecode(parsing_result, true);
         if(delete_ast) delete_expression(parsing_result);// at this point ast is useless and only wastes memory
         if(E->options.optimise_bytecode){
-            optimise_bytecode_with_stack(&prog, E->options.print_bytecode_optimisations);
+            optimise_bytecode(E, &prog, E->options.print_bytecode_optimisations);
         }
-        list_program_labels(&prog);
 
         if(E->options.print_bytecode){
             USING_STRING(stringify_bytecode(&prog),
