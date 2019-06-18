@@ -13,14 +13,14 @@ typedef struct {
 
 typedef struct {
     map_t(VariableDeclaration) declarations;
-    stack functions;
+    vector functions;
 } PostprocessingState;
 
 char* get_variable_name(path* p){
-    if(vector_total(&p->lines)!=1){
+    if(vector_count(&p->lines)!=1){
         return NULL;
     }
-    expression* path_first=(expression*)vector_get(&p->lines, 0);
+    expression* path_first=(expression*)pointers_vector_get(&p->lines, 0);
     if(path_first->type!=e_name){
         return NULL;
     }
@@ -39,12 +39,12 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         if(c->called->type!=e_path){
             THROW_ERROR(INCORRECT_OBJECT_POINTER, "The messaged_object field of message should be of type path.");
         }
-        vector_add(&((path*)c->called)->lines, copy_expression((expression*)m->message_name));
+        pointers_vector_push(&((path*)c->called)->lines, copy_expression((expression*)m->message_name));
 
         c->arguments=new_table_literal();
-        vector_add(&c->arguments->lines, copy_expression(m->messaged_object));
-        for(int i=0; i<vector_total(&m->arguments->lines); i++){
-            vector_add(&c->arguments->lines, copy_expression(vector_get(&m->arguments->lines, i)));
+        pointers_vector_push(&c->arguments->lines, copy_expression(m->messaged_object));
+        for(int i=0; i<vector_count(&m->arguments->lines); i++){
+            pointers_vector_push(&c->arguments->lines, copy_expression(pointers_vector_get(&m->arguments->lines, i)));
         }
         c->column_number=m->column_number;
         c->line_number=m->line_number;
@@ -78,11 +78,11 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
     }
     if(exp->type==e_function_declaration){
         // if the function is already on the stack then ast_visitor is escaping it
-        if(*(expression**)(stack_top(&state->functions))==exp) {
-            stack_pop(&state->functions);
+        if(*(expression**)(vector_top(&state->functions))==exp) {
+            vector_pop(&state->functions);
         } else {
             // ast_visitor entered this function
-            stack_push(&state->functions, (const void*)&exp);
+            vector_push(&state->functions, (const void*)&exp);
         }
     }
     if(exp->type==e_assignment){
@@ -91,7 +91,7 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         if(variable!=NULL){
             // first assignment to variable is it's declaration
             if(map_get(&state->declarations, variable)==NULL){
-                VariableDeclaration decl={(function_declaration*)stack_top(&state->functions), a};
+                VariableDeclaration decl={(function_declaration*)vector_top(&state->functions), a};
                 map_set(&state->declarations, variable, decl);
             }
         }
@@ -100,7 +100,7 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         char* variable=get_variable_name((path*)exp);
         if(variable!=NULL){
             VariableDeclaration* decl=map_get(&state->declarations, variable);
-            if(decl!=NULL && decl->owning_function!=(function_declaration*)stack_top(&state->functions)){
+            if(decl!=NULL && decl->owning_function!=(function_declaration*)vector_top(&state->functions)){
                 decl->first_assignment->used_in_closure=true;
             }
         }
@@ -110,8 +110,8 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
 
 void postprocess_ast(expression* ast){
     PostprocessingState state;
-    stack_init(&state.functions, sizeof(function_declaration*), 16);
-    stack_push(&state.functions, ast);
+    vector_init(&state.functions, sizeof(function_declaration*), 16);
+    vector_push(&state.functions, ast);
     map_init(&state.declarations);
     
     visit_ast(ast, postprocess_ast_visitor, &state);

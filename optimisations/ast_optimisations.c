@@ -87,16 +87,16 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
     // remove statements that have no side effects and whose result isn't used anywhere
     if(exp->type==e_block){
         block* b=(block*)exp;
-        if(vector_total(&b->lines)==1){
-            expression* line=vector_get(&b->lines, 0);
+        if(vector_count(&b->lines)==1){
+            expression* line=pointers_vector_get(&b->lines, 0);
             if(line->type!=e_assignment){
                 ASTVisitorRequest request={next, copy_expression(line)};
                 LOG_CHANGE("replacing one line block with this one line", exp, request.replacement);
                 return request;
             }
         }
-        for (int i = 0; i < vector_total(&b->lines)-1; i++){// last line isn't optimised because it is a result of the block
-            expression* line=vector_get(&b->lines, i);
+        for (int i = 0; i < vector_count(&b->lines)-1; i++){// last line isn't optimised because it is a result of the block
+            expression* line=pointers_vector_get(&b->lines, i);
             if(is_constant(line)){
                 USING_STRING(stringify_expression(line, 0),
                     printf("\ndeleting useless statement:%s\n", str));

@@ -2,22 +2,22 @@
 
 #define STACK_SIZE 16
 
-void push(stack* stack, Object o){
+void push(vector* stack, Object o){
     reference(&o);
-    stack_push(stack, (const void*)(&o));
+    vector_push(stack, (const void*)(&o));
 }
 
-Object pop(stack* stack){
-    void* pop_result=stack_pop(stack);
+Object pop(vector* stack){
+    void* pop_result=vector_pop(stack);
     Object* o=pop_result;
     return *o;
 }
 
-Object peek(stack* stack){
-    return *(Object*)stack_top(stack);
+Object peek(vector* stack){
+    return *(Object*)vector_top(stack);
 }
 
-char* stringify_object_stack(Executor* E, const stack* s){
+char* stringify_object_stack(Executor* E, const vector* s){
     int pointer=0;
     int string_end=0;
     int result_size=64;
@@ -25,7 +25,7 @@ char* stringify_object_stack(Executor* E, const stack* s){
     CHECK_ALLOCATION(result);
     
     Object* casted_items=(Object*)s->items;
-    while(pointer<stack_count(s)){
+    while(pointer<vector_count(s)){
         char* stringified_item=stringify(E, *(casted_items+pointer));
         int stringified_length=strlen(stringified_item);
         if(result_size-string_end+2<=stringified_length){// +2 for separator
@@ -64,25 +64,25 @@ void create_return_point(BytecodeEnvironment* environment, bool terminate){
     reference(&environment->scope);
     return_point.scope=environment->scope;
     return_point.terminate=terminate;
-    stack_push(&environment->return_stack, &return_point);
+    vector_push(&environment->return_stack, &return_point);
 }
 
 void bytecode_environment_init(BytecodeEnvironment* environment){
     environment->pointer=0;
-    vector_init(&environment->debugger.breakpoints);
+    vector_init(&environment->debugger.breakpoints, sizeof(Breakpoint*), 4);
     environment->debugger.running=false;
-    stack_init(&environment->object_stack, sizeof(Object), STACK_SIZE);
+    vector_init(&environment->object_stack, sizeof(Object), STACK_SIZE);
     push(&environment->object_stack, null_const);
-    stack_init(&environment->return_stack, sizeof(ReturnPoint), STACK_SIZE);
+    vector_init(&environment->return_stack, sizeof(ReturnPoint), STACK_SIZE);
 }
 
 void bytecode_environment_free(BytecodeEnvironment* environment){
-    for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-        free(vector_get(&environment->debugger.breakpoints, i));
+    for(int i=0; i<vector_count(&environment->debugger.breakpoints); i++){
+        free(pointers_vector_get(&environment->debugger.breakpoints, i));
     }
-    vector_free(&environment->debugger.breakpoints);
-    stack_deinit(&environment->object_stack);
-    stack_deinit(&environment->return_stack);
+    vector_deinit(&environment->debugger.breakpoints);
+    vector_deinit(&environment->object_stack);
+    vector_deinit(&environment->return_stack);
     
     free(environment);
 }
@@ -92,8 +92,8 @@ Object evaluate_string(Executor* E, const char* s, Object scope);
 void debugger(Executor* E){
     BytecodeEnvironment* environment=&E->bytecode_environment;
     if(environment->debugger.running){
-        for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-            Breakpoint* br=(Breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+        for(int i=0; i<vector_count(&environment->debugger.breakpoints); i++){
+            Breakpoint* br=(Breakpoint*)pointers_vector_get(&environment->debugger.breakpoints, i);
 
             if(strcmp(E->file, br->file)==0
             && E->line==br->line) {
@@ -148,8 +148,8 @@ void debugger(Executor* E){
             return;
         )
         COMMAND("breakpoints", 
-            for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-                Breakpoint* br=(Breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+            for(int i=0; i<vector_count(&environment->debugger.breakpoints); i++){
+                Breakpoint* br=(Breakpoint*)pointers_vector_get(&environment->debugger.breakpoints, i);
                 printf("%s:%i\n", br->file, br->line);
             }
         )
@@ -171,7 +171,7 @@ void debugger(Executor* E){
             b->file=buf;
             b->line=atoi(parameter+i+1);
             
-            vector_add(&environment->debugger.breakpoints, b);
+            vector_push(&environment->debugger.breakpoints, &b);
             return;
         )
         COMMAND_PARAMETERIZED("remove",
@@ -190,8 +190,8 @@ void debugger(Executor* E){
             b.file=buf;
             b.line=atoi(parameter+i+1);
 
-            for(int i=0; i<vector_total(&environment->debugger.breakpoints); i++){
-                Breakpoint* br=(Breakpoint*)vector_get(&environment->debugger.breakpoints, i);
+            for(int i=0; i<vector_count(&environment->debugger.breakpoints); i++){
+                Breakpoint* br=(Breakpoint*)pointers_vector_get(&environment->debugger.breakpoints, i);
                 if(strcmp(br->file, b.file)==0 && br->line==b.line){
                     vector_delete(&environment->debugger.breakpoints, i);
                 }
@@ -213,8 +213,8 @@ Object execute_bytecode(Executor* E){
             debugger(E);
         }
         BytecodeProgram* program=E->bytecode_environment.executed_program;
-        stack* object_stack=&E->bytecode_environment.object_stack;
-        stack* return_stack=&E->bytecode_environment.return_stack;
+        vector* object_stack=&E->bytecode_environment.object_stack;
+        vector* return_stack=&E->bytecode_environment.return_stack;
         Instruction* code=program->code;
         void* constants=program->constants;
         Object* scope=&E->bytecode_environment.scope;
@@ -582,13 +582,13 @@ Object execute_bytecode(Executor* E){
                 }
                 gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
                 dereference(E, scope);
-                if(stack_empty(return_stack)){
+                if(vector_empty(return_stack)){
                     if(E->coroutine!=NULL){
                         E->coroutine->state=co_finished;
                     }
                     return pop(object_stack);
                 } else {
-                    ReturnPoint* return_point=stack_pop(return_stack);
+                    ReturnPoint* return_point=vector_pop(return_stack);
                     
                     E->bytecode_environment.executed_program=return_point->program;
                     E->bytecode_environment.pointer=return_point->pointer;

@@ -3,7 +3,7 @@
 
 #include "object_system/object.h"
 #include "error/error.h"
-#include "datatypes/stack.h"
+#include "datatypes/vector.h"
 #include "bytecode.h"
 #include "utility.h"
 #include "bytecode.h"
@@ -24,8 +24,8 @@ typedef struct {
     int pointer;
     Object scope;
     BytecodeProgram* executed_program;
-    stack object_stack;
-    stack return_stack;
+    vector object_stack;
+    vector return_stack;
     debugger_state debugger;
 } BytecodeEnvironment;
 
@@ -39,8 +39,8 @@ typedef struct {
 void bytecode_environment_init(BytecodeEnvironment* e);
 void bytecode_environment_free(BytecodeEnvironment* e);
 
-void push(stack* stack, Object o);
-Object pop(stack* stack);
+void push(vector* stack, Object o);
+Object pop(vector* stack);
 Object execute_bytecode(Executor* E);
 void move_to_function(Executor* E, Function* f);
 void create_return_point(BytecodeEnvironment* environment, bool terminate);

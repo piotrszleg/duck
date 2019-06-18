@@ -5,7 +5,6 @@
 #include "bytecode.h"
 #include "error/error.h"
 #include "datatypes/stream.h"
-#include "datatypes/stack.h"
 #include <stdbool.h>
 
 BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope);

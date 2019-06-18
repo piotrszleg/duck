@@ -89,9 +89,9 @@ InstructionInformation information_from_ast(expression* exp){
 }
 
 void bytecode_path_get(BytecodeTranslation* translation, path p){
-    int lines_count=vector_total(&p.lines);
+    int lines_count=vector_count(&p.lines);
     for (int i = 0; i < lines_count; i++){
-        expression* e= vector_get(&p.lines, i);
+        expression* e= pointers_vector_get(&p.lines, i);
         if(e->type==e_name){
             push_string_load(translation, ((name*)e)->value);
         } else{
@@ -102,9 +102,9 @@ void bytecode_path_get(BytecodeTranslation* translation, path p){
 } 
 
 void bytecode_path_set(BytecodeTranslation* translation, path p, bool used_in_closure){
-    int lines_count=vector_total(&p.lines);
+    int lines_count=vector_count(&p.lines);
     for (int i = 0; i < lines_count; i++){
-        expression* e= vector_get(&p.lines, i);
+        expression* e= pointers_vector_get(&p.lines, i);
         if(e->type==e_name){
             push_string_load(translation, ((name*)e)->value);
         } else{
@@ -141,12 +141,12 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         case e_table_literal:
         {
             table_literal* b=(table_literal*)exp;
-            int lines_count=vector_total(&b->lines);
+            int lines_count=vector_count(&b->lines);
             push_uint_instruction(translation, b_table_literal, 0);
             if(lines_count>0){
                 int last_index=0;
                 for (int i = 0; i < lines_count; i++){
-                    expression* line=vector_get(&b->lines, i);
+                    expression* line=pointers_vector_get(&b->lines, i);
                     if(line->type==e_assignment){
                         assignment* assignment_line=((assignment*)line);
                         ast_to_bytecode_recursive(assignment_line->right, translation, 1);
@@ -172,9 +172,9 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
                 push_uint_instruction(translation, b_new_scope, 0);
             }
 
-            int lines_count=vector_total(&b->lines);
+            int lines_count=vector_count(&b->lines);
             for (int i = 0; i < lines_count; i++){
-                ast_to_bytecode_recursive(vector_get(&b->lines, i), translation, false);
+                ast_to_bytecode_recursive(pointers_vector_get(&b->lines, i), translation, false);
                 if(i!=lines_count-1){// result of the last line isn't discarded
                     push_uint_instruction(translation, b_discard, 0);
                 }
@@ -243,7 +243,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
-            int arguments_count=vector_total(&d->arguments);
+            int arguments_count=vector_count(&d->arguments);
             int sub_program_index=(translation->sub_programs.position/sizeof(BytecodeProgram));
 
             PreFunctionArgument argument={d->variadic, (unsigned char)arguments_count};
@@ -260,9 +260,9 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         case e_function_call:
         {
             function_call* c=(function_call*)exp;
-            int lines_count=vector_total(&c->arguments->lines);
+            int lines_count=vector_count(&c->arguments->lines);
             for (int i = 0; i < lines_count; i++){
-                ast_to_bytecode_recursive(vector_get(&c->arguments->lines, i), translation, false);
+                ast_to_bytecode_recursive(pointers_vector_get(&c->arguments->lines, i), translation, false);
             }
             ast_to_bytecode_recursive(c->called, translation, false);
             push_uint_instruction(translation, b_call, lines_count);
@@ -323,9 +323,9 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
 
-    int arguments_count=vector_total(&d->arguments);
+    int arguments_count=vector_count(&d->arguments);
     for (int i = 0; i < arguments_count; i++){
-        push_string_load(&translation, ((name*)vector_get(&d->arguments, arguments_count-1-i))->value);
+        push_string_load(&translation, ((name*)pointers_vector_get(&d->arguments, arguments_count-1-i))->value);
         push_bool_instruction(&translation, b_set, false);
         push_instruction(&translation, b_discard);
     }

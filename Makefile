@@ -3,7 +3,7 @@ submodules := object_system/object_system.a parser/parser.a
 source-files := bytecode.c ast_to_bytecode.c execute_bytecode.c execute_ast.c \
 error/execution_state.c execution.c runtime/builtins.c \
 optimisations/ast_optimisations.c optimisations/bytecode_optimisations.c \
-datatypes/stream.c datatypes/stack.c runtime/struct_descriptor.c repl.c runtime/import_dll.c options.c utility.c macros.c
+datatypes/stream.c datatypes/vector.c runtime/struct_descriptor.c repl.c runtime/import_dll.c options.c utility.c macros.c
 
 tests-path := tests.exe
 options := -g -Wall -Wl,--out-implib,libhost.a -Wl,--export-all-symbols

@@ -9,7 +9,7 @@ block* parse_block(char* code, int expected_lines_count){
     
     assert(parsing_result->type==e_block);
     block* as_block=(block*)parsing_result;
-    assert(vector_total(&as_block->lines)==expected_lines_count);
+    assert(vector_count(&as_block->lines)==expected_lines_count);
     return as_block;
 }
 
@@ -19,19 +19,19 @@ void literals(){
     block* as_block=parse_block("5, 0.5, \"text text\", 'text_text", 4);
 
     // check if each line contains literal of correct type and value
-    int_literal* five=(int_literal*)vector_get(&as_block->lines, 0);
+    int_literal* five=(int_literal*)pointers_vector_get(&as_block->lines, 0);
     assert(five->type==e_int_literal);
     assert(five->value==5);
     
-    float_literal* half=(float_literal*)vector_get(&as_block->lines, 1);
+    float_literal* half=(float_literal*)pointers_vector_get(&as_block->lines, 1);
     assert(half->type==e_float_literal );
     assert(half->value==0.5);
 
-    string_literal* text1=(string_literal*)vector_get(&as_block->lines, 2);
+    string_literal* text1=(string_literal*)pointers_vector_get(&as_block->lines, 2);
     assert( text1->type==e_string_literal );
     assert(strcmp(text1->value, "text text")==0);
 
-    string_literal* text2=(string_literal*)vector_get(&as_block->lines, 3);
+    string_literal* text2=(string_literal*)pointers_vector_get(&as_block->lines, 3);
     assert( text2->type==e_string_literal );
     assert(strcmp(text2->value, "text_text")==0);
 
@@ -55,8 +55,8 @@ void operators(){
 
     block* as_block=parse_block("2+2, 5.0**2, a*b, 2*a, a*2, a`atan`b, a==b, a!=b", 8);
     // compare binary operators on each line to the ones in tested_operators array
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_binary);
         assert(strcmp(((binary*)e)->op, tested_operators[i])==0);
     }
@@ -75,8 +75,8 @@ void assignment_operators(){
 
     block* as_block=parse_block("a=2, a+=2, a**=2", 3);
     // compare binary operators on each line to the ones in tested_operators array
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_assignment);
         if(i>0){// ignore first assignment, because it doesn't contain any operators
             // test if right hand of the assignment is binary expression with correct operator
@@ -100,8 +100,8 @@ void prefixes(){
 
     block* as_block=parse_block("-1, !a", 2);
     // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_prefix);
         assert(strcmp(((prefix*)e)->op, tested_operators[i])==0);
     }
@@ -115,8 +115,8 @@ void table_literals(){
     
     block* as_block=parse_block("[], [1, 2, \"John\"], [1, 2, 3, length=3]", 3);
     // first line should contain table_literal with 3 lines
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_table_literal);
     }
 
@@ -129,8 +129,8 @@ void paths(){
 
     block* as_block=parse_block("base.call, options[\"volume\"], options[user.name], base.graphics[\"effects\"]", 4);
     // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_path);
     }
 
@@ -143,8 +143,8 @@ void function_declarations(){
 
     block* as_block=parse_block("->1, a->a+2, (a, b)->a+b, (a, b, c)->(a+b)/c", 4);
     // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_function_declaration);
     }
 
@@ -159,12 +159,12 @@ void function_calls(){
     block* as_block=parse_block("call(), call(0), call(name), add(1, 2), player.jump(), player.jump(10)", 6);
 
     // test if type of each expression is 'function_call' and number of arguments is correct
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_function_call);
         function_call* f=(function_call*)e;
         // test number of arguments of each call
-        assert(vector_total(&f->arguments->lines)==argument_counts[i]);
+        assert(vector_count(&f->arguments->lines)==argument_counts[i]);
     }
 
     delete_expression((expression*)as_block);
@@ -177,15 +177,15 @@ void function_returns(){
     block* as_block=parse_block("2! value! {a=2\n a!\n a}", 3);
 
     // test if type of each expression is 'function_return'
-    for (int i = 0; i < vector_total(&as_block->lines)-1; i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines)-1; i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_function_return);
     }
     // test return parsing in the block in the last line
-    expression* last_line_block=(expression*)vector_get(&as_block->lines, 2);
+    expression* last_line_block=(expression*)pointers_vector_get(&as_block->lines, 2);
     assert(last_line_block->type==e_block);
     // get the second line which should be a return statement
-    expression* second_line=(expression*)vector_get(&((block*)last_line_block)->lines, 1);
+    expression* second_line=(expression*)pointers_vector_get(&((block*)last_line_block)->lines, 1);
     assert(second_line->type==e_function_return);
 
     delete_expression((expression*)as_block);
@@ -206,8 +206,8 @@ void conditionals(){
     "if(1){ 1 }elif(2){ 2 }elif(3){ 3 }else{ 4 }"
     , 5);
 
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_conditional);
         conditional* c=(conditional*)e;
         for(int e=0; e<elses[i]; e++){
@@ -238,10 +238,10 @@ void blocks(){
     "{\n1\n}\n"
     , 5);
     
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_block);
-        assert(vector_total(&((block*)e)->lines)==counts[i]);
+        assert(vector_count(&((block*)e)->lines)==counts[i]);
     }
     delete_expression((expression*)as_block);
     printf("test successful\n");
@@ -258,11 +258,11 @@ void message_translation(){
     "a::b(c, d)\n"
     "a.b::c(d, e)\n"
     , 4);
-    for (int i = 0; i < vector_total(&as_block->lines); i++){
-        expression* e=(expression*)vector_get(&as_block->lines, i);
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
         assert(e->type==e_function_call);
         assert(((function_call*)e)->called->type==e_path);
-        assert(vector_total(&((function_call*)e)->arguments->lines)==counts[i]);
+        assert(vector_count(&((function_call*)e)->arguments->lines)==counts[i]);
     }
     delete_expression((expression*)as_block);
     printf("test successful\n");
@@ -273,7 +273,7 @@ void closures(){
 
 
     #define ASSERT_CAST(exp, expected_type) (assert((exp)->type==e_##expected_type), (expected_type*)(exp))
-    #define GET_LINE(blc, index) (assert((blc)->type==e_block), (expression*)vector_get(&((block*)blc)->lines, index))
+    #define GET_LINE(blc, index) (assert((blc)->type==e_block), (expression*)pointers_vector_get(&((block*)blc)->lines, index))
     #define FIRST_LINE(blck) GET_LINE(blck, 0)
 
     block* as_block=parse_block(
@@ -303,7 +303,7 @@ expression* type_exhausted_ast(){
     #define FLOAT_FIELD(field_name)                      exp->field_name=0;
     #define INT_FIELD(field_name)                        exp->field_name=0;
     #define VECTOR_FIELD(field_name)
-    #define END vector_add(&root->lines, exp); }
+    #define END pointers_vector_push(&root->lines, exp); }
 
     AST_EXPRESSIONS
 
@@ -332,7 +332,7 @@ expression* type_exhausted_ast_uninitialized(){
     #define FLOAT_FIELD(field_name)
     #define INT_FIELD(field_name)
     #define VECTOR_FIELD(field_name)
-    #define END vector_add(&root->lines, exp); }
+    #define END pointers_vector_push(&root->lines, exp); }
 
     AST_EXPRESSIONS
 

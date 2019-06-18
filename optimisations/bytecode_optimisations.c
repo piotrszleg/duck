@@ -282,19 +282,19 @@ void transformation_deinit(Executor* E, Transformation* t, Instruction* instr){
     t->outputs=NULL;
 }
 
-void remove_no_ops(Executor* E, stack* instructions, stack* informations, stack* transformations){
-    #define INSTRUCTION(nth) ((Instruction*)stack_index(instructions, (nth)))
+void remove_no_ops(Executor* E, vector* instructions, vector* informations, vector* transformations){
+    #define INSTRUCTION(nth) ((Instruction*)vector_index(instructions, (nth)))
     int block_start=0;
     bool inside_block=false;
-    for(int p=0; p<stack_count(instructions); p++){
+    for(int p=0; p<vector_count(instructions); p++){
         if(inside_block){
             if(INSTRUCTION(p)->type!=b_no_op || INSTRUCTION(p)->type==b_end){
                 for(int i=block_start; i<=p-1; i++){
-                    transformation_deinit(E, (Transformation*)stack_index(transformations, i), INSTRUCTION(i));
+                    transformation_deinit(E, (Transformation*)vector_index(transformations, i), INSTRUCTION(i));
                 }
-                stack_delete_range(instructions, block_start, p-1);
-                stack_delete_range(informations, block_start, p-1);
-                stack_delete_range(transformations, block_start, p-1);
+                vector_delete_range(instructions, block_start, p-1);
+                vector_delete_range(informations, block_start, p-1);
+                vector_delete_range(transformations, block_start, p-1);
                 // move the pointer back by the number of instructions removed
                 p=p-1-block_start;
                 inside_block=false;
@@ -317,22 +317,22 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
             printf("Unoptimised bytecode:\n%s\n", str));
     }
     int instructions_count=count_instructions(prog->code)+1;
-    stack provided, dummy_stack, transformations;
-    stack_init(&provided, sizeof(Dummy*), 64);
-    stack_init(&dummy_stack, sizeof(Dummy*), 128);
-    stack_init(&transformations, sizeof(Transformation), instructions_count);
+    vector provided, dummy_stack, transformations;
+    vector_init(&provided, sizeof(Dummy*), 64);
+    vector_init(&dummy_stack, sizeof(Dummy*), 128);
+    vector_init(&transformations, sizeof(Transformation), instructions_count);
     unsigned int dummy_objects_counter=0;
     for(int p=0; p<instructions_count; p++){
         Transformation transformation;
         transformation_init(&transformation, &prog->code[p]);
         for(int i=0; i<gets_from_stack(prog->code[p]); i++){
-            if(!stack_empty(&dummy_stack)){
-                transformation.inputs[i]=*(Dummy**)stack_pop(&dummy_stack);
+            if(!vector_empty(&dummy_stack)){
+                transformation.inputs[i]=*(Dummy**)vector_pop(&dummy_stack);
             } else {
                 Dummy* dummy=new_dummy(E);
                 dummy->id=dummy_objects_counter++;
                 dummy->type=d_any_type;
-                stack_push(&provided, &dummy);
+                vector_push(&provided, &dummy);
                 gc_object_reference((gc_Object*)dummy);// in this case dummy is also refrenced by provided
                 transformation.inputs[i]=dummy;
             }
@@ -340,23 +340,23 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
         }
         predict_instruction_output(E, &prog->code[p], (char*)prog->constants, &dummy_objects_counter, transformation.inputs, transformation.outputs);
         for(int i=0; i<pushes_to_stack(prog->code[p]); i++){
-            stack_push(&dummy_stack, &transformation.outputs[i]);
+            vector_push(&dummy_stack, &transformation.outputs[i]);
             // output is refrenced by stack and instruction
             gc_object_reference((gc_Object*)transformation.outputs[i]);
             gc_object_reference((gc_Object*)transformation.outputs[i]);
         }
-        stack_push(&transformations, &transformation);
+        vector_push(&transformations, &transformation);
     }
 
-    print_transformations(prog->code, stack_get_data(&transformations), instructions_count);
+    print_transformations(prog->code, vector_get_data(&transformations), instructions_count);
 
-    stack instructions, informations;
-    stack_from(&instructions, sizeof(Instruction), prog->code, instructions_count);
-    stack_from(&informations, sizeof(InstructionInformation), prog->information, instructions_count);
+    vector instructions, informations;
+    vector_from(&instructions, sizeof(Instruction), prog->code, instructions_count);
+    vector_from(&informations, sizeof(InstructionInformation), prog->information, instructions_count);
 
-    #define INSTRUCTION(nth) ((Instruction*)stack_index(&instructions, (nth)))
-    #define TRANSFORMATION(nth) ((Transformation*)stack_index(&transformations, (nth)))
-    #define CODE ((Instruction*)stack_get_data(&instructions))
+    #define INSTRUCTION(nth) ((Instruction*)vector_index(&instructions, (nth)))
+    #define TRANSFORMATION(nth) ((Transformation*)vector_index(&transformations, (nth)))
+    #define CODE ((Instruction*)vector_get_data(&instructions))
     #define FILL_WITH_NO_OP(start, end) \
         for(int i=start; i<=end; i++) { \
             transformation_deinit(E, TRANSFORMATION(i), INSTRUCTION(i)); \
@@ -372,7 +372,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
            && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
             if(print_optimisations){
                 printf("Found a set Instruction\n");
-                prog->code=stack_get_data(&instructions);
+                prog->code=vector_get_data(&instructions);
                 highlight_instructions(prog, '>', pointer-path_length(prog->code, pointer)+1, pointer);
             }
             bool first_get_removal=true;
@@ -390,7 +390,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 if(INSTRUCTION(search_pointer)->type==b_get && paths_equal(CODE, pointer-1, search_pointer-1)){
                     if(print_optimisations){
                         printf("Found a corresponding get Instruction\n");
-                        prog->code=stack_get_data(&instructions);
+                        prog->code=vector_get_data(&instructions);
                         highlight_instructions(prog, '>', search_pointer-path_length(CODE, pointer)+1, search_pointer);
                     }
                     // for now only single name variables are optimised
@@ -402,27 +402,27 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                         first_get_removal=false;
                     } else{
                         Instruction double_instruction={b_double};
-                        stack_insert(&instructions, pointer+1, &double_instruction);
+                        vector_insert(&instructions, pointer+1, &double_instruction);
                         Transformation double_transformation;
                         transformation_init(&double_transformation, &double_instruction);
-                        Dummy* doubled=((Transformation*)stack_index(&transformations, pointer))->outputs[0];
+                        Dummy* doubled=((Transformation*)vector_index(&transformations, pointer))->outputs[0];
                         double_transformation.inputs[0]=doubled;
                         double_transformation.outputs[0]=double_transformation.outputs[1]=doubled;
                         gc_object_reference((gc_Object*)doubled);
                         gc_object_reference((gc_Object*)doubled);
                         gc_object_reference((gc_Object*)doubled);
-                        stack_insert(&transformations, pointer+1, &double_transformation);
-                        stack_insert(&informations, pointer+1, stack_index(&informations, pointer));
+                        vector_insert(&transformations, pointer+1, &double_transformation);
+                        vector_insert(&informations, pointer+1, vector_index(&informations, pointer));
                         search_pointer++;
                     }
                     // search for references to dummy object and replace them with the one
-                    replace_dummy(E, (Instruction*)stack_get_data(&instructions), (Transformation*)stack_get_data(&transformations), stack_count(&instructions),
+                    replace_dummy(E, (Instruction*)vector_get_data(&instructions), (Transformation*)vector_get_data(&transformations), vector_count(&instructions),
                     TRANSFORMATION(search_pointer)->outputs[0], 
                     TRANSFORMATION(pointer)->outputs[0]);
-                    //search_pointer+=keep_stack_top_unchanged(prog, pointer+1, search_pointer-get_path_length, print_optimisations);
+                    //search_pointer+=keep_vector_top_unchanged(prog, pointer+1, search_pointer-get_path_length, print_optimisations);
                     FILL_WITH_NO_OP(search_pointer-get_path_length+1, search_pointer);
 
-                    if(search_pointer>=stack_count(&instructions)){
+                    if(search_pointer>=vector_count(&instructions)){
                         break;// after removing the path search_pointer points to b_end, if loop continued from this point it would get past the code's end
                     }
                 }
@@ -430,27 +430,27 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
             if(!used){
                 // the variable isn't used in it's own scope and in any closure, so it can be removed
                 LOG_IF_ENABLED("Removing set Instruction:\n");
-                replace_dummy(E, (Instruction*)stack_get_data(&instructions), (Transformation*)stack_get_data(&transformations), stack_count(&instructions),
+                replace_dummy(E, (Instruction*)vector_get_data(&instructions), (Transformation*)vector_get_data(&transformations), vector_count(&instructions),
                 TRANSFORMATION(pointer)->outputs[0], 
                 TRANSFORMATION(pointer)->inputs[1]);
                 FILL_WITH_NO_OP(pointer-path_length(CODE, pointer)+1, pointer);
             }
         }
     }
-    while(!stack_empty(&dummy_stack)){
-        gc_object_dereference(E, (gc_Object*)*(Dummy**)stack_pop(&dummy_stack));
+    while(!vector_empty(&dummy_stack)){
+        gc_object_dereference(E, (gc_Object*)*(Dummy**)vector_pop(&dummy_stack));
     }
-    while(!stack_empty(&provided)){
-        stack_push(&dummy_stack, stack_pop(&provided));
+    while(!vector_empty(&provided)){
+        vector_push(&dummy_stack, vector_pop(&provided));
     }
-    #define STACK(nth) ((Dummy**)stack_index(&dummy_stack, stack_count(&dummy_stack)-1-(nth)))
-    for(int p=0; p<stack_count(&instructions); p++){
+    #define STACK(nth) ((Dummy**)vector_index(&dummy_stack, vector_count(&dummy_stack)-1-(nth)))
+    for(int p=0; p<vector_count(&instructions); p++){
         for(int i=0; i<gets_from_stack(*INSTRUCTION(p)); i++){
             Dummy* top=*STACK(i);
             Dummy* expected=TRANSFORMATION(p)->inputs[i];
             if(!dummies_equal(top, expected)){
-                int stack_depth=stack_count(&dummy_stack);
-                for(int j=1; j<stack_depth; j++){
+                int vector_depth=vector_count(&dummy_stack);
+                for(int j=1; j<vector_depth; j++){
                     if(dummies_equal(*STACK(j), expected)){
                         Instruction swap_instruction={b_swap};
                         swap_instruction.swap_argument.left=j;
@@ -477,9 +477,9 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                         Dummy* temp=*STACK(swap_instruction.swap_argument.left);
                         *STACK(swap_instruction.swap_argument.left)=*STACK(swap_instruction.swap_argument.right);
                         *STACK(swap_instruction.swap_argument.right)=temp;
-                        stack_insert(&instructions, p, &swap_instruction);
-                        stack_insert(&transformations, p, &swap_transformation);
-                        stack_insert(&informations, p, stack_index(&informations, p));
+                        vector_insert(&instructions, p, &swap_instruction);
+                        vector_insert(&transformations, p, &swap_transformation);
+                        vector_insert(&informations, p, vector_index(&informations, p));
                         p++;
                         instructions_count++;
                         break;
@@ -488,26 +488,26 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
             }
         }
         for(int j=0; j<gets_from_stack(*INSTRUCTION(p)); j++){
-            gc_object_dereference(E, (gc_Object*)*(Dummy**)stack_pop(&dummy_stack));
+            gc_object_dereference(E, (gc_Object*)*(Dummy**)vector_pop(&dummy_stack));
         }
         for(int i=0; i<pushes_to_stack(*INSTRUCTION(p)); i++){
-            stack_push(&dummy_stack, &TRANSFORMATION(p)->outputs[i]);
+            vector_push(&dummy_stack, &TRANSFORMATION(p)->outputs[i]);
             gc_object_reference((gc_Object*)TRANSFORMATION(p)->outputs[i]);
         }
     }
     remove_no_ops(E, &instructions, &informations, &transformations);
-    prog->code=stack_get_data(&instructions);
-    prog->information=stack_get_data(&informations);
+    prog->code=vector_get_data(&instructions);
+    prog->information=vector_get_data(&informations);
 
     printf("\n");
-    print_transformations(prog->code, stack_get_data(&transformations), stack_count(&instructions));
+    print_transformations(prog->code, vector_get_data(&transformations), vector_count(&instructions));
 
-    stack_deinit(&provided);
-    stack_deinit(&dummy_stack);
-    for(int i=0; i<stack_count(&transformations); i++){
+    vector_deinit(&provided);
+    vector_deinit(&dummy_stack);
+    for(int i=0; i<vector_count(&transformations); i++){
         transformation_deinit(E, TRANSFORMATION(i), INSTRUCTION(i));
     }
-    stack_deinit(&transformations);
+    vector_deinit(&transformations);
 
     #undef FILL_WITH_NO_OP
     #undef INSTRUCTION

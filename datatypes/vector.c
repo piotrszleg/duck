@@ -1,96 +1,249 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "vector.h"
 
-// based on https://eddmann.com/posts/implementing-a-dynamic-vector-array-in-c/
-
-void vector_init(vector *v)
-{
-    v->capacity = VECTOR_INIT_CAPACITY;
-    v->total = 0;
-    v->items = malloc(sizeof(void *) * v->capacity);
+void vector_init(vector* v, size_t item_size, int size){
+    v->count=0;
+    v->item_size=item_size;
+    v->size=size;
+    v->items=malloc(item_size*size);
+    CHECK_ALLOCATION(v->items)
 }
 
-int vector_total(vector *v)
-{
-    return v->total;
+// source needs to be a dynamically allocated memory block of size item_size*source_items_count
+void vector_from(vector* v, size_t item_size, void* source, int source_items_count){
+    v->count=source_items_count;
+    v->item_size=item_size;
+    v->size=source_items_count;
+    v->items=source;
 }
 
-static void vector_resize(vector *v, int capacity)
-{
-    #ifdef DEBUG_ON
-    printf("vector_resize: %d to %d\n", v->capacity, capacity);
-    #endif
+void* vector_get_data(vector* v){
+    return v->items;
+}
 
-    void **items = realloc(v->items, sizeof(void *) * capacity);
-    if (items) {
-        v->items = items;
-        v->capacity = capacity;
+void vector_deinit(vector* v){
+    free(v->items);
+}
+
+void* vector_index(const vector* v, int index){
+    return (char*)v->items + index*v->item_size;
+}
+
+void* vector_index_checked(const vector* v, int index){
+    if(index<0 || index>=v->count){
+        return NULL;
     }
+    return (char*)v->items + index*v->item_size;
+}
+
+bool vector_in_bounds(const vector* v, int index){
+    return index>=0 && index<v->count;
+}
+
+void vector_check_upsize(vector* v){
+    if(v->count>v->size){
+        v->size=nearest_power_of_two(v->count);
+        v->items=realloc(v->items, v->item_size*v->size);
+        CHECK_ALLOCATION(v->items)
+    }
+}
+
+void vector_push(vector* v, const void* value){
+    v->count++;
+    vector_check_upsize(v);
+    memcpy(vector_index(v, v->count-1), value, v->item_size);
+}
+
+void pointers_vector_push(vector* v, void* pointer){
+    vector_push(v, &pointer);
+}
+
+void* pointers_vector_get(vector* v, int index){
+    void** pointer=(void**)vector_index(v, index);
+    return *pointer;
+}
+
+void pointers_vector_set(vector* v, int index, void* value){
+    void** pointer=(void**)vector_index(v, index);
+    *pointer=value;
+}
+
+void vector_insert(vector* v, int index, const void* value){
+    v->count++;
+    vector_check_upsize(v);
+    for(int i=v->count-1; i>=index+1; i--){
+        memcpy(vector_index(v, i), vector_index(v, i-1), v->item_size);
+    }
+    memcpy(vector_index(v, index), value, v->item_size);
+}
+
+void vector_insert_multiple(vector* v, int index, void* elements, int count){
+    v->count+=count;
+    vector_check_upsize(v);
+    for(int i=v->count-1; i>=index; i--){
+        if(i<index+count){
+            memcpy(vector_index(v, i), (char*)elements+(i-index)*v->item_size, v->item_size);
+        } else {
+            memcpy(vector_index(v, i), vector_index(v, i-count), v->item_size);
+        }
+    }
+}
+
+static void vector_check_downsize(vector* v){
+    if(v->count<v->size/4 && v->count>0){
+        v->size/=2;
+        v->items=realloc(v->items, v->item_size*v->size);
+    }
+}
+
+void vector_delete(vector* v, int index){
+    for(int i=index; i<v->count-1; i++){
+        memcpy(vector_index(v, i), vector_index(v, i+1), v->item_size);
+    }
+    v->count-=1;
+    vector_check_downsize(v);
+}
+
+void vector_clear(vector* v){
+    v->count=0;
+}
+
+void vector_delete_range(vector* v, int start, int end){
+    int deleted_count=end-start+1;
+    v->count-=deleted_count;
+    for(int i=start; i<v->count; i++){
+        memcpy(vector_index(v, i), vector_index(v, i+deleted_count), v->item_size);
+    }
+    vector_check_downsize(v);
+}
+
+void* vector_pop(vector* v){
+    vector_check_downsize(v);// downsize is here because we don't want to deallocate the returned pointer
+    v->count--;
+    char* item_position=((char*)v->items) + v->count*v->item_size/sizeof(char);
+    return (void*)item_position;
+}
+
+void* vector_top(vector* v){
+    char* item_position=((char*)v->items) + (v->count-1)*v->item_size/sizeof(char);
+    return (void*)item_position;
+}
+
+int vector_count(const vector* v){
+    return v->count;
+}
+
+bool vector_empty(const vector* v){
+    return v->count==0;
+}
+
+// for debugging purposes
+void print_int_array(int* array, int size){
+    printf("{");
+    for(int i=0; i<size-1; i++){
+        printf("%i, ", array[i]);
+    }
+    printf("%i", array[size-1]);
+    printf("}");
+}
+
+static bool vector_equals_array(vector* v, int* array){
+    for(int i=0; i<vector_count(v); i++){
+        if(*(int*)vector_index(v, i)!=array[i]){
+            return false;
+        }
+    }
+    return true;
 }
 
 void vector_copy(vector* source, vector* destination){
-    vector_resize(destination, source->capacity);
-    for(int i=0; i<source->total; i++){
-        destination->items[i]=source->items[i];
-    }
-    destination->total=source->total;
+    destination->count=source->count;
+    destination->item_size=source->item_size;
+    destination->size=source->size;
+    memcpy(destination->items, source->items, destination->size*destination->item_size);
 }
 
-void* vector_last(vector *v){
-    return v->items[v->total-1];
-}
+void vector_tests(){
+    printf("TEST: vector_tests\n");
+    int array[]={0, 1, 2, 3, 4, 5, 6, 7 ,8, 9};
+    int* array_allocated;
+    vector v;
+    
+    #define FILL_VECTOR \
+        array_allocated=malloc(sizeof(array)); \
+        memcpy(array_allocated, array, sizeof(array)); \
+        vector_from(&v, sizeof(int), array_allocated, sizeof(array)/sizeof(int));
 
-void vector_add(vector *v, void *item)
-{
-    if (v->capacity == v->total)
-        vector_resize(v, v->capacity * 2);
-    v->items[v->total++] = item;
-}
+    #define RESET_VECTOR \
+        vector_deinit(&v); \
+        FILL_VECTOR
 
-void vector_set(vector *v, int index, void *item)
-{
-    if (index >= 0 && index < v->total)
-        v->items[index] = item;
-}
-
-void *vector_get(vector *v, int index)
-{
-    if (index >= 0 && index < v->total)
-        return v->items[index];
-    return NULL;
-}
-
-void vector_delete(vector *v, int index)
-{
-    if (index < 0 || index >= v->total)
-        return;
-
-    v->items[index] = NULL;
-
-    for (int i = index; i < v->total - 1; i++) {
-        v->items[i] = v->items[i + 1];
-        v->items[i + 1] = NULL;
+    #define ASSERT_CONTENT(...) \
+    {   int expected_content[]={__VA_ARGS__}; \
+        assert(vector_count(&v)==sizeof(expected_content)/sizeof(int)); \
+        assert(vector_equals_array(&v, expected_content)); }
+    
+    FILL_VECTOR
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7 ,8, 9)
+    for(int i=0; i<vector_count(&v); i++){
+        assert(*(int*)vector_index(&v, i)==array[i]);
     }
 
-    v->total--;
+    vector_delete(&v, 0);
+    ASSERT_CONTENT(1, 2, 3, 4, 5, 6, 7 ,8, 9)
+    RESET_VECTOR
+    vector_delete(&v, 5);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 6, 7 ,8, 9)
+    RESET_VECTOR
+    vector_delete(&v, 9);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7 ,8)
+    RESET_VECTOR
+    
+    vector_delete_range(&v, 0, 2);
+    ASSERT_CONTENT(3, 4, 5, 6, 7 ,8, 9)
+    RESET_VECTOR
+    vector_delete_range(&v, 4, 6);
+    ASSERT_CONTENT(0, 1, 2, 3, 7 ,8, 9)
+    RESET_VECTOR
+    vector_delete_range(&v, 7, 9);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6)
+    RESET_VECTOR
+    vector_delete_range(&v, 0, 9);
+    assert(vector_count(&v)==0);
+    RESET_VECTOR
 
-    if (v->total > 0 && v->total == v->capacity / 4)
-        vector_resize(v, v->capacity / 2);
-}
+    vector_insert(&v, 0, &array[2]);
+    ASSERT_CONTENT(2, 0, 1, 2, 3, 4, 5, 6, 7 ,8, 9)
+    RESET_VECTOR
+    vector_insert(&v, 5, &array[3]);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 3, 5, 6, 7 ,8, 9)
+    RESET_VECTOR
+    vector_insert(&v, 10, &array[4]);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 4)
+    RESET_VECTOR
 
-void vector_reverse(vector *v)
-{
-    void** reversed_items=malloc(sizeof(void *) * v->capacity);
-    for (int i = 0; i < v->total; i++) {
-        reversed_items[v->total-1-i] = v->items[i];
+    int to_insert[]={1, 2, 3};
+    vector_insert_multiple(&v, 0, to_insert, 3);
+    ASSERT_CONTENT(1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7 ,8, 9)
+    RESET_VECTOR
+    vector_insert_multiple(&v, 5, to_insert, 3);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 1, 2, 3, 5, 6, 7 ,8, 9)
+    RESET_VECTOR
+    vector_insert_multiple(&v, 10, to_insert, 3);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3)
+    RESET_VECTOR
+
+    vector_clear(&v);
+    const int tested_count=20;
+    for(int i=0; i<tested_count; i++){
+        vector_push(&v, &i);
     }
-    free(v->items);
-    v->items=reversed_items;
-}
+    assert(vector_count(&v)==tested_count);
+    for(int i=0; i<tested_count; i++){
+        vector_pop(&v);
+    }
+    assert(vector_count(&v)==0);
 
-void vector_free(vector *v)
-{
-    free(v->items);
+    vector_deinit(&v);
+
+    printf("test successful\n");
 }

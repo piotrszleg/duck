@@ -45,12 +45,12 @@ ASTVisitorRequest visit_ast(expression* exp, visitor_function f, void* data){
         #define FLOAT_FIELD(field_name)
         #define INT_FIELD(field_name)
         #define VECTOR_FIELD(field_name) \
-            for (int i = 0; i < vector_total(&casted->field_name); i++){ \
-                expression* line=vector_get(&casted->field_name, i); \
+            for (int i = 0; i < vector_count(&casted->field_name); i++){ \
+                expression* line=pointers_vector_get(&casted->field_name, i); \
                 ASTVisitorRequest subexpression_request=visit_ast(line, f, data); \
                 if(subexpression_request.replacement){ \
                     delete_expression(line); \
-                    vector_set(&casted->field_name, i, subexpression_request.replacement); \
+                    pointers_vector_set(&casted->field_name, i, subexpression_request.replacement); \
                 } \
                 if(subexpression_request.move==up){ \
                     break;/* skip rest of the lines */ \

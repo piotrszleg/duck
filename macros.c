@@ -213,8 +213,8 @@ typedef struct {
 char* path_to_string(path* p){
     stream s;
     stream_init(&s, 32);
-    for(int i=0; i<vector_total(&p->lines); i++){
-        expression* line=vector_get(&p->lines, i);
+    for(int i=0; i<vector_count(&p->lines); i++){
+        expression* line=pointers_vector_get(&p->lines, i);
         if(line->type!=e_name){
             USING_STRING(stringify_expression(line, 0),
                 THROW_ERROR(AST_ERROR, "Macro path can only consist of names, %s given.", str))
@@ -318,8 +318,8 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
         return request;
     } else if(exp->type==e_block){
         block* b=(block*)exp;
-        for(int i=0; i<vector_total(&b->lines); i++){
-            expression* line=vector_get(&b->lines, i);
+        for(int i=0; i<vector_count(&b->lines); i++){
+            expression* line=pointers_vector_get(&b->lines, i);
             if(line->type==e_macro_declaration){
                 proccess_macro_declaration((macro_declaration*)line, state);
             } else if(line->type==e_macro){
@@ -333,24 +333,24 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
                 Object macro_value=*map_get_result;
                 
                 int expected_arguments=macro_arguments_count(macro_value);
-                if(expected_arguments>vector_total(&b->lines)-i-1){
+                if(expected_arguments>vector_count(&b->lines)-i-1){
                     USING_STRING(stringify_expression(exp, 0),
                         THROW_ERROR(AST_ERROR, "There is not enough lines in block: %s for %s macro to work.", str, key))
                 }
                 Object* arguments=malloc(sizeof(Object)*expected_arguments);
                 for(int j=0; j<expected_arguments; j++){
-                    arguments[j]=wrap_expression(state->executor, copy_expression(vector_get(&b->lines, i+1+j)));\
+                    arguments[j]=wrap_expression(state->executor, copy_expression(pointers_vector_get(&b->lines, i+1+j)));\
                     reference(&arguments[j]);
                 }
                 Object evaluation_result=evaluate_macro(state->executor, macro_value, arguments, expected_arguments);
                 expression* converted=to_expression(state->executor, evaluation_result);
                 if(converted!=NULL) {
                     // replace macro with it's evaluation result
-                    vector_set(&b->lines, i, converted);
+                    pointers_vector_set(&b->lines, i, converted);
                     delete_expression((expression*)m);
                     // remove arguments
                     for(int j=0; j<expected_arguments; j++){
-                        //delete_expression(vector_get(&b->lines, i+1));
+                        //delete_expression(pointers_vector_get(&b->lines, i+1));
                         dereference(state->executor, &arguments[j]);
                         vector_delete(&b->lines, i+1);
                     }

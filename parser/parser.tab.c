@@ -87,9 +87,9 @@ expression* parsing_result;
 void yyerror(const char *s);
 
 // if item is already at the end of the vector don't add it again
-void vector_add_ignore_duplicate(vector *v, void *item){
-    if(vector_last(v)!=item){
-        vector_add(v, item);
+void pointers_vector_push_ignore_duplicate(vector *v, void *item){
+    if(vector_top(v)!=item){
+        pointers_vector_push(v, item);
     }
 }
 
@@ -1530,11 +1530,11 @@ yyreduce:
 #line 107 "parser.y"
     {
 		vector* lines=&((block*)(yyvsp[(1) - (2)].exp))->lines;
-		int last_element_index=vector_total(lines)-1;
+		int last_element_index=vector_count(lines)-1;
 		function_return* r=new_function_return();
 		ADD_DEBUG_INFO(r)
-		r->value=vector_get(lines, last_element_index);
-		vector_set(lines, last_element_index, r);
+		r->value=pointers_vector_get(lines, last_element_index);
+		pointers_vector_set(lines, last_element_index, r);
 		(yyval.exp)=(yyvsp[(1) - (2)].exp);
 	;}
     break;
@@ -1544,7 +1544,7 @@ yyreduce:
 /* Line 1455 of yacc.c  */
 #line 118 "parser.y"
     {
-		vector_add_ignore_duplicate(&((block*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
+		pointers_vector_push_ignore_duplicate(&((block*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
 		(yyval.exp)=(yyvsp[(1) - (3)].exp);
 	;}
     break;
@@ -1572,7 +1572,7 @@ yyreduce:
 /* Line 1455 of yacc.c  */
 #line 128 "parser.y"
     {
-		vector_add_ignore_duplicate(&((block*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
+		pointers_vector_push_ignore_duplicate(&((block*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
 		(yyval.exp)=(yyvsp[(1) - (3)].exp);
 	;}
     break;
@@ -1593,7 +1593,7 @@ yyreduce:
     {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
-		vector_add_ignore_duplicate(&b->lines, (yyvsp[(1) - (1)].exp));
+		pointers_vector_push_ignore_duplicate(&b->lines, (yyvsp[(1) - (1)].exp));
 		(yyval.exp)=(expression*)b;
 	;}
     break;
@@ -1643,7 +1643,7 @@ yyreduce:
     {
 		path* p=new_path();
 		ADD_DEBUG_INFO(p)
-		vector_add(&p->lines, (yyvsp[(1) - (1)].exp));
+		pointers_vector_push(&p->lines, (yyvsp[(1) - (1)].exp));
 		(yyval.exp)=(expression*)p;
 	;}
     break;
@@ -1653,7 +1653,7 @@ yyreduce:
 /* Line 1455 of yacc.c  */
 #line 169 "parser.y"
     {
-		vector_add(&((path*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
+		pointers_vector_push(&((path*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
 	;}
     break;
 
@@ -1662,7 +1662,7 @@ yyreduce:
 /* Line 1455 of yacc.c  */
 #line 172 "parser.y"
     {
-		vector_add(&((path*)(yyvsp[(1) - (4)].exp))->lines, (yyvsp[(3) - (4)].exp));
+		pointers_vector_push(&((path*)(yyvsp[(1) - (4)].exp))->lines, (yyvsp[(3) - (4)].exp));
 	;}
     break;
 
@@ -1760,7 +1760,7 @@ yyreduce:
 /* Line 1455 of yacc.c  */
 #line 249 "parser.y"
     {
-		vector_add((yyvsp[(1) - (3)].args), (yyvsp[(3) - (3)].exp));
+		pointers_vector_push((yyvsp[(1) - (3)].args), (yyvsp[(3) - (3)].exp));
 		(yyval.args)=(yyvsp[(1) - (3)].args);
 	;}
     break;
@@ -1772,8 +1772,8 @@ yyreduce:
     {
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
-		vector_init(args);
-		vector_add(args, (yyvsp[(1) - (1)].exp));
+		vector_init(args, sizeof(expression*), 4);
+		pointers_vector_push(args, (yyvsp[(1) - (1)].exp));
 		(yyval.args)=args;
 	;}
     break;
@@ -1786,7 +1786,7 @@ yyreduce:
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		vector_copy((yyvsp[(2) - (5)].args), &f->arguments);
-		vector_free((yyvsp[(2) - (5)].args));
+		vector_deinit((yyvsp[(2) - (5)].args));
 		free((yyvsp[(2) - (5)].args));
 		f->variadic=false;
 		f->body=(yyvsp[(5) - (5)].exp);
@@ -1802,7 +1802,7 @@ yyreduce:
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		vector_copy((yyvsp[(2) - (6)].args), &f->arguments);
-		vector_free((yyvsp[(2) - (6)].args));
+		vector_deinit((yyvsp[(2) - (6)].args));
 		free((yyvsp[(2) - (6)].args));
 		f->variadic=true;
 		f->body=(yyvsp[(6) - (6)].exp);
@@ -1817,7 +1817,7 @@ yyreduce:
     {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		vector_add(&f->arguments, (yyvsp[(1) - (4)].exp));
+		pointers_vector_push(&f->arguments, (yyvsp[(1) - (4)].exp));
 		f->variadic=true;
 		f->body=(yyvsp[(4) - (4)].exp);
 		(yyval.exp)=(expression*)f;
@@ -1831,7 +1831,7 @@ yyreduce:
     {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		vector_add(&f->arguments, (yyvsp[(1) - (3)].exp));
+		pointers_vector_push(&f->arguments, (yyvsp[(1) - (3)].exp));
 		f->variadic=false;
 		f->body=(yyvsp[(3) - (3)].exp);
 		(yyval.exp)=(expression*)f;

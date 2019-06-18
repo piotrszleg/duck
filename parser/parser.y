@@ -16,9 +16,9 @@ expression* parsing_result;
 void yyerror(const char *s);
 
 // if item is already at the end of the vector don't add it again
-void vector_add_ignore_duplicate(vector *v, void *item){
-    if(vector_last(v)!=item){
-        vector_add(v, item);
+void pointers_vector_push_ignore_duplicate(vector *v, void *item){
+    if(vector_top(v)!=item){
+        pointers_vector_push(v, item);
     }
 }
 
@@ -106,17 +106,17 @@ optional_lines_separators:
 lines_with_return:
 	lines '!' {
 		vector* lines=&((block*)$1)->lines;
-		int last_element_index=vector_total(lines)-1;
+		int last_element_index=vector_count(lines)-1;
 		function_return* r=new_function_return();
 		ADD_DEBUG_INFO(r)
-		r->value=vector_get(lines, last_element_index);
-		vector_set(lines, last_element_index, r);
+		r->value=pointers_vector_get(lines, last_element_index);
+		pointers_vector_set(lines, last_element_index, r);
 		$$=$1;
 	}
 	;
 lines:
 	lines lines_separators expression {
-		vector_add_ignore_duplicate(&((block*)$1)->lines, $3);
+		pointers_vector_push_ignore_duplicate(&((block*)$1)->lines, $3);
 		$$=$1;
 	}
 	| lines_separators lines {
@@ -126,7 +126,7 @@ lines:
 		$$=$1;
 	}
 	| lines_with_return optional_lines_separators expression {
-		vector_add_ignore_duplicate(&((block*)$1)->lines, $3);
+		pointers_vector_push_ignore_duplicate(&((block*)$1)->lines, $3);
 		$$=$1;
 	}
 	| lines_with_return{
@@ -135,7 +135,7 @@ lines:
 	| expression {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
-		vector_add_ignore_duplicate(&b->lines, $1);
+		pointers_vector_push_ignore_duplicate(&b->lines, $1);
 		$$=(expression*)b;
 	}
 	;
@@ -163,14 +163,14 @@ path:
 	name {
 		path* p=new_path();
 		ADD_DEBUG_INFO(p)
-		vector_add(&p->lines, $1);
+		pointers_vector_push(&p->lines, $1);
 		$$=(expression*)p;
 	}
 	| path '.' name {
-		vector_add(&((path*)$1)->lines, $3);
+		pointers_vector_push(&((path*)$1)->lines, $3);
 	}
 	| path '[' expression ']' {
-		vector_add(&((path*)$1)->lines, $3);
+		pointers_vector_push(&((path*)$1)->lines, $3);
 	}
 	;
 expression:
@@ -247,14 +247,14 @@ conditional_else:
 	;
 arguments:
 	arguments ',' name {
-		vector_add($1, $3);
+		pointers_vector_push($1, $3);
 		$$=$1;
 	}
 	| name {
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
-		vector_init(args);
-		vector_add(args, $1);
+		vector_init(args, sizeof(expression*), 4);
+		pointers_vector_push(args, $1);
 		$$=args;
 	}
 	;
@@ -263,7 +263,7 @@ function:
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		vector_copy($2, &f->arguments);
-		vector_free($2);
+		vector_deinit($2);
 		free($2);
 		f->variadic=false;
 		f->body=$5;
@@ -273,7 +273,7 @@ function:
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		vector_copy($2, &f->arguments);
-		vector_free($2);
+		vector_deinit($2);
 		free($2);
 		f->variadic=true;
 		f->body=$6;
@@ -282,7 +282,7 @@ function:
 	| name ELLIPSIS ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		vector_add(&f->arguments, $1);
+		pointers_vector_push(&f->arguments, $1);
 		f->variadic=true;
 		f->body=$4;
 		$$=(expression*)f;
@@ -290,7 +290,7 @@ function:
 	| name ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		vector_add(&f->arguments, $1);
+		pointers_vector_push(&f->arguments, $1);
 		f->variadic=false;
 		f->body=$3;
 		$$=(expression*)f;

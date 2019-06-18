@@ -2,9 +2,9 @@
 
 Object path_get(Executor* E, Object scope, path p){
     Object current=scope;
-    int lines_count=vector_total(&p.lines);
+    int lines_count=vector_count(&p.lines);
     for (int i = 0; i < lines_count; i++){
-        expression* e= vector_get(&p.lines, i);
+        expression* e= pointers_vector_get(&p.lines, i);
         Object object_at_name;
         if(e->type==e_name){
             object_at_name=get(E, current, to_string(((name*)e)->value));
@@ -25,9 +25,9 @@ Object path_get(Executor* E, Object scope, path p){
 
 void path_set(Executor* E, Object scope, path p, Object value){
     Object current=scope;
-    int lines_count=vector_total(&p.lines);
+    int lines_count=vector_count(&p.lines);
     for (int i = 0; i < lines_count; i++){
-        expression* e= vector_get(&p.lines, i);
+        expression* e= pointers_vector_get(&p.lines, i);
         Object key;
         if(e->type==e_name){
             key=to_string(((name*)e)->value);
@@ -72,8 +72,8 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             table_init(E, &table_scope);
             reference(&table_scope);
             int array_counter=0;
-            for (int i = 0; i < vector_total(&b->lines); i++){
-                expression* line=(expression*)vector_get(&b->lines, i);
+            for (int i = 0; i < vector_count(&b->lines); i++){
+                expression* line=(expression*)pointers_vector_get(&b->lines, i);
                 Object set_result;
                 if(line->type==e_assignment){
                     assignment* a=(assignment*)line;
@@ -96,10 +96,10 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 inherit_scope(E, block_scope, scope);
             }
             Object result;
-            for (int i = 0; i < vector_total(&b->lines); i++){
-                Object line_result=execute_ast(E, vector_get(&b->lines, i), block_scope, 0);
+            for (int i = 0; i < vector_count(&b->lines); i++){
+                Object line_result=execute_ast(E, pointers_vector_get(&b->lines, i), block_scope, 0);
                 reference(&line_result);
-                if(E->ast_returning || i == vector_total(&b->lines)-1){
+                if(E->ast_returning || i == vector_count(&b->lines)-1){
                     result=line_result;
                     break;
                 } else {
@@ -153,7 +153,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         case e_function_declaration:
         {
             function_declaration* d=(function_declaration*)exp;
-            int arguments_count=vector_total(&d->arguments);
+            int arguments_count=vector_count(&d->arguments);
 
             Object f;
             function_init(E, &f);
@@ -162,7 +162,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             f.fp->variadic=d->variadic;
 
             for (int i = 0; i < arguments_count; i++){
-                f.fp->argument_names[i]=strdup(((name*)vector_get(&d->arguments, i))->value);
+                f.fp->argument_names[i]=strdup(((name*)pointers_vector_get(&d->arguments, i))->value);
             }
             f.fp->ftype=f_ast;
             f.fp->source_pointer=(void*)copy_expression(d->body);
@@ -175,10 +175,10 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             function_call* c=(function_call*)exp;
             
             Object f=execute_ast(E, c->called, scope, 0);
-            int arguments_count=vector_total(&c->arguments->lines);
+            int arguments_count=vector_count(&c->arguments->lines);
             Object* arguments=malloc(arguments_count*sizeof(Object));
-            for (int i = 0; i < vector_total(&c->arguments->lines); i++){
-                Object argument_value=execute_ast(E, vector_get(&c->arguments->lines, i), scope, 0);
+            for (int i = 0; i < vector_count(&c->arguments->lines); i++){
+                Object argument_value=execute_ast(E, pointers_vector_get(&c->arguments->lines, i), scope, 0);
                 arguments[i]=argument_value;
             }
             Object result=call(E, f, arguments, arguments_count);

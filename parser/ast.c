@@ -28,7 +28,7 @@ t* new_ ## t(){  \
 #define STRING_FIELD(field_name) instance->field_name=NULL;
 #define INT_FIELD(field_name) instance->field_name=0;
 #define FLOAT_FIELD(field_name) instance->field_name=0;
-#define VECTOR_FIELD(field_name) vector_init(&instance->field_name);
+#define VECTOR_FIELD(field_name) vector_init(&instance->field_name, sizeof(expression*), 8);
 #define END \
         return instance; \
     }
@@ -91,8 +91,8 @@ char* stringify_expression(expression* exp, int indentation){
         #define INT_FIELD(field_name)                        WRITE_FORMATTED("%i", casted->field_name)
         #define VECTOR_FIELD(field_name) \
             WRITE_FORMATTED("\n%s->" #field_name ": ", indentation_string) \
-            for (int i = 0; i < vector_total(&casted->field_name); i++){ \
-                WRITE(stringify_expression(vector_get(&casted->field_name, i), indentation+1)) \
+            for (int i = 0; i < vector_count(&casted->field_name); i++){ \
+                WRITE(stringify_expression(pointers_vector_get(&casted->field_name, i), indentation+1)) \
             }
         #define END \
                 break; \
@@ -134,7 +134,7 @@ void delete_expression_keep_children(expression* exp){
         #define STRING_FIELD(field_name)                     free(casted->field_name);
         #define FLOAT_FIELD(field_name)
         #define INT_FIELD(field_name)
-        #define VECTOR_FIELD(field_name)                     vector_free(&casted->field_name);
+        #define VECTOR_FIELD(field_name)                     vector_deinit(&casted->field_name);
         #define END \
                 free(casted); \
                 break; \
@@ -171,10 +171,10 @@ void delete_expression(expression* exp){
         #define FLOAT_FIELD(field_name)
         #define INT_FIELD(field_name)
         #define VECTOR_FIELD(field_name) \
-            for (int i = 0; i < vector_total(&casted->field_name); i++){ \
-                delete_expression(vector_get(&casted->field_name, i)); \
+            for (int i = 0; i < vector_count(&casted->field_name); i++){ \
+                delete_expression(pointers_vector_get(&casted->field_name, i)); \
             } \
-            vector_free(&casted->field_name);
+            vector_deinit(&casted->field_name);
         #define END \
                 free(casted); \
                 break; \
@@ -215,8 +215,8 @@ expression* copy_expression(expression* exp){
         #define FLOAT_FIELD(field_name)                        copy->field_name=casted->field_name;
         #define STRING_FIELD(field_name)                     copy->field_name=strdup(casted->field_name);
         #define VECTOR_FIELD(field_name) \
-            for (int i = 0; i < vector_total(&casted->field_name); i++){ \
-                vector_add(&copy->field_name, copy_expression((expression*)vector_get(&casted->field_name, i))); \
+            for (int i = 0; i < vector_count(&casted->field_name); i++){ \
+                pointers_vector_push(&copy->field_name, copy_expression((expression*)pointers_vector_get(&casted->field_name, i))); \
             }
         #define END \
                 return (expression*)copy; \
@@ -271,9 +271,9 @@ bool expressions_equal(expression* expression_a, expression* expression_b){
         #define INT_FIELD(field_name)                        COMPARISON(a->field_name==b->field_name)
         #define STRING_FIELD(field_name)                     COMPARISON(compare_strings(a->field_name, b->field_name))
         #define VECTOR_FIELD(field_name) \
-            COMPARISON(vector_total(&a->field_name)==vector_total(&b->field_name)) \
-            for (int i = 0; i < vector_total(&a->field_name); i++){ \
-                COMPARISON(expressions_equal(vector_get(&a->field_name, i), vector_get(&b->field_name, i)))  \
+            COMPARISON(vector_count(&a->field_name)==vector_count(&b->field_name)) \
+            for (int i = 0; i < vector_count(&a->field_name); i++){ \
+                COMPARISON(expressions_equal(pointers_vector_get(&a->field_name, i), pointers_vector_get(&b->field_name, i)))  \
             }
         #define END \
                 return true; \
@@ -297,11 +297,11 @@ bool expressions_equal(expression* expression_a, expression* expression_b){
 }
 
 char* table_literal_extract_key(assignment* a){
-    if(vector_total(&a->left->lines)!=1) {
+    if(vector_count(&a->left->lines)!=1) {
         THROW_ERROR(BYTECODE_ERROR, "Table literal key should have only one name in path.");
         return NULL;
     }
-    expression* e=vector_get(&a->left->lines, 0);
+    expression* e=pointers_vector_get(&a->left->lines, 0);
     if(e->type!=e_name) {
         THROW_ERROR(BYTECODE_ERROR, "Table literal key should be of type name.");
         return NULL;
