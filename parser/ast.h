@@ -84,6 +84,10 @@ bool ast_allocations_zero();
     END \
     EXPRESSION(string_literal) \
         STRING_FIELD(value) \
+    END \
+    EXPRESSION(argument) \
+        STRING_FIELD(name) \
+        BOOL_FIELD(used_in_closure) \
     END
 
 // generate enum of expression types, each value is prepended with "e_"

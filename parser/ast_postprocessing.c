@@ -8,7 +8,7 @@ if a there is a reference that is deeper than its corresponding declaration then
 
 typedef struct {
     function_declaration* owning_function;
-    assignment* first_assignment;
+    expression* first_assignment;
 } VariableDeclaration;
 
 typedef struct {
@@ -31,8 +31,10 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
     ASTVisitorRequest request={down, NULL};
     PostprocessingState* state=data;
 
+    switch(exp->type){
+    
     // translate messages to functions
-    if(exp->type==e_message){
+    case e_message:{
         message* m=(message*)exp;
         function_call* c=new_function_call();
         c->called=copy_expression(m->messaged_object);
@@ -53,7 +55,7 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         return request;
     }
     // changing order of operations from right to left to left to right
-    if(exp->type==e_binary){
+    case e_binary: {
         binary* b=(binary*)exp;
         if(b->right->type==e_binary){
             binary* b2=(binary*)b->right;
@@ -75,8 +77,9 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
             request.replacement=(expression*)replacement_2;
             return request;
         }
+        break;
     }
-    if(exp->type==e_function_declaration){
+    case e_function_declaration: {
         // if the function is already on the stack then ast_visitor is escaping it
         if(*(expression**)(vector_top(&state->functions))==exp) {
             vector_pop(&state->functions);
@@ -84,26 +87,44 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
             // ast_visitor entered this function
             vector_push(&state->functions, (const void*)&exp);
         }
+        break;
     }
-    if(exp->type==e_assignment){
+    case e_argument: {
+        argument* a=(argument*)exp;
+        char* variable=a->name;
+        if(map_get(&state->declarations, variable)==NULL){
+            VariableDeclaration decl={(function_declaration*)vector_top(&state->functions), (expression*)a};
+            map_set(&state->declarations, variable, decl);
+        }
+        break;
+    }
+    case e_assignment: {
         assignment* a=(assignment*)exp;
         char* variable=get_variable_name(a->left);
         if(variable!=NULL){
             // first assignment to variable is it's declaration
             if(map_get(&state->declarations, variable)==NULL){
-                VariableDeclaration decl={(function_declaration*)vector_top(&state->functions), a};
+                VariableDeclaration decl={(function_declaration*)vector_top(&state->functions), (expression*)a};
                 map_set(&state->declarations, variable, decl);
             }
         }
+        break;
     }
-    if(exp->type==e_path){
+    case e_path: {
         char* variable=get_variable_name((path*)exp);
         if(variable!=NULL){
             VariableDeclaration* decl=map_get(&state->declarations, variable);
             if(decl!=NULL && decl->owning_function!=(function_declaration*)vector_top(&state->functions)){
-                decl->first_assignment->used_in_closure=true;
+                if(decl->first_assignment->type==e_assignment){
+                    ((assignment*)decl->first_assignment)->used_in_closure=true;
+                } else if(decl->first_assignment->type==e_argument) {
+                    ((argument*)decl->first_assignment)->used_in_closure=true;
+                }
             }
         }
+        break;
+    }
+    default:;
     }
     return request;
 }

@@ -1,7 +1,23 @@
-loop=(start, end)->{
-    print(start)
-    if(start<end){
-        loop(start+1, end)
+range=(start, end, step)->[
+    iterator=self->{
+        [i=start, call=self->{
+            fin=self.i>end
+            result=[key=self.i, value=self.i, finished=fin]
+            self.i+=step
+            result
+        }]
     }
+]
+# TODO: tail call optimisation
+range(1, 100, 1) `#` i->{
+    if((i%3==0) &&  (i%5==0)){
+        print("FizzBuzz")!
+    }
+    if(i%3==0) {
+        print("Fizz")!
+    }
+    if(i%5==0) {
+        print("Buzz")!
+    }
+    print(i)
 }
-loop(1, 100)

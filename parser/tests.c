@@ -174,7 +174,7 @@ void function_calls(){
 void function_returns(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    block* as_block=parse_block("2! value! {a=2\n a!\n a}", 3);
+    block* as_block=parse_block("2!\n value!\n {a=2\n a!\n a}", 3);
 
     // test if type of each expression is 'function_return'
     for (int i = 0; i < vector_count(&as_block->lines)-1; i++){

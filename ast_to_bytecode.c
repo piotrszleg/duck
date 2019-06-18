@@ -325,8 +325,9 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
 
     int arguments_count=vector_count(&d->arguments);
     for (int i = 0; i < arguments_count; i++){
-        push_string_load(&translation, ((name*)pointers_vector_get(&d->arguments, arguments_count-1-i))->value);
-        push_bool_instruction(&translation, b_set, false);
+        argument* arg=pointers_vector_get(&d->arguments, arguments_count-1-i);
+        push_string_load(&translation, arg->name);
+        push_bool_instruction(&translation, b_set, arg->used_in_closure);
         push_instruction(&translation, b_discard);
     }
 

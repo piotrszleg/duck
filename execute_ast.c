@@ -162,7 +162,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             f.fp->variadic=d->variadic;
 
             for (int i = 0; i < arguments_count; i++){
-                f.fp->argument_names[i]=strdup(((name*)pointers_vector_get(&d->arguments, i))->value);
+                f.fp->argument_names[i]=strdup(((argument*)pointers_vector_get(&d->arguments, i))->name);
             }
             f.fp->ftype=f_ast;
             f.fp->source_pointer=(void*)copy_expression(d->body);

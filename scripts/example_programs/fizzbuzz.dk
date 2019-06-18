@@ -10,13 +10,14 @@ range=(start, end, step)->[
 ]
 # TODO: tail call optimisation
 range(1, 100, 1) `#` i->{
-    if(i`%`3==0) {
-        print("Fizz")
-        null!
+    if((i%3==0) &&  (i%5==0)){
+        print("FizzBuzz")!
     }
-    if(i`%`5==0) {
-        print("Buzz")
-        null!
+    if(i%3==0) {
+        print("Fizz")!
+    }
+    if(i%5==0) {
+        print("Buzz")!
     }
     print(i)
 }

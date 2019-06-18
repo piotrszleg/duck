@@ -66,7 +66,6 @@ void pointers_vector_push_ignore_duplicate(vector *v, void *item){
 %type <exp> table;
 %type <exp> table_contents;
 %type <exp> path;
-%type <exp> lines_with_return;
 %type <exp> lines;
 %type <exp> expression;
 %type <exp> literal;
@@ -84,6 +83,8 @@ void pointers_vector_push_ignore_duplicate(vector *v, void *item){
 %type <exp> parentheses;
 %type <exp> macro;
 %type <exp> macro_declaration;
+%type <exp> argument;
+%type <exp> return;
 
 %%
 program:
@@ -101,19 +102,6 @@ lines_separator:
 lines_separators:
 	lines_separator
 	| lines_separators lines_separator;
-optional_lines_separators:
-	lines_separators | ;
-lines_with_return:
-	lines '!' {
-		vector* lines=&((block*)$1)->lines;
-		int last_element_index=vector_count(lines)-1;
-		function_return* r=new_function_return();
-		ADD_DEBUG_INFO(r)
-		r->value=pointers_vector_get(lines, last_element_index);
-		pointers_vector_set(lines, last_element_index, r);
-		$$=$1;
-	}
-	;
 lines:
 	lines lines_separators expression {
 		pointers_vector_push_ignore_duplicate(&((block*)$1)->lines, $3);
@@ -123,13 +111,6 @@ lines:
 		$$=$2;
 	}
 	| lines lines_separators {
-		$$=$1;
-	}
-	| lines_with_return optional_lines_separators expression {
-		pointers_vector_push_ignore_duplicate(&((block*)$1)->lines, $3);
-		$$=$1;
-	}
-	| lines_with_return{
 		$$=$1;
 	}
 	| expression {
@@ -189,6 +170,7 @@ expression:
 	| message
 	| macro
 	| macro_declaration
+	| return
 	;
 parentheses:
 	'(' expression ')' {
@@ -196,6 +178,14 @@ parentheses:
 		ADD_DEBUG_INFO(p)
 		p->value=$2;
 		$$=(expression*)p;
+	}
+	;
+return:
+	expression '!' {
+		function_return* r=new_function_return();
+		ADD_DEBUG_INFO(r)
+		r->value=$1;
+		$$=(expression*)r;
 	}
 	;
 macro:
@@ -246,11 +236,11 @@ conditional_else:
 	} 
 	;
 arguments:
-	arguments ',' name {
+	arguments ',' argument {
 		pointers_vector_push($1, $3);
 		$$=$1;
 	}
-	| name {
+	| argument {
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
 		vector_init(args, sizeof(expression*), 4);
@@ -258,6 +248,14 @@ arguments:
 		$$=args;
 	}
 	;
+argument:
+	NAME {
+		argument* a=new_argument();
+		ADD_DEBUG_INFO(a)
+		a->name=$1;
+		a->used_in_closure=false;
+		$$=(expression*)a;
+	}
 function:
 	'(' arguments ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
