@@ -1,23 +1,34 @@
-range=(start, end, step)->[
-    iterator=self->{
-        [i=start, call=self->{
-            fin=self.i>end
-            result=[key=self.i, value=self.i, finished=fin]
-            self.i+=step
-            result
-        }]
+Stack=initial->[
+    inner=initial
+    count=0
+    push=(self, value)->{
+        self.inner[self.count]=value
+        self.count+=1
+    }
+    top=self->self.inner[self.count-1]
+    pop=self->{
+        self.count-=1
+        to_return=self.inner[self.count]
+        self.inner[self.count]=null
+        to_return
+    }
+    stringify=self->{
+        result="Stack("
+        first=1
+        self.inner `#` i->{
+            if(first){
+                first=0
+            } else {
+                result+=", "
+            }
+            result+=string(i)
+        }
+        result+=")"
+        result
     }
 ]
-# TODO: tail call optimisation
-range(1, 100, 1) `#` i->{
-    if((i%3==0) &&  (i%5==0)){
-        print("FizzBuzz")!
-    }
-    if(i%3==0) {
-        print("Fizz")!
-    }
-    if(i%5==0) {
-        print("Buzz")!
-    }
-    print(i)
-}
+s=Stack([])
+s::push(2)
+s::push(3)
+s::push(12)
+s::top()

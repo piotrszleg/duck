@@ -1,11 +1,9 @@
 #include "ast_postprocessing.h"
 
 /*
-have a list of declarations with their names and depth and expression pointer
-every time you have new declaration add it to the list
-if a there is a reference that is deeper than its corresponding declaration then the declaration is a closure
+Declarations map maps variable names in the current scope to their first assignment and owning function.
+If a variable reference is found in a function that isn't it's owning_function then it's first_assignment used in closure.
 */
-
 typedef struct {
     function_declaration* owning_function;
     expression* first_assignment;
@@ -17,7 +15,7 @@ typedef struct {
 } PostprocessingState;
 
 char* get_variable_name(path* p){
-    if(vector_count(&p->lines)!=1){
+    if(vector_count(&p->lines)<1){
         return NULL;
     }
     expression* path_first=(expression*)pointers_vector_get(&p->lines, 0);
@@ -82,7 +80,18 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
     case e_function_declaration: {
         // if the function is already on the stack then ast_visitor is escaping it
         if(*(expression**)(vector_top(&state->functions))==exp) {
-            vector_pop(&state->functions);
+            function_declaration* f=vector_pop(&state->functions);
+            // remove all variable declarations belonging to this function
+            map_iter_t iterator=map_iter(&state->declarations);
+            const char* key;
+            while((key=map_next(&state->declarations, &iterator))){
+                VariableDeclaration* value=map_get(&state->declarations, key);
+                if(value!=NULL){
+                    if(value->owning_function==f){
+                        map_remove(&state->declarations, key);
+                    }
+                }
+            }
         } else {
             // ast_visitor entered this function
             vector_push(&state->functions, (const void*)&exp);

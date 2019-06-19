@@ -149,8 +149,7 @@ void bytecode_program_init(Executor* E, BytecodeProgram* program){
     program->labels=list_labels(program->code);
     gc_pointer_init(E, (gc_Pointer*)&program->gcp, (gc_PointerDestructorFunction)bytecode_program_destructor);
     for(int i=0; i<program->sub_programs_count; i++){
-        program->sub_programs[i].labels=list_labels(program->sub_programs[i].code);
-        gc_pointer_init(E, (gc_Pointer*)&program->sub_programs[i], (gc_PointerDestructorFunction)bytecode_program_destructor);
+        bytecode_program_init(E, &program->sub_programs[i]);
         gc_object_reference((gc_Object*)&program->sub_programs[i]);
     }
 }

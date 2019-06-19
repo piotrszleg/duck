@@ -82,6 +82,20 @@ Object error_stringify(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
+bool is_unhandled_error(Executor* E, Object o){
+    bool result=false;
+    if(o.type==t_table){
+        Object error=get(E, o, to_string("error"));
+        if(!is_falsy(error)){
+            Object handled=get(E, o, to_string("handled"));
+            result=!is_falsy(handled);
+            dereference(E, &handled);
+        }
+        dereference(E, &error);
+    }
+    return result;
+}
+
 Object error_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     if(is_falsy(get(E, self, to_string("handled")))){
