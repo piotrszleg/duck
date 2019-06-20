@@ -11,9 +11,6 @@
 #define INITIAL_MAP_SIZE 16
 #define INITIAL_ARRAY_SIZE 16
 
-#define REQUIRE_TYPE(o, t) if(o.type!=t) { \
-    RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
-
 typedef struct MapElement MapElement;
 struct MapElement {
     Object key;

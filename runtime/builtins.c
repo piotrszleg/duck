@@ -250,8 +250,6 @@ Object builtin_test(Executor* E, Object* arguments, int arguments_count){
     return null_const;
 }
 
-// TOFIX: don't use current scope
-Object evaluate_file(Executor* E, const char* file_name, Object scope);
 Object builtin_include(Executor* E, Object* arguments, int arguments_count){
     Object path=arguments[0];
     Object result;
@@ -263,39 +261,101 @@ Object builtin_include(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
-Object evaluate_string(Executor* E, const char* s, Object scope);
 Object builtin_eval(Executor* E, Object* arguments, int arguments_count){
     Object text=arguments[0];
     Object result;
     REQUIRE_TYPE(text, t_string)
-    result=evaluate_string(E, text.text, E->bytecode_environment.scope);
+    Object scope;
+    table_init(E, &scope);
+    inherit_scope(E, scope, E->bytecode_environment.scope);
+    result=evaluate_string(E, text.text, scope);
     return result;
 }
 
 Object file_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object pointer=get(E, self, to_string("pointer"));
-    REQUIRE(pointer.type==t_int, pointer);
-    fclose((FILE*)(int)pointer.int_value);
+    REQUIRE_TYPE(pointer, t_pointer)
+    fclose((FILE*)pointer.p);
     return null_const;
 }
 
-Object file_read(Executor* E, Object* arguments, int arguments_count){
+Object file_iterator_next(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    Object iterated=get(E, self, to_string("iterated"));
+    Object pointer=get(E, iterated, to_string("pointer"));
+    REQUIRE_TYPE(pointer, t_pointer)
+    Object line_number=get(E, self, to_string("line_number"));
+    REQUIRE_TYPE(line_number, t_int)
+    set(E, self, to_string("line_number"), to_int(line_number.int_value+1));
+
+    Object result;
+    table_init(E, &result);
+    set(E, result, to_string("key"), to_int(line_number.int_value));
+    
+    char* buffer=malloc(255);
+    if(fgets_no_newline(buffer, 255, (FILE*)pointer.p)){
+        set(E, result, to_string("value"), to_string(buffer));
+        return result;
+    } else {
+        set(E, result, to_string("finished"), to_int(1));
+        return result;
+    }
+}
+
+Object file_iterator(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    Object iterator;
+    table_init(E, &iterator);
+    set(E, iterator, to_string("iterated"), self);
+    set(E, iterator, to_string("line_number"), to_int(0));
+    set_function(E, iterator, "call", 1, false, file_iterator_next);
+    Object pointer=get(E, self, to_string("pointer"));
+    REQUIRE_TYPE(pointer, t_pointer)
+    fseek((FILE*)pointer.p, 0, SEEK_SET);
+    return iterator;
+}
+
+Object file_read_line(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object pointer=get(E, self, to_string("pointer"));
-    REQUIRE(pointer.type==t_int, pointer)
-    char *buf=malloc(255*sizeof(char));
-    fgets(buf, 255, (FILE*)(int)pointer.int_value);
-    return to_string(buf);
+    REQUIRE_TYPE(pointer, t_pointer)
+    char* buffer=malloc(255);
+    if(fgets_no_newline(buffer, 255, (FILE*)pointer.p)){
+        return to_string(buffer);
+    } else {
+        free(buffer);
+        return to_string("");
+    }
+}
+
+Object file_read_entire(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    Object pointer=get(E, self, to_string("pointer"));
+    REQUIRE_TYPE(pointer, t_pointer)
+    FILE* fp=(FILE*)pointer.p;
+    fseek(fp, 0, SEEK_END);
+    long file_size=ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    char* buffer=malloc(file_size+1);
+    size_t read_characters=fread(buffer, 1, file_size, fp);
+
+    if(read_characters){
+        buffer[read_characters]='\0';
+        return to_string(buffer);
+    } else {
+        free(buffer);
+        return to_string("");
+    }
 }
 
 Object file_write(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object text=arguments[1];
-    REQUIRE_TYPE(text, t_string)
+    REQUIRE_ARGUMENT_TYPE(text, t_string)
     Object pointer=get(E, self, to_string("pointer"));
-    REQUIRE(pointer.type==t_int, pointer)
-    fputs(text.text, (FILE*)(int)pointer.int_value);
+    REQUIRE_TYPE(pointer, t_pointer)
+    fputs(text.text, (FILE*)pointer.p);
     return text;
 }
 
@@ -305,13 +365,17 @@ Object builtin_open_file(Executor* E, Object* arguments, int arguments_count){
     Object mode=arguments[1];
     REQUIRE_TYPE(mode, t_string)
 
+    FILE* fp=fopen(filename.text, mode.text);
+    if(!fp){
+        RETURN_ERROR("FILE_ERROR", multiple_causes(E, (Object[]){filename, mode}, 2), "Opening file failed");
+    }
     Object result;
     table_init(E, &result);
-    
-    FILE* f=fopen(filename.text, mode.text);
-    set(E, result, to_string("pointer"), to_int((float)(int)f));
-    set_function(E, result, "read", 1, false, file_read);
+    set(E, result, to_string("pointer"), to_pointer(fp));
+    set_function(E, result, "read_entire", 1, false, file_read_entire);
+    set_function(E, result, "read_line", 1, false, file_read_line);
     set_function(E, result, "write", 2, false, file_write);
+    set_function(E, result, "iterator", 2, false, file_iterator);
     set_function(E, result, "destroy", 1, false, file_destroy);
 
     return result;

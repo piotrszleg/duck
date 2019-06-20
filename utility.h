@@ -2,6 +2,8 @@
 #define UTILITY_H
 
 #include <string.h>
+#include <stdbool.h>
+#include <stdlib.h>
 #include "error/error.h"
 
 // creates string variable str, executes body and frees the string afterwards
@@ -12,9 +14,34 @@
         THROW_ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
     }
 
+#define REQUIRE(predicate, cause) if(!(predicate)) { RETURN_ERROR("WRONG_ARGUMENT", cause, "Requirement of function %s wasn't satisified: %s", __FUNCTION__, #predicate); }
+#define REQUIRE_TYPE(o, t) if(o.type!=t) { \
+    RETURN_ERROR("WRONG_OBJECT_TYPE", o, "Wrong type of \"%s\" in function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
+
+#define REQUIRE_ARGUMENT_TYPE(o, t) if(o.type!=t) { \
+    RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
+
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
 int nearest_power_of_two(int number);
+
+#define CONSTANT_REPLACEMENT_PAIR(to_replace, replacement) \
+    {to_replace, sizeof(to_replace)-1, replacement, sizeof(replacement)-1}
+
+typedef struct {
+    char* to_replace;
+    unsigned to_replace_length;
+    char* replacement;
+    unsigned replacement_length;
+} ReplacementPair;
+
+typedef struct {
+    char* position;
+    int pair_index;
+} Occurence;
+
+char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs, int replacement_pairs_count);
 
 #endif

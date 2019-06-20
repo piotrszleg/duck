@@ -4,6 +4,7 @@
 #include "optimisations/bytecode_optimisations.h"
 #include "runtime/struct_descriptor.h"
 #include "execution.h"
+#include "utility.h"
 
 void path_length_test(){// tests whether "count: "+5="count: 5"
     printf("TEST: %s\n", __FUNCTION__);
@@ -227,6 +228,24 @@ void struct_descriptor_nested_tests(Executor* E){
     printf("test successful\n");
 }
 
+void string_replace_multiple_test(){
+    ReplacementPair pairs[]={
+        CONSTANT_REPLACEMENT_PAIR("doge", "wolfe"),
+        CONSTANT_REPLACEMENT_PAIR("cat", "tiger"),
+        CONSTANT_REPLACEMENT_PAIR("dog", "wolf"),
+        CONSTANT_REPLACEMENT_PAIR("Cat", "Tiger"),
+        CONSTANT_REPLACEMENT_PAIR("Dog", "Wolf"),
+    };
+    #define TEST_REPLACE(original, expected) \
+    {   char* after_replace=string_replace_multiple(original, pairs, 5); \
+        assert(strcmp(after_replace, expected)==0); \
+        free(after_replace); }
+
+    TEST_REPLACE("A white cat jumped over a black dog and the dog barked at the cat.", "A white tiger jumped over a black wolf and the wolf barked at the tiger.");
+    TEST_REPLACE("A white cat jumped over a black doge and the doge barked at the cat.", "A white tiger jumped over a black wolfe and the wolfe barked at the tiger.");
+    TEST_REPLACE("Cat jumped over a black dog and the dog barked at the cat", "Tiger jumped over a black wolf and the wolf barked at the tiger");
+}
+
 int main(){
     Executor E;
     E.gc=malloc(sizeof(GarbageCollector));
@@ -239,6 +258,7 @@ int main(){
         path_length_test(&E);
         struct_descriptor_tests(&E);
         struct_descriptor_nested_tests(&E);
+        string_replace_multiple_test();
     ,
         printf(err_message);
         exit(-1);

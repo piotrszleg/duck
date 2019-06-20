@@ -383,66 +383,25 @@ char* suprintf (const char * format, ...){
     return buffer;
 }
 
-// source: https://stackoverflow.com/questions/779875/what-is-the-function-to-replace-string-in-c
-char *str_replace(char *orig, char *rep, char *with) {
-    char *result; // the return string
-    char *ins;    // the next insert point
-    char *tmp;    // varies
-    int len_rep;  // length of rep (the string to remove)
-    int len_with; // length of with (the string to replace rep with)
-    int len_front; // distance between rep and end of last rep
-    int count;    // number of replacements
-
-    // sanity checks and initialization
-    if (!orig || !rep)
-        return NULL;
-    len_rep = strlen(rep);
-    if (len_rep == 0)
-        return NULL; // empty rep causes infinite loop during count
-    if (!with)
-        with = "";
-    len_with = strlen(with);
-
-    // count the number of replacements needed
-    ins = orig;
-    for (count = 0; (tmp = strstr(ins, rep)); ++count) {
-        ins = tmp + len_rep;
-    }
-
-    tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
-
-    if (!result)
-        return NULL;
-
-    // first time through the loop, all the variable are set correctly
-    // from here on,
-    //    tmp points to the end of the result string
-    //    ins points to the next occurrence of rep in orig
-    //    orig points to the remainder of orig after "end of rep"
-    while (count--) {
-        ins = strstr(orig, rep);
-        len_front = ins - orig;
-        tmp = strncpy(tmp, orig, len_front) + len_front;
-        tmp = strcpy(tmp, with) + len_with;
-        orig += len_front + len_rep; // move to next "end of rep"
-    }
-    strcpy(tmp, orig);
-    return result;
-}
-
 char* stringify_object(Executor* E, Object o){
     switch(o.type){
         case t_string:
         {
+            ReplacementPair replacements[]={
+                CONSTANT_REPLACEMENT_PAIR("\"", "\\\""),
+                CONSTANT_REPLACEMENT_PAIR("\t", "\\t"),
+                CONSTANT_REPLACEMENT_PAIR("\n", "\\n"),
+                CONSTANT_REPLACEMENT_PAIR("\\", "\\\\")
+            };
             // escape quotes
-            //char* replacement_result=str_replace(o.text, "\"", "\\\"");
+            char* replacement_result=string_replace_multiple(o.text, replacements, 4);
             char* text;
             char* result;
-            //if(replacement_result!=NULL){
-            //    text=replacement_result;
-            //} else {
+            if(replacement_result!=NULL){
+                text=replacement_result;
+            } else {
                 text=o.text;
-            //}
+            }
             if(is_valid_name(text)){
                 int length=strlen(text)+2;
                 result=malloc(length*sizeof(char));
@@ -453,11 +412,10 @@ char* stringify_object(Executor* E, Object o){
                 snprintf(result, length, "\"%s\"", text);
             }
 
-            //if(replacement_result!=NULL){
-            //    free(replacement_result);
-            //}
+            if(replacement_result!=NULL){
+                free(replacement_result);
+            }
             return result;
-           // return strdup(o.text);
         }
         case t_int:
             return suprintf("%d", o.int_value);

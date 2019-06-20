@@ -9,8 +9,10 @@ typedef struct {
     expression* first_assignment;
 } VariableDeclaration;
 
+typedef map_t(VariableDeclaration) DeclarationsMap;
+
 typedef struct {
-    map_t(VariableDeclaration) declarations;
+    DeclarationsMap declarations;
     vector functions;
 } PostprocessingState;
 
@@ -82,16 +84,18 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         if(*(expression**)(vector_top(&state->functions))==exp) {
             function_declaration* f=vector_pop(&state->functions);
             // remove all variable declarations belonging to this function
+            DeclarationsMap new_declarations;
+            map_init(&new_declarations);
             map_iter_t iterator=map_iter(&state->declarations);
             const char* key;
             while((key=map_next(&state->declarations, &iterator))){
                 VariableDeclaration* value=map_get(&state->declarations, key);
-                if(value!=NULL){
-                    if(value->owning_function==f){
-                        map_remove(&state->declarations, key);
-                    }
+                if(value->owning_function!=f){
+                    map_set(&new_declarations, key, *value);
                 }
             }
+            map_deinit(&state->declarations);
+            state->declarations=new_declarations;
         } else {
             // ast_visitor entered this function
             vector_push(&state->functions, (const void*)&exp);

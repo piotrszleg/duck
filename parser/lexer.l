@@ -3,9 +3,29 @@ lexer.l
 #include <string.h>
 #include <stdio.h>
 #include "../error/error.h"
+#include "../utility.h"
 #include "parser.tab.h"
 int line_number = 1;
 int column_number = 0;
+
+// removes first and last character from source
+char* proccess_quoted_string(const char* source){
+	int length=strlen(source)-1;
+	char* quote_removed=malloc(length);
+	CHECK_ALLOCATION(quote_removed);
+	strncpy(quote_removed, source+1, length);
+	quote_removed[length-1]='\0';
+
+	ReplacementPair replacements[]={
+        CONSTANT_REPLACEMENT_PAIR("\\\"", "\""),
+        CONSTANT_REPLACEMENT_PAIR("\\t", "\t"),
+		CONSTANT_REPLACEMENT_PAIR("\\n", "\n"),
+		CONSTANT_REPLACEMENT_PAIR("\\\\", "\\")
+    };
+    char* result=string_replace_multiple(quote_removed, replacements, 3);
+	free(quote_removed);
+	return result;
+}
 
 // removes first and last character from source
 char* unquote(const char* source){
@@ -53,7 +73,7 @@ null				    { COUNT_COLUMNS; return NULL_LITERAL; }
 ::                      { COUNT_COLUMNS; return FOUR_DOTS; }
 [0-9]+\.[0-9]+          { COUNT_COLUMNS; yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+                  { COUNT_COLUMNS; yylval.ival = atoi(yytext); return INT; }
-\"([^\\\"]|\\.)*\"      { COUNT_COLUMNS; yylval.sval = unquote(yytext); return STRING; }// double quote string literal god bless stack overflow
+\"([^\\\"]|\\.)*\"      { COUNT_COLUMNS; yylval.sval = proccess_quoted_string(yytext); return STRING; }// double quote string literal god bless stack overflow
 '[a-zA-Z_][a-zA-Z0-9_]* { COUNT_COLUMNS; yylval.sval = strdup(yytext+1); return STRING; }// single quote string
 [a-zA-Z_][a-zA-Z0-9_]*  { COUNT_COLUMNS; yylval.sval = strdup(yytext); return NAME; }
 !=					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }

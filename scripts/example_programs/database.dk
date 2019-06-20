@@ -1,0 +1,39 @@
+FILE="data/records.txt"
+
+print("What do you want to do:")
+print("1: read records")
+print("2: add record")
+print("3: change record")
+answer=int(input())
+
+record_prompt=->{
+    result=""
+    print("name:")
+    result+=input()+" "
+    print("surname:")
+    result+=input()+"\n"
+}
+if(answer==1){
+    file=open_file(FILE, 'r)
+    print(file::read_entire())
+} elif(answer==2){
+    file=open_file(FILE, 'a)
+    file::write(record_prompt())
+} elif(answer==3){
+    file=open_file(FILE, 'r)
+    print("Which record do you want to change")
+    file `##` (line_number, text)->{
+        print(format("{}: {}", line_number+1, text))
+    }
+    new_records=""
+    line_to_change=int(input())-1
+    file `##` (line_number, text)->{
+        if(line_number==line_to_change){
+            new_records+=record_prompt()
+        } else {
+            new_records+=text+"\n"
+        }
+    }
+    file=open_file(FILE, 'w)
+    file::write(new_records)
+}

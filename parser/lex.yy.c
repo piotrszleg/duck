@@ -504,9 +504,29 @@ char *yytext;
 #include <string.h>
 #include <stdio.h>
 #include "../error/error.h"
+#include "../utility.h"
 #include "parser.tab.h"
 int line_number = 1;
 int column_number = 0;
+
+// removes first and last character from source
+char* proccess_quoted_string(const char* source){
+	int length=strlen(source)-1;
+	char* quote_removed=malloc(length);
+	CHECK_ALLOCATION(quote_removed);
+	strncpy(quote_removed, source+1, length);
+	quote_removed[length-1]='\0';
+
+	ReplacementPair replacements[]={
+        CONSTANT_REPLACEMENT_PAIR("\\\"", "\""),
+        CONSTANT_REPLACEMENT_PAIR("\\t", "\t"),
+		CONSTANT_REPLACEMENT_PAIR("\\n", "\n"),
+		CONSTANT_REPLACEMENT_PAIR("\\\\", "\\")
+    };
+    char* result=string_replace_multiple(quote_removed, replacements, 3);
+	free(quote_removed);
+	return result;
+}
 
 // removes first and last character from source
 char* unquote(const char* source){
@@ -538,7 +558,7 @@ void reset_lexer(){
 #define COUNT_COLUMNS column_number+=strlen(yytext)
 
 
-#line 542 "lex.yy.c"
+#line 562 "lex.yy.c"
 
 #define INITIAL 0
 #define COMMENT 1
@@ -726,9 +746,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 42 "lexer.l"
+#line 62 "lexer.l"
 
-#line 732 "lex.yy.c"
+#line 752 "lex.yy.c"
 
 	if ( !(yy_init) )
 		{
@@ -813,122 +833,122 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 43 "lexer.l"
+#line 63 "lexer.l"
 { COUNT_COLUMNS; }
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 44 "lexer.l"
+#line 64 "lexer.l"
 { line_number++; column_number=0; return ENDL; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 45 "lexer.l"
+#line 65 "lexer.l"
 ;// comment
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 46 "lexer.l"
+#line 66 "lexer.l"
 { COUNT_COLUMNS; return IF; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 47 "lexer.l"
+#line 67 "lexer.l"
 { COUNT_COLUMNS; return ELIF; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 48 "lexer.l"
+#line 68 "lexer.l"
 { COUNT_COLUMNS; return ELSE; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 49 "lexer.l"
+#line 69 "lexer.l"
 { COUNT_COLUMNS; return NULL_LITERAL; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 50 "lexer.l"
+#line 70 "lexer.l"
 { COUNT_COLUMNS; return AT; }	
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 51 "lexer.l"
+#line 71 "lexer.l"
 { COUNT_COLUMNS; return ELLIPSIS; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 52 "lexer.l"
+#line 72 "lexer.l"
 { COUNT_COLUMNS; return ARROW; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 53 "lexer.l"
+#line 73 "lexer.l"
 { COUNT_COLUMNS; return FOUR_DOTS; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 54 "lexer.l"
+#line 74 "lexer.l"
 { COUNT_COLUMNS; yylval.fval = atof(yytext); return FLOAT; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 55 "lexer.l"
+#line 75 "lexer.l"
 { COUNT_COLUMNS; yylval.ival = atoi(yytext); return INT; }
 	YY_BREAK
 case 14:
 /* rule 14 can match eol */
 YY_RULE_SETUP
-#line 56 "lexer.l"
-{ COUNT_COLUMNS; yylval.sval = unquote(yytext); return STRING; }// double quote string literal god bless stack overflow
+#line 76 "lexer.l"
+{ COUNT_COLUMNS; yylval.sval = proccess_quoted_string(yytext); return STRING; }// double quote string literal god bless stack overflow
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 57 "lexer.l"
+#line 77 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext+1); return STRING; }// single quote string
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 58 "lexer.l"
+#line 78 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return NAME; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 59 "lexer.l"
+#line 79 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 60 "lexer.l"
+#line 80 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 61 "lexer.l"
+#line 81 "lexer.l"
 { COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, - must be separated from other binary operators because it is also a prefix
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 62 "lexer.l"
+#line 82 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 63 "lexer.l"
+#line 83 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = remove_last_character(yytext); return ASSIGN_BINARY_OPERATOR; }// +=, -= etc
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 64 "lexer.l"
+#line 84 "lexer.l"
 { COUNT_COLUMNS; yylval.sval = unquote(yytext); return BINARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` timestwo
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 65 "lexer.l"
+#line 85 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 932 "lex.yy.c"
+#line 952 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMENT):
 	yyterminate();
@@ -1927,6 +1947,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 65 "lexer.l"
+#line 85 "lexer.l"
 
 
