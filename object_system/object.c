@@ -14,14 +14,17 @@ void garbage_collector_init(GarbageCollector* gc){
 }
 
 void gc_object_init(Executor* E, gc_Object* gco){
-    gc_Object* gc_root=get_garbage_collector(E)->root;
+    GarbageCollector* gc=get_garbage_collector(E);
+    gc_Object* gc_root=gc->root;
+    gc->allocations_count++;
+    
     gco->ref_count=0;
-    if(gc_root!=NULL){
-        gc_root->previous=gco;
+    if(gc->root!=NULL){
+        gc->root->previous=gco;
     }
     gco->next=gc_root;
     gco->previous=NULL;
-    get_garbage_collector(E)->root=gco;
+    gc->root=gco;
 }
 
 Object wrap_gc_object(gc_Object* o){
@@ -168,7 +171,14 @@ void print_allocated_objects(Executor* E){
     }
 }
 
+bool function_uses_source_pointer(Function* f) {
+    return f->ftype==f_bytecode || f->ftype==f_ast;
+}
+
 void gc_mark(Object o){
+    if(!is_gc_object(o) || o.gco->marked==true){
+        return;
+    }
     if(o.type==t_table){
         o.tp->gco.marked=true;
         TableIterator it=table_get_iterator(o.tp);
@@ -179,6 +189,11 @@ void gc_mark(Object o){
     } else if (o.type==t_function){
         o.fp->gco.marked=true;
         gc_mark(o.fp->enclosing_scope);
+        if(function_uses_source_pointer(o.fp)){
+            gc_mark(wrap_gc_object(o.fp->source_pointer));
+        }
+    } else {
+        o.gco->marked=true;
     }
 }
 
@@ -193,7 +208,7 @@ void gc_unmark_all(GarbageCollector* gc){
 void gc_sweep(Executor* E){
     GarbageCollector* gc=get_garbage_collector(E);
     gc_Object* o=gc->root;
-    #define FOREACH_GC_OBJECT(body) \
+    #define FOREACH_UNMARKED_OBJECT(body) \
         o=gc->root; \
         while(o){ \
             gc_Object* next=o->next; \
@@ -205,23 +220,23 @@ void gc_sweep(Executor* E){
 
     gc->state=gcs_deinitializing;
     // dereference all children and call their destructors
-    FOREACH_GC_OBJECT(
+    FOREACH_UNMARKED_OBJECT(
         if(o->ref_count>0){
             o->ref_count=0;
         }
         gc_object_dereference(E, o);
     )
     // reset ref_count for the third pass to work
-    FOREACH_GC_OBJECT(
+    FOREACH_UNMARKED_OBJECT(
         o->ref_count=0;
     )
     gc->state=gcs_freeing_memory;
     // free the memory
-    FOREACH_GC_OBJECT(
+    FOREACH_UNMARKED_OBJECT(
        gc_object_dereference(E, o);
     )
     gc->state=gcs_inactive;
-    #undef FOREACH_GC_OBJECT
+    #undef FOREACH_UNMARKED_OBJECT
 }
 
 bool gc_should_run(GarbageCollector* gc){
@@ -264,8 +279,9 @@ void dereference(Executor* E, Object* o){
 }
 
 void destroy_unreferenced(Executor* E, Object* o){
-    GarbageCollectorState gc_state=get_garbage_collector(E)->state;
     if(is_gc_object(*o) && o->gco->ref_count<=0 && o->gco->ref_count!=ALREADY_DESTROYED){
+        GarbageCollector* gc=get_garbage_collector(E);
+        GarbageCollectorState gc_state=gc->state;
         o->gco->ref_count=ALREADY_DESTROYED;
         switch(o->type){
             case t_function:
@@ -280,7 +296,10 @@ void destroy_unreferenced(Executor* E, Object* o){
                             free(o->fp->argument_names[i]);
                         }
                     }
-                    deinit_function(E, o->fp);
+                    if(function_uses_source_pointer(o->fp)){
+                        gc_object_dereference(E, o->fp->source_pointer);
+                    }
+                    gc->allocations_count--;
                     free(o->fp);
                     o->fp=NULL;
                 }
@@ -294,6 +313,7 @@ void destroy_unreferenced(Executor* E, Object* o){
                 }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(E, o->gco);
+                    gc->allocations_count--;
                     free_table(o->tp);
                     o->tp=NULL;
                 }
@@ -303,6 +323,7 @@ void destroy_unreferenced(Executor* E, Object* o){
             {
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(E, o->gco);
+                    gc->allocations_count--;
                     o->gcp->destructor(E, o->gcp);
                     o->gcp=NULL;
                 }

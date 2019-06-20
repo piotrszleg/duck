@@ -1,14 +1,17 @@
-tab=[
-    message="You thought that this will be a destructor, but it is me DIO!"
-    destroy=self->print(self.message)
-]
-
-f=->{
+circular_reference=->{
     tab=[
-        destroy=_->print("circular reference was destroyed")
+        message="You thought that this will be a destructor, but it is me DIO!"
+        destroy=self->print(self.message)
     ]
     tab.self=tab
+    tab
 }
+loop=(times ,f)->{
+    f()
+    if(times>0){
+        loop(times-1, f)
+    } 
+}
+f=->{loop(30, circular_reference)}
 f()
-f()
-f()
+print('tests)

@@ -47,6 +47,11 @@ void path_set(Executor* E, Object scope, path p, Object value){
     }
 }
 
+void ast_source_pointer_destructor(Executor* E, ASTSourcePointer* sp){
+    delete_expression(sp->body);
+    free(sp);
+}
+
 Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     if(exp==NULL){
         return null_const;
@@ -165,7 +170,10 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 f.fp->argument_names[i]=strdup(((argument*)pointers_vector_get(&d->arguments, i))->name);
             }
             f.fp->ftype=f_ast;
-            f.fp->source_pointer=(void*)copy_expression(d->body);
+            ASTSourcePointer* sp=malloc(sizeof(ASTSourcePointer));
+            sp->body=copy_expression(d->body);
+            gc_pointer_init(E, (gc_Pointer*)sp, (gc_PointerDestructorFunction)ast_source_pointer_destructor);
+            f.fp->source_pointer=(gc_Object*)sp;
             f.fp->enclosing_scope=scope;
             reference(&scope);
             return f;

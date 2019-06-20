@@ -52,8 +52,8 @@ typedef enum {
 } GarbageCollectorState;
 
 // when allocations_count in gc_object_init is greater than MAX_ALLOCATIONS the garbage collector will be activated
-#define MAX_ALLOCATIONS 100
-#define ALREADY_DESTROYED INT_MIN
+#define MAX_ALLOCATIONS 20
+#define ALREADY_DESTROYED -5
 
 typedef struct {
     gc_Object* root;
@@ -145,7 +145,7 @@ struct Function {
     FunctionType ftype;
     union {
         ObjectSystemFunction native_pointer;
-        void* source_pointer;
+        gc_Object* source_pointer;
         int special_index;
     };
     char** argument_names;
@@ -166,6 +166,7 @@ struct Coroutine {
 
 void print_allocated_objects(Executor* E);
 bool is_gc_object(Object o);
+bool gc_should_run(GarbageCollector* gc);
 void gc_run(Executor* E, Object* roots, int roots_count);
 Object wrap_gc_object(gc_Object* o);
 void call_destroy(Executor* E, Object o);
@@ -192,7 +193,6 @@ void object_system_deinit(Executor* E);
 
 // these functions should be implemented in higher level module
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
-void deinit_function(Executor* E, Function* f);
 Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
 
 #include "table.h"

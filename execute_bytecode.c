@@ -52,7 +52,7 @@ void move_to_function(Executor* E, Function* f){
     dereference(E, &E->bytecode_environment.scope);
     E->bytecode_environment.scope=function_scope;
     gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
-    E->bytecode_environment.executed_program=f->source_pointer;
+    E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
     E->bytecode_environment.pointer=0;
 }
 
@@ -441,7 +441,7 @@ Object execute_bytecode(Executor* E){
                 if(f.type!=t_function){
                     BYTECODE_ERROR(f, "b_function: bytecode function type is %s", OBJECT_TYPE_NAMES[f.type]);
                 }
-                f.fp->source_pointer=E->bytecode_environment.executed_program->sub_programs+instr.uint_argument;
+                f.fp->source_pointer=(gc_Object*)(E->bytecode_environment.executed_program->sub_programs+instr.uint_argument);
                 gc_object_reference((gc_Object*)f.fp->source_pointer);
                 break;
             }
@@ -587,6 +587,26 @@ Object execute_bytecode(Executor* E){
                     if(return_point->terminate){
                         Object last=pop(object_stack);
                         return last;
+                    } else {
+                        if(gc_should_run(E->gc)){
+                            // push scopes to the stack to avoid their collection
+                            for(int i=0; i<vector_count(return_stack); i++){
+                                ReturnPoint* return_point=vector_index(return_stack, i);
+                                push(object_stack, return_point->scope);
+                                push(object_stack, wrap_gc_object((gc_Object*)return_point->program));
+                            }
+                            push(object_stack, wrap_gc_object((gc_Object*)E->bytecode_environment.executed_program));
+                            push(object_stack, *scope);
+                            // collect everything that isn't on object stack
+                            gc_run(E, (Object*)vector_get_data(object_stack), vector_count(object_stack));
+                            // pop the scopes back
+                            for(int i=0; i<vector_count(return_stack); i++){
+                                pop(object_stack);
+                                pop(object_stack);
+                            }
+                            pop(object_stack);
+                            pop(object_stack);
+                        }
                     }
                 }
                 break;

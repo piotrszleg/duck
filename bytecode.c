@@ -139,6 +139,7 @@ int* list_labels(Instruction* code){
 }
 
 void bytecode_program_destructor(Executor* E, BytecodeProgram* program) {
+    GarbageCollectorState gc_state=get_garbage_collector(E)->state;
     for(int i=0; i<program->sub_programs_count; i++){
         gc_object_dereference(E, (gc_Object*)&program->sub_programs[i]);
     }

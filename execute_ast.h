@@ -9,6 +9,13 @@
 #include "error/execution_state.h"
 #include "utility.h"
 
+typedef struct {
+    gc_Pointer gcp;
+    expression* body;
+} ASTSourcePointer;
+
+void ast_source_pointer_destructor(Executor* E, ASTSourcePointer* sp);
+
 Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope);
 
 #endif

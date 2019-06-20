@@ -21,8 +21,6 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
     }
 }
 
-void deinit_function(Executor* E, Function* f){}
-
 void get_execution_info(Executor* E, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
 }

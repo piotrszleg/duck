@@ -136,13 +136,3 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
 GarbageCollector* get_garbage_collector(Executor* E){
     return E->gc;
 }
-
-void deinit_function(Executor* E, Function* f){
-    switch(f->ftype){
-        case f_ast:
-            delete_expression(f->source_pointer);
-        case f_bytecode:
-            gc_object_dereference(E, (gc_Object*)f->source_pointer);
-        default:;
-    }
-}
