@@ -451,7 +451,7 @@ Object execute_bytecode(Executor* E){
                 Object o=pop(object_stack);
                 int provided_arguments=instr.uint_argument;
 
-                #define CLEANUP \
+                #define POP_ARGUMENTS \
                     for (int i = 0; i < provided_arguments; i++){ \
                         Object argument=pop(object_stack); \
                             dereference(E, &argument); \
@@ -459,9 +459,9 @@ Object execute_bytecode(Executor* E){
                     dereference(E, &o);
                 #define CALL_ERROR(message, ...) \
                 {   Object err; \
+                    POP_ARGUMENTS \
                     NEW_ERROR(err, "CALL_ERROR", o, message, ##__VA_ARGS__); \
                     push(object_stack, err); \
-                    CLEANUP \
                     break;  }
                 
                 if(o.type==t_null){
@@ -477,47 +477,6 @@ Object execute_bytecode(Executor* E){
                     free(arguments);
                     break;
                 }
-                if(o.fp->ftype==f_special){
-                    
-                    switch(o.fp->special_index){
-                        case 0:// coroutine yield
-                        {
-                            if(E->coroutine==NULL){
-                                CLEANUP
-                                RETURN_ERROR("COROUTINE_ERROR", null_const, "Yield from outisde of coroutine.");
-                            }
-                            // simply return the value from stack top
-                            if(E->options.debug_mode){
-                                debugger(E);
-                            }
-                            (*pointer)++;
-                            if(provided_arguments==1){
-                                return pop(object_stack);
-                            } else if(provided_arguments==0){
-                                return null_const;
-                            } else {
-                                CLEANUP
-                                RETURN_ERROR("COROUTINE_ERROR", null_const, "Incorrect number of arguments (%i) was passed to coroutine yield.", provided_arguments);
-                            }
-                        }
-                        case 1:// debugger
-                        {
-                            for (int i = 0; i < provided_arguments; i++){
-                                Object argument=pop(object_stack);
-                                dereference(E, &argument);
-                            }
-                            if(E->options.debug_mode){
-                                E->bytecode_environment.debugger.running=false;
-                                debugger(E);
-                            }
-                            push(object_stack, null_const);
-                            (*pointer)++;
-                            continue;
-                        }
-                        default:
-                            CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
-                    }
-                }
                 int arguments_count_difference=provided_arguments-o.fp->arguments_count;
                 // check arguments count
                 if(o.fp->variadic){
@@ -532,7 +491,6 @@ Object execute_bytecode(Executor* E){
                         CALL_ERROR("Not enough arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
                     }
                 }
-
                 if(o.fp->ftype==f_native){
                     Object* arguments=malloc(sizeof(Object)*provided_arguments);
                     // items are on stack in reverse order, but native function expect them to be in normal order
@@ -542,11 +500,8 @@ Object execute_bytecode(Executor* E){
                     Object call_result=o.fp->native_pointer(E, arguments, provided_arguments);
                     push(object_stack, call_result);
                     free(arguments);
-                } else{
+                } else if(o.fp->ftype==f_bytecode) {
                     if(o.fp->variadic){
-                        if(arguments_count_difference<-1){
-                            CALL_ERROR("Not enough arguments in variadic function call, expected at least %i, given %i.", o.fp->arguments_count-1, provided_arguments);
-                        }
                         // pack variadic arguments into a Table and push the Table back onto the stack
                         int variadic_arguments_count=arguments_count_difference+1;
                         Object variadic_table;
@@ -556,20 +511,56 @@ Object execute_bytecode(Executor* E){
                         }
                         push(object_stack, variadic_table);
                     }
-                    if(o.fp->ftype==f_bytecode){
-                        if(instr.type!=b_tail_call){
-                            create_return_point(&E->bytecode_environment, false);
-                        }
-                        move_to_function(E, o.fp);
-                        dereference(E, &o);
-                        continue;// don't increment the pointer
-                    } else if(o.fp->ftype==f_ast) {
-                        CALL_ERROR("Can't call ast function from bytecode.");
-                    } else {
-                        CALL_ERROR("Incorrect function type %i", o.fp->ftype);
+                    if(instr.type!=b_tail_call){
+                        create_return_point(&E->bytecode_environment, false);
                     }
+                    move_to_function(E, o.fp);
+                    dereference(E, &o);
+                    continue;// don't increment the pointer
+                } else if(o.fp->ftype==f_special){
+                    switch(o.fp->special_index){
+                        case 0:// coroutine yield
+                        {
+                            if(E->coroutine==NULL){
+                                POP_ARGUMENTS
+                                Object err;
+                                NEW_ERROR(err, "COROUTINE_ERROR", o, "Yield from outisde of coroutine.");
+                                push(object_stack, err);
+                            }
+                            // simply return the value from stack top
+                            if(E->options.debug_mode){
+                                debugger(E);
+                            }
+                            (*pointer)++;
+                            if(provided_arguments==1){
+                                return pop(object_stack);
+                            } else if(provided_arguments==0){
+                                return null_const;
+                            } else {
+                                POP_ARGUMENTS
+                                RETURN_ERROR("COROUTINE_ERROR", null_const, "Incorrect number of arguments (%i) was passed to coroutine yield.", provided_arguments);
+                            }
+                        }
+                        case 1:// debugger
+                        {
+                            POP_ARGUMENTS
+                            if(E->options.debug_mode){
+                                E->bytecode_environment.debugger.running=false;
+                                debugger(E);
+                            }
+                            push(object_stack, null_const);
+                            (*pointer)++;
+                            continue;
+                        }
+                        default:
+                            CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
+                    }
+                } else if(o.fp->ftype==f_ast) {
+                    CALL_ERROR("Can't call ast function from bytecode.");
+                } else {
+                    CALL_ERROR("Incorrect function type %i", o.fp->ftype);
                 }
-                #undef CLEANUP
+                #undef POP_ARGUMENTS
                 #undef CALL_ERROR
                 dereference(E, &o);
                 break;
