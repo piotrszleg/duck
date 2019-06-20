@@ -8,7 +8,6 @@ range=(start, end, step)->[
         }]
     }
 ]
-# TODO: tail call optimisation
 range(1, 100, 1) `#` i->{
     if((i%3==0) &&  (i%5==0)){
         print("FizzBuzz")!

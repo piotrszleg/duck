@@ -5,3 +5,4 @@ notes.md
 *.exe
 .vscode/ipch/
 runtime/struct_descriptor_notes.txt
+data/records.txt

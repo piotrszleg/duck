@@ -209,12 +209,12 @@ void free_table(Table* t){
     free(t);
 }
 
-static bool array_upsize_allowed(Table* t, int index){
-    return index<t->array_size*8;
+static bool array_upsize_allowed(Table* t, int new_size){
+    return new_size<t->array_size*8;
 }
 
-static bool array_downsize_allowed(Table* t, int index){
-    return index<t->array_size/3;
+static bool array_downsize_allowed(Table* t, int new_size){
+    return new_size<t->array_size/3 && new_size>=INITIAL_ARRAY_SIZE;
 }
 
 static void move_from_map_to_array(Table* t){
@@ -256,6 +256,7 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
         int index=(int)key.int_value;
         if(index<t->array_size){
             // key lies within array part
+            dereference(E, &t->array[index]);
             if(value.type!=t_null){
                 if(t->array[index].type==t_null){
                     t->elements_count++;
@@ -264,9 +265,13 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
             } else if (t->array[index].type!=t_null){
                 t->elements_count--;
                 // reduce the array part size if possible
-                if(index<t->array_size/2 && array_downsize_allowed(t, index) && !elements_after(t, index)){
-                    t->array_size/=2;
+                int proposed_new_size=nearest_power_of_two(index);
+                if(proposed_new_size!=t->array_size && array_downsize_allowed(t, proposed_new_size) && !elements_after(t, index)){
+                    t->array_size=proposed_new_size;
                     t->array=realloc(t->array, sizeof(Object)*t->array_size);
+                    if(index<t->array_size){// if key still lies inside of the array part set it to null
+                        t->array[index]=null_const;
+                    }
                     return;
                 } else {
                     // simply set array field to null
@@ -274,12 +279,15 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
                 }
             }
             return;
-        } else if(array_upsize_allowed(t, index)) {
-            t->array_size*=2;
-            t->array=realloc(t->array, sizeof(Object)*t->array_size);
-            move_from_map_to_array(t);
-            t->array[index]=value;
-            return;
+        } else {
+            int proposed_new_size=nearest_power_of_two(index);
+            if(array_upsize_allowed(t, proposed_new_size)){
+                t->array_size=proposed_new_size;
+                t->array=realloc(t->array, sizeof(Object)*t->array_size);
+                move_from_map_to_array(t);
+                t->array[index]=value;
+                return;
+            }
         }
     }
     // insert value into map

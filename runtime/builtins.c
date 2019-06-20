@@ -187,18 +187,17 @@ Object builtin_typeof(Executor* E, Object* arguments, int arguments_count){
 
 Object builtin_native_get(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
-    REQUIRE_TYPE(self, t_table)
-    Object key =arguments[1];
+    REQUIRE_ARGUMENT_TYPE(self, t_table)
+    Object key=arguments[1];
     return table_get(self.tp, key);
 }
 
 Object builtin_native_set(Executor* E, Object* arguments, int arguments_count){
-    Object self =arguments[2];
-    REQUIRE_TYPE(self, t_table)
-    Object key  =arguments[1]; 
+    Object self=arguments[0];
+    REQUIRE_ARGUMENT_TYPE(self, t_table)
+    Object key=arguments[1]; 
     Object value=arguments[2];
-    USING_STRING(stringify(E, key),
-        table_set(E, self.tp, to_string(str), value));
+    table_set(E, self.tp, key, value);
     return value;
 }
 
@@ -408,6 +407,7 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(assert, 1)
     REGISTER_FUNCTION(typeof, 1)
     REGISTER_FUNCTION(native_get, 2)
+    REGISTER_FUNCTION(native_set, 3)
     REGISTER_FUNCTION(native_call, 2)
     REGISTER_FUNCTION(native_stringify, 1)
     REGISTER_FUNCTION(include, 1)
