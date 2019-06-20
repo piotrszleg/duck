@@ -14,43 +14,43 @@ void path_length_test(){// tests whether "count: "+5="count: 5"
 
     // correct path starting from b_get
     ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, 0},
-        {b_get, 0}
+        {b_load_string, .uint_argument=0},
+        {b_get, .uint_argument=0}
     }), 1, 2)
     // counting starts from load_string Instruction so path length should be zero
     ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, 0},
-        {b_get, 0}
+        {b_load_string, .uint_argument=0},
+        {b_get, .uint_argument=0}
     }), 0, 0)
     // no path present
     ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_double, 0},
-        {b_jump, 0}
+        {b_double, .uint_argument=0},
+        {b_jump, .uint_argument=0}
     }), 1, 0)
     // path of length 4
     ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, 0},
-        {b_get, 0},
-        {b_load_string, 0},
-        {b_get, 1}
+        {b_load_string, .uint_argument=0},
+        {b_get, .uint_argument=0},
+        {b_load_string, .uint_argument=0},
+        {b_table_get, .uint_argument=0}
     }), 3, 4)
     // path of length 6
     ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, 0},
-        {b_get, 0},
-        {b_load_string, 0},
-        {b_get, 0},
-        {b_load_string, 0},
-        {b_get, 1}
+        {b_load_string, .uint_argument=0},
+        {b_get, .uint_argument=0},
+        {b_load_string, .uint_argument=0},
+        {b_table_get, .uint_argument=0},
+        {b_load_string, .uint_argument=0},
+        {b_table_get, .uint_argument=0}
     }), 5, 6)
     // path of length 4 and random instructions after it
     ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_double, 0},
-        {b_jump, 0},
-        {b_load_string, 0},
-        {b_get, 0},
-        {b_load_string, 0},
-        {b_get, 1}
+        {b_double, .uint_argument=0},
+        {b_jump, .uint_argument=0},
+        {b_load_string, .uint_argument=0},
+        {b_get, .uint_argument=0},
+        {b_load_string, .uint_argument=0},
+        {b_table_get, .uint_argument=0}
     }), 5, 4)
 
     printf("test successful\n");
@@ -68,6 +68,7 @@ typedef struct {
     float b;
     char* c;
 } ExampleStruct;
+
 
 #define OFFSET(structure, field) (int)&(structure).field-(int)&(structure)
 #define FIELD(class, structure, field, type) set(E, class, to_string(#field), to_field(E, OFFSET(structure, field), type));

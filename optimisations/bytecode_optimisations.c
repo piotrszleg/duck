@@ -6,16 +6,17 @@
     }
 
 bool is_path_part(Instruction instr){
-    return  instr.type==b_get || instr.type==b_table_get || instr.type==b_load_string;
+    return  instr.type==b_get || instr.type==b_table_get || instr.type==b_load_string || instr.type==b_load_int || instr.type==b_load_float;
 }
 
 int path_length(const Instruction* code,  int path_start){
-    if(code[path_start].type!=b_get && code[path_start].type!=b_set){
-        return 0;// path must start with either set or get
+    if(code[path_start].type==b_get || code[path_start].type==b_set || code[path_start].type==b_table_get){
+        int p=1;
+        for(; is_path_part(code[path_start-p]) && p<path_start+1; p++);
+        return p;
+    } else {
+        return 0;
     }
-    int p=1;
-    for(; is_path_part(code[path_start-p]) && p<path_start+1; p++);
-    return p;
 }
 
 bool instructions_equal(Instruction a, Instruction b){
