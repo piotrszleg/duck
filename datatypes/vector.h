@@ -35,6 +35,10 @@ void vector_insert_multiple(vector* v, int index, void* elements, int count);
 void vector_delete(vector* v, int index);
 void vector_delete_range(vector* v, int start, int end);
 void vector_clear(vector* v);
+// searches for item starting from the end and deletes it
+// will only delete one item
+// if item is not found in the vector first item will be deleted
+void vector_delete_item(vector* v, void* item);
 
 void* vector_index(const vector* v, int index);
 void* vector_index_checked(const vector* v, int index);

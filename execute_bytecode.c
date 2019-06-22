@@ -50,8 +50,10 @@ void move_to_function(Executor* E, Function* f){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
     dereference(E, &E->bytecode_environment.scope);
+    reference(&function_scope);
     E->bytecode_environment.scope=function_scope;
     gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
+    gc_object_reference((gc_Object*)f->source_pointer);
     E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
     E->bytecode_environment.pointer=0;
 }
@@ -203,6 +205,28 @@ void debugger(Executor* E){
         #undef COMMAND_PARAMETERIZED
         printf("Unknown command \"%s\"\n", input);
     }
+}
+
+void bytecode_program_collect_garbage(Executor* E){
+    vector* object_stack=&E->bytecode_environment.object_stack;
+    vector* return_stack=&E->bytecode_environment.return_stack;
+    Object* scope=&E->bytecode_environment.scope;
+    for(int i=0; i<vector_count(return_stack); i++){
+        ReturnPoint* return_point=vector_index(return_stack, i);
+        push(object_stack, return_point->scope);
+        push(object_stack, wrap_gc_object((gc_Object*)return_point->program));
+    }
+    push(object_stack, wrap_gc_object((gc_Object*)E->bytecode_environment.executed_program));
+    push(object_stack, *scope);
+    // collect everything that isn't on object stack
+    gc_run(E, (Object*)vector_get_data(object_stack), vector_count(object_stack));
+    // pop the scopes back
+    for(int i=0; i<vector_count(return_stack); i++){
+        pop(object_stack);
+        pop(object_stack);
+    }
+    pop(object_stack);
+    pop(object_stack);
 }
 
 Object execute_bytecode(Executor* E){
@@ -428,7 +452,7 @@ Object execute_bytecode(Executor* E){
                 Object f;
                 function_init(E, &f);
                 f.fp->enclosing_scope=*scope;
-                reference(scope);// remember to check the enclosing scope in destructor
+                reference(scope);
                 f.fp->arguments_count=instr.pre_function_argument.arguments_count;
                 f.fp->variadic=instr.pre_function_argument.is_variadic;
                 f.fp->ftype=f_bytecode;
@@ -552,6 +576,12 @@ Object execute_bytecode(Executor* E){
                             (*pointer)++;
                             continue;
                         }
+                        case 2://  collect_garbage
+                        {
+                            bytecode_program_collect_garbage(E);
+                            (*pointer)++;
+                            continue;
+                        }
                         default:
                             CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
                     }
@@ -587,26 +617,8 @@ Object execute_bytecode(Executor* E){
                     if(return_point->terminate){
                         Object last=pop(object_stack);
                         return last;
-                    } else {
-                        if(gc_should_run(E->gc)){
-                            // push scopes to the stack to avoid their collection
-                            for(int i=0; i<vector_count(return_stack); i++){
-                                ReturnPoint* return_point=vector_index(return_stack, i);
-                                push(object_stack, return_point->scope);
-                                push(object_stack, wrap_gc_object((gc_Object*)return_point->program));
-                            }
-                            push(object_stack, wrap_gc_object((gc_Object*)E->bytecode_environment.executed_program));
-                            push(object_stack, *scope);
-                            // collect everything that isn't on object stack
-                            gc_run(E, (Object*)vector_get_data(object_stack), vector_count(object_stack));
-                            // pop the scopes back
-                            for(int i=0; i<vector_count(return_stack); i++){
-                                pop(object_stack);
-                                pop(object_stack);
-                            }
-                            pop(object_stack);
-                            pop(object_stack);
-                        }
+                    } else if(gc_should_run(E->gc)){
+                        //bytecode_program_collect_garbage(E);
                     }
                 }
                 break;

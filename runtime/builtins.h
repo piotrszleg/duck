@@ -2,6 +2,7 @@
 #define BUILTINS_H
 
 #include <string.h>
+#include <time.h>
 #include "../object_system/object.h"
 #include "../object_system/object_operations.h"
 #include "../error/error.h"

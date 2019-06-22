@@ -52,7 +52,7 @@ typedef enum {
 } GarbageCollectorState;
 
 // when allocations_count in gc_object_init is greater than MAX_ALLOCATIONS the garbage collector will be activated
-#define MAX_ALLOCATIONS 20
+#define MAX_ALLOCATIONS 50
 #define ALREADY_DESTROYED -5
 
 typedef struct {
@@ -122,15 +122,19 @@ OBJECT_INIT_E(table)
 // declaration of function pointer type used in function objects
 typedef Object (*ObjectSystemFunction)(Executor* E, Object* arguments, int arguments_count);
 
-typedef void (*gc_PointerDestructorFunction)(Executor*, void*);
+typedef void (*gc_PointerFreeFunction)(gc_Pointer*);
+typedef void (*gc_PointerDereferenceChildrenFunction)(Executor*, gc_Pointer*);
+typedef void (*gc_PointerMarkChildrenFunction)(gc_Pointer*);
 
 typedef struct gc_Pointer gc_Pointer;
 struct gc_Pointer {
     gc_Object gco;
-    gc_PointerDestructorFunction destructor;
+    gc_PointerFreeFunction free;
+    gc_PointerDereferenceChildrenFunction dereference_children;
+    gc_PointerMarkChildrenFunction mark_children;
 };
 
-void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerDestructorFunction destructor);
+void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerFreeFunction free);
 
 typedef enum {
     f_native,

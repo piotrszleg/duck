@@ -47,9 +47,13 @@ void path_set(Executor* E, Object scope, path p, Object value){
     }
 }
 
-void ast_source_pointer_destructor(Executor* E, ASTSourcePointer* sp){
+void ast_source_pointer_free(Executor* E, ASTSourcePointer* sp){
     delete_expression(sp->body);
     free(sp);
+}
+
+void ast_executor_collect_garbage(Executor* E) {
+
 }
 
 Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
@@ -58,6 +62,13 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     }
     E->line=exp->line_number;
     E->column=exp->column_number;
+    #define USE(object) \
+        vector_push(&E->ast_execution_state.used_objects, &object); \
+        reference(&object);
+    #define STOP_USING(object) \
+        vector_delete_item(&E->ast_execution_state.used_objects, &object); \
+        dereference(E, &object);
+    
     switch(exp->type){
         case e_expression:
         case e_macro:
@@ -73,22 +84,24 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         case e_table_literal:
         {
             block* b=(block*)exp;
-            Object table_scope;
-            table_init(E, &table_scope);
-            reference(&table_scope);
+            Object table;
+            table_init(E, &table);
+            USE(table)
+            reference(&table);
             int array_counter=0;
             for (int i = 0; i < vector_count(&b->lines); i++){
                 expression* line=(expression*)pointers_vector_get(&b->lines, i);
                 Object set_result;
                 if(line->type==e_assignment){
                     assignment* a=(assignment*)line;
-                    set_result=set(E, table_scope, to_string(table_literal_extract_key(a)), execute_ast(E, a->right, table_scope, 0));
+                    set_result=set(E, table, to_string(table_literal_extract_key(a)), execute_ast(E, a->right, scope, 0));
                 } else {
-                    set_result=set(E, table_scope, to_int(array_counter++), execute_ast(E, line, table_scope, 0));
+                    set_result=set(E, table, to_int(array_counter++), execute_ast(E, line, scope, 0));
                 }
                 destroy_unreferenced(E, &set_result);
             }
-            return table_scope;
+            //STOP_USING(table)
+            return table;
         }
         case e_block:
         {
@@ -100,19 +113,25 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 table_init(E, &block_scope);
                 inherit_scope(E, block_scope, scope);
             }
+            USE(block_scope)
             Object result;
             for (int i = 0; i < vector_count(&b->lines); i++){
                 Object line_result=execute_ast(E, pointers_vector_get(&b->lines, i), block_scope, 0);
                 reference(&line_result);
-                if(E->ast_returning || i == vector_count(&b->lines)-1){
+                if(E->ast_execution_state.returning || i == vector_count(&b->lines)-1){
                     result=line_result;
                     break;
                 } else {
                     dereference(E, &line_result);
                 }
             }
-            if(!keep_scope){
-                dereference(E, &block_scope);
+            STOP_USING(block_scope)
+            if(gc_should_run(E->gc)){
+                vector_push(&E->ast_execution_state.used_objects, &result);
+                vector_push(&E->ast_execution_state.used_objects, &scope);
+                //gc_run(E, vector_get_data(&E->ast_execution_state.used_objects), vector_count(&E->ast_execution_state.used_objects));
+                vector_pop(&E->ast_execution_state.used_objects);
+                vector_pop(&E->ast_execution_state.used_objects);
             }
             return result;
         }
@@ -124,17 +143,22 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         {
             assignment* a=(assignment*)exp;
             Object result=execute_ast(E, a->right, scope, 0);
+            USE(result)
             path_set(E, scope, *a->left, result);
+            STOP_USING(result)
             return result;
         }
         case e_binary:
         {
             binary* u=(binary*)exp;
             Object left=execute_ast(E, u->left, scope, 0);
+            USE(left)
             Object right=execute_ast(E, u->right, scope, 0);
+            USE(right)
             Object result=operator(E, left, right, u->op);
-            dereference(E, &left);
-            dereference(E, &right);
+            vector_delete_item(&E->ast_execution_state.used_objects, &u->left);
+            STOP_USING(left);
+            STOP_USING(right);
             return result;
         }
         case e_prefix:
@@ -142,18 +166,24 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             prefix* p=(prefix*)exp;
             Object left=null_const;
             Object right=execute_ast(E, p->right, scope, 0);
+            USE(right)
             Object result=operator(E, left, right, p->op);
-            dereference(E, &left);
+            STOP_USING(right)
             return result;
         }
         case e_conditional:
         {
             conditional* c=(conditional*)exp;
-            if(is_falsy(execute_ast(E, c->condition, scope, 0))){
-                return execute_ast(E, (expression*)c->onfalse, scope, 0);
+            Object condition=execute_ast(E, c->condition, scope, 0);
+            USE(condition)
+            Object result;
+            if(is_falsy(condition)){
+                result=execute_ast(E, (expression*)c->onfalse, scope, 0);
             } else{
-                return execute_ast(E, (expression*)c->ontrue, scope, 0);
+                result=execute_ast(E, (expression*)c->ontrue, scope, 0);
             }
+            STOP_USING(condition)
+            return result;
         }
         case e_function_declaration:
         {
@@ -172,8 +202,9 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             f.fp->ftype=f_ast;
             ASTSourcePointer* sp=malloc(sizeof(ASTSourcePointer));
             sp->body=copy_expression(d->body);
-            gc_pointer_init(E, (gc_Pointer*)sp, (gc_PointerDestructorFunction)ast_source_pointer_destructor);
+            gc_pointer_init(E, (gc_Pointer*)sp, (gc_PointerFreeFunction)ast_source_pointer_free);
             f.fp->source_pointer=(gc_Object*)sp;
+            gc_object_reference((gc_Object*)sp);
             f.fp->enclosing_scope=scope;
             reference(&scope);
             return f;
@@ -183,15 +214,27 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             function_call* c=(function_call*)exp;
             
             Object f=execute_ast(E, c->called, scope, 0);
+            USE(f)
             int arguments_count=vector_count(&c->arguments->lines);
             Object* arguments=malloc(arguments_count*sizeof(Object));
             for (int i = 0; i < vector_count(&c->arguments->lines); i++){
                 Object argument_value=execute_ast(E, pointers_vector_get(&c->arguments->lines, i), scope, 0);
                 arguments[i]=argument_value;
             }
+            if(f.type==t_function && f.fp->ftype==f_special){
+                switch(f.fp->special_index){
+                    case 2://  collect_garbage
+                    {
+                        return null_const;
+                    }
+                    default:
+                        RETURN_ERROR("CALL_ERROR", f, "Unknown special function of special_index %i.", f.fp->special_index)
+                }
+            }
             Object result=call(E, f, arguments, arguments_count);
-            E->ast_returning=false;
+            E->ast_execution_state.returning=false;
             free(arguments);
+            STOP_USING(f)
             return result;
         }
         case e_path:
@@ -206,13 +249,12 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         {
             function_return* r=(function_return*)exp;
             Object result=execute_ast(E, r->value, scope, 0);
-            E->ast_returning=true;
+            E->ast_execution_state.returning=true;
             return result;
         }
         default:
         {
-            printf("uncatched expression type: %i\n", exp->type);
-            return null_const;
+            RETURN_ERROR("AST_EXECUTION_ERROR", null_const, "uncatched expression type: %i\n", exp->type)
         }
     }
 }

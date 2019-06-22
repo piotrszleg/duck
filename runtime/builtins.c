@@ -438,6 +438,12 @@ void register_builtins(Executor* E, Object scope){
     debug.fp->special_index=1;
     set(E, scope, to_string("debug"), debug);
 
+    Object collect_garbage;
+    function_init(E, &collect_garbage);
+    collect_garbage.fp->ftype=f_special;
+    collect_garbage.fp->special_index=2;
+    set(E, scope, to_string("collect_garbage"), collect_garbage);
+
     set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
 
     set_function(E, scope, "coroutine", 1, true, builtin_coroutine);

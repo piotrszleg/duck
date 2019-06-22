@@ -251,6 +251,8 @@ int main(){
     Executor E;
     E.gc=malloc(sizeof(GarbageCollector));
     object_system_init(&E);
+    E.ast_execution_state.returning=false;
+    vector_init(&E.ast_execution_state.used_objects, sizeof(Object), 8);
     E.options=default_options;
     bytecode_environment_init(&E.bytecode_environment);
     TRY_CATCH(

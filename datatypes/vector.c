@@ -103,6 +103,37 @@ void vector_delete(vector* v, int index){
     vector_check_downsize(v);
 }
 
+void vector_delete_item(vector* v, void* item){
+    bool temporaries_allocated=false;
+    void* temporaries;// memory used by previous and current variables
+    if(v->size-v->count>2){
+        // use unused part of the vector if possible
+        temporaries=((char*)v->items) + (v->count)*v->item_size;
+    } else {
+        temporaries_allocated=true;
+        temporaries=malloc(v->item_size*2);
+        CHECK_ALLOCATION(temporaries)
+    }
+    void* previous=(void*)temporaries;
+    memcpy(previous, vector_top(v), v->item_size);
+    void* current=(char*)temporaries+v->item_size;
+    
+    for(int i=v->count-1; i>=0; i--){
+        bool found=memcmp(vector_index(v, i), item, v->item_size)==0;
+        memcpy(current, vector_index(v, i), v->item_size);
+        memcpy(vector_index(v, i), previous, v->item_size);
+        memcpy(previous, current, v->item_size);
+        if(found){
+            break;
+        }
+    }
+    v->count-=1;
+    vector_check_downsize(v);
+    if(temporaries_allocated){
+        free(temporaries);
+    }
+}
+
 void vector_clear(vector* v){
     v->count=0;
 }
@@ -119,12 +150,12 @@ void vector_delete_range(vector* v, int start, int end){
 void* vector_pop(vector* v){
     vector_check_downsize(v);// downsize is here because we don't want to deallocate the returned pointer
     v->count--;
-    char* item_position=((char*)v->items) + v->count*v->item_size/sizeof(char);
+    char* item_position=((char*)v->items) + v->count*v->item_size;
     return (void*)item_position;
 }
 
 void* vector_top(vector* v){
-    char* item_position=((char*)v->items) + (v->count-1)*v->item_size/sizeof(char);
+    char* item_position=((char*)v->items) + (v->count-1)*v->item_size;
     return (void*)item_position;
 }
 
@@ -165,6 +196,7 @@ void vector_copy(vector* source, vector* destination){
 void vector_tests(){
     printf("TEST: vector_tests\n");
     int array[]={0, 1, 2, 3, 4, 5, 6, 7 ,8, 9};
+    int not_in_array=25;
     int* array_allocated;
     vector v;
     
@@ -209,6 +241,19 @@ void vector_tests(){
     RESET_VECTOR
     vector_delete_range(&v, 0, 9);
     assert(vector_count(&v)==0);
+    RESET_VECTOR
+
+    vector_delete_item(&v, &array[0]);
+    ASSERT_CONTENT(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    RESET_VECTOR
+    vector_delete_item(&v, &array[3]);
+    ASSERT_CONTENT(0, 1, 2, 4, 5, 6, 7, 8, 9)
+    RESET_VECTOR
+    vector_delete_item(&v, &array[9]);
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7, 8)
+    RESET_VECTOR
+    vector_delete_item(&v, &not_in_array);
+    ASSERT_CONTENT(1, 2, 3, 4, 5, 6, 7, 8, 9)
     RESET_VECTOR
 
     vector_insert(&v, 0, &array[2]);

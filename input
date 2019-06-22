@@ -12,6 +12,5 @@ loop=(times ,f)->{
         loop(times-1, f)
     } 
 }
-f=->{loop(30, circular_reference)}
-f()
-print('tests)
+loop(30, circular_reference)
+collect_garbage()

@@ -600,7 +600,7 @@ void call_destroy(Executor* E, Object o){
     Object destroy_override=find_function(E, o, "destroy");
     if(destroy_override.type!=t_null){
         Object destroy_result=call(E, destroy_override, &o, 1);
-        dereference(E, &destroy_result);
+        destroy_unreferenced(E, &destroy_result);
     }
 }
 

@@ -82,13 +82,9 @@ typedef struct
     };
 } Dummy;
 
-void dummy_destructor(Executor* E, Dummy* dummy){
-    free(dummy);
-}
-
 Dummy* new_dummy(Executor* E){
     Dummy* result=malloc(sizeof(Dummy));
-    gc_pointer_init(E, (gc_Pointer*)result, (gc_PointerDestructorFunction)dummy_destructor);
+    gc_pointer_init(E, (gc_Pointer*)result, (gc_PointerFreeFunction)free);
     return result;
 }
 

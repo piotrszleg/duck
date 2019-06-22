@@ -14,6 +14,7 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
     }
     Object execution_result;
     if(E->options.ast_only){
+        reference(&scope);
         execution_result=execute_ast(E, parsing_result, scope, 1);
         if(delete_ast) delete_expression(parsing_result);
     } else {
@@ -80,7 +81,7 @@ Object call_function_processed(Executor* E, Function* f, Object* arguments, int 
             STRING_OBJECT(argument_name, f->argument_names[i]);
             set(E, function_scope, argument_name, arguments[i]);
         }
-        return execute_ast(E, (expression*)f->source_pointer, function_scope, 1);
+        return execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, function_scope, 1);
     } else if(f->ftype==f_bytecode){
         create_return_point(&E->bytecode_environment, true);
         move_to_function(E, f);

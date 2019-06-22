@@ -95,7 +95,6 @@ struct BytecodeProgram {
 void stringify_instruction(const BytecodeProgram* prog, char* destination, Instruction instr, int buffer_count);
 char* stringify_bytecode(const BytecodeProgram* prog);
 void bytecode_program_init(Executor* E, BytecodeProgram* program);
-void bytecode_program_destructor(Executor* E, BytecodeProgram* program);
 void bytecode_program_free(BytecodeProgram* prog);
 void list_program_labels(BytecodeProgram* program);
 void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy);

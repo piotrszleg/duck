@@ -77,10 +77,12 @@ void coroutine_init(Executor* E, Object* o){
     o->gco->gc_type=t_coroutine;
 }
 
-void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerDestructorFunction destructor){
+void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerFreeFunction free){
     gc_object_init(E, &gcp->gco);
     gcp->gco.gc_type=t_gc_pointer;
-    gcp->destructor=destructor;
+    gcp->free=free;
+    gcp->mark_children=NULL;
+    gcp->dereference_children=NULL;
 }
 
 Object to_string(const char* s){
@@ -179,21 +181,20 @@ void gc_mark(Object o){
     if(!is_gc_object(o) || o.gco->marked==true){
         return;
     }
+    o.gco->marked=true;
     if(o.type==t_table){
-        o.tp->gco.marked=true;
         TableIterator it=table_get_iterator(o.tp);
         for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
             gc_mark(i.key);
             gc_mark(i.value);
         }
     } else if (o.type==t_function){
-        o.fp->gco.marked=true;
         gc_mark(o.fp->enclosing_scope);
         if(function_uses_source_pointer(o.fp)){
             gc_mark(wrap_gc_object(o.fp->source_pointer));
         }
-    } else {
-        o.gco->marked=true;
+    } else if(o.type==t_gc_pointer && o.gcp->mark_children!=NULL){
+        o.gcp->mark_children(o.gcp);
     }
 }
 
@@ -287,6 +288,9 @@ void destroy_unreferenced(Executor* E, Object* o){
             case t_function:
             {
                 if(gc_state!=gcs_freeing_memory){
+                    if(function_uses_source_pointer(o->fp)){
+                        gc_object_dereference(E, o->fp->source_pointer);
+                    }
                     dereference(E, &o->fp->enclosing_scope);
                 }
                 if(gc_state!=gcs_deinitializing){
@@ -295,9 +299,6 @@ void destroy_unreferenced(Executor* E, Object* o){
                         for(int i=0; i<o->fp->arguments_count; i++){
                             free(o->fp->argument_names[i]);
                         }
-                    }
-                    if(function_uses_source_pointer(o->fp)){
-                        gc_object_dereference(E, o->fp->source_pointer);
                     }
                     gc->allocations_count--;
                     free(o->fp);
@@ -321,10 +322,13 @@ void destroy_unreferenced(Executor* E, Object* o){
             }
             case t_gc_pointer:
             {
+                if(gc_state!=gcs_freeing_memory && o->gcp->dereference_children!=NULL){
+                    o->gcp->dereference_children(E, o->gcp);
+                }
                 if(gc_state!=gcs_deinitializing){
                     gc_object_unchain(E, o->gco);
                     gc->allocations_count--;
-                    o->gcp->destructor(E, o->gcp);
+                    o->gcp->free(o->gcp);
                     o->gcp=NULL;
                 }
             }

@@ -138,20 +138,15 @@ int* list_labels(Instruction* code){
     return labels;
 }
 
-void bytecode_program_destructor(Executor* E, BytecodeProgram* program) {
-    GarbageCollectorState gc_state=get_garbage_collector(E)->state;
+void bytecode_program_dereference_children(Executor* E, BytecodeProgram* program) {
     for(int i=0; i<program->sub_programs_count; i++){
         gc_object_dereference(E, (gc_Object*)&program->sub_programs[i]);
     }
-    bytecode_program_free(program);
 }
 
-void bytecode_program_init(Executor* E, BytecodeProgram* program){
-    program->labels=list_labels(program->code);
-    gc_pointer_init(E, (gc_Pointer*)&program->gcp, (gc_PointerDestructorFunction)bytecode_program_destructor);
+void bytecode_program_mark_children(BytecodeProgram* program) {
     for(int i=0; i<program->sub_programs_count; i++){
-        bytecode_program_init(E, &program->sub_programs[i]);
-        gc_object_reference((gc_Object*)&program->sub_programs[i]);
+        program->sub_programs[i].gcp.gco.marked=true;
     }
 }
 
@@ -161,6 +156,17 @@ void bytecode_program_free(BytecodeProgram* program) {
     free(program->information);
     free(program->constants);
     free(program);
+}
+
+void bytecode_program_init(Executor* E, BytecodeProgram* program){
+    program->labels=list_labels(program->code);
+    gc_pointer_init(E, (gc_Pointer*)&program->gcp, (gc_PointerFreeFunction)bytecode_program_free);
+    program->gcp.mark_children=(gc_PointerMarkChildrenFunction)bytecode_program_mark_children;
+    program->gcp.dereference_children=(gc_PointerDereferenceChildrenFunction)bytecode_program_dereference_children;
+    for(int i=0; i<program->sub_programs_count; i++){
+        bytecode_program_init(E, &program->sub_programs[i]);
+        gc_object_reference((gc_Object*)&program->sub_programs[i]);
+    }
 }
 
 #define X(t, result) case t: return result;

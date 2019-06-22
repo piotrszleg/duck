@@ -62,6 +62,8 @@ void handle_arguments(int argc, char **argv) {
     Executor E;
     E.gc=malloc(sizeof(GarbageCollector));
     E.options=options;
+    E.ast_execution_state.returning=false;
+    vector_init(&E.ast_execution_state.used_objects, sizeof(Object), 8);
     object_system_init(&E);
     bytecode_environment_init(&E.bytecode_environment);
 
