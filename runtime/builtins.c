@@ -279,6 +279,10 @@ Object file_destroy(Executor* E, Object* arguments, int arguments_count){
     return null_const;
 }
 
+Object builtin_time(Executor* E, Object* arguments, int arguments_count){
+    return to_int(time(NULL));
+}
+
 Object file_iterator_next(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object iterated=get(E, self, to_string("iterated"));
@@ -424,6 +428,7 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(remove_file, 1)
     REGISTER_FUNCTION(import_dll, 1)
     REGISTER_FUNCTION(iterator, 1)
+    REGISTER_FUNCTION(time, 0)
 
     Object yield;
     function_init(E, &yield);
@@ -504,7 +509,6 @@ void inherit_scope(Executor* E, Object scope, Object base){
     } else {
         set(E, scope, to_string("global"), base);
     }
-    set(E, scope, to_string("scope"), scope);
     set(E, scope, to_string("base"), base);
     set_function(E, scope, "get", 2, false, scope_get_override);
     set_function(E, scope, "set", 3, false, scope_set_override);

@@ -64,14 +64,17 @@ Vector=initial->[
         }
     }
 ]
-v=Vector([])
-v::push(1)
-v::push(2)
-v::push(3)
-v::push(4)
-v::push(5)
-v::push(6)
-v[0]=null
-v::remove(1)
-v::pop()
-v
+test=->{
+    v=Vector([])
+    v::push(1)
+    v::push(2)
+    v::push(3)
+    v::push(4)
+    v::push(5)
+    v::push(6)
+    v[0]=null
+    v::remove(1)
+    v::pop()
+    v
+}
+Vector

@@ -145,8 +145,9 @@ void bytecode_program_dereference_children(Executor* E, BytecodeProgram* program
 }
 
 void bytecode_program_mark_children(BytecodeProgram* program) {
+    program->gcp.gco.marked=true;
     for(int i=0; i<program->sub_programs_count; i++){
-        program->sub_programs[i].gcp.gco.marked=true;
+        bytecode_program_mark_children(&program->sub_programs[i]);
     }
 }
 
@@ -209,6 +210,8 @@ int pushes_to_stack(Instruction instr){
         X(b_jump, 0)
         X(b_jump_not, 0)
         X(b_new_scope, 0)
+        X(b_return, 0)
+        X(b_tail_call, 0)
         default: return 1;
     }
 }
@@ -222,9 +225,19 @@ bool changes_flow(InstructionType instr){
 }
 bool changes_scope(InstructionType instr){
     return false
-    X(b_return)
     X(b_new_scope)
-    X(b_get_scope)
     X(b_set_scope);
+}
+bool finishes_program(InstructionType instr){
+    return false
+    X(b_end)
+    X(b_return)
+    X(b_tail_call);
+}
+bool carries_stack(InstructionType instr){
+    return false
+    X(b_jump_not)
+    X(b_jump)
+    X(b_label);
 }
 #undef X

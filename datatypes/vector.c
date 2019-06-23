@@ -53,6 +53,13 @@ void vector_push(vector* v, const void* value){
     memcpy(vector_index(v, v->count-1), value, v->item_size);
 }
 
+void vector_extend(vector* v, int new_count){
+    int old_count=v->count;
+    v->count=new_count;
+    vector_check_upsize(v);
+    memset((char*)v->items+old_count*v->item_size, 0, (v->count-old_count)*v->item_size);
+}
+
 void pointers_vector_push(vector* v, void* pointer){
     vector_push(v, &pointer);
 }
@@ -132,6 +139,15 @@ void vector_delete_item(vector* v, void* item){
     if(temporaries_allocated){
         free(temporaries);
     }
+}
+
+int vector_search(vector* v, void* item){
+    for(int i=v->count-1; i>=0; i--){
+        if(memcmp(vector_index(v, i), item, v->item_size)==0){
+            return i;
+        }
+    }
+    return -1;
 }
 
 void vector_clear(vector* v){

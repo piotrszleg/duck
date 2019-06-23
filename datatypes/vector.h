@@ -25,9 +25,12 @@ void vector_deinit(vector* v);
 void vector_push(vector* v, const void* o);
 void* vector_pop(vector* v);
 void* vector_top(vector* v);
+// will make vector count equal to new_count, added elements are zeroed
+void vector_extend(vector* v, int new_count);
 
 int vector_count(const vector* v);
 bool vector_empty(const vector* v);
+int vector_search(vector* v, void* item);
 
 void vector_insert(vector* v, int index, const void* value);
 void vector_insert_multiple(vector* v, int index, void* elements, int count);

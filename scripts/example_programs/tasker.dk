@@ -1,0 +1,36 @@
+Vector=include("scripts/vector.dk")
+while=f->if(f()) while(f) else null
+
+wait_seconds=seconds->{
+    start_time=time()
+    ->(time-start_time)`>=`seconds
+}
+wait_until=predicate->predicate
+wait_cycle=->1
+tasker=[
+    tasks=Vector([])
+    run=while<<update
+    update=self->{
+        to_remove=Vector([])
+        self.tasks.inner `##` (i, t)->{
+            if(t.restart_predicate()){
+                t.restart_predicate=t.coroutine()
+                if(t.restart_predicate==null){
+                    to_remove::push(i)
+                }
+            }
+        }
+        to_remove.inner `#` r->self.tasks::delete(r)
+        self.tasks.count!=0
+    }
+    add=(self, coroutine)->{
+        self.tasks::push([coroutine=coroutine, restart_predicate=wait_cycle])
+    }
+]
+async_function=->{
+    print("start")
+    yield(wait_seconds(1))
+    print("after 1 second")
+}
+tasker::add(async_function)
+tasker::run()

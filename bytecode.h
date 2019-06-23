@@ -103,5 +103,7 @@ int gets_from_stack(Instruction instr);
 int pushes_to_stack(Instruction instr);
 bool changes_flow(InstructionType instr);
 bool changes_scope(InstructionType instr);
+bool finishes_program(InstructionType instr);
+bool carries_stack(InstructionType instr);
 
 #endif
