@@ -7,7 +7,6 @@
 #include "../error/error.h"
 #include "../utility.h"
 
-// TODO: implement correct behaviour for struct pointers
 typedef enum {
     n_string,
     n_int,
@@ -15,6 +14,8 @@ typedef enum {
     n_struct,
     n_pointer
 } NativeType;
+
+extern char* NATIVE_TYPES_NAMES[];
 
 Object new_struct_descriptor(Executor* E, void* position, Object fields);
 Object to_field(Executor* E, int offset, NativeType type);

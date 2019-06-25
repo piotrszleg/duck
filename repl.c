@@ -13,7 +13,9 @@ void repl(){
     Object global_scope;
     table_init(&E, &global_scope);
     reference(&global_scope);
-    register_builtins(&E, global_scope);
+    if(E.options.include_builtins){
+        register_builtins(&E, global_scope);
+    }
 
     while(1) {
         printf(">>");

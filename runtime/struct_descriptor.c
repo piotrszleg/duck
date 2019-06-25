@@ -10,6 +10,14 @@
         } \
     }
 
+char* NATIVE_TYPES_NAMES[]={
+    "string",
+    "int",
+    "float",
+    "struct",
+    "pointer"
+};
+
 static Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count);
 static Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count);
 
@@ -55,7 +63,9 @@ Object field_get(Executor* E, void* position, Object field){
 Object struct_get_field(Executor* E, void* position, Object fields, Object key){
     REQUIRE_TYPE(fields, t_table)
     Object field=table_get(fields.tp, key);
-    REQUIRE_TYPE(field, t_table)
+    if(field.type!=t_table){
+        return null_const;// there is no proper field table at this key
+    }
 
     int field_offset;
     GET_INT(field_offset, table_get(field.tp, to_string("offset")));
@@ -64,13 +74,57 @@ Object struct_get_field(Executor* E, void* position, Object fields, Object key){
     return field_get(E, field_position, field);
 }
 
+
+Object struct_descriptor_stringify(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    REQUIRE_TYPE(self, t_table)
+    stream s;
+    stream_init(&s, 256);
+
+    int type;
+    GET_INT(type, table_get(self.tp, to_string("type")));
+    Object position=table_get(self.tp, to_string("position"));
+    REQUIRE_TYPE(position, t_pointer)
+    stream_printf(&s, "%s(%#x)\n[\n\t", NATIVE_TYPES_NAMES[type], (unsigned int)position.p);
+    if(type==n_struct){
+        Object fields=table_get(self.tp, to_string("fields"));
+        REQUIRE_TYPE(fields, t_table);
+        TableIterator it=table_get_iterator(fields.tp);
+        bool first=true;
+        for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+            if(first){
+                first=false;
+            } else {
+                stream_push_const_string(&s, ", \n\t");
+            }
+            if(i.key.type==t_string){
+                stream_push_string_indented(&s, i.key.text);
+            } else {
+                USING_STRING(stringify(E, i.key),
+                    stream_push_string_indented(&s, str));
+            }
+            Object value=get(E, self, i.key);
+            if(value.type==t_null){
+                value=i.value;
+            }
+            char* stringified_value=stringify(E, value);
+            stream_push_const_string(&s, "=");
+            stream_push_string_indented(&s, stringified_value);
+            free(stringified_value);
+        }
+    }
+
+    stream_push_const_string(&s, "\n]\0");
+    return to_string((char*)stream_get_data(&s));
+}
+
 Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object key=arguments[1];
 
     REQUIRE_TYPE(self, t_table)
 
-    if(key.type==t_string && strcmp(key.text, "destroy")==0){
+    if(key.type==t_string && (strcmp(key.text, "destroy")==0||strcmp(key.text, "stringify")==0)){
         return table_get(self.tp, key);
     }
 
@@ -178,6 +232,7 @@ void add_struct_descriptor_fields(Executor* E, Table* sd, void* position){
     table_set(E, sd, to_string("position"), to_pointer(position));
     table_set(E, sd, to_string("is_struct_descriptor"), to_int(1));
     
+    table_set(E, sd, to_string("stringify"), to_function(E, struct_descriptor_stringify, NULL, 1));
     table_set(E, sd, to_string("get"), to_function(E, struct_descriptor_get, NULL, 2));
     table_set(E, sd, to_string("set"), to_function(E, struct_descriptor_set, NULL, 3));
 }
@@ -214,7 +269,7 @@ Object to_struct_pointer_field(Executor* E, int offset, Object fields) {
 void* struct_descriptor_get_pointer(Executor* E, Table* sd){
     Object pointer=table_get(sd, to_string("position"));
     if(pointer.type!=t_pointer){
-        USING_STRING(stringify(E, wrap_gc_object((gc_Object*)sd)),
+        USING_STRING(stringify(E, pointer),
             THROW_ERROR(WRONG_ARGUMENT_TYPE, "Position field of struct descriptor should be of type pointer, it is %s", str))
     }
     return pointer.p;

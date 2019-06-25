@@ -10,6 +10,7 @@ typedef struct {
     bool optimise_ast;
     bool optimise_bytecode;
     bool debug_mode;
+    bool include_builtins;
 } Options;
 
 extern const Options default_options;

@@ -1,3 +1,14 @@
+if(arguments[1]=="--help") {
+    print("Counts occurences of string b in string a.")
+    print("First argument should be string a and second argument should be string b.")!
+}
+if(arguments.count!=3){
+    print("Incorrect number of arguments, pass --help to get information about expected arguments format.")!
+}
+searched=arguments[1]
+wanted=arguments[2]
+occurences=0
+
 range=(start, end, step)->[
     iterator=self->{
         [i=start, call=self->{
@@ -8,12 +19,6 @@ range=(start, end, step)->[
         }]
     }
 ]
-
-print("String to be searched:")
-searched=input()
-print("String to look for:")
-wanted=input()
-occurences=0
 
 range(0, string_length(searched)-string_length(wanted), 1) `#` i->{
     correct=1

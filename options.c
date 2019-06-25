@@ -11,10 +11,11 @@ const Options default_options={
     .print_ast=false,
     .print_ast_optimisations=false,
     .print_bytecode=false,
-    .print_bytecode_optimisations=true,
+    .print_bytecode_optimisations=false,
     .optimise_ast=true,
     .optimise_bytecode=true,
-    .debug_mode=false
+    .debug_mode=false,
+    .include_builtins=true
 };
 
 void handle_arguments(int argc, char **argv) {
@@ -28,14 +29,16 @@ void handle_arguments(int argc, char **argv) {
         X("disable_ast_optimisations", options.optimise_ast=false;) \
         X("disable_bytecode_optimisations", options.optimise_bytecode=false;) \
         X("debug", options.debug_mode=true;) \
+        X("disable_builtins", options.include_builtins=false;) \
         X("version", printf(version); exit(0); )\
         X("?", printf("duck %s\nAllowed options are: \n-version\n-ast_only\n-disable_ast_optimisations\n-disable_bytecode_optimisations\n-debug\n-?\n" \
                        "You can either provide a file path or a read-eval-print loop is started.", version); \
                 return;)
 
     char* file_path=NULL;
-    
-    for(int i=1; i<argc; i++){
+
+    int i=1;
+    for(; i<argc; i++){
         if(argv[i][0]=='-') {
             bool matched=false;
             #define X(option_name, action) \
@@ -50,12 +53,8 @@ void handle_arguments(int argc, char **argv) {
                 return;
             }
         } else {
-            if(file_path==NULL){
-                file_path=argv[i];
-            } else {
-                printf("Only one file can be given as input.");
-                return;
-            }
+            file_path=argv[i];
+            break;
         }
     }
 
@@ -68,8 +67,8 @@ void handle_arguments(int argc, char **argv) {
     bytecode_environment_init(&E.bytecode_environment);
 
     TRY_CATCH(
-        if(file_path!=NULL){   
-            execute_file(&E, file_path);
+        if(file_path!=NULL){
+            execute_file(&E, file_path, argv+i);
         } else {
             repl();
         }

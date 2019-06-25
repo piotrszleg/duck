@@ -12,14 +12,19 @@ static Object expression_fields_array[EXPRESSION_TYPES_COUNT];
 Object expression_descriptor_get(Executor* E, Object* arguments, int argumets_count);
 Object expression_fields(Executor* E, expression* exp);
 
-Object downcast_expression_descriptor(Executor* E, Table* sd){
-    Object fields_expression_type=table_get(sd, to_string("fields_expression_type"));
-    REQUIRE_TYPE(fields_expression_type, t_int);
+void downcast_expression_descriptor(Executor* E, Table* sd){
+    Object fields=table_get(sd, to_string("fields"));
+    if(fields.type!=t_table){
+        return;
+    }
+    Object fields_expression_type=table_get(fields.tp, to_string("fields_expression_type"));
+    if(fields_expression_type.type!=t_int){
+        return;
+    }
     expression* exp=(expression*)struct_descriptor_get_pointer(E, sd);
     if(exp->type!=(int)fields_expression_type.int_value){
         table_set(E, sd, to_string("fields"), copy(E, expression_fields(E, exp)));
     }
-    return null_const;
 }
 
 Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, expression* expression_pointer){
@@ -38,7 +43,7 @@ Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, express
             Object pointed=table_get(i.value.tp, to_string("pointed"));
             REQUIRE_TYPE(i.value, t_table);
             Object has_ownership=table_get(pointed.tp, to_string("has_ownership"));
-            if(is_falsy(has_ownership)){
+            if(!is_falsy(has_ownership)){
                 Object offset=table_get(i.value.tp, to_string("offset"));
                 REQUIRE_TYPE(offset, t_int);
                 expression** expression_position=(expression**)((int)expression_pointer+(int)offset.int_value);
@@ -303,7 +308,9 @@ int macro_arguments_count(Object macro_value){
 void proccess_macro_declaration(macro_declaration* md, MacroVisitorState* state){
     Object scope;
     table_init(state->executor, &scope);
-    register_builtins(state->executor, scope);
+    if(state->executor->options.include_builtins){
+        register_builtins(state->executor, scope);
+    }
     register_ast_types(state->executor, scope);
     char* key=path_to_string(md->left->pth);
     map_set(&state->macro_definitions, key, evaluate(state->executor, md->right, scope, false));

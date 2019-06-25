@@ -129,12 +129,20 @@ char* stringify_table(Executor* E, Table* t){
     bool array_part_holey=false;
     int max_hole_size=3;
     
-    stream_push(&s, "[", 1);
+    bool add_whitespace=t->elements_count>3;
+    
+    stream_push_const_string(&s, "[");
+    if(add_whitespace){
+        stream_push_const_string(&s, "\n\t");
+    }
     for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
         if(first){
             first=false;
         } else {
-            stream_push(&s, ", ", 2);
+            stream_push_const_string(&s, ", ");
+            if(add_whitespace){
+                stream_push_const_string(&s, "\n\t");
+            }
         }
         bool self_reference=i.value.type==t_table && i.value.tp==t;
         char* stringified_value;
@@ -149,7 +157,10 @@ char* stringify_table(Executor* E, Table* t){
             if(indexes_difference!=1){
                 if(indexes_difference-1<=max_hole_size){
                     for(int i=0; i<indexes_difference-1; i++){
-                        stream_push(&s, "null, ", 6);
+                        stream_push_string_indented(&s, "null, ");
+                        if(add_whitespace){
+                            stream_push_const_string(&s, "\n\t");
+                        }
                     }
                 } else {
                     array_part_holey=true;
@@ -161,22 +172,25 @@ char* stringify_table(Executor* E, Table* t){
             // print the array part without keys
             stream_push(&s, stringified_value, strlen(stringified_value));
         } else if(i.key.type==t_string && is_valid_name(i.key.text)){
-            stream_push(&s, i.key.text, strlen(i.key.text));
+            stream_push_string_indented(&s, i.key.text);
             stream_push(&s, "=", 1);
-            stream_push(&s, stringified_value, strlen(stringified_value));
+            stream_push_string_indented(&s, stringified_value);
         } else {
             char* stringified_key=stringify(E, i.key);
             stream_push(&s, "[", 1);
-            stream_push(&s, stringified_key, strlen(stringified_key));
+            stream_push_string_indented(&s, stringified_key);
             stream_push(&s, "]=", 2);
-            stream_push(&s, stringified_value, strlen(stringified_value));
+            stream_push_string_indented(&s, stringified_value);
             free(stringified_key);
         }
         if(!self_reference){
             free(stringified_value);
         }
     }
-    stream_push(&s, "]\0", 2);
+    if(add_whitespace){
+        stream_push_const_string(&s, "\n");
+    }
+    stream_push_const_string(&s, "]\0");
     
     return (char*)stream_get_data(&s);
 }

@@ -55,16 +55,28 @@ Object evaluate_file(Executor* E, const char* file_name, Object scope){
     return evaluate(E, parsing_result, scope, true);
 }
 
-void execute_file(Executor* E, const char* file_name){
+static Object arguments_to_table(Executor* E, char** arguments){
+    Object arguments_table;
+    table_init(E, &arguments_table);
+    int i=0;
+    for(; arguments[i]!=NULL; i++){
+        table_set(E, arguments_table.tp, to_int(i), to_string(arguments[i]));
+    }
+    table_set(E, arguments_table.tp, to_string("count"), to_int(i));
+    return arguments_table;
+}
+
+void execute_file(Executor* E, const char* file_name, char** arguments){
     Object global_scope;
     table_init(E, &global_scope);
     reference(&global_scope);
-    register_builtins(E, global_scope);
+    table_set(E, global_scope.tp, to_string("arguments"), arguments_to_table(E, arguments));
+    if(E->options.include_builtins){
+        register_builtins(E, global_scope);
+    }
     Object execution_result=evaluate_file(E, file_name, global_scope);
     USING_STRING(stringify(E, execution_result), 
         printf("Execution result:\n%s\n", str));
-    USING_STRING(stringify(E, global_scope), 
-       printf("Global scope:\n%s\n", str));
     dereference(E, &execution_result);
     dereference(E, &global_scope);
 }
