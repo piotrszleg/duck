@@ -129,6 +129,10 @@ typedef struct
     int outputs_count;
 } Transformation;
 
+bool dummy_is_typed(const Dummy* dummy){
+    return dummy->type==d_known_type || dummy->type==d_constant;
+}
+
 ObjectType dummy_type(const Dummy* dummy){
     if(dummy->type==d_known_type){
         return dummy->known_type;
@@ -152,9 +156,13 @@ bool has_side_effects(Instruction* instruction, Transformation* transformation) 
             return true;
         case b_prefix:
         case b_binary:
-            // only operations on tables can cause side effects
-            return dummy_type(transformation->inputs[0])!=t_table
-            &&     dummy_type(transformation->inputs[1])!=t_table;
+            // only operations on tables and functions can cause side effects
+            return dummy_is_typed(transformation->inputs[0])
+            &&     dummy_is_typed(transformation->inputs[1])
+            &&     dummy_type(transformation->inputs[0])!=t_table
+            &&     dummy_type(transformation->inputs[1])!=t_table
+            &&     dummy_type(transformation->inputs[0])!=t_function
+            &&     dummy_type(transformation->inputs[1])!=t_function;
         default: return false;
     }
 }
@@ -169,8 +177,8 @@ void predict_instruction_output(Executor* E, Instruction* instr, char* constants
         if(instr->type==b_jump_not){
             i++;
         }
-        for(; i<transformation->outputs_count; i++){
-            outputs[transformation->outputs_count-1-i]=inputs[i];
+        for(; i<transformation->inputs_count; i++){
+            outputs[transformation->inputs_count-1-i]=inputs[i];
         }
         return;
     }
@@ -224,6 +232,18 @@ void predict_instruction_output(Executor* E, Instruction* instr, char* constants
                 outputs[i]=outputs[instr->uint_argument-2-i];
             }
             break;
+        case b_swap:
+        {
+            for(int i=0; i<transformation->outputs_count; i++){
+                outputs[transformation->outputs_count-1-i]=inputs[i];
+            }
+            int left=transformation->outputs_count-1-instr->swap_argument.left;
+            int right=transformation->outputs_count-1-instr->swap_argument.right;
+            Dummy* temp=outputs[left];
+            outputs[left]=outputs[right];
+            outputs[right]=temp;
+            break;
+        }
         case b_binary:
         {
             if((inputs[1]->type==d_known_type||inputs[1]->type==d_constant)
@@ -314,6 +334,7 @@ void dummy_print(const Dummy* dummy){
         default:
             THROW_ERROR(BYTECODE_ERROR, "Incorrect dummy type %i.", dummy->type);
     }
+    //printf("<%i>", dummy->gcp.gco.ref_count);
 }
 
 static void print_transformations(Instruction* instructions, Transformation* transformations, int instructions_count){
@@ -496,9 +517,9 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
     // also get a list of externally provided objects
 
     int instructions_count=count_instructions(prog->code)+1;
-    vector provided, dummy_stack, transformations, instructions, informations;
+    vector provided, stack, transformations, instructions, informations;
     vector_init(&provided, sizeof(Dummy*), 64);
-    vector_init(&dummy_stack, sizeof(Dummy*), 128);
+    vector_init(&stack, sizeof(Dummy*), 128);
     vector_init(&transformations, sizeof(Transformation), instructions_count);
     vector_extend(&transformations, instructions_count);
     vector_from(&instructions, sizeof(Instruction), prog->code, instructions_count);
@@ -521,8 +542,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
     for(int p=bytecode_progress_start(prog->code, &progress_state); p!=-1; p=bytecode_progress_next(prog->code, &progress_state)){
         if(p==0){
             for(int i=vector_count(&provided)-1; i>=0; i--){
-                gc_object_reference((gc_Object*)vector_index(&provided, i));
-                vector_push(&dummy_stack, vector_index(&provided, i));
+                vector_push(&stack, vector_index(&provided, i));
             }
         }
         if(!TRANSFORMATION(p)->visited){
@@ -530,32 +550,33 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
             if(carries_stack(prog->code[p].type)){
                 // jump_not takes one item from the stack as a predicate
                 if(prog->code[p].type==b_jump_not){
-                    transformation_init(&transformation, vector_count(&dummy_stack), vector_count(&dummy_stack)-1);
+                    transformation_init(&transformation, vector_count(&stack), vector_count(&stack)-1);
                 } else {
-                    transformation_init(&transformation, vector_count(&dummy_stack), vector_count(&dummy_stack));
+                    transformation_init(&transformation, vector_count(&stack), vector_count(&stack));
                 }
             } else {
                 transformation_from_instruction(&transformation, &prog->code[p]);
             }
             
             for(int i=0; i<transformation.inputs_count; i++){
-                if(!vector_empty(&dummy_stack)){
-                    transformation.inputs[i]=*(Dummy**)vector_pop(&dummy_stack);
+                if(!vector_empty(&stack)){
+                    transformation.inputs[i]=*(Dummy**)vector_pop(&stack);
                 } else {
                     Dummy* dummy=new_dummy(E);
                     dummy->id=dummy_objects_counter++;
                     dummy->type=d_any_type;
                     vector_push(&provided, &dummy);
-                    gc_object_reference((gc_Object*)dummy);// in this case dummy is also refrenced by provided
                     transformation.inputs[i]=dummy;
+                    // in this case dummy is also refrenced by provided
+                    gc_object_reference((gc_Object*)transformation.inputs[i]);
                 }
+                // input is referenced by the transformation
                 gc_object_reference((gc_Object*)transformation.inputs[i]);
             }
             predict_instruction_output(E, &prog->code[p], (char*)prog->constants, &dummy_objects_counter, &transformation);
             for(int i=0; i<transformation.outputs_count; i++){
-                vector_push(&dummy_stack, &transformation.outputs[i]);
-                // output is refrenced by stack and instruction
-                gc_object_reference((gc_Object*)transformation.outputs[i]);
+                vector_push(&stack, &transformation.outputs[i]);
+                // output is referenced by the transformation
                 gc_object_reference((gc_Object*)transformation.outputs[i]);
             }
             *TRANSFORMATION(p)=transformation;
@@ -563,10 +584,12 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
         } else {
             bool inputs_changed=false;
             for(int i=0; i<TRANSFORMATION(p)->inputs_count; i++){
-                Dummy* from_stack=*(Dummy**)vector_pop(&dummy_stack);
+                Dummy* from_stack=*(Dummy**)vector_pop(&stack);
                 Dummy* expected=(Dummy*)TRANSFORMATION(p)->inputs[i];
                 if(!dummies_equal(expected, from_stack)){
                     if(dummy_contains(from_stack, expected)){
+                        gc_object_dereference(E, (gc_Object*)expected);
+                        gc_object_reference((gc_Object*)from_stack);
                         TRANSFORMATION(p)->inputs[i]=from_stack;
                         inputs_changed=true;
                     } else if(!dummy_contains(expected, from_stack)){
@@ -575,7 +598,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                         or_dummy->or.left=expected;
                         or_dummy->or.right=from_stack;
                         // expected is already referenced by the instruction
-                        gc_object_reference((gc_Object*)or_dummy);// referenced by instruction
+                        gc_object_reference((gc_Object*)or_dummy);// or_dummy referenced by transformation
                         gc_object_reference((gc_Object*)from_stack);// referenced by or_dummy
                         TRANSFORMATION(p)->inputs[i]=or_dummy;
                         inputs_changed=true;
@@ -589,17 +612,14 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 }
                 predict_instruction_output(E, &prog->code[p], (char*)prog->constants, &dummy_objects_counter, TRANSFORMATION(p));
                 for(int i=0; i<TRANSFORMATION(p)->outputs_count; i++){
-                    vector_push(&dummy_stack, &TRANSFORMATION(p)->outputs[i]);
-                    // output is refrenced by the stack and instruction
-                    gc_object_reference((gc_Object*)TRANSFORMATION(p)->outputs[i]);
+                    vector_push(&stack, &TRANSFORMATION(p)->outputs[i]);
+                    // output is refrenced by the transformation
                     gc_object_reference((gc_Object*)TRANSFORMATION(p)->outputs[i]);
                 }
             } else {
                 for(int i=0; i<TRANSFORMATION(p)->outputs_count; i++){
                     Dummy* output=TRANSFORMATION(p)->outputs[i];
-                    // outputs are now referenced by the stack
-                    gc_object_reference((gc_Object*)TRANSFORMATION(p)->outputs[i]);
-                    vector_push(&dummy_stack, &output);
+                    vector_push(&stack, &output);
                 }
             }
         }
@@ -622,14 +642,16 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 instruction_after_label++;
             }
             if(INSTRUCTION(instruction_after_label)->type==b_return || INSTRUCTION(instruction_after_label)->type==b_end){
-                FILL_WITH_NO_OP(jump_destination, jump_destination);
+                // remember what was the input to jump instruction
                 Dummy* to_return=TRANSFORMATION(pointer)->inputs[0];
                 gc_object_reference((gc_Object*)to_return);
+                // remove destination label
+                FILL_WITH_NO_OP(jump_destination, jump_destination);
 
+                // change jump instruction to return
                 transformation_deinit(E, TRANSFORMATION(pointer));
                 INSTRUCTION(pointer)->type=b_return;
                 transformation_from_instruction(TRANSFORMATION(pointer), INSTRUCTION(pointer));
-
                 TRANSFORMATION(pointer)->inputs[0]=to_return;
             }
             break;
@@ -718,9 +740,11 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
             }
         }
     }
-    for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=0; pointer--){
+    // if an operation has no side effects and it's result is immediately discarded remove it
+    /*/for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=0; pointer--){
         if(INSTRUCTION(pointer)->type==b_discard){
             Dummy* discard_input=TRANSFORMATION(pointer)->inputs[0];
+            // search for an instruction that outputs the discarded object
             for(int search=pointer-1; search>=0; search--){
                 for(int o=0; o<TRANSFORMATION(search)->outputs_count; o++){
                     if(dummies_equal(TRANSFORMATION(search)->outputs[o], discard_input)){
@@ -729,7 +753,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 }
                 continue;
                 found:
-                if(TRANSFORMATION(search)->outputs_count==1) {
+                if(TRANSFORMATION(search)->outputs_count==1 && !has_side_effects(INSTRUCTION(search), TRANSFORMATION(search))) {
                     Transformation* producer=TRANSFORMATION(search);
                     // discard inputs to producer
                     for(int i=0; i<producer->inputs_count; i++){
@@ -738,6 +762,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                         Transformation discard_transformation;
                         transformation_from_instruction(&discard_transformation, &discard_instruction);
                         discard_transformation.inputs[0]=producer->inputs[i];
+                        gc_object_reference((gc_Object*)discard_transformation.inputs[0]);
                         vector_insert(&transformations, search, &discard_transformation);
                         vector_insert(&informations, search, vector_index(&informations, search));
                         search++;
@@ -746,11 +771,11 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                     // remove producer and discard instruction
                     FILL_WITH_NO_OP(search, search)
                     FILL_WITH_NO_OP(pointer, pointer)
-                    break;
                 }
+                break;
             }
         }
-    }
+    } */
 
     if(print_optimisations){
         printf("Disconnected flow chart:\n");
@@ -761,23 +786,22 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
     // step 3: add swap instructions to ensure that objects are in right order
     // according to the flow chart made in the first step
 
-    #define STACK(nth) ((Dummy**)vector_index(&dummy_stack, vector_count(&dummy_stack)-1-(nth)))
+    #define STACK(nth) ((Dummy**)vector_index(&stack, vector_count(&stack)-1-(nth)))
     for(int p=bytecode_progress_start(vector_get_data(&instructions), &progress_state); p!=-1; p=bytecode_progress_next(vector_get_data(&instructions), &progress_state)){
         if(p==0){
             // remove elements from dummy stack and push items from provided vector to it
-            while(!vector_empty(&dummy_stack)){
-                gc_object_dereference(E, (gc_Object*)*(Dummy**)vector_pop(&dummy_stack));
+            while(!vector_empty(&stack)){
+                vector_pop(&stack);
             }
             for(int i=vector_count(&provided)-1; i>=0; i--){
-                gc_object_reference((gc_Object*)vector_index(&provided, i));
-                vector_push(&dummy_stack, vector_index(&provided, i));
+                vector_push(&stack, vector_index(&provided, i));
             }
         }
         for(int i=0; i<gets_from_stack(*INSTRUCTION(p)); i++){
             Dummy* top=*STACK(i);
             Dummy* expected=TRANSFORMATION(p)->inputs[i];
             if(!dummies_compatible(top, expected)){
-                int vector_depth=vector_count(&dummy_stack);
+                int vector_depth=vector_count(&stack);
                 for(int j=1; j<vector_depth; j++){
                     if(dummies_compatible(*STACK(j), expected)){
                         Instruction swap_instruction={b_swap};
@@ -787,40 +811,36 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                         transformation_from_instruction(&swap_transformation, &swap_instruction);
                         Dummy* any=new_dummy(E);
                         any->type=d_any;
-                        for(int k=0; k<j+1; k++){
-                            if(k!=swap_instruction.swap_argument.left && k!=swap_instruction.swap_argument.right){
-                                swap_transformation.inputs[k]=swap_transformation.outputs[k]=any;
+                        for(int k=0; k<swap_transformation.inputs_count; k++){
+                            if(k==swap_instruction.swap_argument.left || k==swap_instruction.swap_argument.right){
+                                swap_transformation.inputs[k]=*STACK(k);
                                 gc_object_reference((gc_Object*)swap_transformation.inputs[k]);
-                                gc_object_reference((gc_Object*)swap_transformation.outputs[k]);
+                            } else {
+                                swap_transformation.inputs[k]=any;
+                                gc_object_reference((gc_Object*)swap_transformation.inputs[k]);
                             }
                         }
-                        swap_transformation.inputs[swap_instruction.swap_argument.left]  =*STACK(swap_instruction.swap_argument.left);
-                        swap_transformation.inputs[swap_instruction.swap_argument.right] =*STACK(swap_instruction.swap_argument.right);
-                        swap_transformation.outputs[swap_instruction.swap_argument.left] =*STACK(swap_instruction.swap_argument.right);
-                        swap_transformation.outputs[swap_instruction.swap_argument.right]=*STACK(swap_instruction.swap_argument.left);
-                        gc_object_reference((gc_Object*)swap_transformation.inputs[swap_instruction.swap_argument.left]  );
-                        gc_object_reference((gc_Object*)swap_transformation.inputs[swap_instruction.swap_argument.right] );
-                        gc_object_reference((gc_Object*)swap_transformation.outputs[swap_instruction.swap_argument.left] );
-                        gc_object_reference((gc_Object*)swap_transformation.outputs[swap_instruction.swap_argument.right]);
+                        predict_instruction_output(E, &swap_instruction, prog->constants, &dummy_objects_counter, &swap_transformation);
+                        for(int k=0; k<swap_transformation.outputs_count; k++){
+                            gc_object_reference((gc_Object*)swap_transformation.outputs[k]);
+                        }
                         Dummy* temp=*STACK(swap_instruction.swap_argument.left);
                         *STACK(swap_instruction.swap_argument.left)=*STACK(swap_instruction.swap_argument.right);
                         *STACK(swap_instruction.swap_argument.right)=temp;
                         vector_insert(&instructions, p, &swap_instruction);
                         vector_insert(&transformations, p, &swap_transformation);
                         vector_insert(&informations, p, vector_index(&informations, p));
-                        p++;
-                        instructions_count++;
+                        p=bytecode_progress_next(vector_get_data(&instructions), &progress_state);
                         break;
                     }
                 }
             }
         }
         for(int j=0; j<gets_from_stack(*INSTRUCTION(p)); j++){
-            gc_object_dereference(E, (gc_Object*)*(Dummy**)vector_pop(&dummy_stack));
+            vector_pop(&stack);
         }
         for(int i=0; i<pushes_to_stack(*INSTRUCTION(p)); i++){
-            vector_push(&dummy_stack, &TRANSFORMATION(p)->outputs[i]);
-            gc_object_reference((gc_Object*)TRANSFORMATION(p)->outputs[i]);
+            vector_push(&stack, &TRANSFORMATION(p)->outputs[i]);
         }
     }
     remove_no_ops(E, &instructions, &informations, &transformations);
@@ -836,10 +856,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
         gc_object_dereference(E, (gc_Object*)*(Dummy**)vector_pop(&provided));
     }
     vector_deinit(&provided);
-    while(!vector_empty(&dummy_stack)){
-        gc_object_dereference(E, (gc_Object*)*(Dummy**)vector_pop(&dummy_stack));
-    }
-    vector_deinit(&dummy_stack);
+    vector_deinit(&stack);// dummy stack doesn't own any of it's objects
     for(int i=0; i<vector_count(&transformations); i++){
         transformation_deinit(E, TRANSFORMATION(i));
     }

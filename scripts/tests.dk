@@ -81,9 +81,9 @@ test("format function", ->{
 test("type casting", ->{
     five=5
     text="5"
-    assert(number(text)==five)
+    assert(int(text)==five)
     assert(string(five)==text)
-    assert(cast(text, 'number)==five)
+    assert(cast(text, 'int)==five)
     assert(cast(five, 'string)==text)
 })
 

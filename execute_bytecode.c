@@ -49,10 +49,8 @@ void move_to_function(Executor* E, Function* f){
     if(f->enclosing_scope.type!=t_null){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
-    dereference(E, &E->bytecode_environment.scope);
     reference(&function_scope);
     E->bytecode_environment.scope=function_scope;
-    gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
     gc_object_reference((gc_Object*)f->source_pointer);
     E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
     E->bytecode_environment.pointer=0;
@@ -475,6 +473,14 @@ Object execute_bytecode(Executor* E){
                 Object o=pop(object_stack);
                 int provided_arguments=instr.uint_argument;
 
+                #define RETURN(value) \
+                    push(object_stack, value); \
+                    if(instr.type==b_call) { \
+                        break; \
+                    } else { \
+                        goto fallthrough_to_return; \
+                    }
+
                 #define POP_ARGUMENTS \
                     for (int i = 0; i < provided_arguments; i++){ \
                         Object argument=pop(object_stack); \
@@ -485,8 +491,7 @@ Object execute_bytecode(Executor* E){
                 {   Object err; \
                     POP_ARGUMENTS \
                     NEW_ERROR(err, "CALL_ERROR", o, message, ##__VA_ARGS__); \
-                    push(object_stack, err); \
-                    break;  }
+                    RETURN(err) }
                 
                 if(o.type==t_null){
                     CALL_ERROR("Called function is null.");
@@ -497,9 +502,9 @@ Object execute_bytecode(Executor* E){
                     for (int i = 0; i < provided_arguments; i++){
                         arguments[i]=pop(object_stack);
                     }
-                    push(object_stack, call(E, o, arguments, provided_arguments));
+                    Object call_result=call(E, o, arguments, provided_arguments);
                     free(arguments);
-                    break;
+                    RETURN(call_result)
                 }
                 int arguments_count_difference=provided_arguments-o.fp->arguments_count;
                 // check arguments count
@@ -522,8 +527,8 @@ Object execute_bytecode(Executor* E){
                         arguments[i]=pop(object_stack);
                     }
                     Object call_result=o.fp->native_pointer(E, arguments, provided_arguments);
-                    push(object_stack, call_result);
                     free(arguments);
+                    RETURN(call_result)
                 } else if(o.fp->ftype==f_bytecode) {
                     if(o.fp->variadic){
                         // pack variadic arguments into a Table and push the Table back onto the stack
@@ -549,7 +554,7 @@ Object execute_bytecode(Executor* E){
                                 POP_ARGUMENTS
                                 Object err;
                                 NEW_ERROR(err, "COROUTINE_ERROR", o, "Yield from outisde of coroutine.");
-                                push(object_stack, err);
+                                RETURN(err)
                             }
                             // simply return the value from stack top
                             if(E->options.debug_mode){
@@ -572,15 +577,12 @@ Object execute_bytecode(Executor* E){
                                 E->bytecode_environment.debugger.running=false;
                                 debugger(E);
                             }
-                            push(object_stack, null_const);
-                            (*pointer)++;
-                            continue;
+                            RETURN(null_const)
                         }
-                        case 2://  collect_garbage
+                        case 2://  collect garbage
                         {
                             bytecode_program_collect_garbage(E);
-                            (*pointer)++;
-                            continue;
+                            RETURN(null_const)
                         }
                         default:
                             CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
@@ -592,9 +594,11 @@ Object execute_bytecode(Executor* E){
                 }
                 #undef POP_ARGUMENTS
                 #undef CALL_ERROR
+                #undef RETURN
                 dereference(E, &o);
                 break;
             }
+            fallthrough_to_return:
             case b_end:
             case b_return:
             {
