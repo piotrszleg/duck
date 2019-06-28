@@ -95,11 +95,20 @@ void pointers_vector_push_ignore_duplicate(vector *v, void *item){
 
 #define ADD_DEBUG_INFO(exp) exp->line_number=line_number; exp->column_number=column_number;
 
+argument* name_to_argument(name* n) {
+	argument* a=new_argument();
+	ADD_DEBUG_INFO(a)
+	a->name=strdup(n->value);
+	a->used_in_closure=false;
+	delete_expression((expression*)n);
+	return a;
+}
+
 #define YYERROR_VERBOSE 1
 
 
 /* Line 189 of yacc.c  */
-#line 103 "parser.tab.c"
+#line 112 "parser.tab.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -152,7 +161,7 @@ typedef union YYSTYPE
 {
 
 /* Line 214 of yacc.c  */
-#line 35 "parser.y"
+#line 44 "parser.y"
 
 	int ival;
 	float fval;
@@ -163,7 +172,7 @@ typedef union YYSTYPE
 
 
 /* Line 214 of yacc.c  */
-#line 167 "parser.tab.c"
+#line 176 "parser.tab.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -175,7 +184,7 @@ typedef union YYSTYPE
 
 
 /* Line 264 of yacc.c  */
-#line 179 "parser.tab.c"
+#line 188 "parser.tab.c"
 
 #ifdef short
 # undef short
@@ -487,14 +496,14 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,    91,    91,    94,   101,   101,   103,   104,   106,   110,
-     113,   116,   124,   127,   133,   136,   144,   150,   153,   157,
-     158,   159,   160,   161,   162,   163,   164,   165,   166,   167,
-     168,   169,   170,   171,   172,   173,   176,   184,   192,   200,
-     208,   218,   221,   229,   239,   243,   252,   260,   270,   280,
-     288,   296,   305,   311,   317,   325,   332,   340,   354,   365,
-     375,   383,   392,   400,   410,   419,   430,   438,   448,   449,
-     451,   452
+       0,   100,   100,   103,   110,   110,   112,   113,   115,   119,
+     122,   125,   133,   136,   142,   145,   153,   159,   162,   166,
+     167,   168,   169,   170,   171,   172,   173,   174,   175,   176,
+     177,   178,   179,   180,   181,   182,   185,   193,   201,   209,
+     217,   227,   230,   238,   248,   252,   261,   270,   280,   290,
+     298,   306,   315,   321,   327,   335,   342,   350,   364,   375,
+     385,   393,   402,   410,   420,   429,   440,   448,   458,   459,
+     461,   462
 };
 #endif
 
@@ -1514,7 +1523,7 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 91 "parser.y"
+#line 100 "parser.y"
     { 
 		parsing_result = (yyvsp[(1) - (1)].exp);
 	;}
@@ -1523,7 +1532,7 @@ yyreduce:
   case 3:
 
 /* Line 1455 of yacc.c  */
-#line 94 "parser.y"
+#line 103 "parser.y"
     {
 		empty* e=new_empty();
 		ADD_DEBUG_INFO(e)
@@ -1534,7 +1543,7 @@ yyreduce:
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 106 "parser.y"
+#line 115 "parser.y"
     {
 		pointers_vector_push_ignore_duplicate(&((block*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
 		(yyval.exp)=(yyvsp[(1) - (3)].exp);
@@ -1544,7 +1553,7 @@ yyreduce:
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 110 "parser.y"
+#line 119 "parser.y"
     {
 		(yyval.exp)=(yyvsp[(2) - (2)].exp);
 	;}
@@ -1553,7 +1562,7 @@ yyreduce:
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 113 "parser.y"
+#line 122 "parser.y"
     {
 		(yyval.exp)=(yyvsp[(1) - (2)].exp);
 	;}
@@ -1562,7 +1571,7 @@ yyreduce:
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 116 "parser.y"
+#line 125 "parser.y"
     {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
@@ -1574,14 +1583,14 @@ yyreduce:
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 124 "parser.y"
+#line 133 "parser.y"
     { (yyval.exp)=(yyvsp[(3) - (5)].exp); ;}
     break;
 
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 127 "parser.y"
+#line 136 "parser.y"
     {
 		(yyval.exp)=(yyvsp[(1) - (1)].exp); 
 		(yyval.exp)->type=e_table_literal;
@@ -1591,7 +1600,7 @@ yyreduce:
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 133 "parser.y"
+#line 142 "parser.y"
     { 
 		(yyval.exp)=(yyvsp[(3) - (5)].exp);
 	;}
@@ -1600,7 +1609,7 @@ yyreduce:
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 136 "parser.y"
+#line 145 "parser.y"
     {
 		block* b=new_block();
 		ADD_DEBUG_INFO(b)
@@ -1612,7 +1621,7 @@ yyreduce:
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 144 "parser.y"
+#line 153 "parser.y"
     {
 		path* p=new_path();
 		ADD_DEBUG_INFO(p)
@@ -1624,7 +1633,7 @@ yyreduce:
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 150 "parser.y"
+#line 159 "parser.y"
     {
 		pointers_vector_push(&((path*)(yyvsp[(1) - (3)].exp))->lines, (yyvsp[(3) - (3)].exp));
 	;}
@@ -1633,7 +1642,7 @@ yyreduce:
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 153 "parser.y"
+#line 162 "parser.y"
     {
 		pointers_vector_push(&((path*)(yyvsp[(1) - (4)].exp))->lines, (yyvsp[(3) - (4)].exp));
 	;}
@@ -1642,7 +1651,7 @@ yyreduce:
   case 36:
 
 /* Line 1455 of yacc.c  */
-#line 176 "parser.y"
+#line 185 "parser.y"
     {
 		parentheses* p=new_parentheses();
 		ADD_DEBUG_INFO(p)
@@ -1654,7 +1663,7 @@ yyreduce:
   case 37:
 
 /* Line 1455 of yacc.c  */
-#line 184 "parser.y"
+#line 193 "parser.y"
     {
 		function_return* r=new_function_return();
 		ADD_DEBUG_INFO(r)
@@ -1666,7 +1675,7 @@ yyreduce:
   case 38:
 
 /* Line 1455 of yacc.c  */
-#line 192 "parser.y"
+#line 201 "parser.y"
     {
 		macro* m=new_macro();
 		ADD_DEBUG_INFO(m)
@@ -1678,7 +1687,7 @@ yyreduce:
   case 39:
 
 /* Line 1455 of yacc.c  */
-#line 200 "parser.y"
+#line 209 "parser.y"
     {	
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
@@ -1692,7 +1701,7 @@ yyreduce:
   case 40:
 
 /* Line 1455 of yacc.c  */
-#line 208 "parser.y"
+#line 217 "parser.y"
     {
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
@@ -1706,7 +1715,7 @@ yyreduce:
   case 41:
 
 /* Line 1455 of yacc.c  */
-#line 218 "parser.y"
+#line 227 "parser.y"
     {
 		(yyval.exp)=(yyvsp[(2) - (2)].exp)
 	;}
@@ -1715,7 +1724,7 @@ yyreduce:
   case 42:
 
 /* Line 1455 of yacc.c  */
-#line 221 "parser.y"
+#line 230 "parser.y"
     {
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
@@ -1729,7 +1738,7 @@ yyreduce:
   case 43:
 
 /* Line 1455 of yacc.c  */
-#line 229 "parser.y"
+#line 238 "parser.y"
     {
 		conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
@@ -1743,7 +1752,7 @@ yyreduce:
   case 44:
 
 /* Line 1455 of yacc.c  */
-#line 239 "parser.y"
+#line 248 "parser.y"
     {
 		pointers_vector_push((yyvsp[(1) - (3)].args), (yyvsp[(3) - (3)].exp));
 		(yyval.args)=(yyvsp[(1) - (3)].args);
@@ -1753,7 +1762,7 @@ yyreduce:
   case 45:
 
 /* Line 1455 of yacc.c  */
-#line 243 "parser.y"
+#line 252 "parser.y"
     {
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
@@ -1766,7 +1775,7 @@ yyreduce:
   case 46:
 
 /* Line 1455 of yacc.c  */
-#line 252 "parser.y"
+#line 261 "parser.y"
     {
 		argument* a=new_argument();
 		ADD_DEBUG_INFO(a)
@@ -1779,7 +1788,7 @@ yyreduce:
   case 47:
 
 /* Line 1455 of yacc.c  */
-#line 260 "parser.y"
+#line 270 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
@@ -1795,7 +1804,7 @@ yyreduce:
   case 48:
 
 /* Line 1455 of yacc.c  */
-#line 270 "parser.y"
+#line 280 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
@@ -1811,11 +1820,11 @@ yyreduce:
   case 49:
 
 /* Line 1455 of yacc.c  */
-#line 280 "parser.y"
+#line 290 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, (yyvsp[(1) - (4)].exp));
+		pointers_vector_push(&f->arguments, name_to_argument((name*)(yyvsp[(1) - (4)].exp)));
 		f->variadic=true;
 		f->body=(yyvsp[(4) - (4)].exp);
 		(yyval.exp)=(expression*)f;
@@ -1825,11 +1834,11 @@ yyreduce:
   case 50:
 
 /* Line 1455 of yacc.c  */
-#line 288 "parser.y"
+#line 298 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, (yyvsp[(1) - (3)].exp));
+		pointers_vector_push(&f->arguments, name_to_argument((name*)(yyvsp[(1) - (3)].exp)));
 		f->variadic=false;
 		f->body=(yyvsp[(3) - (3)].exp);
 		(yyval.exp)=(expression*)f;
@@ -1839,7 +1848,7 @@ yyreduce:
   case 51:
 
 /* Line 1455 of yacc.c  */
-#line 296 "parser.y"
+#line 306 "parser.y"
     {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
@@ -1852,7 +1861,7 @@ yyreduce:
   case 52:
 
 /* Line 1455 of yacc.c  */
-#line 305 "parser.y"
+#line 315 "parser.y"
     {
 		int_literal* l=new_int_literal();
 		ADD_DEBUG_INFO(l)
@@ -1864,7 +1873,7 @@ yyreduce:
   case 53:
 
 /* Line 1455 of yacc.c  */
-#line 311 "parser.y"
+#line 321 "parser.y"
     { 
 		float_literal* l=new_float_literal();
 		ADD_DEBUG_INFO(l)
@@ -1876,7 +1885,7 @@ yyreduce:
   case 54:
 
 /* Line 1455 of yacc.c  */
-#line 317 "parser.y"
+#line 327 "parser.y"
     { 
 		string_literal* l=new_string_literal();
 		ADD_DEBUG_INFO(l)
@@ -1888,7 +1897,7 @@ yyreduce:
   case 55:
 
 /* Line 1455 of yacc.c  */
-#line 325 "parser.y"
+#line 335 "parser.y"
     {
 		empty* e=new_empty();
 		ADD_DEBUG_INFO(e)
@@ -1899,7 +1908,7 @@ yyreduce:
   case 56:
 
 /* Line 1455 of yacc.c  */
-#line 332 "parser.y"
+#line 342 "parser.y"
     {
 		name* n=new_name();
 		ADD_DEBUG_INFO(n)
@@ -1911,7 +1920,7 @@ yyreduce:
   case 57:
 
 /* Line 1455 of yacc.c  */
-#line 341 "parser.y"
+#line 351 "parser.y"
     {
 		assignment* a=new_assignment();
 		ADD_DEBUG_INFO(a)
@@ -1930,7 +1939,7 @@ yyreduce:
   case 58:
 
 /* Line 1455 of yacc.c  */
-#line 355 "parser.y"
+#line 365 "parser.y"
     {
 		assignment* a=new_assignment();
 		ADD_DEBUG_INFO(a)
@@ -1944,7 +1953,7 @@ yyreduce:
   case 59:
 
 /* Line 1455 of yacc.c  */
-#line 366 "parser.y"
+#line 376 "parser.y"
     {
 		macro_declaration* md=new_macro_declaration();
 		ADD_DEBUG_INFO(md)
@@ -1957,7 +1966,7 @@ yyreduce:
   case 60:
 
 /* Line 1455 of yacc.c  */
-#line 375 "parser.y"
+#line 385 "parser.y"
     {
 		function_call* c=new_function_call();
 		ADD_DEBUG_INFO(c)
@@ -1971,7 +1980,7 @@ yyreduce:
   case 61:
 
 /* Line 1455 of yacc.c  */
-#line 383 "parser.y"
+#line 393 "parser.y"
     {
 		function_call* c=new_function_call();
 		ADD_DEBUG_INFO(c)
@@ -1984,7 +1993,7 @@ yyreduce:
   case 62:
 
 /* Line 1455 of yacc.c  */
-#line 392 "parser.y"
+#line 402 "parser.y"
     {
 		message* m=new_message();
 		ADD_DEBUG_INFO(m)
@@ -1998,7 +2007,7 @@ yyreduce:
   case 63:
 
 /* Line 1455 of yacc.c  */
-#line 400 "parser.y"
+#line 410 "parser.y"
     {
 		message* m=new_message();
 		ADD_DEBUG_INFO(m)
@@ -2012,7 +2021,7 @@ yyreduce:
   case 64:
 
 /* Line 1455 of yacc.c  */
-#line 411 "parser.y"
+#line 421 "parser.y"
     {
 		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
@@ -2026,7 +2035,7 @@ yyreduce:
   case 65:
 
 /* Line 1455 of yacc.c  */
-#line 420 "parser.y"
+#line 430 "parser.y"
     {
 		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
@@ -2040,7 +2049,7 @@ yyreduce:
   case 66:
 
 /* Line 1455 of yacc.c  */
-#line 431 "parser.y"
+#line 441 "parser.y"
     {
 		prefix* p=new_prefix();
 		ADD_DEBUG_INFO(p)
@@ -2053,7 +2062,7 @@ yyreduce:
   case 67:
 
 /* Line 1455 of yacc.c  */
-#line 439 "parser.y"
+#line 449 "parser.y"
     {
 		prefix* p=new_prefix();
 		ADD_DEBUG_INFO(p)
@@ -2066,7 +2075,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 2070 "parser.tab.c"
+#line 2079 "parser.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2278,7 +2287,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 453 "parser.y"
+#line 463 "parser.y"
 
 
 void print_and_delete(expression* result){

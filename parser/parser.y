@@ -24,6 +24,15 @@ void pointers_vector_push_ignore_duplicate(vector *v, void *item){
 
 #define ADD_DEBUG_INFO(exp) exp->line_number=line_number; exp->column_number=column_number;
 
+argument* name_to_argument(name* n) {
+	argument* a=new_argument();
+	ADD_DEBUG_INFO(a)
+	a->name=strdup(n->value);
+	a->used_in_closure=false;
+	delete_expression((expression*)n);
+	return a;
+}
+
 #define YYERROR_VERBOSE 1
 %}
 
@@ -256,6 +265,7 @@ argument:
 		a->used_in_closure=false;
 		$$=(expression*)a;
 	}
+	;
 function:
 	'(' arguments ')' ARROW expression {
 		function_declaration* f=new_function_declaration();
@@ -280,7 +290,7 @@ function:
 	| name ELLIPSIS ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, $1);
+		pointers_vector_push(&f->arguments, name_to_argument((name*)$1));
 		f->variadic=true;
 		f->body=$4;
 		$$=(expression*)f;
@@ -288,7 +298,7 @@ function:
 	| name ARROW expression {
 		function_declaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, $1);
+		pointers_vector_push(&f->arguments, name_to_argument((name*)$1));
 		f->variadic=false;
 		f->body=$3;
 		$$=(expression*)f;
