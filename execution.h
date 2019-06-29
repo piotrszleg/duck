@@ -24,17 +24,19 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
 void executor_init(Executor* E);
 void executor_deinit(Executor* E);
 
+typedef struct {
+    const char* file_name;
+    unsigned line_number; 
+} TracebackPoint;
+
+#include "runtime/builtins.h"
+
 typedef struct ASTExecutionState ASTExecutionState;
 struct ASTExecutionState {
     bool initialized;
     bool returning;
     vector used_objects;
 };
-
-typedef struct {
-    const char* file_name;
-    unsigned line_number; 
-} TracebackPoint;
 
 struct Executor {
     GarbageCollector* gc;
@@ -66,7 +68,5 @@ struct Executor {
         E->error=null_const; \
         return error_to_return; \
     }
-
-#include "runtime/builtins.h"
 
 #endif

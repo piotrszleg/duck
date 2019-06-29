@@ -252,7 +252,9 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             int arguments_count=vector_count(&d->arguments);
             int sub_program_index=(translation->sub_programs.position/sizeof(BytecodeProgram));
 
-            PreFunctionArgument argument={d->variadic, (unsigned char)arguments_count};
+            PreFunctionArgument argument;
+            argument.arguments_count=arguments_count;
+            argument.is_variadic=d->variadic;
             Instruction instr={b_pre_function};
             instr.pre_function_argument=argument;
             stream_push(&translation->code, &instr, sizeof(Instruction));
