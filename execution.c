@@ -75,7 +75,7 @@ void execute_file(Executor* E, const char* file_name, char** arguments){
     }
     Object execution_result=evaluate_file(E, file_name, global_scope);
     USING_STRING(stringify(E, execution_result), 
-        printf("Execution result:\n%s\n", str));
+        printf("The script \"%s\" has exited with result:\n%s\n", file_name, str));
     dereference(E, &execution_result);
     dereference(E, &global_scope);
 }

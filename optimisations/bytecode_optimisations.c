@@ -153,7 +153,7 @@ bool has_side_effects(Instruction* instruction, Transformation* transformation) 
         case b_pre_function:
         case b_function:
         case b_double:
-            return true;
+            return false;
         case b_prefix:
         case b_binary:
             // only operations on tables and functions can cause side effects
@@ -163,7 +163,7 @@ bool has_side_effects(Instruction* instruction, Transformation* transformation) 
             &&     dummy_type(transformation->inputs[1])!=t_table
             &&     dummy_type(transformation->inputs[0])!=t_function
             &&     dummy_type(transformation->inputs[1])!=t_function;
-        default: return false;
+        default: return true;
     }
 }
 
@@ -741,7 +741,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
         }
     }
     // if an operation has no side effects and it's result is immediately discarded remove it
-    /*/for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=0; pointer--){
+    for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=0; pointer--){
         if(INSTRUCTION(pointer)->type==b_discard){
             Dummy* discard_input=TRANSFORMATION(pointer)->inputs[0];
             // search for an instruction that outputs the discarded object
@@ -775,7 +775,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 break;
             }
         }
-    } */
+    }
 
     if(print_optimisations){
         printf("Disconnected flow chart:\n");
