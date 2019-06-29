@@ -59,13 +59,8 @@ void handle_arguments(int argc, char **argv) {
     }
 
     Executor E;
-    E.gc=malloc(sizeof(GarbageCollector));
+    executor_init(&E);
     E.options=options;
-    E.ast_execution_state.returning=false;
-    vector_init(&E.ast_execution_state.used_objects, sizeof(Object), 8);
-    object_system_init(&E);
-    bytecode_environment_init(&E.bytecode_environment);
-
     TRY_CATCH(
         if(file_path!=NULL){
             execute_file(&E, file_path, argv+i);
@@ -77,6 +72,5 @@ void handle_arguments(int argc, char **argv) {
         printf(err_message);
         exit(-1);
     );
-    object_system_deinit(&E);
-    free(E.gc);
+    executor_deinit(&E);
 }

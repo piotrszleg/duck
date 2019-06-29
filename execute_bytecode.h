@@ -36,8 +36,8 @@ typedef struct {
     int pointer;
 } ReturnPoint;
 
-void bytecode_environment_init(BytecodeEnvironment* e);
-void bytecode_environment_free(BytecodeEnvironment* e);
+void bytecode_environment_init(BytecodeEnvironment* environment);
+void bytecode_environment_deinit(BytecodeEnvironment* environment);
 
 void push(vector* stack, Object o);
 Object pop(vector* stack);

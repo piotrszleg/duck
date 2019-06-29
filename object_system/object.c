@@ -14,7 +14,7 @@ void garbage_collector_init(GarbageCollector* gc){
 }
 
 void gc_object_init(Executor* E, gc_Object* gco){
-    GarbageCollector* gc=get_garbage_collector(E);
+    GarbageCollector* gc=executor_get_garbage_collector(E);
     gc_Object* gc_root=gc->root;
     gc->allocations_count++;
     
@@ -140,8 +140,8 @@ bool is_gc_object(Object o){
 }
 
 void gc_object_unchain(Executor* E, gc_Object* o){
-    if(get_garbage_collector(E)->root==o){
-        get_garbage_collector(E)->root=o->next;
+    if(executor_get_garbage_collector(E)->root==o){
+        executor_get_garbage_collector(E)->root=o->next;
     }
     if(o->previous!=NULL){
         o->previous->next=o->next;
@@ -163,7 +163,7 @@ void reference(Object* o){
 }
 
 void print_allocated_objects(Executor* E){
-    gc_Object* o=get_garbage_collector(E)->root;
+    gc_Object* o=executor_get_garbage_collector(E)->root;
     while(o){
         Object wrapped={o->gc_type};
         wrapped.gco=o;
@@ -207,7 +207,7 @@ void gc_unmark_all(GarbageCollector* gc){
 }
 
 void gc_sweep(Executor* E){
-    GarbageCollector* gc=get_garbage_collector(E);
+    GarbageCollector* gc=executor_get_garbage_collector(E);
     gc_Object* o=gc->root;
     #define FOREACH_UNMARKED_OBJECT(body) \
         o=gc->root; \
@@ -245,7 +245,7 @@ bool gc_should_run(GarbageCollector* gc){
 }
 
 void gc_run(Executor*E, Object* roots, int roots_count){
-    gc_unmark_all(get_garbage_collector(E));
+    gc_unmark_all(executor_get_garbage_collector(E));
     for(int i=0; i<roots_count; i++){
         gc_mark(roots[i]);
     }
@@ -272,7 +272,7 @@ void dereference(Executor* E, Object* o){
             destroy_unreferenced(E, o);
         }
     } else if(o->type==t_string){
-        if(get_garbage_collector(E)->state!=gcs_deinitializing){
+        if(executor_get_garbage_collector(E)->state!=gcs_deinitializing){
             free(o->text);
             o->text=gc_text;
         }
@@ -281,7 +281,7 @@ void dereference(Executor* E, Object* o){
 
 void destroy_unreferenced(Executor* E, Object* o){
     if(is_gc_object(*o) && o->gco->ref_count<=0 && o->gco->ref_count!=ALREADY_DESTROYED){
-        GarbageCollector* gc=get_garbage_collector(E);
+        GarbageCollector* gc=executor_get_garbage_collector(E);
         GarbageCollectorState gc_state=gc->state;
         o->gco->ref_count=ALREADY_DESTROYED;
         switch(o->type){
@@ -331,6 +331,17 @@ void destroy_unreferenced(Executor* E, Object* o){
                     o->gcp->free(o->gcp);
                     o->gcp=NULL;
                 }
+                break;
+            }
+            case t_coroutine:
+            {
+                if(gc_state!=gcs_deinitializing){
+                    gc_object_unchain(E, o->gco);
+                    gc->allocations_count--;
+                    free(o->co->executor);
+                    o->co=NULL;
+                }
+                break;
             }
             default:;
         }
@@ -338,9 +349,10 @@ void destroy_unreferenced(Executor* E, Object* o){
 }
 
 void object_system_init(Executor* E){
-    garbage_collector_init(get_garbage_collector(E));
+    garbage_collector_init(executor_get_garbage_collector(E));
 }
 
 void object_system_deinit(Executor* E){
+    // free all allocated objects
     gc_run(E, NULL, 0);
 }

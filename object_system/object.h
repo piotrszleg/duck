@@ -61,8 +61,6 @@ typedef struct {
     int allocations_count;
 } GarbageCollector;
 
-// Executor should have GarbageCollector embeeded inside
-GarbageCollector* get_garbage_collector(Executor*);
 void garbage_collector_init(GarbageCollector*);
 
 // forward declarations of allocated object components
@@ -198,6 +196,8 @@ void object_system_deinit(Executor* E);
 // these functions should be implemented in higher level module
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
+Object executor_on_unhandled_error(Executor* E, Object error);
+GarbageCollector* executor_get_garbage_collector(Executor*);
 
 #include "table.h"
 

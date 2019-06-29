@@ -99,10 +99,10 @@ bool is_unhandled_error(Executor* E, Object o){
 Object error_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     if(is_falsy(get(E, self, to_string("handled")))){
-        USING_STRING(stringify(E, self),
-            printf("Unhandled error:\n%s", str));
+        return executor_on_unhandled_error(E, self);
+    } else {
+        return null_const;
     }
-    return null_const;
 }
 
 Object new_error(Executor* E, char* type, Object cause, char* message, char* location){

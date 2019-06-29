@@ -62,6 +62,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     }
     E->line=exp->line_number;
     E->column=exp->column_number;
+    E->scope=scope;
     #define USE(object) \
         vector_push(&E->ast_execution_state.used_objects, &object); \
         reference(&object);

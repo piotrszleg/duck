@@ -22,6 +22,8 @@ Object evaluate_string(Executor* E, const char* s, Object scope);
 Object evaluate_file(Executor* E, const char* file_name, Object scope);
 void execute_file(Executor* E, const char* file_name, char** arguments);
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
+void executor_init(Executor* E);
+void executor_deinit(Executor* E);
 
 typedef struct ASTExecutionState ASTExecutionState;
 struct ASTExecutionState {
@@ -36,6 +38,7 @@ struct Executor {
     unsigned column;
     unsigned* traceback;
     const char* file;
+    Object scope;
 
     Coroutine* coroutine;
     Object error;

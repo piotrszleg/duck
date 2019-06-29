@@ -76,15 +76,13 @@ void bytecode_environment_init(BytecodeEnvironment* environment){
     vector_init(&environment->return_stack, sizeof(ReturnPoint), STACK_SIZE);
 }
 
-void bytecode_environment_free(BytecodeEnvironment* environment){
+void bytecode_environment_deinit(BytecodeEnvironment* environment){
     for(int i=0; i<vector_count(&environment->debugger.breakpoints); i++){
         free(pointers_vector_get(&environment->debugger.breakpoints, i));
     }
     vector_deinit(&environment->debugger.breakpoints);
     vector_deinit(&environment->object_stack);
     vector_deinit(&environment->return_stack);
-    
-    free(environment);
 }
 
 Object evaluate_string(Executor* E, const char* s, Object scope);
@@ -244,6 +242,7 @@ Object execute_bytecode(Executor* E){
         Instruction instr=code[*pointer];
         E->line=program->information[*pointer].line;
         E->column=program->information[*pointer].column;
+        E->scope=*scope;
 
         #define BYTECODE_ERROR(cause, message, ...) \
             {   Object err; \

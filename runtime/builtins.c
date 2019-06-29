@@ -397,6 +397,20 @@ Object builtin_import_dll(Executor* E, Object* arguments, int arguments_count){
     return import_dll(E, filename.text);
 }
 
+Object builtin_exit(Executor* E, Object* arguments, int arguments_count){
+    Object execution_result=arguments[0];
+    USING_STRING(stringify(E, execution_result), 
+        printf("The script \"%s\" has exited with result:\n%s\n", E->file, str));
+    exit(0);
+}
+
+Object builtin_terminate(Executor* E, Object* arguments, int arguments_count){
+    Object exit_code=arguments[0];
+    REQUIRE_TYPE(exit_code, t_int);
+    printf("The script \"%s\" has terminated with return code %i", E->file, exit_code.int_value);
+    exit(exit_code.int_value);
+}
+
 void register_builtins(Executor* E, Object scope){
     #define REGISTER_FUNCTION(f, args_count) \
         Object f##_function; \
@@ -429,6 +443,8 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(import_dll, 1)
     REGISTER_FUNCTION(iterator, 1)
     REGISTER_FUNCTION(time, 0)
+    REGISTER_FUNCTION(exit, 1)
+    REGISTER_FUNCTION(terminate, 1)
 
     Object yield;
     function_init(E, &yield);
@@ -503,13 +519,16 @@ Object scope_set_override(Executor* E, Object* arguments, int arguments_count){
 }
 
 void inherit_scope(Executor* E, Object scope, Object base){
-    Object base_global=get(E, base, to_string("global"));
-    if(base_global.type!=t_null){
-        set(E, scope, to_string("global"), base_global);
-    } else {
-        set(E, scope, to_string("global"), base);
+    if(scope.type!=t_table){
+        return;
     }
-    set(E, scope, to_string("base"), base);
+    Object base_global=table_get(base.tp, to_string("global"));
+    if(base_global.type!=t_null){
+        table_set(E, scope.tp, to_string("global"), base_global);
+    } else {
+        table_set(E, scope.tp, to_string("global"), base);
+    }
+    table_set(E, scope.tp, to_string("base"), base);
     set_function(E, scope, "get", 2, false, scope_get_override);
     set_function(E, scope, "set", 3, false, scope_set_override);
 }

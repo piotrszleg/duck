@@ -16,10 +16,14 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
     if(E->options.ast_only){
         reference(&scope);
         execution_result=execute_ast(E, parsing_result, scope, 1);
-        if(delete_ast) delete_expression(parsing_result);
+        if(delete_ast){ 
+            delete_expression(parsing_result);
+        }
     } else {
         BytecodeProgram prog=ast_to_bytecode(parsing_result, true);
-        if(delete_ast) delete_expression(parsing_result);// at this point ast is useless and only wastes memory
+        if(delete_ast){
+            delete_expression(parsing_result);// at this point ast is useless and only wastes memory
+        }
         if(E->options.optimise_bytecode){
             optimise_bytecode(E, &prog, E->options.print_bytecode_optimisations);
         }
@@ -145,6 +149,33 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
     }
 }
 
-GarbageCollector* get_garbage_collector(Executor* E){
+GarbageCollector* executor_get_garbage_collector(Executor* E){
     return E->gc;
+}
+
+Object executor_on_unhandled_error(Executor* E, Object error) {
+    Object handler=get(E, E->scope, to_string("on_unhandled_error"));
+    if(handler.type!=t_null){
+        return call(E, handler, &error, 1);
+    } else {
+        USING_STRING(stringify(E, error),
+            printf("Unhandled error:\n%s", str));
+        return null_const;
+    }
+}
+
+void executor_init(Executor* E){
+    E->gc=malloc(sizeof(GarbageCollector));
+    E->options=default_options;
+    E->ast_execution_state.returning=false;
+    vector_init(&E->ast_execution_state.used_objects, sizeof(Object), 8);
+    object_system_init(E);
+    bytecode_environment_init(&E->bytecode_environment);
+}
+
+void executor_deinit(Executor* E){
+    vector_deinit(&E->ast_execution_state.used_objects);
+    bytecode_environment_deinit(&E->bytecode_environment);
+    object_system_deinit(E);
+    free(E->gc);
 }

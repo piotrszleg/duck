@@ -249,12 +249,7 @@ void string_replace_multiple_test(){
 
 int main(){
     Executor E;
-    E.gc=malloc(sizeof(GarbageCollector));
-    object_system_init(&E);
-    E.ast_execution_state.returning=false;
-    vector_init(&E.ast_execution_state.used_objects, sizeof(Object), 8);
-    E.options=default_options;
-    bytecode_environment_init(&E.bytecode_environment);
+    executor_init(&E);
     TRY_CATCH(
         vector_tests();
         evaluation_tests(&E);
@@ -266,8 +261,7 @@ int main(){
         printf(err_message);
         exit(-1);
     )
-    object_system_deinit(&E);
-    free(E.gc);
+    executor_deinit(&E);
 }
 
 #undef FIELD

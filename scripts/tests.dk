@@ -88,6 +88,7 @@ test("type casting", ->{
 })
 
 test("closures", ->{
+    # a and one are variables used by closure returned by adder
     adder=a->{
         one=1
         x->(a+x)*one

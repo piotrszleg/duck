@@ -8,8 +8,14 @@ struct Executor {
     GarbageCollector gc;
 };
 
-GarbageCollector* get_garbage_collector(Executor* E){
+GarbageCollector* executor_get_garbage_collector(Executor* E){
     return &E->gc;
+}
+
+Object executor_on_unhandled_error(Executor* E, Object error) {
+    USING_STRING(stringify(E, error),
+        printf("Unhandled error:\n%s", str));
+    return null_const;
 }
 
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count){

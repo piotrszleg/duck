@@ -74,11 +74,7 @@ expression* to_literal(Object o){
 Object evaluate_expression(Executor* E, expression* exp){
     Object scope;
     table_init(E, &scope);
-    reference(&scope);
-    Object execution_result=execute_ast(E, exp, scope, 0);
-    reference(&execution_result);
-    dereference(E, &scope);
-    return execution_result;
+    return execute_ast(E, exp, scope, 0);
 }
 
 ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
@@ -119,7 +115,6 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
                 request.replacement=copy_expression(c->ontrue);
             }
             LOG_CHANGE("constant conditional", exp, request.replacement);
-            dereference(E, &evaluated);
             return request;
         }
     }
@@ -129,7 +124,6 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
         Object evaluated=evaluate_expression(E, exp);
         request.replacement=to_literal(evaluated);
         //replace current expression with the literal
-        dereference(E, &evaluated);
         LOG_CHANGE("constants folding", exp, request.replacement);
         return request;
     }

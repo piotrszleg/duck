@@ -1,34 +1,4 @@
-products=[
-    [name='hamburger, price=10]
-    [name='cola, price=5]
-    [name='pancake, price=12]
-    [name='juice, price=4]
-]
-print("Products are:")
-products `#` p->print(p.name+" "+p.price+"$")
-print("What do you want to buy?")
-choice=input()
-choosen_product=[]
-products `#` p->if(p.name==choice) choosen_product=p
-if(choosen_product.name) {
-    print(format("You have to pay {}$.", choosen_product.price))
-    print("Do you want to pay by card or in cash?")
-    while=f->if(f()) while(f) else null
-    while(->{
-        answer=input()
-        if(answer=='card) {
-            print("Put the card to the rigister.")
-            input()
-            null
-        } elif(answer=='cash){ 
-            input()
-            null
-        } else {
-            print("Can you answer card or cash?")
-            1
-        }
-    })
-    print("Thank you.")
-} else {
-    print(format("Sorry we don't have {}.", choice))
-}
+global.counter=0
+global.on_unhandled_error=e->{print("!"+global.counter+e), exit(null)}
+a=null+null
+10
