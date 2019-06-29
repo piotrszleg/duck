@@ -76,7 +76,7 @@ char* stringify_bytecode(const BytecodeProgram* prog){
         stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], 64);
         stream_push_string(&s, stringified_instruction);
         int comment=prog->information[pointer].comment;
-        if(comment>=0){
+        if(comment>=0 && comment<prog->constants_size){
             stream_printf(&s, " # %s\n", &prog->constants[comment]);
         } else {
             stream_push_const_string(&s, "\n");

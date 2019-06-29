@@ -177,9 +177,6 @@ void executor_init(Executor* E){
 }
 
 void executor_deinit(Executor* E){
-    for(int i=0; i<vector_count(&E->traceback); i++){
-        free(*(char**)vector_index(&E->traceback, i++));
-    }
     vector_deinit(&E->traceback);
     vector_deinit(&E->ast_execution_state.used_objects);
     bytecode_environment_deinit(&E->bytecode_environment);
