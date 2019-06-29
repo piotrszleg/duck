@@ -55,12 +55,12 @@ typedef struct {
     unsigned line;
     unsigned column;
     unsigned file;// position in constants containing file name string
-    unsigned comment;
+    int comment;// if positive position of instruction comment in constants
 } InstructionInformation;
 
 typedef struct{
-    bool is_variadic:1;
     unsigned char arguments_count;
+    bool is_variadic:1;
 } PreFunctionArgument;
 
 typedef struct{
@@ -73,7 +73,7 @@ typedef struct {
     union {
         PreFunctionArgument pre_function_argument;
         SwapArgument swap_argument;
-        float float_argument;// long type ensures that 4bit float will fit
+        float float_argument;
         unsigned int uint_argument;
         int int_argument;
         bool bool_argument;
@@ -83,6 +83,7 @@ typedef struct {
 typedef struct BytecodeProgram BytecodeProgram;
 struct BytecodeProgram {
     gc_Pointer gcp;
+    char* source_file_name;
     Instruction* code;
     int* labels;
     InstructionInformation* information;

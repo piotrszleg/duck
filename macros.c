@@ -313,7 +313,7 @@ void proccess_macro_declaration(macro_declaration* md, MacroVisitorState* state)
     }
     register_ast_types(state->executor, scope);
     char* key=path_to_string(md->left->pth);
-    map_set(&state->macro_definitions, key, evaluate(state->executor, md->right, scope, false));
+    map_set(&state->macro_definitions, key, evaluate(state->executor, md->right, scope, "macro", false));
     free(key);
 }
 

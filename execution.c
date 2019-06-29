@@ -1,6 +1,6 @@
 #include "execution.h"
 
-Object evaluate(Executor* E, expression* parsing_result, Object scope, bool delete_ast){
+Object evaluate(Executor* E, expression* parsing_result, Object scope, const char* file_name, bool delete_ast){
     if(parsing_result==NULL){
         return null_const;// there was an error while parsing
     }
@@ -21,6 +21,7 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
         }
     } else {
         BytecodeProgram prog=ast_to_bytecode(parsing_result, true);
+        prog.source_file_name=strdup(file_name);
         if(delete_ast){
             delete_expression(parsing_result);// at this point ast is useless and only wastes memory
         }
@@ -49,13 +50,13 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
 Object evaluate_string(Executor* E, const char* s, Object scope){
     expression* parsing_result=parse_string(s);
     E->file="string";
-    return evaluate(E, parsing_result, scope, true);
+    return evaluate(E, parsing_result, scope, "string", true);
 }
 
 Object evaluate_file(Executor* E, const char* file_name, Object scope){
     expression* parsing_result=parse_file(file_name);
     E->file=file_name;
-    return evaluate(E, parsing_result, scope, true);
+    return evaluate(E, parsing_result, scope, file_name, true);
 }
 
 static Object arguments_to_table(Executor* E, char** arguments){
@@ -169,12 +170,17 @@ void executor_init(Executor* E){
     E->options=default_options;
     E->ast_execution_state.returning=false;
     E->scope=null_const;
+    vector_init(&E->traceback, sizeof(TracebackPoint), 16);
     vector_init(&E->ast_execution_state.used_objects, sizeof(Object), 8);
     object_system_init(E);
     bytecode_environment_init(&E->bytecode_environment);
 }
 
 void executor_deinit(Executor* E){
+    for(int i=0; i<vector_count(&E->traceback); i++){
+        free(*(char**)vector_index(&E->traceback, i++));
+    }
+    vector_deinit(&E->traceback);
     vector_deinit(&E->ast_execution_state.used_objects);
     bytecode_environment_deinit(&E->bytecode_environment);
     object_system_deinit(E);

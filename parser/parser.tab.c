@@ -2344,8 +2344,8 @@ expression* parse_file(const char* file) {
 	return parsing_result;
 }
 
-char* get_line(const char* file, int line){
-	size_t size = 32;
+char* get_source_line(const char* file, int line){
+	size_t size = 128;
     char *buf = malloc(size+1);
 
     FILE* f = fopen(file, "r");
@@ -2354,18 +2354,22 @@ char* get_line(const char* file, int line){
     }
 
 	int l=1;
-    while ((getline(&buf, &size, f)) != -1) {
+    while (fgets_no_newline(buf, size, f) != NULL) {
 		if(l==line){
 			fclose(f);
 			return buf;
 		}
-        line++;
+        l++;
     }
+	fclose(f);
 	return strdup("");
 }
 
 void print_arrow(int length){
-	printf("%.*s^\n", length, "----------------------------------------------------------------------");
+	for(int i=0; i<length; i++){
+		printf("-");
+	}
+	printf("^");
 }
 
 void yyerror(const char *message) {
@@ -2376,7 +2380,7 @@ void yyerror(const char *message) {
 	}
 	printf("ParsingError: %s\nat(%s:%i:%i)\n", message, file_name, line_number, column_number);
 	if(!is_repl){
-		char * line=get_line(file_name, line_number);
+		char* line=get_source_line(file_name, line_number);
 		printf("%s\n", line);
 		print_arrow(column_number-1);
 		free(line);

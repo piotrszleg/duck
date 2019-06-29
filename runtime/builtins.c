@@ -411,6 +411,17 @@ Object builtin_terminate(Executor* E, Object* arguments, int arguments_count){
     exit(exit_code.int_value);
 }
 
+Object builtin_traceback(Executor* E, Object* arguments, int arguments_count){
+    printf("traceback:\n");
+    for(int i=0; i<vector_count(&E->traceback); i++){
+        TracebackPoint* traceback_point=(TracebackPoint*)vector_index(&E->traceback, i);
+        char* line=get_source_line(traceback_point->file_name, traceback_point->line_number);
+        printf("%s:%i %s\n", traceback_point->file_name, traceback_point->line_number, line);
+        free(line);
+    }
+    return null_const;
+}
+
 void register_builtins(Executor* E, Object scope){
     #define REGISTER_FUNCTION(f, args_count) \
         Object f##_function; \
@@ -445,6 +456,7 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(time, 0)
     REGISTER_FUNCTION(exit, 1)
     REGISTER_FUNCTION(terminate, 1)
+    REGISTER_FUNCTION(traceback, 0)
 
     Object yield;
     function_init(E, &yield);

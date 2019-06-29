@@ -47,16 +47,20 @@ char* stream_search_string(stream* s, const char* str){
     return NULL;// string wasn't found inside of the stream
 }
 
-void push_string_load(BytecodeTranslation* translation, const char* string_constant){
-    repeat_information(translation);
+unsigned push_string_constant(BytecodeTranslation* translation, const char* string_constant) {
     char* search_result=stream_search_string(&translation->constants, string_constant);
-    if(search_result){
+    if(search_result!=NULL){
         int relative_position=(search_result-((char*)translation->constants.data));
-        push_uint_instruction(translation, b_load_string, (unsigned int)(relative_position/sizeof(char)) );// use existing
+        return (unsigned)(relative_position/sizeof(char));// reuse existing constant
     } else {
         unsigned int push_position=(unsigned int)stream_push(&translation->constants, (const void*)string_constant, (strlen(string_constant)+1));
-        push_uint_instruction(translation, b_load_string, push_position);
+        return push_position;
     }
+}
+
+void push_string_load(BytecodeTranslation* translation, const char* string_constant){
+    repeat_information(translation);
+    push_uint_instruction(translation, b_load_string, push_string_constant(translation, string_constant));
 }
 
 void push_float_load(BytecodeTranslation* translation, float number_constant){
@@ -80,11 +84,13 @@ void stream_repeat_last(stream* s, unsigned repetitions, size_t element_size){
     }
 }
 
-InstructionInformation information_from_ast(expression* exp){
+InstructionInformation information_from_ast(BytecodeTranslation* translation, expression* exp){
     InstructionInformation info;
     info.line=exp->line_number;
     info.column=exp->column_number;
     info.file=0;
+    info.comment=-1;
+    
     return info;
 }
 
@@ -120,7 +126,7 @@ void bytecode_path_set(BytecodeTranslation* translation, path p, bool used_in_cl
 }
 
 void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation, bool keep_scope){
-    translation->last_information=information_from_ast(exp);
+    translation->last_information=information_from_ast(translation, exp);
 
     switch(exp->type){
         case e_expression:
@@ -301,6 +307,7 @@ void bytecode_translation_init(BytecodeTranslation* translation){
 
 BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
     BytecodeProgram prog;
+    prog.source_file_name=NULL;
     stream_truncate(&translation->code);
     stream_truncate(&translation->information);
     stream_truncate(&translation->constants);

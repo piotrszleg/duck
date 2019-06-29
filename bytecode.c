@@ -22,28 +22,28 @@ void stringify_instruction(const BytecodeProgram* prog, char* destination, Instr
         case b_table_set_keep:
         case b_get:
         case b_table_get:
-            snprintf(destination, buffer_count, "%s\n", INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
+            snprintf(destination, buffer_count, "%s", INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
             break;
         case b_set:
-            snprintf(destination, buffer_count, "%s %s\n", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.bool_argument));
+            snprintf(destination, buffer_count, "%s %s", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.bool_argument));
             break;
         case b_load_float:
-            snprintf(destination, buffer_count, "%s %f\n", INSTRUCTION_NAMES[instr.type], instr.float_argument);
+            snprintf(destination, buffer_count, "%s %f", INSTRUCTION_NAMES[instr.type], instr.float_argument);
             break;
         case b_load_int:
-            snprintf(destination, buffer_count, "%s %i\n", INSTRUCTION_NAMES[instr.type], instr.int_argument);
+            snprintf(destination, buffer_count, "%s %i", INSTRUCTION_NAMES[instr.type], instr.int_argument);
             break;
         case b_load_string:
-            snprintf(destination, buffer_count, "%s %u \"%s\"\n", INSTRUCTION_NAMES[instr.type], instr.uint_argument, ((char*)prog->constants)+instr.uint_argument);
+            snprintf(destination, buffer_count, "%s %u \"%s\"", INSTRUCTION_NAMES[instr.type], instr.uint_argument, ((char*)prog->constants)+instr.uint_argument);
             break;
         case b_pre_function:
-            snprintf(destination, buffer_count, "%s %s %u\n", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.pre_function_argument.is_variadic), instr.pre_function_argument.arguments_count);
+            snprintf(destination, buffer_count, "%s %s %u", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.pre_function_argument.is_variadic), instr.pre_function_argument.arguments_count);
             break;
         case b_swap:
-            snprintf(destination, buffer_count, "%s %u %u\n", INSTRUCTION_NAMES[instr.type], instr.swap_argument.left, instr.swap_argument.right);
+            snprintf(destination, buffer_count, "%s %u %u", INSTRUCTION_NAMES[instr.type], instr.swap_argument.left, instr.swap_argument.right);
             break;
         default:
-            snprintf(destination, buffer_count, "%s %u\n", INSTRUCTION_NAMES[instr.type], instr.uint_argument);
+            snprintf(destination, buffer_count, "%s %u", INSTRUCTION_NAMES[instr.type], instr.uint_argument);
     }
     #undef STRINGIFY_BOOL
 }
@@ -75,6 +75,12 @@ char* stringify_bytecode(const BytecodeProgram* prog){
         char stringified_instruction[64];
         stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], 64);
         stream_push_string(&s, stringified_instruction);
+        int comment=prog->information[pointer].comment;
+        if(comment>=0){
+            stream_printf(&s, " # %s\n", &prog->constants[comment]);
+        } else {
+            stream_push_const_string(&s, "\n");
+        }
         pointer++;
     }
     stream_push(&s, "CONSTANTS:", 10);
@@ -152,6 +158,7 @@ void bytecode_program_mark_children(BytecodeProgram* program) {
 }
 
 void bytecode_program_free(BytecodeProgram* program) {
+    free(program->source_file_name);
     free(program->labels);
     free(program->code);
     free(program->information);
@@ -165,6 +172,7 @@ void bytecode_program_init(Executor* E, BytecodeProgram* program){
     program->gcp.mark_children=(gc_PointerMarkChildrenFunction)bytecode_program_mark_children;
     program->gcp.dereference_children=(gc_PointerDereferenceChildrenFunction)bytecode_program_dereference_children;
     for(int i=0; i<program->sub_programs_count; i++){
+        program->sub_programs[i].source_file_name=strdup(program->source_file_name);
         bytecode_program_init(E, &program->sub_programs[i]);
         gc_object_reference((gc_Object*)&program->sub_programs[i]);
     }

@@ -52,6 +52,7 @@ void move_to_function(Executor* E, Function* f){
     reference(&function_scope);
     E->bytecode_environment.scope=function_scope;
     gc_object_reference((gc_Object*)f->source_pointer);
+
     E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
     E->bytecode_environment.pointer=0;
 }
@@ -240,6 +241,7 @@ Object execute_bytecode(Executor* E){
         Object* scope=&E->bytecode_environment.scope;
 
         Instruction instr=code[*pointer];
+        E->file=program->source_file_name;
         E->line=program->information[*pointer].line;
         E->column=program->information[*pointer].column;
         E->scope=*scope;
@@ -472,8 +474,13 @@ Object execute_bytecode(Executor* E){
                 Object o=pop(object_stack);
                 int provided_arguments=instr.uint_argument;
 
+                InstructionInformation call_information=program->information[E->bytecode_environment.pointer];
+                TracebackPoint traceback_point={program->source_file_name, call_information.line};
+                vector_push(&E->traceback, &traceback_point);
+
                 #define RETURN(value) \
                     push(object_stack, value); \
+                    vector_pop(&E->traceback); \
                     if(instr.type==b_call) { \
                         break; \
                     } else { \
@@ -495,8 +502,9 @@ Object execute_bytecode(Executor* E){
                 if(o.type==t_null){
                     CALL_ERROR("Called function is null.");
                 }
+                
                 // if object isn't a function it can be called through using monkey patching or Table call field
-                if(o.type!=t_function){
+                if(o.type!=t_function || o.fp->ftype==f_ast){
                     Object* arguments=malloc(sizeof(Object)*provided_arguments);
                     for (int i = 0; i < provided_arguments; i++){
                         arguments[i]=pop(object_stack);
@@ -586,8 +594,6 @@ Object execute_bytecode(Executor* E){
                         default:
                             CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
                     }
-                } else if(o.fp->ftype==f_ast) {
-                    CALL_ERROR("Can't call ast function from bytecode.");
                 } else {
                     CALL_ERROR("Incorrect function type %i", o.fp->ftype);
                 }

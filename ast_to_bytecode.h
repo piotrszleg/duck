@@ -2,6 +2,7 @@
 #define AST_TO_BYTECODE_H
 
 #include "parser/ast.h"
+#include "parser/parser.h"
 #include "bytecode.h"
 #include "error/error.h"
 #include "datatypes/stream.h"

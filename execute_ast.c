@@ -214,6 +214,9 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         {
             function_call* c=(function_call*)exp;
             
+            TracebackPoint traceback_point={strdup("input"), exp->line_number};
+            vector_push(&E->traceback, &traceback_point);
+
             Object f=execute_ast(E, c->called, scope, 0);
             USE(f)
             int arguments_count=vector_count(&c->arguments->lines);

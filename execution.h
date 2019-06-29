@@ -9,7 +9,6 @@
 #include "execute_ast.h"
 #include "optimisations/ast_optimisations.h"
 #include "optimisations/bytecode_optimisations.h"
-#include "runtime/builtins.h"
 #include "utility.h"
 #include "object_system/object_operations.h"
 #include "error/execution_state.h"
@@ -17,7 +16,7 @@
 #include "options.h"
 #include "macros.h"
 
-Object evaluate(Executor* E, expression* parsing_result, Object scope, bool delete_ast);
+Object evaluate(Executor* E, expression* parsing_result, Object scope, const char* file_name, bool delete_ast);
 Object evaluate_string(Executor* E, const char* s, Object scope);
 Object evaluate_file(Executor* E, const char* file_name, Object scope);
 void execute_file(Executor* E, const char* file_name, char** arguments);
@@ -32,11 +31,16 @@ struct ASTExecutionState {
     vector used_objects;
 };
 
+typedef struct {
+    const char* file_name;
+    unsigned line_number; 
+} TracebackPoint;
+
 struct Executor {
     GarbageCollector* gc;
     unsigned line;
     unsigned column;
-    unsigned* traceback;
+    vector traceback;
     const char* file;
     Object scope;
 
@@ -62,5 +66,7 @@ struct Executor {
         E->error=null_const; \
         return error_to_return; \
     }
+
+#include "runtime/builtins.h"
 
 #endif
