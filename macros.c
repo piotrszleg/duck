@@ -69,7 +69,7 @@ Object expression_descriptor_destroy(Executor* E, Object* arguments, int argumen
     return expression_descriptor_destroy_recursively(E, self.tp, (expression*)struct_descriptor_get_pointer(E, self.tp));
 }
 
-void postproccess_expression_descriptor(Executor* E, Table* descriptor){
+void postprocess_expression_descriptor(Executor* E, Table* descriptor){
     table_set(E, descriptor, to_string("is_expression"), to_int(1));
     table_set(E, descriptor, to_string("destroy"), to_function(E, expression_descriptor_destroy, NULL, 1));
     table_set(E, descriptor, to_string("has_ownership"), to_int(1));
@@ -84,7 +84,7 @@ Object expression_descriptor_copy(Executor* E, Object* arguments, int arguments_
     REQUIRE_TYPE(self, t_table);
     expression* copy=copy_expression(struct_descriptor_get_pointer(E, self.tp));
     Object sd=new_struct_descriptor(E, (void*)copy, expression_fields(E, copy));
-    postproccess_expression_descriptor(E, sd.tp);
+    postprocess_expression_descriptor(E, sd.tp);
     return sd;
 }
 
@@ -100,7 +100,7 @@ Object expression_descriptor_get(Executor* E, Object* arguments, int argumets_co
     Object get_result=call(E, replaced_get, arguments, argumets_count);
     if(is_struct_descriptor(E, get_result)){
         downcast_expression_descriptor(E, get_result.tp);
-        postproccess_expression_descriptor(E, get_result.tp);
+        postprocess_expression_descriptor(E, get_result.tp);
     }
     return get_result;
 }
@@ -164,7 +164,7 @@ Object new_expression_descriptor(Executor* E, Object* arguments, int arguments_c
         exp->line_number=E->line;
         exp->column_number=0;
         Object sd=new_struct_descriptor(E, (void*)exp, expression_fields(E, exp));
-        postproccess_expression_descriptor(E, sd.tp);
+        postprocess_expression_descriptor(E, sd.tp);
         return sd;
     } else {
         return null_const;
@@ -206,7 +206,7 @@ void register_ast_types(Executor* E, Object scope){
 Object wrap_expression(Executor* E, expression* exp){
     Object wrapped=new_struct_descriptor(E, (void*)exp, expression_fields(E, exp));
     REQUIRE_TYPE(wrapped, t_table)
-    postproccess_expression_descriptor(E, wrapped.tp);
+    postprocess_expression_descriptor(E, wrapped.tp);
     return wrapped;
 }
 
@@ -267,7 +267,7 @@ ASTVisitorRequest remove_nulls_from_expression_visitor(expression* exp, void* da
     return request;
 }
 
-void remove_nulls_from_expression(expression* exp){
+void remove_nulls_from_expression(expression** exp){
     visit_ast(exp, remove_nulls_from_expression_visitor, NULL);
 }
 
@@ -280,7 +280,7 @@ expression* to_expression(Executor* E, Object o){
             expression* exp=(expression*)struct_descriptor_get_pointer(E, o.tp);
             table_set(E, o.tp, to_string("destroy"), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression
             if(exp!=NULL){
-                remove_nulls_from_expression(exp);
+                remove_nulls_from_expression(&exp);
             }
             return exp;
         }
@@ -396,7 +396,7 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
     return request;
 }
 
-void execute_macros(Executor* E, expression* ast){
+void execute_macros(Executor* E, expression** ast){
     MacroVisitorState state;
     state.executor=E;
     map_init(&state.macro_definitions);

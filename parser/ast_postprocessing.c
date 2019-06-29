@@ -142,7 +142,7 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
     return request;
 }
 
-void postprocess_ast(expression* ast){
+void postprocess_ast(expression** ast){
     PostprocessingState state;
     vector_init(&state.functions, sizeof(function_declaration*), 16);
     vector_push(&state.functions, ast);

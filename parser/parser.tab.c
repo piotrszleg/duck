@@ -2315,7 +2315,7 @@ expression* parse_string(const char* s) {
 	yyparse();
 	yy_delete_buffer(buffer);
 	if(parsing_result!=NULL){
-		postprocess_ast(parsing_result);
+		postprocess_ast(&parsing_result);
 	}
 	return parsing_result;
 }
@@ -2339,7 +2339,7 @@ expression* parse_file(const char* file) {
 	// Parse through the input:
 	yyparse();
 	if(parsing_result!=NULL){
-		postprocess_ast(parsing_result);
+		postprocess_ast(&parsing_result);
 	}
 	return parsing_result;
 }

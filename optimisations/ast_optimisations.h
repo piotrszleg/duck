@@ -6,6 +6,6 @@
 #include "../options.h"
 #include "stdbool.h"
 
-void optimise_ast(Executor* E, expression* ast);
+void optimise_ast(Executor* E, expression** ast);
 
 #endif

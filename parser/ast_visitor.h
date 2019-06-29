@@ -21,6 +21,6 @@ struct ASTVisitorRequest{
 
 typedef ASTVisitorRequest (*visitor_function)(expression*, void*);
 
-ASTVisitorRequest visit_ast(expression*, visitor_function f, void*);
+ASTVisitorRequest visit_ast(expression**, visitor_function f, void*);
 
 #endif

@@ -4,9 +4,9 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
     if(parsing_result==NULL){
         return null_const;// there was an error while parsing
     }
-    execute_macros(E, parsing_result);
+    execute_macros(E, &parsing_result);
     if(E->options.optimise_ast){
-        optimise_ast(E, parsing_result);
+        optimise_ast(E, &parsing_result);
     }
     if(E->options.print_ast){
         USING_STRING(stringify_expression(parsing_result, 0),
@@ -23,7 +23,6 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, bool dele
         if(E->options.optimise_bytecode){
             optimise_bytecode(E, &prog, E->options.print_bytecode_optimisations);
         }
-
         if(E->options.print_bytecode){
             USING_STRING(stringify_bytecode(&prog),
                 printf("Bytecode:\n%s\n", str));

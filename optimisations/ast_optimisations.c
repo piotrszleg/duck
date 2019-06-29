@@ -137,7 +137,7 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
     return request;
 }
 
-void optimise_ast(Executor* E, expression* ast){
+void optimise_ast(Executor* E, expression** ast){
     visit_ast(ast, optimise_ast_visitor, E);
 }
 
