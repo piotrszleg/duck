@@ -86,8 +86,8 @@ Object find_call_function(Executor* E, Object o){
         return o;
     } else if(o.type==t_table){
         STRING_OBJECT(call_string, "call");
-        Object call_field=get(E, o, call_string);
-        return find_call_function(E, call_field);
+        Object call_override=get(E, o, call_string);
+        return find_call_function(E, call_override);
     } else {
         Object n={t_null};
         return n;
@@ -569,17 +569,7 @@ Object set(Executor* E, Object o, Object key, Object value){
     }
 }
 
-Object* concat_arguments(Object head, Object* tail, int tail_count){
-    Object* result=malloc(sizeof(Object)*(tail_count+1));
-    result[0]=head;
-    for(int i=0; i<tail_count; i++){
-        result[i+1]=tail[i];
-    }
-    return result;
-}
-
 Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
-    Object* arguments_with_self=concat_arguments(o, arguments, arguments_count);
     switch(o.type){
         case t_function:
         {
@@ -591,16 +581,74 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
         }
         case t_table:
         {
-            Object call_field=find_function(E, o, "call");
-            if(call_field.type!=t_null){
+            Object call_override=find_function(E, o, "call");
+            if(call_override.type!=t_null){
                 // add o object as a first argument
-                Object result=call(E, call_field, arguments_with_self, arguments_count+1);
+                Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
+                arguments_with_self[0]=o;
+                memcpy(arguments_with_self+1, arguments, arguments_count*sizeof(Object));
+
+                Object result=call(E, call_override, arguments_with_self, arguments_count+1);
                 free(arguments_with_self);
                 return result;
             }// else go to default label
         }
         default:
             RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+    }
+}
+
+Object message_object(Executor* E, Object messaged, const char* message_identifier, Object* arguments, int arguments_count){
+    switch(messaged.type) {
+        case t_table:
+        {
+            Object message_override=find_function(E, messaged, "message");
+            if(message_override.type!=t_null){
+                // call "message" field of messaged, passing messaged, message_identifier and rest of the arguments
+                Object* override_arguments=malloc(sizeof(Object)*(arguments_count+2));
+                override_arguments[0]=messaged;
+                override_arguments[1]=to_string(message_identifier);
+                memcpy(override_arguments+2, arguments, arguments_count*sizeof(Object));
+
+                Object result=call(E, message_override, override_arguments, arguments_count+2);
+                free(override_arguments);
+                return result;
+            } else {
+                // call message_identifier field of messaged, passing messaged, and rest of the arguments
+                Object function_field=get(E, messaged, to_string(message_identifier));
+                Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
+                arguments_with_self[0]=messaged;
+                memcpy(arguments_with_self+1, arguments, arguments_count*sizeof(Object));
+                call(E, function_field, arguments_with_self, arguments_count+1);
+            }
+            break;
+        }
+        #define MESSAGE(identifier) if(strcmp(message_identifier, identifier)==0)
+        case t_string:
+            MESSAGE("length"){
+                return to_int(strlen(messaged.text));
+            }
+            break;
+        case t_coroutine:
+            MESSAGE("state"){
+                switch(messaged.co->state){
+                    case co_uninitialized: return to_string("uninitialized");
+                    case co_running: return to_string("running");
+                    case co_finished: return to_string("finished");
+                }
+            }
+            MESSAGE("finished"){
+                return to_int(messaged.co->state==co_finished);
+            }
+            break;
+        case t_function:
+            MESSAGE("variadic"){
+                return to_int(messaged.fp->variadic);
+            }
+            MESSAGE("arguments_count"){
+                return to_int(messaged.fp->arguments_count);
+            }
+            break;
     }
 }
 
@@ -628,6 +676,17 @@ Object copy(Executor* E, Object o){
         }
         default: 
             return o;
+    }
+}
+
+bool is_error(Executor* E, Object o){
+    if(o.type!=t_table){
+        return false;
+    } else {
+        Object is_error_object=get(E, o, to_string("error"));
+        bool result=!is_falsy(is_error_object);
+        destroy_unreferenced(E, &is_error_object);
+        return result;
     }
 }
 

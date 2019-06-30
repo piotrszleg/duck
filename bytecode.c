@@ -195,10 +195,12 @@ int gets_from_stack(Instruction instr){
         X(b_table_set_keep, 3)
         X(b_call, instr.uint_argument+1)
         X(b_tail_call, instr.uint_argument+1)
+        X(b_message, instr.uint_argument+2)
         X(b_binary, 3)
         X(b_prefix, 2)
         X(b_function, 1)
         X(b_jump_not, 1)
+        X(b_question_mark, 1)
         X(b_swap, MAX(instr.swap_argument.left, instr.swap_argument.right)+1)
         default: return 0;
     }
@@ -229,6 +231,7 @@ int pushes_to_stack(Instruction instr){
 bool changes_flow(InstructionType instr){
     return false
     X(b_jump)
+    X(b_question_mark)
     X(b_jump_not);
 }
 bool changes_scope(InstructionType instr){

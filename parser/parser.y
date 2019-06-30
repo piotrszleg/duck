@@ -51,7 +51,6 @@ argument* name_to_argument(name* n) {
 
 // define the constant-string tokens:
 %token ENDL
-
 %token IF
 %token ELIF
 %token ELSE
@@ -60,6 +59,7 @@ argument* name_to_argument(name* n) {
 %token ARROW
 %token FOUR_DOTS
 %token AT
+%token QUESTION_MARK
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
@@ -94,6 +94,7 @@ argument* name_to_argument(name* n) {
 %type <exp> macro_declaration;
 %type <exp> argument;
 %type <exp> return;
+%type <exp> question_mark;
 
 %%
 program:
@@ -180,6 +181,7 @@ expression:
 	| macro
 	| macro_declaration
 	| return
+	| question_mark
 	;
 parentheses:
 	'(' expression ')' {
@@ -454,6 +456,15 @@ prefix:
 		$$=(expression*)p;
 	}
 	;
+question_mark:
+	expression QUESTION_MARK
+	{
+		question_mark* q=new_question_mark();
+		ADD_DEBUG_INFO(q)
+		q->value=$1;
+		$$=(expression*)q;
+	}
+	;
 OPT_ENDLS:
 	ENDLS
 	| ;
@@ -541,7 +552,7 @@ void print_arrow(int length){
 	for(int i=0; i<length; i++){
 		printf("-");
 	}
-	printf("^");
+	printf("^\n");
 }
 
 void yyerror(const char *message) {

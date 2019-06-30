@@ -40,8 +40,10 @@
     X(call) /*          (uint_argument number_of_arguments) [function, arguments...] */ \
     X(tail_call) \
     X(binary) /*        [a, b, operator] */ \
+    X(message) /*       (arguments_count) [messaged, message_identifier, arguments...] */\
     X(prefix) /*        [a, operator] */ \
-    X(swap) /*          (swap_argument) */
+    X(swap) /*          (swap_argument) */ \
+    X(question_mark) /* [expression] */
 
 typedef enum {
     #define X(t) b_##t,

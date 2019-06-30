@@ -462,11 +462,36 @@ Object execute_bytecode(Executor* E){
             {
                 Object f=peek(object_stack);
                 if(f.type!=t_function){
-                    BYTECODE_ERROR(f, "b_function: bytecode function type is %s", OBJECT_TYPE_NAMES[f.type]);
+                    BYTECODE_ERROR(f, "b_function: function type is %s", OBJECT_TYPE_NAMES[f.type]);
                 }
                 f.fp->source_pointer=(gc_Object*)(E->bytecode_environment.executed_program->sub_programs+instr.uint_argument);
                 gc_object_reference((gc_Object*)f.fp->source_pointer);
                 break;
+            }
+            case b_message:
+            {
+                Object messaged=pop(object_stack);
+                Object message_identifier=pop(object_stack);
+                int provided_arguments=instr.uint_argument;
+                if(message_identifier.type!=t_string){
+                    BYTECODE_ERROR(message_identifier, "b_message: message_identifier type is %s", OBJECT_TYPE_NAMES[message_identifier.type]);
+                }
+                Object* arguments=malloc(sizeof(Object)*provided_arguments);
+                for (int i = 0; i < provided_arguments; i++){
+                    arguments[i]=pop(object_stack);
+                }
+                Object message_result=message_object(E, messaged, message_identifier.text, arguments, provided_arguments);
+                free(arguments);
+                push(object_stack, message_result);
+                break;
+            }
+            case b_question_mark:
+            {
+                if(is_error(E, peek(object_stack))){
+                    goto function_return;
+                } else {
+                    break;
+                }
             }
             case b_tail_call:
             case b_call:
@@ -484,7 +509,7 @@ Object execute_bytecode(Executor* E){
                     if(instr.type==b_call) { \
                         break; \
                     } else { \
-                        goto fallthrough_to_return; \
+                        goto function_return; \
                     }
 
                 #define POP_ARGUMENTS \
@@ -603,7 +628,7 @@ Object execute_bytecode(Executor* E){
                 dereference(E, &o);
                 break;
             }
-            fallthrough_to_return:
+            function_return:
             case b_end:
             case b_return:
             {
@@ -627,7 +652,7 @@ Object execute_bytecode(Executor* E){
                         Object last=pop(object_stack);
                         return last;
                     } else if(gc_should_run(E->gc)){
-                        //bytecode_program_collect_garbage(E);
+                        bytecode_program_collect_garbage(E);
                     }
                 }
                 break;

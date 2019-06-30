@@ -123,3 +123,13 @@ test("coroutines", ->{
         counter+=1
     }
 })
+
+test("question mark", ->{
+    f=x->{
+        if(x){
+            format("{}")?
+        }
+        10
+    }
+    assert_error(f(1))
+})

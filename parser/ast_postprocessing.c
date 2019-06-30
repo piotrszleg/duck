@@ -32,28 +32,6 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
     PostprocessingState* state=data;
 
     switch(exp->type){
-    
-    // translate messages to functions
-    case e_message:{
-        message* m=(message*)exp;
-        function_call* c=new_function_call();
-        c->called=copy_expression(m->messaged_object);
-        if(c->called->type!=e_path){
-            THROW_ERROR(INCORRECT_OBJECT_POINTER, "The messaged_object field of message should be of type path.");
-        }
-        pointers_vector_push(&((path*)c->called)->lines, copy_expression((expression*)m->message_name));
-
-        c->arguments=new_table_literal();
-        pointers_vector_push(&c->arguments->lines, copy_expression(m->messaged_object));
-        for(int i=0; i<vector_count(&m->arguments->lines); i++){
-            pointers_vector_push(&c->arguments->lines, copy_expression(pointers_vector_get(&m->arguments->lines, i)));
-        }
-        c->column_number=m->column_number;
-        c->line_number=m->line_number;
-
-        request.replacement=(expression*)c;
-        return request;
-    }
     // changing order of operations from right to left to left to right
     case e_binary: {
         binary* b=(binary*)exp;

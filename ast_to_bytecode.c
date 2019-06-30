@@ -265,6 +265,18 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             push_uint_instruction(translation, b_function, sub_program_index);
             break;
         }
+        case e_message:
+        {
+            message* m=(message*)exp;
+            int lines_count=vector_count(&m->arguments->lines);
+            for (int i = 0; i < lines_count; i++){
+                ast_to_bytecode_recursive(pointers_vector_get(&m->arguments->lines, i), translation, false);
+            }
+            push_string_load(translation, m->message_name->value);
+            ast_to_bytecode_recursive(m->messaged_object, translation, false);
+            push_uint_instruction(translation, b_message, lines_count);
+            break;
+        }
         case e_function_call:
         {
             function_call* c=(function_call*)exp;
@@ -286,6 +298,13 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             function_return* r=(function_return*)exp;
             ast_to_bytecode_recursive((expression*)r->value, translation, false);
             push_instruction(translation, b_return);
+            break;
+        }
+        case e_question_mark:
+        {
+            question_mark* q=(question_mark*)exp;
+            ast_to_bytecode_recursive((expression*)q->value, translation, false);
+            push_instruction(translation, b_question_mark);
             break;
         }
         case e_path:

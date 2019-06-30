@@ -247,10 +247,10 @@ void blocks(){
     printf("test successful\n");
 }
 
-void message_translation(){
+void messages(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    int counts[]={1, 2, 3, 3};
+    int counts[]={0, 1, 2, 2};
 
     block* as_block=parse_block(
     "a::b()\n"
@@ -260,9 +260,8 @@ void message_translation(){
     , 4);
     for (int i = 0; i < vector_count(&as_block->lines); i++){
         expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
-        assert(e->type==e_function_call);
-        assert(((function_call*)e)->called->type==e_path);
-        assert(vector_count(&((function_call*)e)->arguments->lines)==counts[i]);
+        assert(e->type==e_message);
+        assert(vector_count(&((message*)e)->arguments->lines)==counts[i]);
     }
     delete_expression((expression*)as_block);
     printf("test successful\n");
@@ -287,6 +286,22 @@ void closures(){
     assert(ASSERT_CAST(ASSERT_CAST(FIRST_LINE(GET_LINE(as_block, 1)), function_declaration)->body, assignment)->used_in_closure==false);
     assert(ASSERT_CAST(FIRST_LINE(GET_LINE(as_block, 2)), assignment)->used_in_closure=true);
     
+    delete_expression((expression*)as_block);
+    printf("test successful\n");
+}
+
+void question_marks(){
+    printf("TEST: %s\n", __FUNCTION__);
+
+    block* as_block=parse_block(
+    "1?\n"
+    "1?, 1?\n"
+    , 3);
+
+    for (int i = 0; i < vector_count(&as_block->lines); i++){
+        expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
+        assert(e->type==e_question_mark);
+    }
     delete_expression((expression*)as_block);
     printf("test successful\n");
 }
@@ -382,7 +397,8 @@ int main(){
     function_returns();
     conditionals();
     blocks();
-    message_translation();
+    messages();
     ast_tests();
     closures();
+    question_marks();
 }

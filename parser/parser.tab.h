@@ -48,13 +48,14 @@
      ARROW = 264,
      FOUR_DOTS = 265,
      AT = 266,
-     INT = 267,
-     FLOAT = 268,
-     STRING = 269,
-     NAME = 270,
-     ASSIGN_BINARY_OPERATOR = 271,
-     BINARY_OPERATOR = 272,
-     PREFIX_OPERATOR = 273
+     QUESTION_MARK = 267,
+     INT = 268,
+     FLOAT = 269,
+     STRING = 270,
+     NAME = 271,
+     ASSIGN_BINARY_OPERATOR = 272,
+     BINARY_OPERATOR = 273,
+     PREFIX_OPERATOR = 274
    };
 #endif
 
@@ -76,7 +77,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 80 "parser.tab.h"
+#line 81 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

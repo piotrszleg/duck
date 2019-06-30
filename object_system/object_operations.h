@@ -16,6 +16,7 @@ Object operator(Executor* E, Object a, Object b, const char* op);
 Object cast(Executor* E, Object o, ObjectType type);
 
 Object call(Executor* E, Object o, Object* arguments, int arguments_count);
+Object message_object(Executor* E, Object messaged, const char* message_identifier, Object* arguments, int arguments_count);
 
 Object get(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);
@@ -29,6 +30,7 @@ char* suprintf (const char * format, ...);
 char* stringify_object(Executor* E, Object o);
 char* stringify(Executor* E, Object o);
 Object get_iterator(Executor* E, Object o);
+bool is_error(Executor* E, Object o);
 
 // iterated and receiver should be of object type, executes body with receiver becoming subsequential elements of iterated
 #define FOREACH(iterated, receiver, body) \

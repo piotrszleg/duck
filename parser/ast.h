@@ -64,6 +64,9 @@ bool ast_allocations_zero();
     EXPRESSION(parentheses) \
         EXPRESSION_FIELD(value) \
     END \
+    EXPRESSION(question_mark) \
+        EXPRESSION_FIELD(value) \
+    END \
     EXPRESSION(message) \
         EXPRESSION_FIELD(messaged_object) \
         SPECIFIED_EXPRESSION_FIELD(name, message_name) \
