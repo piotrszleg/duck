@@ -44,7 +44,16 @@ bool is_constant(expression* exp){
     }
 }
 
-expression* to_literal(Object o){
+void handle_if_error(Executor* E, Object o){
+    Object is_error=get(E, o, to_string("error"));
+    if(!is_falsy(is_error)){
+        Object set_result=set(E, o, to_string("handled"), to_int(1));
+        destroy_unreferenced(E, &set_result);
+    }
+    destroy_unreferenced(E, &is_error);
+}
+
+expression* to_literal(Executor* E, Object o){
     switch(o.type){
         case t_string:
         {
@@ -66,6 +75,9 @@ expression* to_literal(Object o){
         }
         case t_null:
             return (expression*)new_empty();
+        case t_table:
+            handle_if_error(E, o);
+            return NULL;
         default:
             return NULL;
     }
@@ -108,6 +120,7 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
         conditional* c=(conditional*)exp;
         if(is_constant(c->condition)){
             Object evaluated=evaluate_expression(E, c->condition);
+            handle_if_error(E, evaluated);
             ASTVisitorRequest request={next};
             if(is_falsy(evaluated)){
                 request.replacement=copy_expression(c->onfalse);
@@ -122,7 +135,7 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
     else if(!is_literal(exp) && is_constant(exp)){
         ASTVisitorRequest request={next};
         Object evaluated=evaluate_expression(E, exp);
-        request.replacement=to_literal(evaluated);
+        request.replacement=to_literal(E, evaluated);
         //replace current expression with the literal
         LOG_CHANGE("constants folding", exp, request.replacement);
         return request;

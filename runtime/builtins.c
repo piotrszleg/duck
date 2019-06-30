@@ -1,5 +1,7 @@
 #include "builtins.h"
 
+// TODO: coroutine_free
+
 Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
     Object function=arguments[0];
     Object coroutine;
@@ -13,6 +15,7 @@ Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
 
     // coroutine shares garbage collector with owner
     coroutine_executor->gc=E->gc;
+    vector_init(&coroutine_executor->traceback, sizeof(TracebackPoint), 16);
 
     // create a coroutine scope inheriting from global scope
     table_init(coroutine_executor, &coroutine_executor->bytecode_environment.scope);
@@ -62,6 +65,12 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
 Object builtin_print(Executor* E, Object* arguments, int arguments_count){
     USING_STRING(cast(E, arguments[0], t_string).text,
         printf("%s\n", str));
+    return null_const;
+}
+
+Object builtin_output(Executor* E, Object* arguments, int arguments_count){
+    USING_STRING(cast(E, arguments[0], t_string).text,
+        printf("%s", str));
     return null_const;
 }
 
@@ -165,6 +174,13 @@ Object builtin_format(Executor* E, Object* arguments, int arguments_count){
     }
     stream_push(&s, "\0", sizeof(char));
     return to_string(stream_get_data(&s));
+}
+
+Object builtin_printf(Executor* E, Object* arguments, int arguments_count){
+    Object to_print=builtin_format(E, arguments, arguments_count);
+    REQUIRE_TYPE(to_print, t_string)
+    printf("%s\n", to_print.text);
+    return null_const;
 }
 
 Object builtin_assert(Executor* E, Object* arguments, int arguments_count){
@@ -432,6 +448,7 @@ void register_builtins(Executor* E, Object scope){
     
     set(E, scope, to_string("global"), scope);
     REGISTER_FUNCTION(print, 1)
+    REGISTER_FUNCTION(output, 1)
     REGISTER_FUNCTION(input, 0)
     REGISTER_FUNCTION(assert, 1)
     REGISTER_FUNCTION(typeof, 1)
@@ -481,6 +498,7 @@ void register_builtins(Executor* E, Object scope){
 
     set_function(E, scope, "coroutine", 1, true, builtin_coroutine);
     set_function(E, scope, "format", 1, true, builtin_format);
+    set_function(E, scope, "printf", 1, true, builtin_printf);
 
     #undef REGISTER_FUNCTION
 }

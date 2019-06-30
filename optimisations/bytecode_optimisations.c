@@ -42,27 +42,20 @@ int count_instructions(Instruction* code){
 }
 
 void highlight_instructions(BytecodeProgram* prog, char symbol, int start, int end){
-    stream s;
-    stream_init(&s, 64);
 
     int pointer=0;
     while(prog->code[pointer].type!=b_end){
         if(pointer>=start && pointer<=end){
-            stream_push(&s, &symbol, 1);
-            stream_push(&s, " ", 1);
+            printf("%c ", symbol);
         } else {
-            stream_push(&s, "  ", 2);
+            printf("  ");
         }
         char stringified_instruction[64];
         stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], 64);
-        int stringified_length=strlen(stringified_instruction);
-
-        stream_push(&s, stringified_instruction, stringified_length*sizeof(char));
+        printf(stringified_instruction);
+        printf("\n");
         pointer++;
     }
-    stream_push(&s, "\n\0", 2);
-    printf(stream_get_data(&s));
-    free(stream_get_data(&s));
 }
 
 typedef enum {

@@ -96,3 +96,30 @@ test("closures", ->{
     add_two=adder(2)
     assert(add_two(5)==7)
 })
+
+test("operators", ->{
+    assert(2*8==16)
+    assert(10/2==5)
+    assert(7//2==3)
+    assert(7%2==1)
+    assert_error(2.5%2)
+    assert_error(2.5%2)
+})
+
+test("coroutines", ->{
+    c=coroutine(b->{
+        a=yield()
+        yield(b+a)
+    }, 10)
+    c()
+    assert(c(2)==12)
+    counter=1
+    coroutine(->{
+        yield(1)
+        yield(2)
+        yield(3)
+    }) `#` x->{
+        assert(x==counter)
+        counter+=1
+    }
+})

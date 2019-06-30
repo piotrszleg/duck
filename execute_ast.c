@@ -52,10 +52,6 @@ void ast_source_pointer_free(Executor* E, ASTSourcePointer* sp){
     free(sp);
 }
 
-void ast_executor_collect_garbage(Executor* E) {
-
-}
-
 Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     if(exp==NULL){
         return null_const;
@@ -69,6 +65,9 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
     #define STOP_USING(object) \
         vector_delete_item(&E->ast_execution_state.used_objects, &object); \
         dereference(E, &object);
+    #define RETURN_USED(object) \
+        vector_delete_item(&E->ast_execution_state.used_objects, &object); \
+        return object;
     
     switch(exp->type){
         case e_expression:
@@ -101,8 +100,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 }
                 destroy_unreferenced(E, &set_result);
             }
-            //STOP_USING(table)
-            return table;
+            RETURN_USED(table)
         }
         case e_block:
         {
@@ -121,6 +119,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 reference(&line_result);
                 if(E->ast_execution_state.returning || i == vector_count(&b->lines)-1){
                     result=line_result;
+                    USE(result)
                     break;
                 } else {
                     dereference(E, &line_result);
@@ -130,11 +129,11 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             if(gc_should_run(E->gc)){
                 vector_push(&E->ast_execution_state.used_objects, &result);
                 vector_push(&E->ast_execution_state.used_objects, &scope);
-                //gc_run(E, vector_get_data(&E->ast_execution_state.used_objects), vector_count(&E->ast_execution_state.used_objects));
+                gc_run(E, vector_get_data(&E->ast_execution_state.used_objects), vector_count(&E->ast_execution_state.used_objects));
                 vector_pop(&E->ast_execution_state.used_objects);
                 vector_pop(&E->ast_execution_state.used_objects);
             }
-            return result;
+            RETURN_USED(result)
         }
         case e_name:
         {
@@ -157,7 +156,6 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             Object right=execute_ast(E, u->right, scope, 0);
             USE(right)
             Object result=operator(E, left, right, u->op);
-            vector_delete_item(&E->ast_execution_state.used_objects, &u->left);
             STOP_USING(left);
             STOP_USING(right);
             return result;
@@ -219,27 +217,33 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
 
             Object f=execute_ast(E, c->called, scope, 0);
             USE(f)
-            int arguments_count=vector_count(&c->arguments->lines);
-            Object* arguments=malloc(arguments_count*sizeof(Object));
-            for (int i = 0; i < vector_count(&c->arguments->lines); i++){
-                Object argument_value=execute_ast(E, pointers_vector_get(&c->arguments->lines, i), scope, 0);
-                arguments[i]=argument_value;
-            }
             if(f.type==t_function && f.fp->ftype==f_special){
                 switch(f.fp->special_index){
                     case 2://  collect_garbage
                     {
+                        vector_push(&E->ast_execution_state.used_objects, &scope);
+                        gc_run(E, vector_get_data(&E->ast_execution_state.used_objects), vector_count(&E->ast_execution_state.used_objects));
+                        vector_pop(&E->ast_execution_state.used_objects);
+                        STOP_USING(f)
                         return null_const;
                     }
                     default:
+                        STOP_USING(f)
                         RETURN_ERROR("CALL_ERROR", f, "Unknown special function of special_index %i.", f.fp->special_index)
                 }
+            } else {
+                int arguments_count=vector_count(&c->arguments->lines);
+                Object* arguments=malloc(arguments_count*sizeof(Object));
+                for (int i = 0; i < vector_count(&c->arguments->lines); i++){
+                    Object argument_value=execute_ast(E, pointers_vector_get(&c->arguments->lines, i), scope, 0);
+                    arguments[i]=argument_value;
+                }
+                Object result=call(E, f, arguments, arguments_count);
+                E->ast_execution_state.returning=false;
+                free(arguments);
+                STOP_USING(f)
+                return result;
             }
-            Object result=call(E, f, arguments, arguments_count);
-            E->ast_execution_state.returning=false;
-            free(arguments);
-            STOP_USING(f)
-            return result;
         }
         case e_path:
         {
