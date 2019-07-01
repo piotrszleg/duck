@@ -42,8 +42,7 @@
     X(binary) /*        [a, b, operator] */ \
     X(message) /*       (arguments_count) [messaged, message_identifier, arguments...] */\
     X(prefix) /*        [a, operator] */ \
-    X(swap) /*          (swap_argument) */ \
-    X(question_mark) /* [expression] */
+    X(swap) /*          (swap_argument) */
 
 typedef enum {
     #define X(t) b_##t,

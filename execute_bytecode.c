@@ -485,14 +485,6 @@ Object execute_bytecode(Executor* E){
                 push(object_stack, message_result);
                 break;
             }
-            case b_question_mark:
-            {
-                if(is_error(E, peek(object_stack))){
-                    goto function_return;
-                } else {
-                    break;
-                }
-            }
             case b_tail_call:
             case b_call:
             {

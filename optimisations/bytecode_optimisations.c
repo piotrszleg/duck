@@ -167,6 +167,7 @@ void predict_instruction_output(Executor* E, Instruction* instr, char* constants
     if(carries_stack(instr->type)){
         int i=0;
         // jump_not takes one item from the stack as a predicate
+        // so it needs to be skipped
         if(instr->type==b_jump_not){
             i++;
         }
@@ -217,6 +218,7 @@ void predict_instruction_output(Executor* E, Instruction* instr, char* constants
             break;
         case b_double:
             outputs[0]=inputs[0];
+            outputs[1]=inputs[0];
             break;
         case b_push_to_top:
             outputs[instr->uint_argument]=inputs[0];

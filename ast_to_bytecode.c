@@ -304,7 +304,13 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         {
             question_mark* q=(question_mark*)exp;
             ast_to_bytecode_recursive((expression*)q->value, translation, false);
-            push_instruction(translation, b_question_mark);
+            push_instruction(translation, b_double);
+            push_string_load(translation, "error");
+            push_instruction(translation, b_table_get);
+            int after_return=labels_count++;
+            push_uint_instruction(translation, b_jump_not, after_return);
+            push_instruction(translation, b_return);
+            push_uint_instruction(translation, b_label, after_return);
             break;
         }
         case e_path:
