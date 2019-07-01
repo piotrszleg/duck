@@ -81,19 +81,13 @@ struct Dummy {
     };
 };
 
-void dummy_mark_children(Dummy* dummy){
+void dummy_foreach_children(Executor* E, Dummy* dummy, gc_PointerForeachChildrenCallback callback){
     dummy->gcp.gco.marked=true;
     if(dummy->type==d_or){
-        dummy_mark_children(dummy->or.left);
-        dummy_mark_children(dummy->or.right);
-    }
-}
-
-void dummy_dereference_children(Executor* E, Dummy* dummy){
-    dummy->gcp.gco.marked=true;
-    if(dummy->type==d_or){
-        gc_object_dereference(E, (gc_Object*)dummy->or.left);
-        gc_object_dereference(E, (gc_Object*)dummy->or.right);
+        Object wrapped_left=wrap_gc_object((gc_Object*)dummy->or.left);
+        callback(E, &wrapped_left);
+        Object wrapped_right=wrap_gc_object((gc_Object*)dummy->or.right);
+        callback(E, &wrapped_right);
     }
 }
 
@@ -108,8 +102,7 @@ void dummy_free(Dummy* dummy){
 Dummy* new_dummy(Executor* E){
     Dummy* result=malloc(sizeof(Dummy));
     gc_pointer_init(E, (gc_Pointer*)result, (gc_PointerFreeFunction)dummy_free);
-    result->gcp.mark_children=(gc_PointerMarkChildrenFunction)dummy_mark_children;
-    result->gcp.dereference_children=(gc_PointerDereferenceChildrenFunction)dummy_dereference_children;
+    result->gcp.foreach_children=(gc_PointerForeachChildrenFunction)dummy_foreach_children;
     return result;
 }
 

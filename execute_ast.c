@@ -127,11 +127,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             }
             STOP_USING(block_scope)
             if(gc_should_run(E->gc)){
-                vector_push(&E->ast_execution_state.used_objects, &result);
-                vector_push(&E->ast_execution_state.used_objects, &scope);
-                gc_run(E, vector_get_data(&E->ast_execution_state.used_objects), vector_count(&E->ast_execution_state.used_objects));
-                vector_pop(&E->ast_execution_state.used_objects);
-                vector_pop(&E->ast_execution_state.used_objects);
+                executor_collect_garbage(E);
             }
             RETURN_USED(result)
         }
@@ -221,9 +217,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 switch(f.fp->special_index){
                     case 2://  collect_garbage
                     {
-                        vector_push(&E->ast_execution_state.used_objects, &scope);
-                        gc_run(E, vector_get_data(&E->ast_execution_state.used_objects), vector_count(&E->ast_execution_state.used_objects));
-                        vector_pop(&E->ast_execution_state.used_objects);
+                        executor_collect_garbage(E);
                         STOP_USING(f)
                         return null_const;
                     }

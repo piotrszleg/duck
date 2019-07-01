@@ -144,16 +144,11 @@ int* list_labels(Instruction* code){
     return labels;
 }
 
-void bytecode_program_dereference_children(Executor* E, BytecodeProgram* program) {
-    for(int i=0; i<program->sub_programs_count; i++){
-        gc_object_dereference(E, (gc_Object*)&program->sub_programs[i]);
-    }
-}
-
-void bytecode_program_mark_children(BytecodeProgram* program) {
+void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, gc_PointerForeachChildrenCallback callback) {
     program->gcp.gco.marked=true;
     for(int i=0; i<program->sub_programs_count; i++){
-        bytecode_program_mark_children(&program->sub_programs[i]);
+        Object wrapped=wrap_gc_object((gc_Object*)&program->sub_programs[i]);
+        callback(E, &wrapped);
     }
 }
 
@@ -169,8 +164,7 @@ void bytecode_program_free(BytecodeProgram* program) {
 void bytecode_program_init(Executor* E, BytecodeProgram* program){
     program->labels=list_labels(program->code);
     gc_pointer_init(E, (gc_Pointer*)&program->gcp, (gc_PointerFreeFunction)bytecode_program_free);
-    program->gcp.mark_children=(gc_PointerMarkChildrenFunction)bytecode_program_mark_children;
-    program->gcp.dereference_children=(gc_PointerDereferenceChildrenFunction)bytecode_program_dereference_children;
+    program->gcp.foreach_children=(gc_PointerForeachChildrenFunction)bytecode_program_foreach_children;
     for(int i=0; i<program->sub_programs_count; i++){
         program->sub_programs[i].source_file_name=strdup(program->source_file_name);
         bytecode_program_init(E, &program->sub_programs[i]);

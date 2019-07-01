@@ -204,28 +204,6 @@ void debugger(Executor* E){
     }
 }
 
-void bytecode_program_collect_garbage(Executor* E){
-    vector* object_stack=&E->bytecode_environment.object_stack;
-    vector* return_stack=&E->bytecode_environment.return_stack;
-    Object* scope=&E->bytecode_environment.scope;
-    for(int i=0; i<vector_count(return_stack); i++){
-        ReturnPoint* return_point=vector_index(return_stack, i);
-        push(object_stack, return_point->scope);
-        push(object_stack, wrap_gc_object((gc_Object*)return_point->program));
-    }
-    push(object_stack, wrap_gc_object((gc_Object*)E->bytecode_environment.executed_program));
-    push(object_stack, *scope);
-    // collect everything that isn't on object stack
-    gc_run(E, (Object*)vector_get_data(object_stack), vector_count(object_stack));
-    // pop the scopes back
-    for(int i=0; i<vector_count(return_stack); i++){
-        pop(object_stack);
-        pop(object_stack);
-    }
-    pop(object_stack);
-    pop(object_stack);
-}
-
 Object execute_bytecode(Executor* E){
     int* pointer=&E->bytecode_environment.pointer;// points to the current Instruction
 
@@ -605,7 +583,7 @@ Object execute_bytecode(Executor* E){
                         }
                         case 2://  collect garbage
                         {
-                            bytecode_program_collect_garbage(E);
+                            executor_collect_garbage(E);
                             RETURN(null_const)
                         }
                         default:
@@ -640,11 +618,12 @@ Object execute_bytecode(Executor* E){
                     E->bytecode_environment.executed_program=return_point->program;
                     E->bytecode_environment.pointer=return_point->pointer;
                     *scope=return_point->scope;
+                    E->scope=*scope;
                     if(return_point->terminate){
                         Object last=pop(object_stack);
                         return last;
                     } else if(gc_should_run(E->gc)){
-                        bytecode_program_collect_garbage(E);
+                        executor_collect_garbage(E);
                     }
                 }
                 break;

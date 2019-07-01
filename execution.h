@@ -23,6 +23,7 @@ void execute_file(Executor* E, const char* file_name, char** arguments);
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 void executor_init(Executor* E);
 void executor_deinit(Executor* E);
+void executor_collect_garbage(Executor* E);
 
 typedef struct {
     const char* file_name;

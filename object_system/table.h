@@ -45,8 +45,8 @@ typedef struct {
 
 Object table_get(Table* t, Object key);
 void table_set(Executor* E, Table* t, Object key, Object value);
-void free_table(Table* t);
-void table_dereference_children(Executor* E, Table* t);
+void table_free(Table* t);
+void table_foreach_children(Executor* E, Table* t, gc_PointerForeachChildrenCallback callback);
 char* stringify_table(Executor* E, Table* t);
 void table_component_init(Table* t);
 Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_count);

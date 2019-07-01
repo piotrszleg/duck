@@ -195,21 +195,21 @@ char* stringify_table(Executor* E, Table* t){
     return (char*)stream_get_data(&s);
 }
 
-void table_dereference_children(Executor* E, Table* t){
+void table_foreach_children(Executor* E, Table* t, gc_PointerForeachChildrenCallback callback){
     for(int i=0; i<t->array_size; i++){
-        dereference(E, &t->array[i]);
+        callback(E, &t->array[i]);
     }
     for(int i=0; i<t->map_size; i++){
         MapElement* e=t->map[i];
         while(e){
-            dereference(E, &e->key);
-            dereference(E, &e->value);
+            callback(E, &e->key);
+            callback(E, &e->value);
             e=e->next;
         }
     }
 }
 
-void free_table(Table* t){
+void table_free(Table* t){
     free(t->array);
     for(int i=0; i<t->map_size; i++){
         MapElement* e=t->map[i];

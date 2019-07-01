@@ -51,13 +51,14 @@ typedef enum {
     gcs_freeing_memory
 } GarbageCollectorState;
 
-// when allocations_count in gc_object_init is greater than MAX_ALLOCATIONS the garbage collector will be activated
-#define MAX_ALLOCATIONS 50
+// difference between survivors_count and allocations_count at which the garbage collection should start
+#define MAX_ALLOCATIONS_INCREASE 100
 #define ALREADY_DESTROYED -5
 
 typedef struct {
     gc_Object* root;
     GarbageCollectorState state;
+    int survivors_count;// how many objects survived last garbage collection
     int allocations_count;
 } GarbageCollector;
 
@@ -121,15 +122,14 @@ OBJECT_INIT_E(table)
 typedef Object (*ObjectSystemFunction)(Executor* E, Object* arguments, int arguments_count);
 
 typedef void (*gc_PointerFreeFunction)(gc_Pointer*);
-typedef void (*gc_PointerDereferenceChildrenFunction)(Executor*, gc_Pointer*);
-typedef void (*gc_PointerMarkChildrenFunction)(gc_Pointer*);
+typedef void (*gc_PointerForeachChildrenCallback)(Executor*, Object*);
+typedef void (*gc_PointerForeachChildrenFunction)(Executor* E, gc_Pointer*, gc_PointerForeachChildrenCallback);
 
 typedef struct gc_Pointer gc_Pointer;
 struct gc_Pointer {
     gc_Object gco;
     gc_PointerFreeFunction free;
-    gc_PointerDereferenceChildrenFunction dereference_children;
-    gc_PointerMarkChildrenFunction mark_children;
+    gc_PointerForeachChildrenFunction foreach_children;
 };
 
 void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerFreeFunction free);
@@ -169,7 +169,9 @@ struct Coroutine {
 void print_allocated_objects(Executor* E);
 bool is_gc_object(Object o);
 bool gc_should_run(GarbageCollector* gc);
-void gc_run(Executor* E, Object* roots, int roots_count);
+void gc_unmark_all(GarbageCollector* gc);
+void gc_mark(Executor* E, Object* o);
+void gc_sweep(Executor* E);
 Object wrap_gc_object(gc_Object* o);
 void call_destroy(Executor* E, Object o);
 
@@ -196,6 +198,8 @@ void object_system_deinit(Executor* E);
 // these functions should be implemented in higher level module
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
+void coroutine_free(Coroutine* co);
+void coroutine_foreach_children(Executor* E, Coroutine* co, gc_PointerForeachChildrenCallback);
 Object executor_on_unhandled_error(Executor* E, Object error);
 GarbageCollector* executor_get_garbage_collector(Executor*);
 

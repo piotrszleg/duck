@@ -32,7 +32,6 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, const cha
             USING_STRING(stringify_bytecode(&prog),
                 printf("Bytecode:\n%s\n", str));
         }
-        create_return_point(&E->bytecode_environment, true);
         E->bytecode_environment.pointer=0;
         E->bytecode_environment.executed_program=malloc(sizeof(BytecodeProgram));
         memcpy(E->bytecode_environment.executed_program, &prog, sizeof(BytecodeProgram));
@@ -41,7 +40,8 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, const cha
         gc_object_reference((gc_Object*)E->bytecode_environment.executed_program);
         reference(&scope);
         E->bytecode_environment.scope=scope;
-
+        
+        create_return_point(&E->bytecode_environment, true);
         execution_result=execute_bytecode(E);
     }
     return execution_result;
@@ -155,14 +155,51 @@ GarbageCollector* executor_get_garbage_collector(Executor* E){
 }
 
 Object executor_on_unhandled_error(Executor* E, Object error) {
-    Object handler=get(E, E->scope, to_string("on_unhandled_error"));
-    if(handler.type!=t_null){
-        return call(E, handler, &error, 1);
-    } else {
-        USING_STRING(stringify(E, error),
-            printf("Unhandled error:\n%s", str));
-        return null_const;
+    if(E->scope.type==t_table){
+        Object handler=get(E, E->scope, to_string("on_unhandled_error"));
+        if(handler.type!=t_null){
+            return call(E, handler, &error, 1);
+        }
     }
+    USING_STRING(stringify(E, error),
+        printf("Unhandled error:\n%s", str));
+    return null_const;
+}
+
+void executor_foreach_children(Executor* E, Executor* iterated_executor, gc_PointerForeachChildrenCallback callback){
+    vector* object_stack=&E->bytecode_environment.object_stack;
+    vector* return_stack=&E->bytecode_environment.return_stack;
+    vector* used_objects=&E->ast_execution_state.used_objects;
+    for(int i=0; i<vector_count(return_stack); i++){
+        ReturnPoint* return_point=vector_index(return_stack, i);
+        callback(E, &return_point->scope);
+        Object wrapped_program=wrap_gc_object((gc_Object*)return_point->program);
+        callback(E, &wrapped_program);
+    }
+    for(int i=0; i<vector_count(object_stack); i++){
+        callback(E, (Object*)vector_index(object_stack, i));
+    }
+    for(int i=0; i<vector_count(used_objects); i++){
+        callback(E, (Object*)vector_index(used_objects, i));
+    }
+    callback(E, &E->scope);
+    Object wrapped_program=wrap_gc_object((gc_Object*)E->bytecode_environment.executed_program);
+    callback(E, &wrapped_program);
+}
+
+void coroutine_foreach_children(Executor* E, Coroutine* co, gc_PointerForeachChildrenCallback callback){
+    executor_foreach_children(E, co->executor, callback);
+}
+
+void coroutine_free(Coroutine* co){
+    free(co->executor);
+    free(co);
+}
+
+void executor_collect_garbage(Executor* E){
+    gc_unmark_all(E->gc);
+    executor_foreach_children(E, E, gc_mark);
+    gc_sweep(E);
 }
 
 void executor_init(Executor* E){
@@ -177,9 +214,10 @@ void executor_init(Executor* E){
 }
 
 void executor_deinit(Executor* E){
+    E->scope=null_const;
+    object_system_deinit(E);
     vector_deinit(&E->traceback);
     vector_deinit(&E->ast_execution_state.used_objects);
     bytecode_environment_deinit(&E->bytecode_environment);
-    object_system_deinit(E);
     free(E->gc);
 }
