@@ -11,9 +11,13 @@
     }
 
 char* NATIVE_TYPES_NAMES[]={
-    "string",
-    "int",
+    #define X(t) #t,
+    INT_TYPES
+    #undef X
     "float",
+    "double",
+    "long double",
+    "string",
     "struct",
     "pointer"
 };
@@ -39,9 +43,11 @@ Object field_get(Executor* E, void* position, Object field){
     GET_INT(type, table_get(field.tp, to_string("type")));
 
     switch(type){
-        // TODO: error if value isn't a number
-        case n_int:
-            return to_int(*(int*)position);
+        #define X(t) \
+        case n_##t: \
+            return to_int(*(t*)position);
+        INT_TYPES
+        #undef X
         case n_float:
             return to_float(*(float*)position);
         case n_string:
@@ -152,13 +158,24 @@ Object field_set(Executor* E, void* position, Object field, Object value){
     
     switch(type){
         // TODO: error if value isn't a number
-        case n_int:
-            REQUIRE_TYPE(value, t_int)
-            *((int*)position)=(int)value.int_value;
+        #define X(t) \
+        case n_##t: \
+            REQUIRE_TYPE(value, t_int) \
+            *((t*)position)=(t)value.int_value; \
             break;
+        INT_TYPES
+        #undef X
         case n_float:
             REQUIRE_TYPE(value, t_float)
             *((float*)position)=value.float_value;
+            break;
+        case n_double:
+            REQUIRE_TYPE(value, t_float)
+            *((double*)position)=value.float_value;
+            break;
+        case n_long_double:
+            REQUIRE_TYPE(value, t_float)
+            *((long double*)position)=value.float_value;
             break;
         case n_string:
             REQUIRE_TYPE(value, t_string)
@@ -171,7 +188,7 @@ Object field_set(Executor* E, void* position, Object field, Object value){
         {
             Object it;
             Object fields=get(E, field, to_string("fields"));
-            // you should iterate over fields instead to avoid setting eccess values
+            // you should iterate over fields instead to avoid setting excess values
             FOREACH(value, it, 
                 struct_set_field(E, position, fields, get(E, it, to_string("key")),  get(E, it, to_string("value")));
             )
@@ -274,36 +291,3 @@ void* struct_descriptor_get_pointer(Executor* E, Table* sd){
     }
     return pointer.p;
 }
-
-/*
-// this needs to go into libffi module to handle allignment on different architectures
-Object new_struct_descriptor_fields(Object* arguments, int arguments_count){
-    Object fields;
-
-    for(int i=0; i<arguments_count; i++){
-        REQUIRE_TYPE(arguments[i], t_string);
-        char* type_name=arguments[i].text;
-
-        char** NATIVE_TYPE_NAMES;
-        int NATIVE_TYPE_NAMES_COUNT=10;
-        for(int i=0; i<NATIVE_TYPE_NAMES_COUNT; i++){
-            if(strcmp(NATIVE_TYPE_NAMES[i], type_name)==0){
-                
-            }
-        }
-    }
-
-    return fields;
-}
-
-int struct_size(Object st){
-
-}
-
-Object struct_descriptor_allocate(Object* arguments, int arguments_count){
-    Object fields=arguments[0];
-    Object sd;
-    void* allocated=malloc(struct_size(fields));
-
-    return new_struct_descriptor(allocated, fields);
-}*/

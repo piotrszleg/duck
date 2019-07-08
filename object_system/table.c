@@ -48,7 +48,7 @@ unsigned hash(Object o) {
         case t_function:
             return (unsigned)o.fp;
         default:
-            THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object type passed to hash function.");
+            THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object type %s(%i) passed to hash function.", OBJECT_TYPE_NAMES[o.type], o.type);
             return 0;
     }
 }

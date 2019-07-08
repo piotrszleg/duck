@@ -7,10 +7,26 @@
 #include "../error/error.h"
 #include "../utility.h"
 
+#define INT_TYPES \
+    X(char) \
+    X(int) \
+    X(int8_t) \
+    X(int16_t) \
+    X(int32_t) \
+    X(int64_t) \
+    X(uint8_t) \
+    X(uint16_t) \
+    X(uint32_t) \
+    X(uint64_t)
+
 typedef enum {
-    n_string,
-    n_int,
+    #define X(t) n_##t,
+    INT_TYPES
+    #undef X
     n_float,
+    n_double,
+    n_long_double,
+    n_string,
     n_struct,
     n_pointer
 } NativeType;

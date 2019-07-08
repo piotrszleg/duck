@@ -143,12 +143,12 @@ bool has_side_effects(Instruction* instruction, Transformation* transformation) 
         case b_prefix:
         case b_binary:
             // only operations on tables and functions can cause side effects
-            return dummy_is_typed(transformation->inputs[0])
+            return !(dummy_is_typed(transformation->inputs[0])
             &&     dummy_is_typed(transformation->inputs[1])
             &&     dummy_type(transformation->inputs[0])!=t_table
             &&     dummy_type(transformation->inputs[1])!=t_table
             &&     dummy_type(transformation->inputs[0])!=t_function
-            &&     dummy_type(transformation->inputs[1])!=t_function;
+            &&     dummy_type(transformation->inputs[1])!=t_function);
         default: return true;
     }
 }

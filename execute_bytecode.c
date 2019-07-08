@@ -455,7 +455,7 @@ Object execute_bytecode(Executor* E){
                     BYTECODE_ERROR(message_identifier, "b_message: message_identifier type is %s", OBJECT_TYPE_NAMES[message_identifier.type]);
                 }
                 Object* arguments=malloc(sizeof(Object)*provided_arguments);
-                for (int i = 0; i < provided_arguments; i++){
+                for (int i = provided_arguments-1; i >= 0; i--){
                     arguments[i]=pop(object_stack);
                 }
                 Object message_result=message_object(E, messaged, message_identifier.text, arguments, provided_arguments);
@@ -501,7 +501,7 @@ Object execute_bytecode(Executor* E){
                 // if object isn't a function it can be called through using monkey patching or Table call field
                 if(o.type!=t_function || o.fp->ftype==f_ast){
                     Object* arguments=malloc(sizeof(Object)*provided_arguments);
-                    for (int i = 0; i < provided_arguments; i++){
+                    for (int i = provided_arguments-1; i >= 0 ; i--){
                         arguments[i]=pop(object_stack);
                     }
                     Object call_result=call(E, o, arguments, provided_arguments);

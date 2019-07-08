@@ -8,7 +8,8 @@
 #include "../../object_system/object.h"
 #include "../../datatypes/map.h"
 #include "../../runtime/import_dll.h"
+#include "../../execution.h"
 
-object duck_module_init(Executor* E);
+Object duck_module_init(Executor* E);
 
 #endif

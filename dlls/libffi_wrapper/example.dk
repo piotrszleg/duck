@@ -1,4 +1,0 @@
-ffi=import_dll("dlls/libffi_wrapper\libffi_wrapper.dll")
-sample=ffi.open(null)
-f=sample::function('pushes_to_stack, 'int, 'int)
-f(10)

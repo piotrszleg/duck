@@ -1,53 +1,58 @@
 #include "import_dll.h"
 
-void* get_dll_handle(char* module_name){
-    #ifdef WINDOWS
-    HINSTANCE lib_handle = LoadLibrary(module_name);
+char* get_windows_error_message() {
+    LPVOID buffer;
+    DWORD dw = GetLastError(); 
+    FormatMessage(
+    FORMAT_MESSAGE_ALLOCATE_BUFFER | 
+    FORMAT_MESSAGE_FROM_SYSTEM |
+    FORMAT_MESSAGE_IGNORE_INSERTS,
+    NULL,
+    dw,
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+    (LPTSTR) &buffer,
+    0, NULL );
+    return (char*)buffer;
+}
 
-    if(lib_handle != NULL) {
-        return lib_handle;
-    } else{
-        // return error object with message
-        LPVOID lpMsgBuf;
-        DWORD dw = GetLastError(); 
-        FormatMessage(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | 
-        FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        dw,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPTSTR) &lpMsgBuf,
-        0, NULL );
-        // TODO: find a way to return the error
-        //RETURN_ERROR("DLL_IMPORT_ERROR", null_const, (char*)lpMsgBuf)
+void* get_dll_handle(char* library_name, char** error){
+    #ifdef WINDOWS
+    HINSTANCE lib_handle = LoadLibrary(library_name);
+
+    if(lib_handle == NULL) {
+        *error=get_windows_error_message();
         return NULL;
+    } else {
+        return lib_handle;
     }
     #else
-    void* lib_handle = dlopen(module_name, RTLD_LAZY);
-    if (!lib_handle) {
+    void* lib_handle = dlopen(library_name, RTLD_LAZY);
+    if (lib_handle==NULL) {
         dlclose(lib_handle);
-        //RETURN_ERROR("DLL_IMPORT_ERROR", null_const, dlerror())
-	}
-    ModuleInitFunction init_function = (ModuleInitFunction)dlsym(lib_handle, "duck_module_init");
-    char *error;
-    if ((error = dlerror()) != NULL) {
-        dlclose(lib_handle);
-	    //RETURN_ERROR("DLL_IMPORT_ERROR", null_const, error)
-	}
-    return lib_handle;
+        *error=strdup(dlerror());
+        return NULL;
+	} else {
+        return lib_handle;
+    }
     #endif
 }
-void* find_symbol(void* dll_handle, char* name){
+void* find_symbol(void* dll_handle, char* name, char** error){
     #ifdef WINDOWS
-    return GetProcAddress(dll_handle, name);
+    FARPROC address=GetProcAddress(dll_handle, name);
+    if(address==NULL){
+        *error=get_windows_error_message();
+        return NULL;
+    } else{
+        return address;
+    }
     #else
-    void* result=dlsym(lib_handle, "duck_module_init");
-    char *error;
-    if ((error = dlerror()) != NULL) {
-	    //RETURN_ERROR("DLL_IMPORT_ERROR", null_const, error)
-	}
-    return result;
+    void* address=dlsym(lib_handle, name);
+    if ((*error = dlerror()) != NULL) {
+        *error=strdup(*error);
+        return NULL;
+	} else {
+        return address;
+    }
     #endif
 }   
 
@@ -59,11 +64,11 @@ void close_dll(void* dll_handle){
     #endif
 }
 
-Object import_dll(Executor* E, const char* module_name){
+Object import_dll(Executor* E, const char* library_name){
     typedef Object (*ModuleInitFunction) (Executor*);
     Object result;
     #ifdef WINDOWS
-    HINSTANCE lib_handle = LoadLibrary(module_name);
+    HINSTANCE lib_handle = LoadLibrary(library_name);
 
     if(lib_handle != NULL) {
         ModuleInitFunction init_function = (ModuleInitFunction)GetProcAddress(lib_handle, "duck_module_init");   
@@ -88,10 +93,13 @@ Object import_dll(Executor* E, const char* module_name){
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
         (LPTSTR) &lpMsgBuf,
         0, NULL );
-        RETURN_ERROR("DLL_IMPORT_ERROR", null_const, (char*)lpMsgBuf)
+        Object err;
+        NEW_ERROR(err, "DLL_IMPORT_ERROR", null_const, (char*)lpMsgBuf)
+        free(lpMsgBuf);
+        return err;
     }
     #else
-    void* lib_handle = dlopen(module_name, RTLD_LAZY);
+    void* lib_handle = dlopen(library_name, RTLD_LAZY);
     if (!lib_handle) {
         dlclose(lib_handle);
         RETURN_ERROR("DLL_IMPORT_ERROR", null_const, dlerror())

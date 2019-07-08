@@ -68,7 +68,7 @@ void handle_arguments(int argc, char **argv) {
             repl();
         }
     ,
-        printf("Error occured:\n");
+        printf("Error occurred:\n");
         printf(err_message);
         exit(-1);
     );

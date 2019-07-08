@@ -24,6 +24,10 @@
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
+#define EQUALS_STRING(object, str) (object.type==t_string && strcmp(object.text, str)==0)
+
+#define DEBUG_PRINT printf("<%i>\n", __COUNTER__);
+
 char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
 int nearest_power_of_two(int number);
 

@@ -504,8 +504,8 @@ static const yytype_uint16 yyrline[] =
      178,   179,   180,   181,   182,   183,   184,   187,   195,   203,
      211,   219,   229,   232,   240,   250,   254,   263,   272,   282,
      292,   300,   308,   317,   323,   329,   337,   344,   352,   366,
-     377,   387,   395,   404,   412,   422,   431,   442,   450,   460,
-     469,   470,   472,   473
+     377,   387,   395,   404,   413,   423,   432,   443,   451,   461,
+     470,   471,   473,   474
 };
 #endif
 
@@ -2006,6 +2006,7 @@ yyreduce:
 		m->messaged_object=(yyvsp[(1) - (6)].exp);
 		m->message_name=(name*)(yyvsp[(3) - (6)].exp);
 		m->arguments=(table_literal*)(yyvsp[(5) - (6)].exp);
+		m->arguments->type=e_table_literal;
 		(yyval.exp)=(expression*)m;
 	;}
     break;
@@ -2013,7 +2014,7 @@ yyreduce:
   case 64:
 
 /* Line 1455 of yacc.c  */
-#line 412 "parser.y"
+#line 413 "parser.y"
     {
 		message* m=new_message();
 		ADD_DEBUG_INFO(m)
@@ -2027,7 +2028,7 @@ yyreduce:
   case 65:
 
 /* Line 1455 of yacc.c  */
-#line 423 "parser.y"
+#line 424 "parser.y"
     {
 		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
@@ -2041,7 +2042,7 @@ yyreduce:
   case 66:
 
 /* Line 1455 of yacc.c  */
-#line 432 "parser.y"
+#line 433 "parser.y"
     {
 		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
@@ -2055,7 +2056,7 @@ yyreduce:
   case 67:
 
 /* Line 1455 of yacc.c  */
-#line 443 "parser.y"
+#line 444 "parser.y"
     {
 		prefix* p=new_prefix();
 		ADD_DEBUG_INFO(p)
@@ -2068,7 +2069,7 @@ yyreduce:
   case 68:
 
 /* Line 1455 of yacc.c  */
-#line 451 "parser.y"
+#line 452 "parser.y"
     {
 		prefix* p=new_prefix();
 		ADD_DEBUG_INFO(p)
@@ -2081,7 +2082,7 @@ yyreduce:
   case 69:
 
 /* Line 1455 of yacc.c  */
-#line 461 "parser.y"
+#line 462 "parser.y"
     {
 		question_mark* q=new_question_mark();
 		ADD_DEBUG_INFO(q)
@@ -2093,7 +2094,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 2097 "parser.tab.c"
+#line 2098 "parser.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2305,7 +2306,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 474 "parser.y"
+#line 475 "parser.y"
 
 
 void print_and_delete(expression* result){

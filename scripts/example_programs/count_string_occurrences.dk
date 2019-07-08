@@ -1,5 +1,5 @@
 if(arguments[1]=="--help") {
-    print("Counts occurences of string b in string a.")
+    print("Counts occurrences of string b in string a.")
     print("First argument should be string a and second argument should be string b.")!
 }
 if(arguments.count!=3){
@@ -7,7 +7,7 @@ if(arguments.count!=3){
 }
 searched=arguments[1]
 wanted=arguments[2]
-occurences=0
+occurrences=0
 
 range=(start, end, step)->[
     iterator=self->{
@@ -28,7 +28,7 @@ range(0, string_length(searched)-string_length(wanted), 1) `#` i->{
         }
     }
     if(correct){
-        occurences+=1
+        occurrences+=1
     }
 }
-print(format("Found {} occurences", occurences))
+print(format("Found {} occurrences", occurrences))

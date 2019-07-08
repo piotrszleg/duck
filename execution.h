@@ -55,11 +55,11 @@ struct Executor {
     Options options;
 };
 
-#define INSERT_ERROR(type, cause, message, ...) \
+#define INSERT_ERROR(error_type, cause, message, ...) \
     { Object err; \
-    NEW_ERROR(err, type, cause, message, ##__VA_ARGS__) \
-    if(E->error) { \
-        dereference(E, E->error); \
+    NEW_ERROR(err, error_type, cause, message, ##__VA_ARGS__) \
+    if(E->error.type!=t_null) { \
+        dereference(E, &E->error); \
     } \
     E->error=err; }
 

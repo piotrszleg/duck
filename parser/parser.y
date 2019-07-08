@@ -407,6 +407,7 @@ message:
 		m->messaged_object=$1;
 		m->message_name=(name*)$3;
 		m->arguments=(table_literal*)$5;
+		m->arguments->type=e_table_literal;
 		$$=(expression*)m;
 	}
 	| expression FOUR_DOTS name '(' ')' {

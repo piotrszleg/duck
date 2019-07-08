@@ -11,9 +11,9 @@
 
 #include "../object_system/object.h"
 
-Object import_dll(Executor* E, const char*);
-void* get_dll_handle(char* module_name);
-void* find_symbol(void* dll_handle, char* name);
+Object import_dll(Executor* E, const char* library_name);
+void* get_dll_handle(char* library_name, char** error);
+void* find_symbol(void* dll_handle, char* name, char** error);
 void close_dll(void* dll_handle);
 
 #endif

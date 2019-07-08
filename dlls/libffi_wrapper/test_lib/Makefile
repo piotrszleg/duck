@@ -1,7 +1,7 @@
 sources := test_lib.c
 objects := test_lib.o
 resulting-library := test_lib.dll
-options := -L. -lhost
+options := -g -L. -lhost
 
 all: $(objects)
 	gcc -shared -o $(resulting-library) $(objects) $(options)

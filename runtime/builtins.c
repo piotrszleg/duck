@@ -257,14 +257,6 @@ Object builtin_iterator(Executor* E, Object* arguments, int arguments_count){
     return get_iterator(E, o);
 }
 
-Object builtin_test(Executor* E, Object* arguments, int arguments_count){
-    for(int i=0; i<arguments_count; i++){
-        USING_STRING(stringify_object(E, arguments[i]),
-            printf("<%s>, ", str));
-    }
-    return null_const;
-}
-
 Object builtin_include(Executor* E, Object* arguments, int arguments_count){
     Object path=arguments[0];
     Object result;
@@ -438,6 +430,43 @@ Object builtin_traceback(Executor* E, Object* arguments, int arguments_count){
     return null_const;
 }
 
+Object builtin_error(Executor* E, Object* arguments, int arguments_count){
+    Object type=arguments[0];
+    REQUIRE_ARGUMENT_TYPE(type, t_string)
+    Object cause=arguments[1];
+    Object message=arguments[2];
+    REQUIRE_ARGUMENT_TYPE(message, t_string)
+    Object error;
+    NEW_ERROR(error, type.text, cause, message.text)
+    return error;
+}
+
+Object builtin_copy(Executor* E, Object* arguments, int arguments_count){
+    Object to_copy=arguments[0];
+    return copy(E, to_copy);
+}
+
+Object builtin_set_random_seed(Executor* E, Object* arguments, int arguments_count){
+    Object number=arguments[0];
+    REQUIRE_ARGUMENT_TYPE(number, t_int)
+    srand(number.int_value);
+    return null_const;
+}
+
+Object builtin_random_int(Executor* E, Object* arguments, int arguments_count){
+    Object left=arguments[0];
+    Object right=arguments[1];
+    REQUIRE_ARGUMENT_TYPE(left, t_int)
+    REQUIRE_ARGUMENT_TYPE(right, t_int)
+    int interval=right.int_value-left.int_value;
+    int random_in_interval=rand()%interval;
+    return to_int(left.int_value+random_in_interval);
+}
+
+Object builtin_random_01(Executor* E, Object* arguments, int arguments_count){
+    return to_float((float)rand()/RAND_MAX);
+}
+
 void register_builtins(Executor* E, Object scope){
     #define REGISTER_FUNCTION(f, args_count) \
         Object f##_function; \
@@ -474,6 +503,11 @@ void register_builtins(Executor* E, Object scope){
     REGISTER_FUNCTION(exit, 1)
     REGISTER_FUNCTION(terminate, 1)
     REGISTER_FUNCTION(traceback, 0)
+    REGISTER_FUNCTION(error, 3)
+    REGISTER_FUNCTION(copy, 1)
+    REGISTER_FUNCTION(set_random_seed, 1)
+    REGISTER_FUNCTION(random_int, 2)
+    REGISTER_FUNCTION(random_01, 0)
 
     Object yield;
     function_init(E, &yield);
@@ -499,6 +533,7 @@ void register_builtins(Executor* E, Object scope){
     set_function(E, scope, "coroutine", 1, true, builtin_coroutine);
     set_function(E, scope, "format", 1, true, builtin_format);
     set_function(E, scope, "printf", 1, true, builtin_printf);
+    set_function(E, scope, "multiple_causes", 0, true, multiple_causes);
 
     #undef REGISTER_FUNCTION
 }
