@@ -1,4 +1,4 @@
-#include "Table.h"
+#include "table.h"
 
 void table_component_init(Table* t){
     t->elements_count=0;
@@ -223,6 +223,26 @@ void table_free(Table* t){
     free(t);
 }
 
+int table_compare(Table* a, Table* b){
+    if(a==b) {
+        return 0;
+    }
+    int difference=a->elements_count-b->elements_count;
+    if(difference==0){
+        TableIterator it=table_get_iterator(a);
+        for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+            Object in_b=table_get(b, i.key);
+            int compare_result=compare(i.value, in_b);
+            if(compare_result!=0){
+                return compare_result;
+            }
+        }
+        return 0;
+    } else {
+        return sign(difference);
+    }
+}
+
 static bool array_upsize_allowed(Table* t, int new_size){
     return new_size<t->array_size*8;
 }
@@ -377,8 +397,8 @@ Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_c
     TableIterator* it=malloc(sizeof(TableIterator));
     *it=table_get_iterator(self.tp);
     set(E, iterator, to_int(0), to_pointer(it));
-    set(E, iterator, to_string("Table"), self);
-    set(E, iterator, to_string("call"), to_function(E, table_iterator_object_next, NULL, 1));
+    set(E, iterator, to_string("table"), self);// ensures that table won't be destroyed before the iterator
+    set(E, iterator, to_string("next"), to_function(E, table_iterator_object_next, NULL, 1));
     set(E, iterator, to_string("destroy"), to_function(E, table_iterator_object_destroy, NULL, 1));
     return iterator;
 }

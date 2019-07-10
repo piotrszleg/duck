@@ -10,6 +10,10 @@ bool is_number(const char *s)
     return true;
 }
 
+bool is_truthy(Object o){
+    return !is_falsy(o);
+}
+
 // TODO:  write tests
 bool is_falsy(Object o){
     switch(o.type){
@@ -22,7 +26,7 @@ bool is_falsy(Object o){
         case t_float:
             return o.float_value==0;// 0 is falsy
         case t_table:
-            return o.tp->array_size==0 && o.tp->map_size==0;// empty Table is falsy
+            return o.tp->elements_count==0;// empty table is falsy
         case t_function:
         case t_gc_pointer:
         case t_coroutine:
@@ -99,10 +103,6 @@ Object find_function(Executor* E, Object o, const char* function_name){
     return find_call_function(E, get(E, o, function_name_string));
 }
 
-int sign(int x){
-    return (x > 0) - (x < 0);
-}
-
 #define COMPARISION_ERROR 2
 // if a>b returns 1 if a<b returns -1, if a==b returns 0
 int compare(Object a, Object b){
@@ -132,7 +132,8 @@ int compare(Object a, Object b){
             return sign(a.int_value-b.int_value);
         case t_float:
             return sign(a.float_value-b.float_value);
-        // avoid comparing tables for now
+        case t_table:
+            return table_compare(a.tp, b.tp);
         default:
             return COMPARISION_ERROR;
     }
@@ -156,7 +157,7 @@ Object coroutine_iterator(Executor* E, Object coroutine){
     Object iterator;
     table_init(E, &iterator);
     set(E, iterator, to_string("coroutine"), coroutine);
-    set_function(E, iterator, "call", 1, false, coroutine_iterator_next);
+    set_function(E, iterator, "next", 1, false, coroutine_iterator_next);
     return iterator;
 }
 
@@ -187,7 +188,7 @@ Object string_iterator(Executor* E, Object str){
     set(E, iterator, to_string("iterated"), str);
     set(E, iterator, to_string("index"), to_int(0));
     set(E, iterator, to_string("length"), to_int(strlen(str.text)));
-    set_function(E, iterator, "call", 1, false, string_iterator_next);
+    set_function(E, iterator, "next", 1, false, string_iterator_next);
     return iterator;
 }
 
@@ -206,7 +207,7 @@ Object get_iterator(Executor* E, Object o){
         case t_string:
             return string_iterator(E, o);
         default:
-            RETURN_ERROR("OperatorError", o, "Can't get operator of object of type %s.", OBJECT_TYPE_NAMES[o.type]);
+            RETURN_ERROR("ITERATION_ERROR", o, "Can't get iterator of object of type %s.", OBJECT_TYPE_NAMES[o.type]);
     }
 }
 
@@ -251,9 +252,9 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             return to_int(comparison_result==-1||comparison_result==0);
     }
     OP_CASE("||"){
-        if(!is_falsy(a)){
+        if(is_truthy(a)){
             return a;
-        } else if (!is_falsy(b)){
+        } else if (is_truthy(b)){
             return b;
         } else {
             Object result={t_null};
@@ -279,11 +280,11 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             return to_int(-b.float_value);
         }
     }
-    OP_CASE(">>"){
-        return new_pipe(E, a, b);
+    OP_CASE("--"){
+        return to_pipe(E, a, b);
     }
-    OP_CASE("<<"){
-        return new_binding(E, a, b);
+    OP_CASE("><"){
+        return to_binding(E, a, b);
     }
     // call b with arguments key and value for each iteration
     OP_CASE("##"){
@@ -385,7 +386,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         }
         destroy_unreferenced(E, &b_casted);
     }
-    RETURN_ERROR("OperatorError", multiple_causes(E, (Object[]){a, b}, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+    RETURN_ERROR("OPERATOR_ERROR", multiple_causes(E, (Object[]){a, b}, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
 }
 
 char* stringify(Executor* E, Object o){
@@ -684,7 +685,7 @@ bool is_error(Executor* E, Object o){
         return false;
     } else {
         Object is_error_object=get(E, o, to_string("error"));
-        bool result=!is_falsy(is_error_object);
+        bool result=is_truthy(is_error_object);
         destroy_unreferenced(E, &is_error_object);
         return result;
     }

@@ -32,6 +32,7 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, const cha
             USING_STRING(stringify_bytecode(&prog),
                 printf("Bytecode:\n%s\n", str));
         }
+        create_return_point(&E->bytecode_environment, true);
         E->bytecode_environment.pointer=0;
         E->bytecode_environment.executed_program=malloc(sizeof(BytecodeProgram));
         memcpy(E->bytecode_environment.executed_program, &prog, sizeof(BytecodeProgram));
@@ -41,7 +42,6 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, const cha
         reference(&scope);
         E->bytecode_environment.scope=scope;
         
-        create_return_point(&E->bytecode_environment, true);
         execution_result=execute_bytecode(E);
     }
     return execution_result;

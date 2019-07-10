@@ -1,0 +1,13 @@
+regex=import_dll("dlls\regex\duck_regex.dll")
+email=regex::compile("(\w+)@(\w+)\.(\w+)", 'ignore_case)
+
+assert(email("abc@abc.abc"))
+assert(!email("abc"))
+
+assert(email::split("abc@abc.abc")==["abc@abc.abc", 'abc, 'abc, 'abc])
+assert(email::replace("john@website.com", "User $1 registered on $2 dot $3.")=="User john registered on website dot com.")
+processor=(match, p1, p2, p3, offset, entire)->format("User {} registered on {} dot {}.", p1, p2, p3)
+assert(email::process("john@website.com", processor)=="User john registered on website dot com.")
+assert(email::replace("(before)abc@abc.abc(after)", "$` $' $&")=="(before) (after) abc@abc.abc")
+extras_processor=(match, p1, p2, p3, offset, entire)->[match, offset, entire]
+assert(email::process("(before)abc@abc.abc(after)", extras_processor)==["abc@abc.abc", 8, "(before)abc@abc.abc(after)"])

@@ -156,7 +156,7 @@ void test_substructure(Executor* E, ExampleStructNested* st, Object substructure
 
 #define ASSERT_EVAL(expression, scope) \
     {Object evaluation_result=evaluate_string(expression, scope); \
-    assert(!is_falsy(evaluation_result));}
+    assert(is_truthy(evaluation_result));}
 
 #define ASSERT_OBJECTS_EQUAL(a, b) \
     {Object temp_a=a; \

@@ -1,11 +1,1 @@
-set_random_seed(time())
-loop=(start, end ,f)->{
-    f(start)
-    if(start<end){
-        loop(start+1, end, f)
-    } 
-}
-letters="ABCDEFGHIJKLMNOPRSTUWXYZabcdefghijklmnoprstuwxyz   "
-random_letter=->letters[random_int(0, letters::length())]
-loop(1, 1000, i->output(random_letter()))
-output("\n")
+[a=1]==[a=1, "a"]

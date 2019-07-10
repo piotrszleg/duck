@@ -5,6 +5,7 @@
 #include "object_operations.h"
 #include "object_utility.h"
 
-Object new_binding(Executor* E, Object f, Object arguments);
+Object to_binding(Executor* E, Object f, Object argument);
+Object new_binding(Executor* E, Object* arguments, int arguments_count);
 
 #endif

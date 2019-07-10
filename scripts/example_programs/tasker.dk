@@ -9,7 +9,7 @@ wait_until=predicate->predicate
 wait_cycle=->1
 tasker=[
     tasks=Vector([])
-    run=while<<update
+    run=while><update
     update=self->{
         to_remove=Vector([])
         self.tasks.inner `##` (i, t)->{

@@ -43,7 +43,7 @@ Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, express
             Object pointed=table_get(i.value.tp, to_string("pointed"));
             REQUIRE_TYPE(i.value, t_table);
             Object has_ownership=table_get(pointed.tp, to_string("has_ownership"));
-            if(!is_falsy(has_ownership)){
+            if(is_truthy(has_ownership)){
                 Object offset=table_get(i.value.tp, to_string("offset"));
                 REQUIRE_TYPE(offset, t_int);
                 expression** expression_position=(expression**)((int)expression_pointer+(int)offset.int_value);
@@ -275,7 +275,7 @@ expression* to_literal(Object o);
 expression* to_expression(Executor* E, Object o){
     if(is_struct_descriptor(E, o)) {
         Object is_expression=table_get(o.tp, to_string("is_expression"));
-        if(!is_falsy(is_expression)) {
+        if(is_truthy(is_expression)) {
             dereference(E, &is_expression);
             expression* exp=(expression*)struct_descriptor_get_pointer(E, o.tp);
             table_set(E, o.tp, to_string("destroy"), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression

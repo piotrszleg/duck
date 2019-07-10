@@ -86,9 +86,9 @@ bool is_unhandled_error(Executor* E, Object o){
     bool result=false;
     if(o.type==t_table){
         Object error=get(E, o, to_string("error"));
-        if(!is_falsy(error)){
+        if(is_truthy(error)){
             Object handled=get(E, o, to_string("handled"));
-            result=!is_falsy(handled);
+            result=is_truthy(handled);
             dereference(E, &handled);
         }
         dereference(E, &error);

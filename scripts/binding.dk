@@ -1,3 +1,8 @@
-sum=(a, b)->a+b
-addone=sum<<1
-addone(4)
+sum=(numbers...)->{
+    result=0
+    numbers `#` x->result+=x
+    result
+}
+add_one=sum><1
+add_six=add_one><3><2
+assert(add_six(4)==10)

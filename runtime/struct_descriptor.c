@@ -30,7 +30,7 @@ bool is_struct_descriptor(Executor* E, Object o){
         return false;
     }
     Object is_struct_descriptor=table_get(o.tp, to_string("is_struct_descriptor"));
-    bool result=!is_falsy(is_struct_descriptor);
+    bool result=is_truthy(is_struct_descriptor);
     destroy_unreferenced(E, &is_struct_descriptor);
     return result;
 }

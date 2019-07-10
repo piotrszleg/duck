@@ -1,5 +1,5 @@
 a=x->x*2
 b=x->x+1
 c=x->"$"+x
-f=a>>b>>c
-f(3)
+f=a--b--c
+assert(f(3)=="$7")

@@ -41,6 +41,7 @@ SDLK_LEFT=5242880
 SDLK_RIGHT=5177344
 SDLK_UP=5373952
 SDLK_DOWN=5308416
+SDLK_ESCAPE=1769472
 CELL_SIZE=20
 MAP_WIDTH=21
 MAP_HEIGHT=21
@@ -50,13 +51,13 @@ FRAME_RATE=5
 true=1
 false=0
 player=[x=1, y=1]
-apple=[x=WIDTH//CELL_SIZE//2, y=HEIGHT//CELL_SIZE//2]
+apple=[x=MAP_WIDTH//2, y=MAP_HEIGHT//2]
 tail=[[x=0, y=0], [x=1, y=1], [x=2, y=2]]
 tail_length=3
 direction_key=SDLK_RIGHT
 
 sdl.handle_error(sdl.SDL_Init(32))
-window=sdl.SDL_CreateWindow('SDL, 100, 100, 800, 800, 0)
+window=sdl.SDL_CreateWindow('SDL, 100, 100, WIDTH, HEIGHT, 0)
 renderer=sdl.SDL_CreateRenderer(window, -1, 0)
 event=event_struct::new_struct_descriptor()
 
@@ -100,6 +101,8 @@ update=->{
     true
 }
 
+is_direction_key=key->(key==SDLK_RIGHT)||(key==SDLK_LEFT)||(key==SDLK_UP)||(key==SDLK_DOWN)
+
 draw=->{
     sdl.handle_error(sdl.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255))
     sdl.handle_error(sdl.SDL_RenderClear(renderer))
@@ -114,14 +117,18 @@ quit=false
 while(->{
     if(sdl.SDL_PollEvent(event)){
         if(event.tp==SDL_QUIT){
-            0!
+            quit="user requested exit"
         } elif(event.tp==SDL_KEYDOWN){
-            direction_key=event.sym
+            if(event.sym==SDLK_ESCAPE){
+                quit="user requested exit"
+            } elif(is_direction_key(event.sym)){
+                direction_key=event.sym
+            }
         }
     }
     if((sdl.SDL_GetTicks()-timer)>(1000/FRAME_RATE)){
         if(!update()){
-            quit=true
+            quit="game over"
         }
         draw()
         timer=sdl.SDL_GetTicks()
@@ -130,3 +137,4 @@ while(->{
 })
 sdl.SDL_DestroyWindow(window)
 sdl.SDL_DestroyRenderer(renderer)
+quit

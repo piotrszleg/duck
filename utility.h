@@ -30,6 +30,7 @@
 
 char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
 int nearest_power_of_two(int number);
+int sign(int x);
 
 #define CONSTANT_REPLACEMENT_PAIR(to_replace, replacement) \
     {to_replace, sizeof(to_replace)-1, replacement, sizeof(replacement)-1}
@@ -44,7 +45,7 @@ typedef struct {
 typedef struct {
     char* position;
     int pair_index;
-} Occurence;
+} Occurrence;
 
 char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs, int replacement_pairs_count);
 

@@ -1,4 +1,11 @@
-#include "libffi_wrapper.h"
+#include "ffi.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include "../../object_system/object.h"
+#include "../../datatypes/map.h"
+#include "../../runtime/import_dll.h"
+#include "../../execution.h"
 
 // ffi doesn't have definitions for int and char, so here they are defined:
 #if INT_MAX==INT8_MAX

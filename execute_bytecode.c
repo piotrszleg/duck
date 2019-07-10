@@ -411,7 +411,7 @@ Object execute_bytecode(Executor* E){
             case b_jump_not:
             {
                 Object condition=pop(object_stack);
-                if(!is_falsy(condition)){
+                if(is_truthy(condition)){
                     dereference(E, &condition);
                     break;// go to the next line
                 }
