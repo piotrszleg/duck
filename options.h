@@ -9,6 +9,7 @@ typedef struct {
     bool print_bytecode_optimisations;
     bool optimise_ast;
     bool optimise_bytecode;
+    bool runtime_optimisations;
     bool debug_mode;
     bool include_builtins;
 } Options;

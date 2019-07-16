@@ -41,6 +41,161 @@ char* stringify_object_stack(Executor* E, const vector* s){
     return result;
 }
 
+void print_assumption(Executor* E, Assumption* a){
+    switch(a->assumption_type){
+        case a_constant:
+            USING_STRING(stringify(E, a->constant),
+                printf("constant(%s)", str))
+            break;
+        case a_type:
+            printf("type(%s)", OBJECT_TYPE_NAMES[a->type]);
+            break;
+        default:
+            printf("Incorrect assumption type.");
+    }
+}
+
+typedef enum {
+    ac_not_equal=0,
+    ac_equal=1,
+    ac_compatible=2,
+} AssumptionCompareResult;
+
+AssumptionCompareResult compare_assumptions(Assumption* a, Assumption* b){
+    if(a->assumption_type==a_constant&&b->assumption_type==a_constant){
+        return compare(a->constant, b->constant)==0;
+    } else if(a->assumption_type==a_type&&b->assumption_type==a_type){
+        return a->type==b->type;
+    } else {
+        return a->type==b->type ? ac_compatible : 0;
+    }
+}
+
+void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
+    BytecodeProgram* program=environment->executed_program;
+    if(!E->options.runtime_optimisations||program->calls_count<CALLS_UNTIL_STATISTICS_MODE){
+        program->calls_count++;
+        return;
+    }
+    int arguments_count=program->expected_arguments;
+    int call_fields=arguments_count+program->upvalues_count;
+    if(program->statistics==NULL){
+        printf("<BEGIN RECORDING>");
+        program->statistics=malloc(sizeof(CallStatistics));
+        program->statistics->last_call=calloc(call_fields, sizeof(Object));
+        program->statistics->constant_streaks=calloc(call_fields, sizeof(unsigned));
+    }
+    CallStatistics* statistics=program->statistics;
+    Assumption* current_call=malloc(sizeof(Assumption)*call_fields);
+    for(int i=0; i<call_fields; i++){
+        Object argument;
+        if(i<arguments_count){
+            argument=*(Object*)vector_index(&environment->object_stack, vector_count(&environment->object_stack)-1-i);
+        } else {
+            char* upvalue_name=program->constants+program->upvalues[i-arguments_count];
+            argument=get(E, environment->scope, to_string(upvalue_name));
+        }
+        if(compare(statistics->last_call[i], argument)==0) {
+            statistics->constant_streaks[i]++;
+            if(statistics->constant_streaks[i]>=CONSTANT_THRESHOLD) {
+                current_call[i].assumption_type=a_constant;
+                current_call[i].constant=copy(E, argument);
+                goto next_argument;
+            }
+        } else {
+            statistics->constant_streaks[i]=0;
+        }
+        current_call[i].assumption_type=a_type;
+        current_call[i].type=argument.type;
+        next_argument:
+        statistics->last_call[i]=copy(E, argument);
+    }
+    statistics->previous_calls[program->calls_count-CALLS_UNTIL_STATISTICS_MODE]=current_call;
+    program->calls_count++;
+    if(program->calls_count-CALLS_UNTIL_STATISTICS_MODE>REMEMBERED_CALLS){
+        program->calls_count=0;
+        bool already_covered[REMEMBERED_CALLS];
+        struct {
+            unsigned index;
+            unsigned score;
+        } most_compatible_signature={0, 0};
+        for(int i=0; i<REMEMBERED_CALLS; i++){
+            if(!already_covered[i]){
+                unsigned score=0;
+                for(int j=0; j<REMEMBERED_CALLS; j++){
+                    bool exactly_equal=true;
+                    for(int a=0; a<call_fields; a++){
+                        switch(compare_assumptions(&statistics->previous_calls[i][a], &statistics->previous_calls[j][a])){
+                            case ac_equal:
+                                score+=2;
+                                break;
+                            case ac_compatible:
+                                score++;
+                                exactly_equal=false;
+                                break;
+                            case ac_not_equal:
+                                goto next;
+                            default:;
+                        }
+                    }
+                    if(exactly_equal){
+                        already_covered[j]=true;
+                    }
+                    next:;
+                }
+                if(score>most_compatible_signature.score){
+                    most_compatible_signature.score=score;
+                    most_compatible_signature.index=i;
+                }
+            }
+        }
+        printf("Collected the following data:\n");
+        for(int i=0; i<REMEMBERED_CALLS; i++){
+            printf("[");
+            for(int j=0; j<call_fields; j++){
+                print_assumption(E, &statistics->previous_calls[i][j]);
+                printf(", ");
+            }
+            printf("]\n");
+        }
+        printf("Generate variant with assumptions:\n");
+        printf("[");
+        for(int i=0; i<call_fields; i++){
+            print_assumption(E, &statistics->previous_calls[most_compatible_signature.index][i]);
+            printf(", ");
+        }
+        printf("]\n");
+        BytecodeProgram variant;
+        bytecode_program_copy(program, &variant);
+        variant.assumptions=statistics->previous_calls[most_compatible_signature.index];
+        optimise_bytecode(E, &variant, E->options.print_bytecode_optimisations);
+        vector_push(&program->variants, &variant);
+    }
+}
+
+BytecodeProgram* choose_variant(Executor* E, BytecodeProgram* root){
+    for(int i=0; i<vector_count(&root->variants); i++){
+        BytecodeProgram* variant=vector_index(&root->variants, i);
+        unsigned arguments_count=variant->expected_arguments;
+        for(int j=0; j<arguments_count; i++){
+            Object argument;
+            if(j<arguments_count){
+                argument=*(Object*)vector_index(&E->bytecode_environment.object_stack, vector_count(&E->bytecode_environment.object_stack)-1-i);
+            } else {
+                char* upvalue_name=variant->constants+variant->upvalues[i-arguments_count];
+                argument=get(E, E->bytecode_environment.scope, to_string(upvalue_name));
+            }
+            Assumption a={a_constant, .constant=argument};
+            if(compare_assumptions(&a, &variant->assumptions[j])==ac_not_equal){
+                goto next_variant;
+            }
+        }
+        return choose_variant(E, variant);
+        next_variant:;
+    }
+    return root;
+}
+
 void move_to_function(Executor* E, Function* f){
     gc_object_reference(f->source_pointer);
 
@@ -55,6 +210,8 @@ void move_to_function(Executor* E, Function* f){
 
     E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
     E->bytecode_environment.pointer=0;
+
+    proccess_statistics(E, &E->bytecode_environment);
 }
 
 void create_return_point(BytecodeEnvironment* environment, bool terminate){

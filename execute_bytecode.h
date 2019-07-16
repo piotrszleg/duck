@@ -4,9 +4,9 @@
 #include "object_system/object.h"
 #include "error/error.h"
 #include "datatypes/vector.h"
-#include "bytecode.h"
+#include "bytecode_program.h"
 #include "utility.h"
-#include "bytecode.h"
+#include "bytecode_program.h"
 #include "object_system/object_operations.h"
 #include "options.h"
 

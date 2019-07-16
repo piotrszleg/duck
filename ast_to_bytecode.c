@@ -3,6 +3,7 @@
 #define CODE_SIZE 32
 #define CONSTANTS_SIZE 32
 #define SUB_PROGRAMS_SIZE 4
+#define UPVALUES_SIZE 8
 
 int labels_count=0;
 
@@ -58,9 +59,11 @@ unsigned push_string_constant(BytecodeTranslation* translation, const char* stri
     }
 }
 
-void push_string_load(BytecodeTranslation* translation, const char* string_constant){
+unsigned push_string_load(BytecodeTranslation* translation, const char* string_constant){
     repeat_information(translation);
-    push_uint_instruction(translation, b_load_string, push_string_constant(translation, string_constant));
+    unsigned push_position= push_string_constant(translation, string_constant);
+    push_uint_instruction(translation, b_load_string, push_position);
+    return push_position;
 }
 
 void push_float_load(BytecodeTranslation* translation, float number_constant){
@@ -94,16 +97,44 @@ InstructionInformation information_from_ast(BytecodeTranslation* translation, ex
     return info;
 }
 
+bool is_upvalue(BytecodeTranslation* translation, char* key){
+    Instruction* casted=(Instruction*)translation->code.data;
+    for(int i=1; i<translation->code.position/sizeof(Instruction); i++){
+        if(casted[i].type==b_set){
+            Instruction previous=casted[i-1];
+            if(previous.type==b_load_string){
+                char* set_key=(char*)translation->constants.data+previous.uint_argument;
+                if(strcmp(key, set_key)==0){
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 void bytecode_path_get(BytecodeTranslation* translation, path p){
+    expression* first_line= pointers_vector_get(&p.lines, 0);
+    if(first_line->type!=e_name){
+        USING_STRING(stringify_expression(first_line, 0),
+            THROW_ERROR(BYTECODE_ERROR, "Variable name must be of type name. Caused by %s", str))
+        return;
+    }
+    char* variable_name=((name*)first_line)->value;
+    unsigned push_position=push_string_load(translation, variable_name);
+    push_instruction(translation, b_get);
+    if(is_upvalue(translation, variable_name)){
+        stream_push(&translation->upvalues, &push_position, sizeof(unsigned));
+    }
     int lines_count=vector_count(&p.lines);
-    for (int i = 0; i < lines_count; i++){
+    for (int i = 1; i < lines_count; i++){
         expression* e= pointers_vector_get(&p.lines, i);
         if(e->type==e_name){
             push_string_load(translation, ((name*)e)->value);
         } else{
             ast_to_bytecode_recursive(e, translation, 0);
         }
-        push_instruction(translation, i==0 ? b_get : b_table_get);
+        push_instruction(translation, b_table_get);
     }
 } 
 
@@ -330,9 +361,10 @@ void bytecode_translation_init(BytecodeTranslation* translation){
     stream_init(&translation->code, CODE_SIZE);
     stream_init(&translation->information, CODE_SIZE);
     stream_init(&translation->sub_programs, SUB_PROGRAMS_SIZE);
+    stream_init(&translation->upvalues, UPVALUES_SIZE);
 }
 
-BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
+BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation, int expected_arguments){
     BytecodeProgram prog;
     prog.source_file_name=NULL;
     stream_truncate(&translation->code);
@@ -341,10 +373,14 @@ BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation){
     stream_truncate(&translation->sub_programs);
     prog.code=stream_get_data(&translation->code);
     prog.constants=stream_get_data(&translation->constants);
-    prog.constants_size=translation->constants.position;
+    prog.constants_size=stream_size(&translation->constants);
     prog.information=stream_get_data(&translation->information);
     prog.sub_programs=stream_get_data(&translation->sub_programs);
     prog.sub_programs_count=translation->sub_programs.position/sizeof(BytecodeProgram);
+    prog.expected_arguments=expected_arguments;
+    prog.upvalues_count=stream_size(&translation->upvalues)/sizeof(unsigned);
+    prog.upvalues=stream_get_data(&translation->upvalues);
+    prog.assumptions=NULL;
     return prog;
 }
 
@@ -356,7 +392,7 @@ void finish_translation(BytecodeTranslation* translation) {
 BytecodeProgram closure_to_bytecode(function_declaration* d){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
-
+    
     int arguments_count=vector_count(&d->arguments);
     for (int i = 0; i < arguments_count; i++){
         argument* arg=pointers_vector_get(&d->arguments, arguments_count-1-i);
@@ -368,7 +404,7 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
     ast_to_bytecode_recursive(d->body, &translation, true);
     finish_translation(&translation);
 
-    return translation_to_bytecode(&translation);
+    return translation_to_bytecode(&translation, arguments_count);
 }
 
 BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope){
@@ -378,5 +414,5 @@ BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope){
     ast_to_bytecode_recursive(exp, &translation, keep_scope);
     finish_translation(&translation);
 
-    return translation_to_bytecode(&translation);
+    return translation_to_bytecode(&translation, 0);
 }

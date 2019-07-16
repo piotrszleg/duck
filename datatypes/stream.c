@@ -25,6 +25,10 @@ int stream_push_string(stream* s, const char* string){
     return push_position;
 }
 
+size_t stream_size(stream* s){
+    return s->position;
+}
+
 int stream_push_string_indented(stream* s, const char* string){
     int push_position=s->position;
     

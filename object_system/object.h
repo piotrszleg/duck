@@ -148,10 +148,10 @@ struct Function {
     union {
         ObjectSystemFunction native_pointer;
         gc_Object* source_pointer;
-        int special_index;
+        unsigned special_index;
     };
     char** argument_names;
-    int arguments_count;
+    unsigned arguments_count;
     bool variadic;
     Object enclosing_scope;
 };

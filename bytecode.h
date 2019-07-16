@@ -81,31 +81,12 @@ typedef struct {
     };
 } Instruction;
 
-typedef struct BytecodeProgram BytecodeProgram;
-struct BytecodeProgram {
-    gc_Pointer gcp;
-    char* source_file_name;
-    Instruction* code;
-    int* labels;
-    InstructionInformation* information;
-    char* constants;
-    int constants_size;
-    BytecodeProgram* sub_programs;
-    int sub_programs_count;
-};
-
-void stringify_instruction(const BytecodeProgram* prog, char* destination, Instruction instr, int buffer_count);
-char* stringify_bytecode(const BytecodeProgram* prog);
-void bytecode_program_init(Executor* E, BytecodeProgram* program);
-void bytecode_program_free(BytecodeProgram* prog);
-void list_program_labels(BytecodeProgram* program);
-void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy);
-
 int gets_from_stack(Instruction instr);
 int pushes_to_stack(Instruction instr);
 bool changes_flow(InstructionType instr);
 bool changes_scope(InstructionType instr);
 bool finishes_program(InstructionType instr);
 bool carries_stack(InstructionType instr);
+bool instruction_is_literal(InstructionType instr);
 
 #endif

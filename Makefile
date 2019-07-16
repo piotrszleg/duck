@@ -1,8 +1,8 @@
 submodules := object_system/object_system.a parser/parser.a
 
-source-files := bytecode.c ast_to_bytecode.c execute_bytecode.c execute_ast.c \
+source-files := bytecode.c bytecode_program.c ast_to_bytecode.c execute_bytecode.c execute_ast.c \
 error/execution_state.c execution.c runtime/builtins.c \
-optimisations/ast_optimisations.c optimisations/bytecode_optimisations.c \
+optimisations/ast_optimisations.c optimisations/bytecode_optimisations.c optimisations/dummy.c \
 datatypes/stream.c datatypes/vector.c runtime/struct_descriptor.c repl.c runtime/import_dll.c options.c utility.c macros.c
 
 host-tests-path := tests.exe

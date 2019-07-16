@@ -51,6 +51,7 @@
         "ios": "c",
         "xiosbase": "c",
         "bytecode_program_gco.h": "c",
-        "deque": "c"
+        "deque": "c",
+        "bytecode_program.h": "c"
     }
 }

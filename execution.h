@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include "bytecode.h"
+#include "bytecode_program.h"
 #include "ast_to_bytecode.h"
 #include "execute_bytecode.h"
 #include "execute_ast.h"

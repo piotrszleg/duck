@@ -14,6 +14,7 @@ const Options default_options={
     .print_bytecode_optimisations=false,
     .optimise_ast=true,
     .optimise_bytecode=true,
+    .runtime_optimisations=true,
     .debug_mode=false,
     .include_builtins=true
 };
@@ -28,6 +29,7 @@ void handle_arguments(int argc, char **argv) {
         X("print_bytecode_optimisations", options.print_bytecode_optimisations=true;) \
         X("disable_ast_optimisations", options.optimise_ast=false;) \
         X("disable_bytecode_optimisations", options.optimise_bytecode=false;) \
+        X("disable_runtime_optimisations", options.runtime_optimisations=false;) \
         X("debug", options.debug_mode=true;) \
         X("disable_builtins", options.include_builtins=false;) \
         X("version", printf(version); exit(0); )\

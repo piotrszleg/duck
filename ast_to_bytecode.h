@@ -3,7 +3,7 @@
 
 #include "parser/ast.h"
 #include "parser/parser.h"
-#include "bytecode.h"
+#include "bytecode_program.h"
 #include "error/error.h"
 #include "datatypes/stream.h"
 #include <stdbool.h>
@@ -17,6 +17,7 @@ typedef struct {
     InstructionInformation last_information;
     stream constants;
     stream sub_programs;
+    stream upvalues;
 } BytecodeTranslation;
 
 #endif

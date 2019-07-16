@@ -18,6 +18,7 @@ int stream_push_string(stream* s, const char* string);
 int stream_push_string_indented(stream* s, const char* string);
 void stream_truncate(stream* s);
 void* stream_get_data(stream* s);
+size_t stream_size(stream* s);
 void stream_fit(stream* s, int minimal_size);
 
 #define stream_push_const_string(s, string) \

@@ -1,1 +1,8 @@
-[a=1]==[a=1, "a"]
+prelude="->"
+print_times=(message, times)->{
+    print(prelude+message)
+    if(times>=0) {
+        print_times(message, times-1)
+    }
+}
+print_times('message, 30)

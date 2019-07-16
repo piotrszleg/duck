@@ -19,91 +19,26 @@ int path_length(const Instruction* code,  int path_start){
     }
 }
 
-bool instructions_equal(Instruction a, Instruction b){
-    return a.type==b.type && a.float_argument == b.float_argument;
-}
-
-bool paths_equal(const Instruction* code, int path1, int path2){
-    int p=0;
-    while(is_path_part(code[path1+p]) && is_path_part(code[path2+p])){
-        if(!instructions_equal(code[path1+p], code[path2+p])){
-            return false;
-        }
-        p--;
-    }
-    return true;
-}
-
-
 int count_instructions(Instruction* code){
     int p=0;
     for(; code[p].type!=b_end; p++);
     return p;
 }
 
-void highlight_instructions(BytecodeProgram* prog, char symbol, int start, int end){
-
+void highlight_instructions(BytecodeProgram* program, char symbol, int start, int end){
     int pointer=0;
-    while(prog->code[pointer].type!=b_end){
+    while(program->code[pointer].type!=b_end){
         if(pointer>=start && pointer<=end){
             printf("%c ", symbol);
         } else {
             printf("  ");
         }
         char stringified_instruction[64];
-        stringify_instruction(prog, (char*)&stringified_instruction, prog->code[pointer], 64);
+        stringify_instruction(program, (char*)&stringified_instruction, program->code[pointer], 64);
         printf(stringified_instruction);
         printf("\n");
         pointer++;
     }
-}
-
-typedef enum {
-    d_any,
-    d_any_type,
-    d_known_type,
-    d_constant,
-    d_or
-} DummyType;
-
-typedef struct Dummy Dummy;
-struct Dummy {
-    gc_Pointer gcp;
-    unsigned int id;
-    DummyType type;
-    union {
-        ObjectType known_type;
-        Object constant_value;
-        struct {
-            Dummy* left;
-            Dummy* right;
-        } or;
-    };
-};
-
-void dummy_foreach_children(Executor* E, Dummy* dummy, gc_PointerForeachChildrenCallback callback){
-    dummy->gcp.gco.marked=true;
-    if(dummy->type==d_or){
-        Object wrapped_left=wrap_gc_object((gc_Object*)dummy->or.left);
-        callback(E, &wrapped_left);
-        Object wrapped_right=wrap_gc_object((gc_Object*)dummy->or.right);
-        callback(E, &wrapped_right);
-    }
-}
-
-void dummy_free(Dummy* dummy){
-    if(dummy->type==d_or){
-        dummy_free(dummy->or.left);
-        dummy_free(dummy->or.right);
-    }
-    free(dummy);
-}
-
-Dummy* new_dummy(Executor* E){
-    Dummy* result=malloc(sizeof(Dummy));
-    gc_pointer_init(E, (gc_Pointer*)result, (gc_PointerFreeFunction)dummy_free);
-    result->gcp.foreach_children=(gc_PointerForeachChildrenFunction)dummy_foreach_children;
-    return result;
 }
 
 typedef struct
@@ -114,20 +49,6 @@ typedef struct
     Dummy** outputs;
     int outputs_count;
 } Transformation;
-
-bool dummy_is_typed(const Dummy* dummy){
-    return dummy->type==d_known_type || dummy->type==d_constant;
-}
-
-ObjectType dummy_type(const Dummy* dummy){
-    if(dummy->type==d_known_type){
-        return dummy->known_type;
-    } else if(dummy->type==d_constant){
-        return dummy->constant_value.type;
-    } else {
-        return t_null;
-    }
-}
 
 bool has_side_effects(Instruction* instruction, Transformation* transformation) {
     switch(instruction->type) {
@@ -153,8 +74,50 @@ bool has_side_effects(Instruction* instruction, Transformation* transformation) 
     }
 }
 
+Assumption* get_argument_assumption(BytecodeProgram* program, unsigned index){
+    if(program->assumptions==NULL){
+        return NULL;
+    } else {
+        return &program->assumptions[index];
+    }
+}
+
+Assumption* get_upvalue_assumption(BytecodeProgram* program, Object identifier) {
+    if(identifier.type!=t_string||program->assumptions==NULL){
+        return NULL;
+    }
+    for(int i=0; i<program->upvalues_count; i++){
+        char* upvalue_name=program->constants+program->upvalues[i];
+        if(strcmp(upvalue_name, identifier.text)==0){
+            return &program->assumptions[program->expected_arguments+i];
+        }
+    }
+    return NULL;
+}
+
+Dummy* assumption_to_dummy(Executor* E, Assumption* assumption, unsigned* dummy_objects_counter){
+    Dummy* result=new_dummy(E);
+    if(assumption==NULL){
+        result->type=d_any_type;
+        result->id=(*dummy_objects_counter)++;
+        return result;
+    }
+    switch(assumption->assumption_type){
+        case a_constant:
+            result->type=d_constant;
+            result->constant_value=assumption->constant;
+            break;
+        case a_type:
+            result->type=d_known_type;
+            result->known_type=assumption->type;
+            break;
+        default: THROW_ERROR(BYTECODE_ERROR, "Incorrect assumption type.");
+    }
+    return result;
+}
+
 // function writes to transformation outputs the result of evaluating instruction with it's input
-void predict_instruction_output(Executor* E, Instruction* instr, char* constants, unsigned int* id_counter, Transformation* transformation){
+void predict_instruction_output(Executor* E, BytecodeProgram* program, Instruction* instr, char* constants, unsigned* dummy_objects_counter, Transformation* transformation){
     Dummy** outputs=transformation->outputs;
     Dummy** inputs=transformation->inputs;
     if(carries_stack(instr->type)){
@@ -172,54 +135,58 @@ void predict_instruction_output(Executor* E, Instruction* instr, char* constants
     switch (instr->type){
         case b_null:
             outputs[0]=new_dummy(E);
-            outputs[0]->id=(*id_counter)++;
+            outputs[0]->id=(*dummy_objects_counter)++;
             outputs[0]->type=d_constant;
             outputs[0]->constant_value=null_const;
-            break;
+            reference(&outputs[0]->constant_value);
+            return;
         case b_load_int:
             outputs[0]=new_dummy(E);
-            outputs[0]->id=(*id_counter)++;
+            outputs[0]->id=(*dummy_objects_counter)++;
             outputs[0]->type=d_constant;
             outputs[0]->constant_value=to_int(instr->int_argument);
-            break;
+            reference(&outputs[0]->constant_value);
+            return;
         case b_load_float:
             outputs[0]=new_dummy(E);
-            outputs[0]->id=(*id_counter)++;
+            outputs[0]->id=(*dummy_objects_counter)++;
             outputs[0]->type=d_constant;
             outputs[0]->constant_value=to_float(instr->float_argument);
-            break;
+            reference(&outputs[0]->constant_value);
+            return;
         case b_load_string:
             outputs[0]=new_dummy(E);
-            outputs[0]->id=(*id_counter)++;
+            outputs[0]->id=(*dummy_objects_counter)++;
             outputs[0]->type=d_constant;
             outputs[0]->constant_value=to_string(constants+instr->uint_argument);
-            break;
+            reference(&outputs[0]->constant_value);
+            return;
         case b_table_literal:
             outputs[0]=new_dummy(E);
-            outputs[0]->id=(*id_counter)++;
+            outputs[0]->id=(*dummy_objects_counter)++;
             outputs[0]->type=d_known_type;
             outputs[0]->known_type=t_table;
-            break;
+            return;
         case b_pre_function:
             outputs[0]=new_dummy(E);
-            outputs[0]->id=(*id_counter)++;
+            outputs[0]->id=(*dummy_objects_counter)++;
             outputs[0]->type=d_known_type;
             outputs[0]->known_type=t_function;
-            break;
+            return;
         case b_function:
             outputs[0]=inputs[0];
-            break;
+            return;
         case b_double:
             outputs[0]=inputs[0];
             outputs[1]=inputs[0];
-            break;
+            return;
         case b_push_to_top:
             outputs[instr->uint_argument]=inputs[0];
             outputs[0]=inputs[instr->uint_argument];
             for(int i=1; i<instr->uint_argument-1; i++){
                 outputs[i]=outputs[instr->uint_argument-2-i];
             }
-            break;
+            return;
         case b_swap:
         {
             for(int i=0; i<transformation->outputs_count; i++){
@@ -230,99 +197,52 @@ void predict_instruction_output(Executor* E, Instruction* instr, char* constants
             Dummy* temp=outputs[left];
             outputs[left]=outputs[right];
             outputs[right]=temp;
-            break;
+            return;
         }
+        case b_get:
+            if(inputs[0]->type==d_constant){
+                outputs[0]=assumption_to_dummy(E, get_upvalue_assumption(program, inputs[0]->constant_value), dummy_objects_counter);
+                if(outputs[0]->type==d_constant){
+                    reference(&outputs[0]->constant_value);
+                }
+                return;
+            }
+            break;
+        case b_set:
+            outputs[0]=inputs[1];
+            return;
         case b_binary:
         {
-            if((inputs[1]->type==d_known_type||inputs[1]->type==d_constant)
+            if((inputs[0]->type==d_known_type||inputs[0]->type==d_constant)
+            && (inputs[1]->type==d_known_type||inputs[1]->type==d_constant)
             && (inputs[2]->type==d_known_type||inputs[2]->type==d_constant)
-            && dummy_type(inputs[1])==dummy_type(inputs[2])){
+            && dummy_type(inputs[0])==t_string
+            && dummy_type(inputs[1])!=t_function
+            && dummy_type(inputs[1])!=t_table
+            && dummy_type(inputs[2])!=t_function
+            && dummy_type(inputs[2])!=t_table
+            ){
                 outputs[0]=new_dummy(E);
-                outputs[0]->id=(*id_counter)++;
-                outputs[0]->type=d_known_type;
-                outputs[0]->known_type=dummy_type(inputs[1]);
-                break;
+                if(inputs[0]->type==d_constant && inputs[1]->type==d_constant && inputs[2]->type==d_constant){
+                    outputs[0]->type=d_constant;
+                    outputs[0]->constant_value=operator(E, inputs[1]->constant_value, inputs[2]->constant_value, inputs[0]->constant_value.text);
+                    reference(&outputs[0]->constant_value);
+                } else {
+                    outputs[0]->id=(*dummy_objects_counter)++;
+                    outputs[0]->type=d_known_type;
+                    outputs[0]->known_type=dummy_type(inputs[1]);
+                }
+                return;
             }
-            // intentional fall through
+            break;
         }
-        default:
-        {
-            for(int i=0; i<transformation->outputs_count; i++){
-                outputs[i]=new_dummy(E);
-                outputs[i]->id=(*id_counter)++;
-                outputs[i]->type=d_any_type;
-            }
-        }
+        default:;
     }
-}
-
-bool dummies_equal(const Dummy* a, const Dummy* b){
-    if(a->type==d_any || b->type==d_any){
-        return true;
-    } else {
-        return a->id==b->id;
+    for(int i=0; i<transformation->outputs_count; i++){
+        outputs[i]=new_dummy(E);
+        outputs[i]->id=(*dummy_objects_counter)++;
+        outputs[i]->type=d_any_type;
     }
-}
-
-bool dummies_compatible(const Dummy* a, const Dummy* b){
-    if(a->type==d_any || b->type==d_any){
-        return true;
-    } else if(a->type==d_or){
-        return dummies_compatible(a->or.left, b) || dummies_compatible(a->or.right, b);
-    } else if(b->type==d_or){
-        return dummies_compatible(a, b->or.left) || dummies_compatible(a, b->or.right);
-    } else {
-        return a->id==b->id;
-    }
-}
-
-bool dummy_contains(const Dummy* a, const Dummy* b){
-    if(a->type==d_any || b->type==d_any){
-        return true;
-    } else if(a->type==d_or){
-        return dummy_contains(a->or.left, b) || dummy_contains(a->or.right, b);
-    } else if(b->type==d_or){
-        return dummy_contains(a, b->or.left) || dummy_contains(a, b->or.right);
-    } else {
-        return a->id==b->id;
-    }
-}
-
-static void print_id(unsigned int n){
-    int interval='Z'-'A';
-    do{
-        printf("%c", 'A'+n%interval);
-        n/=interval;
-    } while(n);
-}
-
-void dummy_print(const Dummy* dummy){
-    switch(dummy->type){
-        case d_any:
-            printf("any");
-            break;
-        case d_any_type:
-            print_id(dummy->id);
-            break;
-        case d_known_type:
-            printf("(%s)", OBJECT_TYPE_NAMES[dummy->known_type]);
-            print_id(dummy->id);
-            break;
-        case d_constant:
-            USING_STRING(stringify_object(NULL, dummy->constant_value),
-                printf("%s", str));
-            break;
-        case d_or:
-            printf("(");
-            dummy_print(dummy->or.left);
-            printf(" or ");
-            dummy_print(dummy->or.right);
-            printf(")");
-            break;
-        default:
-            THROW_ERROR(BYTECODE_ERROR, "Incorrect dummy type %i.", dummy->type);
-    }
-    //printf("<%i>", dummy->gcp.gco.ref_count);
 }
 
 static void print_transformations(Instruction* instructions, Transformation* transformations, int instructions_count){
@@ -347,21 +267,31 @@ static void print_transformations(Instruction* instructions, Transformation* tra
     }
 }
 
-void dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replacement){
-    if((*dummy)->type==d_or){
-        dummy_replace(E, &(*dummy)->or.left, to_replace, replacement);
-        dummy_replace(E, &(*dummy)->or.right, to_replace, replacement);
-    } else if(dummies_equal(*dummy, to_replace)) {
-        gc_object_dereference(E, (gc_Object*)*dummy);
-        gc_object_reference((gc_Object*)replacement);
-        *dummy=replacement;
-    }
-}
-
-void replace_dummies_in_transformations(Executor* E, Instruction* instructions, Transformation* transformations, int instructions_count, Dummy* to_replace, Dummy* replacement){
+void replace_dummies_in_transformations(Executor* E, BytecodeProgram* program, Instruction* instructions, Transformation* transformations, char* constants, Dummy* to_replace, Dummy* replacement, unsigned* dummy_objects_counter){
+    unsigned instructions_count=count_instructions(instructions)+1;
     for(int p=0; p<instructions_count; p++){
+        bool input_modified=false;
         for(int i=0; i<transformations[p].inputs_count; i++){
-            dummy_replace(E, &transformations[p].inputs[i], to_replace, replacement);
+            input_modified=input_modified||dummy_replace(E, &transformations[p].inputs[i], to_replace, replacement);
+        }
+        if(input_modified){
+            Dummy** previous_outputs=malloc(sizeof(Dummy*)*transformations[p].outputs_count);
+            for(int o=0; o<transformations[p].outputs_count; o++){
+                previous_outputs[o]=transformations[p].outputs[o];
+            }
+            predict_instruction_output(E, program, &instructions[p], constants, dummy_objects_counter, &transformations[p]);
+            for(int o=0; o<transformations[p].outputs_count; o++){
+                if(previous_outputs[o]->type!=transformations[p].outputs[o]->type){
+                    gc_object_reference((gc_Object*)transformations[p].outputs[o]);
+                    replace_dummies_in_transformations(E, program, instructions, transformations, constants, previous_outputs[o], transformations[p].outputs[o], dummy_objects_counter);
+                    gc_object_dereference(E, (gc_Object*)previous_outputs[o]);
+                } else {
+                    gc_object_dereference(E, (gc_Object*)transformations[p].outputs[o]);
+                    transformations[p].outputs[o]=previous_outputs[o];
+                    gc_object_reference((gc_Object*)transformations[p].outputs[o]);
+                } 
+            }
+            free(previous_outputs);
         }
         for(int i=0; i<transformations[p].outputs_count; i++){
             dummy_replace(E, &transformations[p].outputs[i], to_replace, replacement);
@@ -427,13 +357,6 @@ void remove_no_ops(Executor* E, vector* instructions, vector* informations, vect
     #undef INSTRUCTION
 }
 
-typedef struct {
-    vector branches;
-    bool started;
-    bool revisit;
-    int last;
-}BytecodeProgressState;
-
 int find_label(Instruction* code, int index){
     for(int search_pointer=0; code[search_pointer].type!=b_end; search_pointer++){
         if(code[search_pointer].type==b_label && code[search_pointer].uint_argument==index){
@@ -453,7 +376,14 @@ int count_branches(Instruction* code){
     return counter;
 }
 
-int bytecode_progress_start(Instruction* code, BytecodeProgressState* state){
+typedef struct {
+    vector branches;
+    bool started;
+    bool revisit;
+    int last;
+}BytecodeIteratorState;
+
+int bytecode_iterator_start(Instruction* code, BytecodeIteratorState* state){
     state->started=false;
     state->last=0;
     vector_init(&state->branches, sizeof(int), 8);
@@ -461,7 +391,7 @@ int bytecode_progress_start(Instruction* code, BytecodeProgressState* state){
     return 0;
 }
 
-int bytecode_progress_next(Instruction* code, BytecodeProgressState* state){
+int bytecode_iterator_next(Instruction* code, BytecodeIteratorState* state){
     vector* branches=&state->branches;
     int index=state->last;
     if(finishes_program(code[index].type)){
@@ -492,42 +422,85 @@ int bytecode_progress_next(Instruction* code, BytecodeProgressState* state){
     return index;
 }
 
-void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisations){
-    for(int i=0; i<prog->sub_programs_count; i++){
-        optimise_bytecode(E, &prog->sub_programs[i], print_optimisations);
+// true on success
+bool constant_dummy_to_bytecode(Executor* E, Dummy* constant_dummy, unsigned position, vector* instructions, vector* transformations, vector* constants){
+    Object object=constant_dummy->constant_value;
+    #define LITERAL(type, argument) \
+        { \
+            Instruction replacement={type, argument}; \
+            vector_insert(instructions, position, &replacement); \
+        }
+    switch(object.type){
+        case t_null:
+            LITERAL(b_null,)
+            break;
+        case t_float:
+            LITERAL(b_load_float, .float_argument=object.float_value);
+            break;
+        case t_int:
+            LITERAL(b_load_int, .int_argument=object.int_value);
+            break;
+        case t_string:{
+            unsigned push_position=vector_count(constants);
+            vector_insert_multiple(constants, push_position, object.text, strlen(object.text)+1);
+            LITERAL(b_load_string, .uint_argument=push_position);
+            break;
+        }
+        default: return false;
+    }
+    #undef LITERAL
+    Transformation transformation;
+    transformation_init(&transformation, 0, 1);
+    transformation.outputs[0]=constant_dummy;
+    gc_object_reference((gc_Object*)transformation.outputs[0]);
+    vector_insert(transformations, position, &transformation);
+    return true;
+}
+
+void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimisations){
+    for(int i=0; i<program->sub_programs_count; i++){
+        optimise_bytecode(E, &program->sub_programs[i], print_optimisations);
     }
     if(print_optimisations){
-        USING_STRING(stringify_bytecode(prog),
+        USING_STRING(stringify_bytecode(program),
             printf("Unoptimised bytecode:\n%s\n", str));
     }
 
     // step 1: deduce how the objects will flow from one instruction to the next
     // also get a list of externally provided objects
 
-    int instructions_count=count_instructions(prog->code)+1;
-    vector provided, stack, transformations, instructions, informations;
+    int instructions_count=count_instructions(program->code)+1;
+    vector provided, stack, transformations, instructions, informations, constants;
     vector_init(&provided, sizeof(Dummy*), 64);
     vector_init(&stack, sizeof(Dummy*), 128);
     vector_init(&transformations, sizeof(Transformation), instructions_count);
     vector_extend(&transformations, instructions_count);
-    vector_from(&instructions, sizeof(Instruction), prog->code, instructions_count);
-    vector_from(&informations, sizeof(InstructionInformation), prog->information, instructions_count);
+    vector_from(&instructions, sizeof(Instruction), program->code, instructions_count);
+    vector_from(&informations, sizeof(InstructionInformation), program->information, instructions_count);
+    vector_from(&constants, sizeof(char), program->constants, program->constants_size);
     #define INSTRUCTION(nth) ((Instruction*)vector_index(&instructions, (nth)))
     #define TRANSFORMATION(nth) ((Transformation*)vector_index(&transformations, (nth)))
     #define CODE ((Instruction*)vector_get_data(&instructions))
-    #define FILL_WITH_NO_OP(start, end) \
-        prog->code=(Instruction*)vector_get_data(&instructions); \
+    #define REBUILD_PROGRAM \
+        program->code=(Instruction*)vector_get_data(&instructions); \
+        program->information=(InstructionInformation*)vector_get_data(&informations); \
+        program->constants_size=vector_count(&constants); \
+        program->constants=(char*)vector_get_data(&constants);
+    #define HIGHLIGHT(symbol, start, end) \
         if(print_optimisations){ \
-            highlight_instructions(prog, '-', start, end); \
-        } \
+            REBUILD_PROGRAM \
+            highlight_instructions(program, symbol, start, end); \
+        }
+    #define FILL_WITH_NO_OP(start, end) \
+        HIGHLIGHT('-', start, end); \
         for(int i=start; i<=end; i++) { \
             transformation_deinit(E, TRANSFORMATION(i)); \
             INSTRUCTION(i)->type=b_no_op; \
         }
     unsigned int dummy_objects_counter=0;
 
-    BytecodeProgressState progress_state;
-    for(int p=bytecode_progress_start(prog->code, &progress_state); p!=-1; p=bytecode_progress_next(prog->code, &progress_state)){
+    BytecodeIteratorState progress_state;
+    for(int p=bytecode_iterator_start(program->code, &progress_state); p!=-1; p=bytecode_iterator_next(program->code, &progress_state)){
         if(p==0){
             for(int i=vector_count(&provided)-1; i>=0; i--){
                 vector_push(&stack, vector_index(&provided, i));
@@ -535,33 +508,34 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
         }
         if(!TRANSFORMATION(p)->visited){
             Transformation transformation;
-            if(carries_stack(prog->code[p].type)){
+            if(carries_stack(program->code[p].type)){
                 // jump_not takes one item from the stack as a predicate
-                if(prog->code[p].type==b_jump_not){
+                if(program->code[p].type==b_jump_not){
                     transformation_init(&transformation, vector_count(&stack), vector_count(&stack)-1);
                 } else {
                     transformation_init(&transformation, vector_count(&stack), vector_count(&stack));
                 }
             } else {
-                transformation_from_instruction(&transformation, &prog->code[p]);
+                transformation_from_instruction(&transformation, &program->code[p]);
             }
             
             for(int i=0; i<transformation.inputs_count; i++){
                 if(!vector_empty(&stack)){
                     transformation.inputs[i]=*(Dummy**)vector_pop(&stack);
                 } else {
-                    Dummy* dummy=new_dummy(E);
+                    /*Dummy* dummy=new_dummy(E);
                     dummy->id=dummy_objects_counter++;
-                    dummy->type=d_any_type;
+                    dummy->type=d_any_type;*/
+                    Dummy* dummy=assumption_to_dummy(E, get_argument_assumption(program, vector_count(&provided)), &dummy_objects_counter);
                     vector_push(&provided, &dummy);
                     transformation.inputs[i]=dummy;
-                    // in this case dummy is also refrenced by provided
+                    // in this case dummy is also referenced by provided
                     gc_object_reference((gc_Object*)transformation.inputs[i]);
                 }
                 // input is referenced by the transformation
                 gc_object_reference((gc_Object*)transformation.inputs[i]);
             }
-            predict_instruction_output(E, &prog->code[p], (char*)prog->constants, &dummy_objects_counter, &transformation);
+            predict_instruction_output(E, program, &program->code[p], (char*)program->constants, &dummy_objects_counter, &transformation);
             for(int i=0; i<transformation.outputs_count; i++){
                 vector_push(&stack, &transformation.outputs[i]);
                 // output is referenced by the transformation
@@ -598,10 +572,10 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 for(int i=0; i<TRANSFORMATION(p)->outputs_count; i++){
                     gc_object_dereference(E, (gc_Object*)TRANSFORMATION(p)->outputs[i]);
                 }
-                predict_instruction_output(E, &prog->code[p], (char*)prog->constants, &dummy_objects_counter, TRANSFORMATION(p));
+                predict_instruction_output(E, program, &program->code[p], (char*)program->constants, &dummy_objects_counter, TRANSFORMATION(p));
                 for(int i=0; i<TRANSFORMATION(p)->outputs_count; i++){
                     vector_push(&stack, &TRANSFORMATION(p)->outputs[i]);
-                    // output is refrenced by the transformation
+                    // output is referenced by the transformation
                     gc_object_reference((gc_Object*)TRANSFORMATION(p)->outputs[i]);
                 }
             } else {
@@ -614,12 +588,11 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
     }
     if(print_optimisations){
         printf("Deduced flow chart:\n");
-        print_transformations(prog->code, vector_get_data(&transformations), instructions_count);
+        print_transformations(program->code, vector_get_data(&transformations), instructions_count);
         printf("\n");
     }
 
     // step 2: perform optimisations
-
     // replace jump to return or end instruction with return
     for(int pointer=0; INSTRUCTION(pointer)->type!=b_end; pointer++){
         if(INSTRUCTION(pointer)->type==b_jump && TRANSFORMATION(pointer)->inputs_count==1){
@@ -630,6 +603,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 instruction_after_label++;
             }
             if(INSTRUCTION(instruction_after_label)->type==b_return || INSTRUCTION(instruction_after_label)->type==b_end){
+                
                 // remember what was the input to jump instruction
                 Dummy* to_return=TRANSFORMATION(pointer)->inputs[0];
                 gc_object_reference((gc_Object*)to_return);
@@ -645,7 +619,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
             break;
         }
     }
-    for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=0; pointer--){
+    for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=1; pointer--){
         // change calls to tail calls if possible
         if(INSTRUCTION(pointer)->type==b_call){
             if(INSTRUCTION(pointer+1)->type==b_end){
@@ -658,32 +632,32 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
         }// replace variable lookup with stack operations 
         else if(INSTRUCTION(pointer)->type==b_set && INSTRUCTION(pointer+1)->type==b_discard
            && !INSTRUCTION(pointer)->bool_argument /* argument tells whether the variable is used in closure, we can't tell if the closure changes the variable*/
-           && path_length(prog->code, pointer)<=2){// don't optimise nested paths like table.key, only single name paths
+           && (INSTRUCTION(pointer-1)->type==b_load_string || INSTRUCTION(pointer-1)->type==b_load_int)){// don't optimise nested paths like table.key, only single name paths
             if(print_optimisations){
                 printf("Found a set Instruction\n");
-                prog->code=(Instruction*)vector_get_data(&instructions);
-                highlight_instructions(prog, '>', pointer-path_length(vector_get_data(&instructions), pointer)+1, pointer);
+                program->code=(Instruction*)vector_get_data(&instructions);
+                REBUILD_PROGRAM
+                highlight_instructions(program, '>', pointer-path_length(vector_get_data(&instructions), pointer)+1, pointer);
             }
             bool first_get_removal=true;
             bool used=false;
-            for(int search_pointer=pointer+2; INSTRUCTION(search_pointer)->type!=b_end; search_pointer++){
-                if(changes_flow(INSTRUCTION(search_pointer)->type) || finishes_program(INSTRUCTION(search_pointer)->type)){
+            for(int get_search=pointer+2; INSTRUCTION(get_search)->type!=b_end; get_search++){
+                if(changes_flow(INSTRUCTION(get_search)->type) || finishes_program(INSTRUCTION(get_search)->type)){
                     // we can't tell if the variable is used later
                     used=true;
                     break;
                 }
-                if(changes_scope(INSTRUCTION(search_pointer)->type)){
+                if(changes_scope(INSTRUCTION(get_search)->type)){
                     // we optimised all gets in this scope so the variable isn't needed anymore
                     break;
                 }
-                if(INSTRUCTION(search_pointer)->type==b_get && paths_equal(CODE, pointer-1, search_pointer-1)){
+                REBUILD_PROGRAM
+                if(INSTRUCTION(get_search)->type==b_get && instructions_equal(program, *INSTRUCTION(get_search-1), *INSTRUCTION(pointer-1))){
                     if(print_optimisations){
                         printf("Found a corresponding get Instruction\n");
-                        prog->code=(Instruction*)vector_get_data(&instructions);
-                        highlight_instructions(prog, '>', search_pointer-path_length(CODE, pointer)+1, search_pointer);
+                        program->code=(Instruction*)vector_get_data(&instructions);
+                        highlight_instructions(program, '>', get_search-path_length(CODE, pointer)+1, get_search);
                     }
-                    // for now only single name variables are optimised
-                    int get_path_length=2;//path_length(CODE, search_pointer);
 
                     if(first_get_removal){
                         LOG_IF_ENABLED("Removing discard Instruction after set Instruction:\n");
@@ -702,29 +676,62 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                         gc_object_reference((gc_Object*)doubled);
                         vector_insert(&transformations, pointer+1, &double_transformation);
                         vector_insert(&informations, pointer+1, vector_index(&informations, pointer));
-                        search_pointer++;
+                        get_search++;
                     }
                     // search for references to dummy object and replace them with the one
-                    replace_dummies_in_transformations(E, 
-                    (Instruction*)vector_get_data(&instructions), (Transformation*)vector_get_data(&transformations), vector_count(&instructions),
-                    TRANSFORMATION(search_pointer)->outputs[0], 
-                    TRANSFORMATION(pointer)->outputs[0]);
+                    Dummy* to_replace=TRANSFORMATION(get_search)->outputs[0];
+                    gc_object_reference((gc_Object*)to_replace);
+                    FILL_WITH_NO_OP(get_search-1, get_search);
+                    REBUILD_PROGRAM
+                    replace_dummies_in_transformations(E, program,
+                    (Instruction*)vector_get_data(&instructions), (Transformation*)vector_get_data(&transformations), (char*)vector_get_data(&constants),
+                    to_replace, TRANSFORMATION(pointer)->outputs[0], &dummy_objects_counter);
+                    gc_object_dereference(E, (gc_Object*)to_replace);
 
-                    FILL_WITH_NO_OP(search_pointer-get_path_length+1, search_pointer);
-
-                    if(search_pointer>=vector_count(&instructions)){
-                        break;// after removing the path search_pointer points to b_end, if loop continued from this point it would get past the code's end
+                    if(get_search>=vector_count(&instructions)){
+                        break;// after removing the path get_search points to b_end, if loop continued from this point it would get past the code's end
                     }
                 }
             }
             if(!used){
                 // the variable isn't used in it's own scope and in any closure, so it can be removed
                 LOG_IF_ENABLED("Removing set Instruction:\n");
-                replace_dummies_in_transformations(E, 
-                (Instruction*)vector_get_data(&instructions), (Transformation*)vector_get_data(&transformations), vector_count(&instructions),
-                TRANSFORMATION(pointer)->outputs[0], 
-                TRANSFORMATION(pointer)->inputs[1]);
-                FILL_WITH_NO_OP(pointer-path_length(CODE, pointer)+1, pointer);
+                Dummy* to_replace=TRANSFORMATION(pointer)->outputs[0];
+                gc_object_reference((gc_Object*)to_replace);
+                Dummy* replacing=TRANSFORMATION(pointer)->inputs[1];
+                gc_object_reference((gc_Object*)replacing);
+                FILL_WITH_NO_OP(pointer-1, pointer);
+                REBUILD_PROGRAM
+                replace_dummies_in_transformations(E, program, 
+                (Instruction*)vector_get_data(&instructions), (Transformation*)vector_get_data(&transformations), (char*)vector_get_data(&constants),
+                to_replace, replacing, &dummy_objects_counter);
+                gc_object_dereference(E, (gc_Object*)to_replace);
+                gc_object_dereference(E, (gc_Object*)replacing);
+            }
+        }
+    }
+    // if operation has no side effect and it's output is known replace it with it's result literal
+    for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=0; pointer--){
+        if(TRANSFORMATION(pointer)->outputs_count==1 
+        && TRANSFORMATION(pointer)->outputs[0]->type==d_constant
+        && !instruction_is_literal(INSTRUCTION(pointer)->type)
+        && !has_side_effects(INSTRUCTION(pointer), TRANSFORMATION(pointer))){
+            Transformation producer=*TRANSFORMATION(pointer);
+            if(constant_dummy_to_bytecode(E, TRANSFORMATION(pointer)->outputs[0], pointer+1, &instructions, &transformations, &constants)){
+                LOG_IF_ENABLED("Replacing operation with it's result:\n")
+                // discard inputs to producer
+                for(int i=0; i<producer.inputs_count; i++){
+                    Instruction discard_instruction={b_discard};
+                    vector_insert(&instructions, pointer+1, &discard_instruction);
+                    Transformation discard_transformation;
+                    transformation_from_instruction(&discard_transformation, &discard_instruction);
+                    discard_transformation.inputs[0]=producer.inputs[i];
+                    gc_object_reference((gc_Object*)discard_transformation.inputs[0]);
+                    vector_insert(&transformations, pointer+1, &discard_transformation);
+                    vector_insert(&informations, pointer+1, vector_index(&informations, pointer+1));
+                }
+                FILL_WITH_NO_OP(pointer, pointer)
+                pointer+=producer.inputs_count+1;
             }
         }
     }
@@ -742,6 +749,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                 continue;
                 found:
                 if(TRANSFORMATION(search)->outputs_count==1 && !has_side_effects(INSTRUCTION(search), TRANSFORMATION(search))) {
+                    LOG_IF_ENABLED("Removing operation which result is immediately discarded:\n")
                     Transformation* producer=TRANSFORMATION(search);
                     // discard inputs to producer
                     for(int i=0; i<producer->inputs_count; i++){
@@ -775,7 +783,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
     // according to the flow chart made in the first step
 
     #define STACK(nth) ((Dummy**)vector_index(&stack, vector_count(&stack)-1-(nth)))
-    for(int p=bytecode_progress_start(vector_get_data(&instructions), &progress_state); p!=-1; p=bytecode_progress_next(vector_get_data(&instructions), &progress_state)){
+    for(int p=bytecode_iterator_start(vector_get_data(&instructions), &progress_state); p!=-1; p=bytecode_iterator_next(vector_get_data(&instructions), &progress_state)){
         if(p==0){
             // remove elements from dummy stack and push items from provided vector to it
             while(!vector_empty(&stack)){
@@ -808,7 +816,8 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                                 gc_object_reference((gc_Object*)swap_transformation.inputs[k]);
                             }
                         }
-                        predict_instruction_output(E, &swap_instruction, prog->constants, &dummy_objects_counter, &swap_transformation);
+                        REBUILD_PROGRAM
+                        predict_instruction_output(E, program, &swap_instruction, program->constants, &dummy_objects_counter, &swap_transformation);
                         for(int k=0; k<swap_transformation.outputs_count; k++){
                             gc_object_reference((gc_Object*)swap_transformation.outputs[k]);
                         }
@@ -818,7 +827,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
                         vector_insert(&instructions, p, &swap_instruction);
                         vector_insert(&transformations, p, &swap_transformation);
                         vector_insert(&informations, p, vector_index(&informations, p));
-                        p=bytecode_progress_next(vector_get_data(&instructions), &progress_state);
+                        p=bytecode_iterator_next(vector_get_data(&instructions), &progress_state);
                         break;
                     }
                 }
@@ -834,7 +843,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
     remove_no_ops(E, &instructions, &informations, &transformations);
 
     if(print_optimisations){
-        printf("\nOptimised flow chart:\n");
+        printf("\nFinal flow chart:\n");
         print_transformations(vector_get_data(&instructions), vector_get_data(&transformations), vector_count(&instructions));
     }
 
@@ -850,8 +859,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisati
     }
     vector_deinit(&transformations);
 
-    prog->code=(Instruction*)vector_get_data(&instructions);
-    prog->information=(InstructionInformation*)vector_get_data(&informations);
+    REBUILD_PROGRAM
 
     #undef FILL_WITH_NO_OP
     #undef INSTRUCTION

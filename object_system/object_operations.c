@@ -14,7 +14,6 @@ bool is_truthy(Object o){
     return !is_falsy(o);
 }
 
-// TODO:  write tests
 bool is_falsy(Object o){
     switch(o.type){
         case t_null:
@@ -30,7 +29,8 @@ bool is_falsy(Object o){
         case t_function:
         case t_gc_pointer:
         case t_coroutine:
-            return 0;
+        case t_pointer:
+            return false;
         default:
             THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object pointer passed to is_falsy function.");
     }
@@ -134,6 +134,23 @@ int compare(Object a, Object b){
             return sign(a.float_value-b.float_value);
         case t_table:
             return table_compare(a.tp, b.tp);
+        case t_pointer:
+            return a.p==b.p;
+        case t_gc_pointer:
+            return a.gcp==b.gcp;
+        case t_function:
+            if(a.fp->ftype!=b.fp->ftype){
+                return 1;
+            }
+            switch(a.fp->ftype){
+                case f_ast:
+                case f_bytecode:
+                    return sign((int)a.fp->source_pointer-(int)b.fp->source_pointer);
+                case f_special:
+                    return sign((int)a.fp->special_index-(int)b.fp->special_index);
+                case f_native:
+                    return sign((int)a.fp->native_pointer-(int)b.fp->native_pointer);
+            }
         default:
             return COMPARISION_ERROR;
     }
@@ -315,11 +332,11 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             return result; \
         }
     if(a.type==t_string){
-        if(a.type!=b.type){
-            b=cast(E, b, t_string);
-        }
         OP_CASE("+"){
-            char* buffer=malloc(sizeof(char)*1024);
+            if(b.type!=t_string){
+                b=cast(E, b, t_string);
+            }
+            char* buffer=malloc(strlen(a.text)+strlen(b.text)+1);
             CHECK_ALLOCATION(buffer);
             strcpy(buffer, a.text);
             strcat(buffer, b.text);
@@ -327,6 +344,20 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             string_init(&result);
             result.text=buffer;
             return result;
+        }
+        OP_CASE("*"){
+            if(b.type==t_int && b.int_value>0){
+                char* buffer=malloc(strlen(a.text)*b.int_value+1);
+                CHECK_ALLOCATION(buffer);
+                buffer[0]='\0';
+                for(int i=0; i<b.int_value; i++){
+                    strcat(buffer, a.text);
+                }
+                Object result;
+                string_init(&result);
+                result.text=buffer;
+                return result;
+            }
         }
     }
     if(a.type==t_int) {
