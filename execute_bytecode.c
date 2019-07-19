@@ -71,6 +71,12 @@ AssumptionCompareResult compare_assumptions(Assumption* a, Assumption* b){
     }
 }
 
+void assumption_deinit(Executor* E, Assumption* assumption){
+    if(assumption->assumption_type==a_constant){
+        dereference(E, &assumption->constant);
+    }
+}
+
 void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
     BytecodeProgram* program=environment->executed_program;
     if(!E->options.runtime_optimisations||program->calls_count<CALLS_UNTIL_STATISTICS_MODE){
@@ -113,7 +119,6 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
     statistics->previous_calls[program->calls_count-CALLS_UNTIL_STATISTICS_MODE]=current_call;
     program->calls_count++;
     if(program->calls_count-CALLS_UNTIL_STATISTICS_MODE>REMEMBERED_CALLS){
-        program->calls_count=0;
         bool already_covered[REMEMBERED_CALLS];
         struct {
             unsigned index;
@@ -170,6 +175,21 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
         variant.assumptions=statistics->previous_calls[most_compatible_signature.index];
         optimise_bytecode(E, &variant, E->options.print_bytecode_optimisations);
         vector_push(&program->variants, &variant);
+
+        /*for(int i=0; i<REMEMBERED_CALLS; i++){
+            printf("%i\n", i);
+            if(i!=most_compatible_signature.index){
+                for(int j=0; j<call_fields; j++){
+                    assumption_deinit(E, &statistics->previous_calls[i][j]);
+                }
+                free(statistics->previous_calls[i]);
+            }
+        } */
+        free(program->statistics->last_call);
+        free(program->statistics->constant_streaks);
+        free(program->statistics);
+        program->statistics=NULL;
+        program->calls_count=0;
     }
 }
 
@@ -553,6 +573,160 @@ Object execute_bytecode(Executor* E){
                 dereference(E, &b);
                 break;
             }
+            #define OPERATOR_START \
+                Object a=pop(object_stack); \
+                Object b=pop(object_stack);
+            #define OPERATOR_RESULT(result) \
+                push(object_stack, result);
+            #define OPERATOR_END \
+                dereference(E, &a); \
+                dereference(E, &b); \
+                break;
+            #define OPERATOR_FALLBACK(op) \
+                push(object_stack, operator(E, a, b, op));
+            case b_add:
+            {
+                OPERATOR_START
+                if(a.type==t_int && b.type==t_int){
+                    OPERATOR_RESULT(to_int(a.int_value+b.int_value));
+                } else if(a.type==t_float && b.type==t_float){
+                    OPERATOR_RESULT(to_float(a.float_value+b.float_value));
+                } else if(a.type==t_string){
+                    if(b.type!=t_string) {
+                        USING_STRING(stringify(E, b),
+                            OPERATOR_RESULT(to_string(string_add(a.text, str))))
+                    } else {
+                        OPERATOR_RESULT(to_string(string_add(a.text, b.text)));
+                    }
+                } else {
+                    OPERATOR_FALLBACK("+")
+                }
+                OPERATOR_END
+            }
+            case b_add_string:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_string(string_add(a.text, b.text)));
+                OPERATOR_END
+            }
+            case b_add_float:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_float(a.float_value+b.float_value));
+                OPERATOR_END
+            }
+            case b_add_int:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_int(a.int_value+b.int_value));
+                OPERATOR_END
+            }
+            case b_multiply:
+            {
+                OPERATOR_START
+                if(a.type==t_int && b.type==t_int){
+                    OPERATOR_RESULT(to_int(a.int_value*b.int_value));
+                } else if(a.type==t_float && b.type==t_float){
+                    OPERATOR_RESULT(to_float(a.float_value*b.float_value));
+                } else if(a.type==t_string && b.type==t_int && b.int_value>0){
+                    OPERATOR_RESULT(to_string(string_repeat(a.text, b.int_value)));
+                } else {
+                    OPERATOR_FALLBACK("*")
+                }
+                OPERATOR_END
+            }
+            case b_multiply_int:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_int(a.int_value*b.int_value));
+                OPERATOR_END
+            }
+            case b_multiply_float:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_float(a.float_value*b.float_value));
+                OPERATOR_END
+            }
+            case b_divide:
+            {
+                OPERATOR_START
+                if(a.type==t_int && b.type==t_int){
+                    OPERATOR_RESULT(to_float((float)a.int_value/b.int_value));
+                } else if(a.type==t_float && b.type==t_float){
+                    OPERATOR_RESULT(to_float(a.float_value/b.float_value));
+                } else {
+                    OPERATOR_FALLBACK("/")
+                }
+                OPERATOR_END
+            }
+            case b_divide_float:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_float(a.float_value/b.float_value));
+                OPERATOR_END
+            }
+            case b_divide_int:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_float((float)a.int_value/b.int_value));
+                OPERATOR_END
+            }
+            case b_divide_floor:
+            {
+                OPERATOR_START
+                if(a.type==t_int && b.type==t_int){
+                    OPERATOR_RESULT(to_int(a.int_value/b.int_value));
+                } else {
+                    OPERATOR_FALLBACK("//")
+                }
+                OPERATOR_END
+            }
+            case b_divide_floor_int:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_int(a.int_value/b.int_value));
+                OPERATOR_END
+            }
+            case b_modulo:
+            {
+                OPERATOR_START
+                if(a.type==t_int && b.type==t_int){
+                    OPERATOR_RESULT(to_int(a.int_value%b.int_value));
+                } else {
+                    OPERATOR_FALLBACK("%")
+                }
+                OPERATOR_END
+            }
+            case b_modulo_int:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_int(a.int_value%b.int_value));
+                OPERATOR_END
+            }
+            case b_subtract:
+            {
+                OPERATOR_START
+                if(a.type==t_int && b.type==t_int){
+                    OPERATOR_RESULT(to_int(a.int_value-b.int_value));
+                } else if(a.type==t_float && b.type==t_float){
+                    OPERATOR_RESULT(to_float(a.float_value-b.float_value));
+                } else {
+                    OPERATOR_FALLBACK("-")
+                }
+                OPERATOR_END
+            }
+            case b_subtract_float:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_float(a.float_value-b.float_value));
+                OPERATOR_END
+            }
+            case b_subtract_int:
+            {
+                OPERATOR_START
+                OPERATOR_RESULT(to_int(a.int_value-b.int_value));
+                OPERATOR_END
+            }
             case b_prefix:
             {
                 Object op=pop(object_stack);
@@ -563,6 +737,34 @@ Object execute_bytecode(Executor* E){
                 push(object_stack, operator(E, null_const, a, op.text));
                 dereference(E, &op);
                 dereference(E, &a);
+                break;
+            }
+            case b_not:
+            {
+                Object a=pop(object_stack);
+                push(object_stack, to_int(is_falsy(a)));
+                break;
+            }
+            case b_minus:
+            {
+                Object a=pop(object_stack);
+                if(a.type==t_int){
+                    push(object_stack, to_int(-a.int_value));
+                } else if(a.type==t_float){
+                    push(object_stack, to_float(-a.float_value));
+                }
+                break;
+            }
+            case b_minus_int:
+            {
+                Object a=pop(object_stack);
+                push(object_stack, to_int(-a.int_value));
+                break;
+            }
+            case b_minus_float:
+            {
+                Object a=pop(object_stack);
+                push(object_stack, to_float(-a.float_value));
                 break;
             }
             case b_jump_not:
@@ -581,7 +783,7 @@ Object execute_bytecode(Executor* E){
                 break;
             }
             // these two instructions should always be called one after another
-            case b_pre_function:
+            case b_function_1:
             {
                 Object f;
                 function_init(E, &f);
@@ -590,17 +792,24 @@ Object execute_bytecode(Executor* E){
                 f.fp->arguments_count=instr.pre_function_argument.arguments_count;
                 f.fp->variadic=instr.pre_function_argument.is_variadic;
                 f.fp->ftype=f_bytecode;
-                push(object_stack, f);
+                // b_function_2 always follows b_function_1 so it can be red directly
+                (*pointer)++;
+                f.fp->source_pointer=(gc_Object*)(E->bytecode_environment.executed_program->sub_programs+code[*pointer].uint_argument);
+                gc_object_reference((gc_Object*)f.fp->source_pointer);
+                 push(object_stack, f);
                 break;
             }
-            case b_function:
+            case b_native_call_1:
             {
-                Object f=peek(object_stack);
-                if(f.type!=t_function){
-                    BYTECODE_ERROR(f, "b_function: function type is %s", OBJECT_TYPE_NAMES[f.type]);
+                ObjectSystemFunction f=(ObjectSystemFunction)instr.uint_argument;
+                // b_native_call_2 always follows b_native_call_1 so it can be red directly
+                (*pointer)++;
+                unsigned arguments_count=code[*pointer].uint_argument;
+                Object* arguments=malloc(sizeof(Object)*arguments_count);
+                for(int i=0; i<arguments_count; i++){
+                    arguments[i]=pop(object_stack);
                 }
-                f.fp->source_pointer=(gc_Object*)(E->bytecode_environment.executed_program->sub_programs+instr.uint_argument);
-                gc_object_reference((gc_Object*)f.fp->source_pointer);
+                push(object_stack, f(E, arguments, arguments_count));
                 break;
             }
             case b_message:
@@ -712,7 +921,7 @@ Object execute_bytecode(Executor* E){
                             if(E->coroutine==NULL){
                                 POP_ARGUMENTS
                                 Object err;
-                                NEW_ERROR(err, "COROUTINE_ERROR", o, "Yield from outisde of coroutine.");
+                                NEW_ERROR(err, "COROUTINE_ERROR", o, "Yield from outside of coroutine.");
                                 RETURN(err)
                             }
                             // simply return the value from stack top

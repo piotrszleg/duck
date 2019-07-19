@@ -48,8 +48,8 @@ struct BytecodeProgram {
     vector variants;
 };
 
-void stringify_instruction(const BytecodeProgram* program, char* destination, Instruction instr, int buffer_count);
-char* stringify_bytecode(const BytecodeProgram* program);
+void print_instruction(const BytecodeProgram* program, Instruction instr);
+void print_bytecode_program(const BytecodeProgram* program);
 void bytecode_program_init(Executor* E, BytecodeProgram* program);
 void bytecode_program_free(BytecodeProgram* program);
 void list_program_labels(BytecodeProgram* program);

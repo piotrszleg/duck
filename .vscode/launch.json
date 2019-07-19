@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/duck.exe",
-            "args": ["-disable_runtime_optimisations", "input"],
+            "args": ["input"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

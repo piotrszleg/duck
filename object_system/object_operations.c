@@ -333,30 +333,18 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         }
     if(a.type==t_string){
         OP_CASE("+"){
-            if(b.type!=t_string){
-                b=cast(E, b, t_string);
-            }
-            char* buffer=malloc(strlen(a.text)+strlen(b.text)+1);
-            CHECK_ALLOCATION(buffer);
-            strcpy(buffer, a.text);
-            strcat(buffer, b.text);
             Object result;
-            string_init(&result);
-            result.text=buffer;
+            if(b.type!=t_string) {
+                USING_STRING(stringify(E, b),
+                    result=to_string(string_add(a.text, str)))
+            } else {
+                result=to_string(string_add(a.text, b.text));
+            }
             return result;
         }
         OP_CASE("*"){
             if(b.type==t_int && b.int_value>0){
-                char* buffer=malloc(strlen(a.text)*b.int_value+1);
-                CHECK_ALLOCATION(buffer);
-                buffer[0]='\0';
-                for(int i=0; i<b.int_value; i++){
-                    strcat(buffer, a.text);
-                }
-                Object result;
-                string_init(&result);
-                result.text=buffer;
-                return result;
+                return to_string(string_repeat(a.text, b.int_value));
             }
         }
     }
@@ -555,35 +543,59 @@ char* stringify_object(Executor* E, Object o){
 }
 
 Object get(Executor* E, Object o, Object key){
-    if(o.type==t_table){
-        // try to get "get" operator overriding function from the Table and use it
-        Object map_get_override=table_get(o.tp, to_string("get"));
-        if(map_get_override.type!=t_null){
-            Object arguments[]={o, key};
-
-            Object result=call(E, map_get_override, arguments, 2);
-            return result;
-        } else {
-            // simply get key from Table's map
-            return table_get(o.tp, key);
-        }
-    } else if(o.type==t_string){
-        if(key.type==t_int){
-            if(key.int_value<strlen(o.text) && key.int_value>=0){
-                char* character_string=malloc(2*sizeof(char));
-                character_string[0]=o.text[(int)key.int_value];
-                character_string[1]='\0';
-                return to_string(character_string);
+    switch(o.type){
+        case t_table:
+        {
+            // try to get "get" field overriding function from the Table and use it
+            Object map_get_override=table_get(o.tp, to_string("get"));
+            if(map_get_override.type!=t_null){
+                Object arguments[]={o, key};
+                Object result=call(E, map_get_override, arguments, 2);
+                return result;
             } else {
-                RETURN_ERROR("WRONG_ARGUMENT_TYPE", multiple_causes(E, (Object[]){o, key}, 2), 
-                "Index %i is out of bounds of string \"%s\"", key.int_value, o.text);
+                // simply get key from Table's map
+                return table_get(o.tp, key);
             }
-        } else {
-            RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Strings can be only indexed with ints");
         }
-    } else {
-        RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+        #define FIELD(identifier) if(key.type==t_string && strcmp(key.text, identifier)==0)
+        case t_string:
+            FIELD("length"){
+                return to_int(strlen(o.text));
+            } else if(key.type==t_int){
+                if(key.int_value<strlen(o.text) && key.int_value>=0){
+                    char* character_string=malloc(2*sizeof(char));
+                    character_string[0]=o.text[(int)key.int_value];
+                    character_string[1]='\0';
+                    return to_string(character_string);
+                } else {
+                    RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){o, key}, 2), 
+                    "Index %i is out of bounds of string \"%s\"", key.int_value, o.text);
+                }
+            }
+            break;
+        case t_coroutine:
+            FIELD("state"){
+                switch(o.co->state){
+                    case co_uninitialized: return to_string("uninitialized");
+                    case co_running: return to_string("running");
+                    case co_finished: return to_string("finished");
+                }
+            }
+            FIELD("finished"){
+                return to_int(o.co->state==co_finished);
+            }
+            break;
+        case t_function:
+            FIELD("variadic"){
+                return to_int(o.fp->variadic);
+            }
+            FIELD("arguments_count"){
+                return to_int(o.fp->arguments_count);
+            }
+            break;
+        default:;
     }
+    RETURN_ERROR("GET_ERROR",  multiple_causes(E, (Object[]){o, key}, 2), "Can't get field in object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
 }
 
 Object set(Executor* E, Object o, Object key, Object value){
@@ -597,7 +609,7 @@ Object set(Executor* E, Object o, Object key, Object value){
             return value;
         }
     } else {
-        RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't index object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+        RETURN_ERROR("SET", o, "Can't set field in object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
     }
 }
 
@@ -655,32 +667,6 @@ Object message_object(Executor* E, Object messaged, const char* message_identifi
             }
             break;
         }
-        #define MESSAGE(identifier) if(strcmp(message_identifier, identifier)==0)
-        case t_string:
-            MESSAGE("length"){
-                return to_int(strlen(messaged.text));
-            }
-            break;
-        case t_coroutine:
-            MESSAGE("state"){
-                switch(messaged.co->state){
-                    case co_uninitialized: return to_string("uninitialized");
-                    case co_running: return to_string("running");
-                    case co_finished: return to_string("finished");
-                }
-            }
-            MESSAGE("finished"){
-                return to_int(messaged.co->state==co_finished);
-            }
-            break;
-        case t_function:
-            MESSAGE("variadic"){
-                return to_int(messaged.fp->variadic);
-            }
-            MESSAGE("arguments_count"){
-                return to_int(messaged.fp->arguments_count);
-            }
-            break;
     }
 }
 

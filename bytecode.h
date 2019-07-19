@@ -23,8 +23,10 @@
     X(load_float) /*    (float_argument) */ \
     X(table_literal) \
     X(null) \
-    X(pre_function)/*   (pre_function_argument) */ \
-    X(function) /*      (uint_argument: sub_program_index */ \
+    X(function_1)/*      (pre_function_argument) function needs to be splitted into two instructions to have all needed data */ \
+    X(function_2) /*     (uint_argument sub_program_index) */ \
+    X(native_call_1)/*   (uint_argument pointer_to_function) */ \
+    X(native_call_2) /*  (uint_argument arguments_count) */ \
     X(return) /*        [object_to_return] */ \
     X(get_scope) /*     pushes current scope onto the stack */ \
     X(set_scope) /*     [scope] sets the Object on the stack as the current scope */ \
@@ -33,16 +35,37 @@
     X(jump) /*          (uint_argument label_index) jumps to label */ \
     X(jump_not) /*      [value] (uint_argument label_index) jump to a label if value on stack is falsy */ \
     X(get) /*           get the value at the key from the current scope, [key] */ \
-    X(table_get) /*     get the value at the key from the Table, [key, Table] */ \
+    X(table_get) /*     get the value at the key from the table, [key, table] */ \
     X(set) /*           (bool_argument is_used_in_closure) [key, value] sets field at key in the current scope to value  */ \
-    X(table_set) /*     [key, Table, value] sets field at key in table to value, keeps the value on stack */ \
-    X(table_set_keep) /*[key, Table, value] same as table_set but keeps the indexed Table on the stack */ \
+    X(table_set) /*     [key, table, value] sets field at key in table to value, keeps the value on stack */ \
+    X(table_set_keep) /*[key, table, value] same as table_set but keeps the indexed table on the stack */ \
     X(call) /*          (uint_argument number_of_arguments) [function, arguments...] */ \
     X(tail_call) \
     X(binary) /*        [a, b, operator] */ \
     X(message) /*       (arguments_count) [messaged, message_identifier, arguments...] */\
     X(prefix) /*        [a, operator] */ \
-    X(swap) /*          (swap_argument) */
+    X(swap) /*          (swap_argument) */ \
+    X(add) /*           [a, b] */ \
+    X(subtract) \
+    X(multiply) \
+    X(divide) \
+    X(divide_floor) \
+    X(modulo) \
+    X(not) \
+    X(minus) \
+    X(add_int) \
+    X(subtract_int) \
+    X(multiply_int) \
+    X(divide_int) \
+    X(divide_floor_int) \
+    X(modulo_int) \
+    X(minus_int) \
+    X(add_float) \
+    X(subtract_float) \
+    X(multiply_float) \
+    X(divide_float) \
+    X(minus_float) \
+    X(add_string)
 
 typedef enum {
     #define X(t) b_##t,

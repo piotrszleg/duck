@@ -24,11 +24,32 @@ int gets_from_stack(Instruction instr){
         X(b_call, instr.uint_argument+1)
         X(b_tail_call, instr.uint_argument+1)
         X(b_message, instr.uint_argument+2)
-        X(b_binary, 3)
-        X(b_prefix, 2)
-        X(b_function, 1)
+        X(b_function_2, 1)
         X(b_jump_not, 1)
         X(b_swap, MAX(instr.swap_argument.left, instr.swap_argument.right)+1)
+        X(b_binary, 3)
+        X(b_add, 2)
+        X(b_subtract, 2)
+        X(b_multiply, 2)
+        X(b_divide, 2)
+        X(b_divide_floor, 2)
+        X(b_modulo, 2)
+        X(b_add_int, 2)
+        X(b_subtract_int, 2)
+        X(b_multiply_int, 2)
+        X(b_divide_int, 2)
+        X(b_divide_floor_int, 2)
+        X(b_modulo_int, 2)
+        X(b_add_float, 2)
+        X(b_subtract_float, 2)
+        X(b_multiply_float, 2)
+        X(b_divide_float, 2)
+        X(b_minus_float, 2)
+        X(b_add_string, 2)
+        X(b_prefix, 2)
+        X(b_minus, 1)
+        X(b_minus_int, 1)
+        X(b_not, 1)
         default: return 0;
     }
 }
@@ -83,6 +104,6 @@ bool instruction_is_literal(InstructionType instr){
     X(b_load_int)
     X(b_load_string)
     X(b_null)
-    X(b_function);
+    X(b_function_2);
 }
 #undef X

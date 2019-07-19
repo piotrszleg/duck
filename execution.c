@@ -29,8 +29,7 @@ Object evaluate(Executor* E, expression* parsing_result, Object scope, const cha
             optimise_bytecode(E, &prog, E->options.print_bytecode_optimisations);
         }
         if(E->options.print_bytecode){
-            USING_STRING(stringify_bytecode(&prog),
-                printf("Bytecode:\n%s\n", str));
+            print_bytecode_program(&prog);
         }
         create_return_point(&E->bytecode_environment, true);
         E->bytecode_environment.pointer=0;

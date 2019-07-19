@@ -71,3 +71,21 @@ char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs
     free(occurrences);
     return result;
 }
+
+char* string_add(char* a, char* b){
+    char* buffer=malloc(strlen(a)+strlen(b)+1);
+    CHECK_ALLOCATION(buffer);
+    strcpy(buffer, a);
+    strcat(buffer, b);
+    return buffer;
+}
+
+char* string_repeat(char* str, int times){
+    char* buffer=malloc(strlen(str)*times+1);
+    CHECK_ALLOCATION(buffer);
+    buffer[0]='\0';
+    for(int i=0; i<times; i++){
+        strcat(buffer, str);
+    }
+    return buffer;
+}

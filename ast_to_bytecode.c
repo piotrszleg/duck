@@ -245,6 +245,19 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
 
             ast_to_bytecode_recursive(u->right, translation, false);
             ast_to_bytecode_recursive(u->left, translation, false);
+            #define OP(operator, instruction) \
+                if(strcmp(u->op, operator)==0) { \
+                    push_uint_instruction(translation, instruction, 0); \
+                    break; \
+                }
+            OP("+",  b_add) \
+            OP("-",  b_subtract) \
+            OP("*",  b_multiply) \
+            OP("/",  b_divide) \
+            OP("//", b_divide_floor) \
+            OP("%",  b_modulo)
+            #undef OP
+            // fallback if no operator was matched
             push_string_load(translation, u->op);
             push_uint_instruction(translation, b_binary, 0);
             break;
@@ -254,8 +267,15 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             prefix* p=(prefix*)exp;
             ast_to_bytecode_recursive(p->right, translation, false);
 
-            push_string_load(translation, p->op);
-            push_uint_instruction(translation, b_prefix, 0);
+            if(strcmp(p->op, "!")==0){
+                push_uint_instruction(translation, b_not, 0);
+            }else if(strcmp(p->op, "-")==0){
+                push_uint_instruction(translation, b_minus, 0);
+            } else {
+                push_string_load(translation, p->op);
+                push_uint_instruction(translation, b_prefix, 0);
+            }
+
             break;
         }
         case e_conditional:
@@ -286,14 +306,14 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             PreFunctionArgument argument;
             argument.arguments_count=arguments_count;
             argument.is_variadic=d->variadic;
-            Instruction instr={b_pre_function};
+            Instruction instr={b_function_1};
             instr.pre_function_argument=argument;
             stream_push(&translation->code, &instr, sizeof(Instruction));
             repeat_information(translation);
 
             BytecodeProgram prog=closure_to_bytecode(d);
             stream_push(&translation->sub_programs, &prog, sizeof(BytecodeProgram));
-            push_uint_instruction(translation, b_function, sub_program_index);
+            push_uint_instruction(translation, b_function_2, sub_program_index);
             break;
         }
         case e_message:
