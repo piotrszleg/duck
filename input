@@ -1,8 +1,9 @@
-prelude="->"
-print_times=(message, times)->{
-    print(prelude+message)
-    if(times>=0) {
-        print_times(message, times-1)
+patching_table.string=[]
+patching_table.string["%"]=(a, b)->{
+    arguments=[a]
+    b `##` (index, value)->{
+        arguments[index+1]=value
     }
+    call(format, arguments)
 }
-print_times('message, 30)
+"{.x={}, .y={}}" % [10, 20]

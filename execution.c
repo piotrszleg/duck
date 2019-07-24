@@ -72,10 +72,13 @@ static Object arguments_to_table(Executor* E, char** arguments){
 void execute_file(Executor* E, const char* file_name, char** arguments){
     Object global_scope;
     table_init(E, &global_scope);
+    Object patching_table;
+    table_init(E, &patching_table);
+    table_set(E, global_scope.tp, to_string("patching_table"), patching_table);
     reference(&global_scope);
     table_set(E, global_scope.tp, to_string("arguments"), arguments_to_table(E, arguments));
     if(E->options.include_builtins){
-        register_builtins(E, global_scope);
+        inherit_scope(E, global_scope, builtins_table(E));
     }
     Object execution_result=evaluate_file(E, file_name, global_scope);
     USING_STRING(stringify(E, execution_result), 
@@ -85,7 +88,7 @@ void execute_file(Executor* E, const char* file_name, char** arguments){
 }
 
 // this function should only be called from call_function, it's there to simplify the code structure
-Object call_function_processed(Executor* E, Function* f, Object* arguments, int arguments_count){
+static Object call_function_processed(Executor* E, Function* f, Object* arguments, int arguments_count){
     if(f->ftype==f_ast){
         Object function_scope;
         table_init(E, &function_scope);
@@ -188,6 +191,10 @@ void executor_foreach_children(Executor* E, Executor* iterated_executor, gc_Poin
 
 void coroutine_foreach_children(Executor* E, Coroutine* co, gc_PointerForeachChildrenCallback callback){
     executor_foreach_children(E, co->executor, callback);
+}
+
+Object executor_get_patching_table(Executor* E){
+    return get(E, E->scope, to_string("patching_table"));
 }
 
 void coroutine_free(Coroutine* co){

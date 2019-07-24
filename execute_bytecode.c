@@ -61,9 +61,9 @@ typedef enum {
     ac_compatible=2,
 } AssumptionCompareResult;
 
-AssumptionCompareResult compare_assumptions(Assumption* a, Assumption* b){
+AssumptionCompareResult compare_assumptions(Executor* E, Assumption* a, Assumption* b){
     if(a->assumption_type==a_constant&&b->assumption_type==a_constant){
-        return compare(a->constant, b->constant)==0;
+        return compare(E, a->constant, b->constant)==0;
     } else if(a->assumption_type==a_type&&b->assumption_type==a_type){
         return a->type==b->type;
     } else {
@@ -101,7 +101,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
             char* upvalue_name=program->constants+program->upvalues[i-arguments_count];
             argument=get(E, environment->scope, to_string(upvalue_name));
         }
-        if(compare(statistics->last_call[i], argument)==0) {
+        if(compare(E, statistics->last_call[i], argument)==0) {
             statistics->constant_streaks[i]++;
             if(statistics->constant_streaks[i]>=CONSTANT_THRESHOLD) {
                 current_call[i].assumption_type=a_constant;
@@ -130,7 +130,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
                 for(int j=0; j<REMEMBERED_CALLS; j++){
                     bool exactly_equal=true;
                     for(int a=0; a<call_fields; a++){
-                        switch(compare_assumptions(&statistics->previous_calls[i][a], &statistics->previous_calls[j][a])){
+                        switch(compare_assumptions(E, &statistics->previous_calls[i][a], &statistics->previous_calls[j][a])){
                             case ac_equal:
                                 score+=2;
                                 break;
@@ -206,7 +206,7 @@ BytecodeProgram* choose_variant(Executor* E, BytecodeProgram* root){
                 argument=get(E, E->bytecode_environment.scope, to_string(upvalue_name));
             }
             Assumption a={a_constant, .constant=argument};
-            if(compare_assumptions(&a, &variant->assumptions[j])==ac_not_equal){
+            if(compare_assumptions(E, &a, &variant->assumptions[j])==ac_not_equal){
                 goto next_variant;
             }
         }
@@ -810,6 +810,7 @@ Object execute_bytecode(Executor* E){
                     arguments[i]=pop(object_stack);
                 }
                 push(object_stack, f(E, arguments, arguments_count));
+                free(arguments);
                 break;
             }
             case b_message:

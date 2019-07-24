@@ -26,7 +26,7 @@ if(answer==1){
         print(format("{}: {}", line_number+1, text))
     }
     new_records=""
-    line_to_change=int(input())-1
+    line_to_change=to_int(input())-1
     file `##` (line_number, text)->{
         if(line_number==line_to_change){
             new_records+=record_prompt()

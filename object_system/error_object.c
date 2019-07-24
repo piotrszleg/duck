@@ -82,18 +82,31 @@ Object error_stringify(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
-bool is_unhandled_error(Executor* E, Object o){
+bool is_error(Executor* E, Object o){
     bool result=false;
     if(o.type==t_table){
-        Object error=get(E, o, to_string("error"));
-        if(is_truthy(error)){
-            Object handled=get(E, o, to_string("handled"));
-            result=is_truthy(handled);
-            dereference(E, &handled);
-        }
-        dereference(E, &error);
+        Object is_error=get(E, o, to_string("error"));
+        result=is_truthy(is_error);
+        destroy_unreferenced(E, &is_error);
     }
     return result;
+}
+
+bool is_unhandled_error(Executor* E, Object o){
+    bool result=false;
+    if(o.type==t_table && is_error(E, o)){
+        Object is_handled=get(E, o, to_string("handled"));
+        result=is_falsy(is_handled);
+        destroy_unreferenced(E, &is_handled);
+    }
+    return result;
+}
+
+void handle_if_error(Executor* E, Object o){
+    if(is_error(E, o)){
+        Object set_result=set(E, o, to_string("handled"), to_int(1));
+        destroy_unreferenced(E, &set_result);
+    }
 }
 
 Object error_destroy(Executor* E, Object* arguments, int arguments_count){

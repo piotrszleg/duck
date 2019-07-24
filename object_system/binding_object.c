@@ -15,7 +15,6 @@ Object binding_bind_operator(Executor* E, Object* arguments, int arguments_count
 
 Object binding_bind(Executor* E, Object* arguments, int arguments_count){
     Object binding=arguments[0];
-    Object binded_arguments=arguments[1];
     Object count=get(E, binding, to_string("count"));
 
     if(count.type!=t_int) {

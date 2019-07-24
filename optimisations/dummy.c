@@ -15,7 +15,9 @@ ObjectType dummy_type(const Dummy* dummy){
 }
 
 void dummy_foreach_children(Executor* E, Dummy* dummy, gc_PointerForeachChildrenCallback callback){
-    dummy->gcp.gco.marked=true;
+    if(dummy->type==d_constant){
+        callback(E, &dummy->constant_value);
+    }
     if(dummy->type==d_or){
         Object wrapped_left=wrap_gc_object((gc_Object*)dummy->or.left);
         callback(E, &wrapped_left);

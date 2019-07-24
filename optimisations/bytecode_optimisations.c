@@ -242,7 +242,14 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                 if(inputs[0]->type==d_constant && inputs[1]->type==d_constant && inputs[2]->type==d_constant){
                     outputs[0]->type=d_constant;
                     outputs[0]->constant_value=operator(E, inputs[1]->constant_value, inputs[2]->constant_value, inputs[0]->constant_value.text);
-                    reference(&outputs[0]->constant_value);
+                    if(is_unhandled_error(E, outputs[0]->constant_value)){
+                        set(E, outputs[0]->constant_value, to_string("handled"), to_int(1));
+                        dereference(E, &outputs[0]->constant_value);
+                        outputs[0]->type=d_any_type;
+                        outputs[0]->id=(*dummy_objects_counter)++;
+                    } else {
+                        reference(&outputs[0]->constant_value);
+                    }
                 } else {
                     outputs[0]->id=(*dummy_objects_counter)++;
                     outputs[0]->type=d_known_type;
@@ -261,7 +268,14 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                     if(inputs[0]->type==d_constant && inputs[1]->type==d_constant){ \
                         outputs[0]->type=d_constant; \
                         outputs[0]->constant_value=operator(E, inputs[0]->constant_value, inputs[1]->constant_value, op); \
-                        reference(&outputs[0]->constant_value); \
+                        if(is_unhandled_error(E, outputs[0]->constant_value)){ \
+                            set(E, outputs[0]->constant_value, to_string("handled"), to_int(1)); \
+                            dereference(E, &outputs[0]->constant_value); \
+                            outputs[0]->type=d_any_type; \
+                            outputs[0]->id=(*dummy_objects_counter)++; \
+                        } else { \
+                            reference(&outputs[0]->constant_value); \
+                        } \
                     } else { \
                         outputs[0]->id=(*dummy_objects_counter)++; \
                         outputs[0]->type=d_known_type; \

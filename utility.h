@@ -48,7 +48,7 @@ typedef struct {
 } Occurrence;
 
 char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs, int replacement_pairs_count);
-char* string_add(char* a, char* b);
-char* string_repeat(char* str, int times);
+char* string_add(const char* a, const char* b);
+char* string_repeat(const char* str, int times);
 
 #endif

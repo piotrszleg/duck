@@ -6,6 +6,8 @@ void table_component_init(Table* t){
     t->map_size=INITIAL_MAP_SIZE;
     t->array=calloc(t->array_size, sizeof(Object));
     t->map=calloc(t->map_size, sizeof(MapElement*));
+    t->protected=false;
+    t->special_fields_disabled=false;
 }
 
 // returns true for string that doesn't start with number and has only letters, numbers and underscores inside
@@ -25,51 +27,63 @@ bool is_valid_name(char* s){
     return true;
 }
 
-unsigned hash_string(const char *str) {
-    unsigned hashed = 5381;
-    while (*str) {
-      hashed = ((hashed << 5) + hashed) ^ *str++;
+unsigned table_hash(Executor* E, Table* t, Object* error) {
+    unsigned result;
+    TableIterator it=table_get_iterator(t);
+    for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+        Object field_error=null_const;
+        #define ERROR_CHECK(hashed_value) \
+            if(field_error.type!=t_null){ \
+                NEW_ERROR(*error, "HASH_ERROR", \
+                multiple_causes(E, (Object[]){wrap_gc_object((gc_Object*)t), hashed_value, field_error}, 3), \
+                "Hashing table failed because of error in hashing one of it's fields."); \
+                return result; \
+            }
+        unsigned key_hash=hash(E, i.key, &field_error);
+        ERROR_CHECK(i.key)
+        unsigned value_hash=hash(E, i.value, &field_error);
+        ERROR_CHECK(i.value)
+        // integer overflow is expected here
+        result+=key_hash+value_hash;
     }
-    return hashed;
+    return result;
 }
 
-unsigned hash(Object o) {
-    switch(o.type){
-        case t_string:
-            return hash_string(o.text);
-        case t_int:
-            return o.int_value;
-        case t_float:
-            return o.float_value;
-        case t_null:
-            return 0;
-        case t_table:
-            return (unsigned)o.tp;
-        case t_function:
-            return (unsigned)o.fp;
-        default:
-            THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object type %s(%i) passed to hash function.", OBJECT_TYPE_NAMES[o.type], o.type);
-            return 0;
-    }
-}
-
-int compare(Object a, Object b);
-
-Object table_get(Table* t, Object key) {
+Object table_get(Executor* E, Table* t, Object key) {
     if(key.type==t_int) {
         if(key.int_value<t->array_size && key.int_value>=0){
             return t->array[(int)key.int_value];
         }
     }
-    int hashed=hash(key)%t->map_size;
+    Object error=null_const;
+    int hashed=hash(E, key, &error)%t->map_size;
+    if(error.type!=t_null){
+        RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){wrap_gc_object((gc_Object*)t), key, error}, 3), 
+                     "Getting a field from table failed because of hashing error.")
+    }
     MapElement* e=t->map[hashed];
     while(e){
-        if(compare(e->key, key)==0){
+        if(compare(E, e->key, key)==0){
             return e->value;
         }
         e=e->next;
     }
     return null_const;
+}
+
+void table_protect(Table* t){
+    t->protected=true;
+}
+
+bool table_is_protected(Table* t){
+    return t->protected;
+}
+
+void table_disable_special_fields(Table* t){
+    t->special_fields_disabled=true;
+}
+bool table_has_special_fields(Table* t){
+    return !t->special_fields_disabled;
 }
 
 TableIterator table_get_iterator(Table* iterated){
@@ -120,7 +134,7 @@ IterationResult table_iterator_next(TableIterator* it){
     return result;
 }
 
-char* stringify_table(Executor* E, Table* t){
+char* table_stringify(Executor* E, Table* t){
     TableIterator it=table_get_iterator(t);
     stream s;
     stream_init(&s, 64);
@@ -129,19 +143,26 @@ char* stringify_table(Executor* E, Table* t){
     bool array_part_holey=false;
     int max_hole_size=3;
     
-    bool add_whitespace=t->elements_count>3;
+    bool add_whitespace=t->elements_count>3||t->protected||t->special_fields_disabled;
     
     stream_push_const_string(&s, "[");
     if(add_whitespace){
         stream_push_const_string(&s, "\n\t");
     }
+    if(t->protected){
+        stream_push_const_string(&s, "# protected\n\t");
+    }
+    if(t->special_fields_disabled){
+        stream_push_const_string(&s, "# special fields disabled\n\t");
+    }
     for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
         if(first){
             first=false;
         } else {
-            stream_push_const_string(&s, ", ");
             if(add_whitespace){
                 stream_push_const_string(&s, "\n\t");
+            } else {
+                stream_push_const_string(&s, ", ");
             }
         }
         bool self_reference=i.value.type==t_table && i.value.tp==t;
@@ -157,9 +178,11 @@ char* stringify_table(Executor* E, Table* t){
             if(indexes_difference!=1){
                 if(indexes_difference-1<=max_hole_size){
                     for(int i=0; i<indexes_difference-1; i++){
-                        stream_push_string_indented(&s, "null, ");
+                        stream_push_string_indented(&s, "null");
                         if(add_whitespace){
                             stream_push_const_string(&s, "\n\t");
+                        } else {
+                            stream_push_const_string(&s, ", ");
                         }
                     }
                 } else {
@@ -195,6 +218,17 @@ char* stringify_table(Executor* E, Table* t){
     return (char*)stream_get_data(&s);
 }
 
+Object table_copy(Executor* E, Table* t) {
+    Object copied;
+    table_init(E, &copied);
+    TableIterator it=table_get_iterator(t);
+
+    for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+        table_set(E, copied.tp, copy(E, i.key), copy(E, i.value));
+    }
+    return copied;
+}
+
 void table_foreach_children(Executor* E, Table* t, gc_PointerForeachChildrenCallback callback){
     for(int i=0; i<t->array_size; i++){
         callback(E, &t->array[i]);
@@ -223,7 +257,7 @@ void table_free(Table* t){
     free(t);
 }
 
-int table_compare(Table* a, Table* b){
+int table_compare(Executor* E, Table* a, Table* b, Object* error){
     if(a==b) {
         return 0;
     }
@@ -231,9 +265,11 @@ int table_compare(Table* a, Table* b){
     if(difference==0){
         TableIterator it=table_get_iterator(a);
         for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
-            Object in_b=table_get(b, i.key);
-            int compare_result=compare(i.value, in_b);
-            if(compare_result!=0){
+            Object in_b=table_get(E, b, i.key);
+            int compare_result=compare_and_get_error(E, i.value, in_b, error);
+            if(error->type!=t_null){
+                return 1;
+            } else if(compare_result!=0){
                 return compare_result;
             }
         }
@@ -324,14 +360,17 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
             }
         }
     }
-    // insert value into map
-    int hashed=hash(key)%t->map_size;
+    Object error=null_const;
+    int hashed=hash(E, key, &error)%t->map_size;
+    if(error.type!=t_null){
+        destroy_unreferenced(E, &error);
+    }
     reference(&key);
     MapElement* previous=NULL;
     MapElement* e=t->map[hashed];
     // traverse linked list
     while(e){
-        if(e!=NULL && compare(e->key, key)==0) {
+        if(compare(E, e->key, key)==0){
             // there is a MapElement with this key
             dereference(E, &e->value);
             if(value.type==t_null){
@@ -364,31 +403,44 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
 Object get(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);
 
+Object table_iterator_object_get(Executor* E, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    REQUIRE_ARGUMENT_TYPE(self, t_table);
+    Object key=arguments[1];
+
+    if(EQUALS_STRING(key, "next")){
+        return table_get(E, self.tp, key);
+    } else {
+        return null_const;
+    }
+}
+
 Object table_iterator_object_next(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
-    Object result_object;
-    table_init(E, &result_object);
+    REQUIRE_ARGUMENT_TYPE(self, t_table);
+    Object result;
+    table_init(E, &result);
 
-    Object iterator_address=get(E, self, to_int(0));
+    Object iterator_address=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(iterator_address, t_pointer);
     TableIterator* it=(TableIterator*)iterator_address.p;
-    IterationResult result=table_iterator_next(it);
-    set(E, result_object, to_string("key"), result.key);
-    set(E, result_object, to_string("value"), result.value);
-    set(E, result_object, to_string("finished"), to_int(result.finished));
-    set(E, result_object, to_string("inside_array"), to_int(result.inside_array));
-    return result_object;
+    IterationResult iterator_result=table_iterator_next(it);
+    set(E, result, to_string("key"), iterator_result.key);
+    set(E, result, to_string("value"), iterator_result.value);
+    set(E, result, to_string("finished"), to_int(iterator_result.finished));
+    set(E, result, to_string("inside_array"), to_int(iterator_result.inside_array));
+    return result;
 }
 
 Object table_iterator_object_destroy(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
-    Object iterator_address=get(E, self, to_int(0));
+    REQUIRE_ARGUMENT_TYPE(self, t_table);
+    Object iterator_address=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(iterator_address, t_pointer);
     free((TableIterator*)iterator_address.p);
     return null_const;
 }
 
-// TODO: protect pointer from overriding from script for safety reasons
 Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object iterator;
@@ -398,7 +450,9 @@ Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_c
     *it=table_get_iterator(self.tp);
     set(E, iterator, to_int(0), to_pointer(it));
     set(E, iterator, to_string("table"), self);// ensures that table won't be destroyed before the iterator
+    set(E, iterator, to_string("get"), to_function(E, table_iterator_object_get, NULL, 2));
     set(E, iterator, to_string("next"), to_function(E, table_iterator_object_next, NULL, 1));
     set(E, iterator, to_string("destroy"), to_function(E, table_iterator_object_destroy, NULL, 1));
+    table_protect(iterator.tp);
     return iterator;
 }

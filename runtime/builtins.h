@@ -12,7 +12,7 @@
 #include "struct_descriptor.h"
 #include "import_dll.h"
 
-void register_builtins(Executor* E, Object scope);
+Object builtins_table(Executor* E);
 void inherit_scope(Executor* E, Object scope, Object base);
 
 #endif

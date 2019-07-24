@@ -72,7 +72,7 @@ char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs
     return result;
 }
 
-char* string_add(char* a, char* b){
+char* string_add(const char* a, const char* b){
     char* buffer=malloc(strlen(a)+strlen(b)+1);
     CHECK_ALLOCATION(buffer);
     strcpy(buffer, a);
@@ -80,7 +80,7 @@ char* string_add(char* a, char* b){
     return buffer;
 }
 
-char* string_repeat(char* str, int times){
+char* string_repeat(const char* str, int times){
     char* buffer=malloc(strlen(str)*times+1);
     CHECK_ALLOCATION(buffer);
     buffer[0]='\0';

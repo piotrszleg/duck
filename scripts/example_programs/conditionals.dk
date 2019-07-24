@@ -1,4 +1,4 @@
-number=int(input())
+number=to_int(input())
 if(number==0) {
     print("option 0")
 }elif(number==1) {

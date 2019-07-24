@@ -204,6 +204,7 @@ void gc_mark(Executor* E, Object* o){
             coroutine_foreach_children(E, o->co, gc_mark);
         }
         break;
+    default:;
     }
 }
 

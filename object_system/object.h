@@ -202,6 +202,7 @@ void coroutine_free(Coroutine* co);
 void coroutine_foreach_children(Executor* E, Coroutine* co, gc_PointerForeachChildrenCallback);
 Object executor_on_unhandled_error(Executor* E, Object error);
 GarbageCollector* executor_get_garbage_collector(Executor*);
+Object executor_get_patching_table(Executor*);
 
 #include "table.h"
 

@@ -12,6 +12,10 @@ GarbageCollector* executor_get_garbage_collector(Executor* E){
     return &E->gc;
 }
 
+Object executor_get_patching_table(Executor* E){
+    return null_const;
+}
+
 Object executor_on_unhandled_error(Executor* E, Object error) {
     USING_STRING(stringify(E, error),
         printf("Unhandled error:\n%s", str));
@@ -26,6 +30,9 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
         return null_const;
     }
 }
+
+void coroutine_free(Coroutine* co) {}
+void coroutine_foreach_children(Executor* E, Coroutine* co, gc_PointerForeachChildrenCallback callback) {}
 
 void get_execution_info(Executor* E, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
@@ -121,7 +128,7 @@ void table_indexing(Executor* E){// t["name"]="John" => t["name"]=="John"
     // test if setting works
     #define TEST_SET(key, value) \
         set(E, t, key, value); \
-        assert(compare(get(E, t, key), value)==0);
+        assert(compare(E, get(E, t, key), value)==0);
 
     // getting variable at key that wasn't set before should return null
     #define TEST_EMPTY(key) assert(get(E, t, key).type==t_null);

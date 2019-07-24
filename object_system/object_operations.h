@@ -11,7 +11,9 @@
 bool is_falsy(Object o);
 bool is_truthy(Object o);
 
-int compare(Object a, Object b);
+int compare(Executor* E, Object a, Object b);
+int compare_and_get_error(Executor* E, Object a, Object b, Object* error);
+unsigned hash(Executor* E, Object o, Object* error);
 Object operator(Executor* E, Object a, Object b, const char* op);
 
 Object cast(Executor* E, Object o, ObjectType type);
@@ -31,7 +33,6 @@ char* suprintf (const char * format, ...);
 char* stringify_object(Executor* E, Object o);
 char* stringify(Executor* E, Object o);
 Object get_iterator(Executor* E, Object o);
-bool is_error(Executor* E, Object o);
 
 #include "error_object.h"
 #include "binding_object.h"

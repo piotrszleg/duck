@@ -12,7 +12,7 @@ tests: $(tests-path)
 
 # compile c files into objects
 $(object-files): $(source-files) $(headers)
-	gcc -g -c $(source-files)
+	gcc -g -Wall -c $(source-files)
 
 # pack object files into archive that can be added to main executable
 $(archive-path): $(object-files)

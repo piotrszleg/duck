@@ -22,5 +22,8 @@
 
 Object multiple_causes(Executor* E, Object* causes, int causes_count);
 Object new_error(Executor* E, char* type, Object cause, char* message, char* location);
+bool is_error(Executor* E, Object o);
+bool is_unhandled_error(Executor* E, Object o);
+void handle_if_error(Executor* E, Object o);
 
 #endif

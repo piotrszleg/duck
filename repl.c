@@ -14,7 +14,7 @@ void repl(){
     table_init(&E, &global_scope);
     reference(&global_scope);
     if(E.options.include_builtins){
-        register_builtins(&E, global_scope);
+        inherit_scope(&E, global_scope, builtins_table(&E));
     }
 
     while(1) {

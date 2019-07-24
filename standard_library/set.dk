@@ -1,3 +1,4 @@
+# TODO use vector underneath
 Set=initial->[
     inner=initial
     count=0
@@ -16,12 +17,25 @@ Set=initial->[
             self.count+=1
         }
     }
+    compact=self->{
+        new_inner=[]
+        new_count=0
+        self.inner `#` i->{
+            if(i){
+                new_inner[new_count]=i
+                new_count+=1
+            }
+        }
+        self.inner=new_inner
+        self.count=new_count
+    }
     remove=(self, value)->{
         self.inner `##` (k, v)->{
             if(v==value){
                 self.inner[k]=null
             }
         }
+        self::compact()
     }
     stringify=self->{
         result="Set("

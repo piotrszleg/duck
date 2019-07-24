@@ -4,11 +4,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "object.h"
+#include "object_operations.h"
 #include "../datatypes/stream.h"
 #include "../utility.h"
 #include "error_object.h"
 
-#define INITIAL_MAP_SIZE 16
+#define INITIAL_MAP_SIZE 32
 #define INITIAL_ARRAY_SIZE 16
 
 typedef struct MapElement MapElement;
@@ -19,7 +20,6 @@ struct MapElement {
 };
 
 struct Table {
-    // gc_Object fields
     gc_Object gco;
 
     Object* array;
@@ -27,6 +27,8 @@ struct Table {
     unsigned array_size;
     MapElement** map;
     unsigned map_size;
+    bool protected;
+    bool special_fields_disabled;
 };
 
 typedef struct {
@@ -43,17 +45,23 @@ typedef struct {
     Object value;
 } IterationResult;
 
-Object table_get(Table* t, Object key);
+bool is_valid_name(char* s);
+
+unsigned table_hash(Executor* E, Table* t, Object* error);
+Object table_get(Executor* E, Table* t, Object key);
 void table_set(Executor* E, Table* t, Object key, Object value);
+void table_protect(Table* t);
+bool table_is_protected(Table* t);
+void table_disable_special_fields(Table* t);
+bool table_has_special_fields(Table* t);
 void table_free(Table* t);
 void table_foreach_children(Executor* E, Table* t, gc_PointerForeachChildrenCallback callback);
-int table_compare(Table* a, Table* b);
-char* stringify_table(Executor* E, Table* t);
+int table_compare(Executor* E, Table* a, Table* b, Object* error);
+char* table_stringify(Executor* E, Table* t);
+Object table_copy(Executor* E, Table* t);
 void table_component_init(Table* t);
 Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_count);
 TableIterator table_get_iterator(Table* iterated);
 IterationResult table_iterator_next(TableIterator* it);
-
-bool is_valid_name(char* s);
 
 #endif

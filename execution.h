@@ -48,7 +48,6 @@ struct Executor {
     Object scope;
 
     Coroutine* coroutine;
-    Object error;
     
     ASTExecutionState ast_execution_state;
     BytecodeEnvironment bytecode_environment;

@@ -44,15 +44,6 @@ bool is_constant(expression* exp){
     }
 }
 
-void handle_if_error(Executor* E, Object o){
-    Object is_error=get(E, o, to_string("error"));
-    if(is_truthy(is_error)){
-        Object set_result=set(E, o, to_string("handled"), to_int(1));
-        destroy_unreferenced(E, &set_result);
-    }
-    destroy_unreferenced(E, &is_error);
-}
-
 expression* to_literal(Executor* E, Object o){
     switch(o.type){
         case t_string:
