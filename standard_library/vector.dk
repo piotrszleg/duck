@@ -27,6 +27,8 @@ Vector=initial->[
         result
     }
     compact=self->{
+        # this is not the most efficient solution
+        # but it is the most error resistant one
         new_inner=[]
         new_count=0
         self.inner `#` i->{

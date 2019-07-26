@@ -792,7 +792,7 @@ Object execute_bytecode(Executor* E){
                 f.fp->arguments_count=instr.pre_function_argument.arguments_count;
                 f.fp->variadic=instr.pre_function_argument.is_variadic;
                 f.fp->ftype=f_bytecode;
-                // b_function_2 always follows b_function_1 so it can be red directly
+                // b_function_2 always follows b_function_1 so it can be read directly
                 (*pointer)++;
                 f.fp->source_pointer=(gc_Object*)(E->bytecode_environment.executed_program->sub_programs+code[*pointer].uint_argument);
                 gc_object_reference((gc_Object*)f.fp->source_pointer);
@@ -802,14 +802,14 @@ Object execute_bytecode(Executor* E){
             case b_native_call_1:
             {
                 ObjectSystemFunction f=(ObjectSystemFunction)instr.uint_argument;
-                // b_native_call_2 always follows b_native_call_1 so it can be red directly
+                // b_native_call_2 always follows b_native_call_1 so it can be read directly
                 (*pointer)++;
                 unsigned arguments_count=code[*pointer].uint_argument;
                 Object* arguments=malloc(sizeof(Object)*arguments_count);
                 for(int i=0; i<arguments_count; i++){
                     arguments[i]=pop(object_stack);
                 }
-                push(object_stack, f(E, arguments, arguments_count));
+                push(object_stack, f(E, null_const, arguments, arguments_count));
                 free(arguments);
                 break;
             }
@@ -846,7 +846,7 @@ Object execute_bytecode(Executor* E){
                     if(instr.type==b_call) { \
                         break; \
                     } else { \
-                        goto function_return; \
+                        goto tail_call_return; \
                     }
 
                 #define POP_ARGUMENTS \
@@ -865,7 +865,7 @@ Object execute_bytecode(Executor* E){
                     CALL_ERROR("Called function is null.");
                 }
                 
-                // if object isn't a function it can be called through using monkey patching or Table call field
+                // if object isn't a function it can be called through using monkey patching or table call field
                 if(o.type!=t_function || o.fp->ftype==f_ast){
                     Object* arguments=malloc(sizeof(Object)*provided_arguments);
                     for (int i = provided_arguments-1; i >= 0 ; i--){
@@ -875,19 +875,12 @@ Object execute_bytecode(Executor* E){
                     free(arguments);
                     RETURN(call_result)
                 }
-                int arguments_count_difference=provided_arguments-o.fp->arguments_count;
+                int arguments_count_difference=provided_arguments-o.fp->arguments_count+o.fp->variadic;
                 // check arguments count
-                if(o.fp->variadic){
-                    // variadic function can be called with no variadic arguments
-                    if(arguments_count_difference<-1){
-                        CALL_ERROR("Not enough arguments in variadic function call, expected at least %i, given %i.", o.fp->arguments_count-1, provided_arguments);
-                    }
-                } else {
-                    if(arguments_count_difference>0) {
-                        CALL_ERROR("Too many arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
-                    } else if(arguments_count_difference<0){
-                        CALL_ERROR("Not enough arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
-                    }
+                if(arguments_count_difference<0){
+                    CALL_ERROR("Not enough arguments in function call, expected at least %i, given %i.", o.fp->arguments_count-o.fp->variadic, provided_arguments);
+                } else if(!o.fp->variadic && arguments_count_difference>0) {
+                    CALL_ERROR("Too many arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
                 }
                 if(o.fp->ftype==f_native){
                     Object* arguments=malloc(sizeof(Object)*provided_arguments);
@@ -895,16 +888,15 @@ Object execute_bytecode(Executor* E){
                     for (int i = provided_arguments-1; i >= 0; i--){
                         arguments[i]=pop(object_stack);
                     }
-                    Object call_result=o.fp->native_pointer(E, arguments, provided_arguments);
+                    Object call_result=o.fp->native_pointer(E, o.fp->enclosing_scope, arguments, provided_arguments);
                     free(arguments);
                     RETURN(call_result)
                 } else if(o.fp->ftype==f_bytecode) {
                     if(o.fp->variadic){
-                        // pack variadic arguments into a Table and push the Table back onto the stack
-                        int variadic_arguments_count=arguments_count_difference+1;
+                        // pack variadic arguments into a table and push this table back onto the stack
                         Object variadic_table;
                         table_init(E, &variadic_table);
-                        for(int i=variadic_arguments_count-1; i>=0; i--){
+                        for(int i=arguments_count_difference-1; i>=0; i--){
                             set(E, variadic_table, to_int(i), pop(object_stack));
                         }
                         push(object_stack, variadic_table);
@@ -965,7 +957,7 @@ Object execute_bytecode(Executor* E){
                 dereference(E, &o);
                 break;
             }
-            function_return:
+            tail_call_return:
             case b_end:
             case b_return:
             {

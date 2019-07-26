@@ -272,7 +272,8 @@ Object from_ffi_type(Executor* E, void* to_convert, ffi_type* ffi_tp, Object typ
     return null_const;
 }
 
-Object ffi_function_call(Executor* E, Object* arguments, int arguments_count){
+Object ffi_function_call(Executor* E, Object scope, Object* arguments, int arguments_count){
+    //BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object cif_pointer=get(E, self, to_string("cif"));
     REQUIRE_TYPE(cif_pointer, t_pointer);
@@ -304,7 +305,8 @@ Object ffi_function_call(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
-Object ffi_function_destroy(Executor* E, Object* arguments, int arguments_count){
+Object ffi_function_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
+    //BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object cif_pointer=get(E, self, to_string("cif"));
     REQUIRE_TYPE(cif_pointer, t_pointer);
@@ -318,8 +320,10 @@ Object ffi_function_destroy(Executor* E, Object* arguments, int arguments_count)
     return null_const;
 }
 
-Object ffi_function(Executor* E, Object* arguments, int arguments_count){
+Object ffi_function(Executor* E, Object scope, Object* arguments, int arguments_count){
+    //BOUND_FUNCTION_CHECK
     Object self=arguments[0];
+    REQUIRE_TYPE(self, t_table)
     Object function_name=arguments[1];
     REQUIRE_TYPE(function_name, t_string);
     Object basic_types=get(E, self, to_string("basic_types"));
@@ -374,9 +378,10 @@ Object ffi_function(Executor* E, Object* arguments, int arguments_count){
 
     set(E, result, to_string("cif"), to_pointer(cif));
     set(E, result, to_string("basic_types"), basic_types);
-    set_function(E, result, "call", 1, true, ffi_function_call);
-    set_function(E, result, "destroy", 1, false, ffi_function_destroy);
-    set(E, self, function_name, result);
+    set_function_bound(E, result, "call", 1, true, ffi_function_call);
+    set_function_bound(E, result, "destroy", 1, false, ffi_function_destroy);
+    table_protect(result.tp);
+    table_set(E, self.tp, function_name, result);
 
     return result;
 
@@ -390,7 +395,8 @@ Object ffi_function(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
-Object ffi_struct_destroy(Executor* E, Object* arguments, int arguments_count){
+Object ffi_struct_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
+    //BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object type_pointer=get(E, self, to_string("type"));
     REQUIRE_TYPE(type_pointer, t_pointer);
@@ -404,7 +410,8 @@ Object ffi_struct_destroy(Executor* E, Object* arguments, int arguments_count){
     return null_const;
 }
 
-Object ffi_struct_new_struct_descriptor(Executor* E, Object* arguments, int arguments_count){
+Object ffi_struct_new_struct_descriptor(Executor* E, Object scope, Object* arguments, int arguments_count){
+    //BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object type_field=get(E, self, to_string("type"));
     REQUIRE_TYPE(type_field, t_pointer)
@@ -422,7 +429,8 @@ Object ffi_struct_new_struct_descriptor(Executor* E, Object* arguments, int argu
     return to_struct_descriptor(E, struct_pointer, type, self);
 }
 
-Object ffi_struct(Executor* E, Object* arguments, int arguments_count){
+Object ffi_struct(Executor* E, Object scope, Object* arguments, int arguments_count){
+    //BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object basic_types=get(E, self, to_string("basic_types"));
 
@@ -455,9 +463,9 @@ Object ffi_struct(Executor* E, Object* arguments, int arguments_count){
     }
     struct_type->elements[arguments_count-1]=NULL;
     
-
-    set_function(E, result, "destroy", 1, false, ffi_struct_destroy);
-    set_function(E, result, "new_struct_descriptor", 1, false, ffi_struct_new_struct_descriptor);
+    set_function_bound(E, result, "destroy", 1, false, ffi_struct_destroy);
+    set_function_bound(E, result, "new_struct_descriptor", 1, false, ffi_struct_new_struct_descriptor);
+    table_protect(result.tp);
     return result;
 
     error_cleanup:
@@ -469,7 +477,8 @@ Object ffi_struct(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
-Object ffi_destroy(Executor* E, Object* arguments, int arguments_count){
+Object ffi_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
+    //BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object lib_pointer=get(E, self, to_int(0));
     REQUIRE_TYPE(lib_pointer, t_pointer);
@@ -477,7 +486,7 @@ Object ffi_destroy(Executor* E, Object* arguments, int arguments_count){
     return null_const;
 }
 
-Object ffi_open(Executor* E, Object* arguments, int arguments_count){
+Object ffi_open(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object library_name_object=arguments[0];
     Object result;
     table_init(E, &result);
@@ -497,9 +506,9 @@ Object ffi_open(Executor* E, Object* arguments, int arguments_count){
     }
     set(E, result, to_int(0), to_pointer(dll_handle));
     
-    set_function(E, result, "struct", 1, true, ffi_struct);
-    set_function(E, result, "function", 2, true, ffi_function);
-    set_function(E, result, "destroy", 1, false, ffi_destroy);
+    set_function_bound(E, result, "struct", 1, true, ffi_struct);
+    set_function_bound(E, result, "function", 2, true, ffi_function);
+    set_function_bound(E, result, "destroy", 1, false, ffi_destroy);
     
     Object basic_types;
     table_init(E, &basic_types);
@@ -510,8 +519,9 @@ Object ffi_open(Executor* E, Object* arguments, int arguments_count){
     set(E, basic_types, to_string("string"), to_pointer(&ffi_type_pointer));
     set(E, basic_types, to_string("pointer"), to_pointer(&ffi_type_pointer));
     set(E, basic_types, to_string("void"), to_pointer(&ffi_type_void));
-
     set(E, result, to_string("basic_types"), basic_types);
+
+    table_protect(result.tp);
     
     return result;
 }

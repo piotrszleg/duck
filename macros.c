@@ -4,12 +4,9 @@ typedef expression* (*ExpressionInitializer)(void);
 
 // TODO: Remove these globals
 static map_t(Object) expression_fields_map;
-typedef map_t(ExpressionInitializer) ExpressionInitializersMap;
-static ExpressionInitializersMap expression_initializers_map;
-static bool expression_initializers_map_initialized=false;
 static Object expression_fields_array[EXPRESSION_TYPES_COUNT];
 
-Object expression_descriptor_get(Executor* E, Object* arguments, int argumets_count);
+Object expression_descriptor_get(Executor* E, Object scope, Object* arguments, int arguments_count);
 Object expression_fields(Executor* E, expression* exp);
 
 void downcast_expression_descriptor(Executor* E, Table* sd){
@@ -63,7 +60,7 @@ Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, express
     return null_const;
 }
 
-Object expression_descriptor_destroy(Executor* E, Object* arguments, int arguments_count){
+Object expression_descriptor_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
     return expression_descriptor_destroy_recursively(E, self.tp, (expression*)struct_descriptor_get_pointer(E, self.tp));
@@ -79,7 +76,7 @@ void postprocess_expression_descriptor(Executor* E, Table* descriptor){
     }
 }
 
-Object expression_descriptor_copy(Executor* E, Object* arguments, int arguments_count){
+Object expression_descriptor_copy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
     expression* copy=copy_expression(struct_descriptor_get_pointer(E, self.tp));
@@ -90,14 +87,14 @@ Object expression_descriptor_copy(Executor* E, Object* arguments, int arguments_
 
 /* 
 get override function
-gets a field from expression struct descriptor and then downcasts it to proper type depedning on expression type field
+gets a field from expression struct descriptor and then downcasts it to proper type depending on expression type field
 by changing it's fields table to one gotten from expression_fields
 */
-Object expression_descriptor_get(Executor* E, Object* arguments, int argumets_count){
+Object expression_descriptor_get(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
     Object replaced_get=table_get(E, self.tp, to_string("replaced_get"));
-    Object get_result=call(E, replaced_get, arguments, argumets_count);
+    Object get_result=call(E, replaced_get, arguments, arguments_count);
     if(is_struct_descriptor(E, get_result)){
         downcast_expression_descriptor(E, get_result.tp);
         postprocess_expression_descriptor(E, get_result.tp);
@@ -113,24 +110,24 @@ Object expression_fields(Executor* E, expression* exp) {
     }
     switch(exp->type){
         #define EXPRESSION(etype) \
-            case e_##etype: {\
-            etype* casted=new_##etype();\
-            allow_unused_variable(&casted);\
-            Object fields;\
+            case e_##etype: { \
+            etype* casted=new_##etype(); \
+            allow_unused_variable(&casted); \
+            Object fields; \
             table_init(E, &fields);\
-            map_set(&expression_fields_map, #etype, fields);\
-            expression_fields_array[e_##etype]=fields;\
-            reference(&fields);\
-            set(E, fields, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int));\
+            map_set(&expression_fields_map, #etype, fields); \
+            expression_fields_array[e_##etype]=fields; \
+            reference(&fields); \
+            set(E, fields, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int)); \
             set(E, fields, to_string("fields_expression_type"), to_int(exp->type));
         #define FIELD(field_name, field_descriptor) \
             { Object field_temp=field_descriptor; \
             set(E, fields, to_string(#field_name), field_temp); }
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name)\
-            casted->field_name=new_##type();\
+        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) \
+            casted->field_name=new_##type(); \
             FIELD(field_name, to_struct_pointer_field(E, OFFSET(*casted, field_name), expression_fields(E, (expression*)casted->field_name)));
-        #define EXPRESSION_FIELD(field_name)\
-            casted->field_name=new_expression();\
+        #define EXPRESSION_FIELD(field_name) \
+            casted->field_name=new_expression(); \
             FIELD(field_name, to_struct_pointer_field(E, OFFSET(*casted, field_name), expression_fields(E, casted->field_name)));
         #define BOOL_FIELD(field_name)                       set(E, fields, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_int));
         #define FLOAT_FIELD(field_name)                      set(E, fields, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_float));
@@ -155,12 +152,11 @@ Object expression_fields(Executor* E, expression* exp) {
     }
 }
 
-Object new_expression_descriptor(Executor* E, Object* arguments, int arguments_count){
-    Object expression_name=arguments[0];
-    REQUIRE_TYPE(expression_name, t_string);
-    ExpressionInitializer* initializer=map_get(&expression_initializers_map, expression_name.text);
+Object new_expression_descriptor(Executor* E, Object scope, Object* arguments, int arguments_count){
+    REQUIRE_TYPE(scope, t_pointer)
+    ExpressionInitializer initializer=(ExpressionInitializer)scope.p;
     if(initializer!=NULL){
-        expression* exp=(*initializer)();
+        expression* exp=initializer();
         exp->line_number=E->line;
         exp->column_number=0;
         Object sd=new_struct_descriptor(E, (void*)exp, expression_fields(E, exp));
@@ -172,11 +168,9 @@ Object new_expression_descriptor(Executor* E, Object* arguments, int arguments_c
 }
 
 void register_ast_types(Executor* E, Object scope){
-    if(expression_initializers_map_initialized){
-        return;
-    }
-    map_init(&expression_initializers_map);
-    #define EXPRESSION(type) map_set(&expression_initializers_map, #type, (ExpressionInitializer)&new_##type);
+    #define EXPRESSION(type){ Object function=to_function(E, new_expression_descriptor, NULL, 0); \
+                              function.fp->enclosing_scope=to_pointer(new_##type); \
+                              set(E, scope, to_string("new_"#type), function); }
     #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
     #define EXPRESSION_FIELD(field_name)
     #define BOOL_FIELD(field_name)                     
@@ -198,9 +192,7 @@ void register_ast_types(Executor* E, Object scope){
     #undef INT_FIELD
     #undef END
 
-    expression_initializers_map_initialized=true;
     set_function(E, scope, "copy_expression", 1, false, expression_descriptor_copy);
-    set_function(E, scope, "new_expression", 1, false, new_expression_descriptor);
 }
 
 Object wrap_expression(Executor* E, expression* exp){

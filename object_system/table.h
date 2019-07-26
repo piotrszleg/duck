@@ -60,7 +60,7 @@ int table_compare(Executor* E, Table* a, Table* b, Object* error);
 char* table_stringify(Executor* E, Table* t);
 Object table_copy(Executor* E, Table* t);
 void table_component_init(Table* t);
-Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_count);
+Object table_get_iterator_object(Executor* E, Object scope, Object* arguments, int arguments_count);
 TableIterator table_get_iterator(Table* iterated);
 IterationResult table_iterator_next(TableIterator* it);
 

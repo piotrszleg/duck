@@ -2,14 +2,8 @@
 #include "../../datatypes/map.h"
 #include "regex.h"
 
-/*
-TODO:
-- flags
-- split
-- replace
-*/
-
-Object regex_object_destroy(Executor* E, Object* arguments, int arguments_count){
+Object regex_object_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object compiled_regex=get(E, self, to_int(0));
     REQUIRE_TYPE(compiled_regex, t_pointer);
@@ -20,7 +14,8 @@ Object regex_object_destroy(Executor* E, Object* arguments, int arguments_count)
     return null_const;
 }
 
-Object regex_object_call(Executor* E, Object* arguments, int arguments_count){
+Object regex_object_call(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object compiled_regex=get(E, self, to_int(0));
     REQUIRE_TYPE(compiled_regex, t_pointer);
@@ -55,7 +50,8 @@ char* substring(char* original, int start, int end){
     return substring;
 }
 
-Object regex_object_split(Executor* E, Object* arguments, int arguments_count){
+Object regex_object_split(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object compiled_regex=get(E, self, to_int(0));
     REQUIRE_TYPE(compiled_regex, t_pointer);
@@ -79,7 +75,8 @@ Object regex_object_split(Executor* E, Object* arguments, int arguments_count){
     return result;
 }
 
-Object regex_object_replace(Executor* E, Object* arguments, int arguments_count){
+Object regex_object_replace(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object compiled_regex=get(E, self, to_int(0));
     REQUIRE_TYPE(compiled_regex, t_pointer);
@@ -144,7 +141,8 @@ Object regex_object_replace(Executor* E, Object* arguments, int arguments_count)
     return to_string(stream_get_data(&s));
 }
 
-Object regex_object_process(Executor* E, Object* arguments, int arguments_count){
+Object regex_object_process(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     Object compiled_regex=get(E, self, to_int(0));
     REQUIRE_TYPE(compiled_regex, t_pointer);
@@ -180,7 +178,7 @@ Object regex_object_process(Executor* E, Object* arguments, int arguments_count)
     }
 }
 
-Object regex_module_compile(Executor* E, Object* arguments, int arguments_count){
+Object regex_module_compile(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object pattern=arguments[1];
     REQUIRE_ARGUMENT_TYPE(pattern, t_string);
 
@@ -194,7 +192,7 @@ Object regex_module_compile(Executor* E, Object* arguments, int arguments_count)
         } else if(strcmp(arguments[a].text, "ignore_case")==0){
             flags|=REG_ICASE;
         } else if(strcmp(arguments[a].text, "basic")==0){
-            flags&=~REG_EXTENDED;
+            flags&=~REG_EXTENDED;// remove flag REG_EXTENDED
         } else {
             RETURN_ERROR("REGEX_ERROR", arguments[a], "Unknown flag.")
         }
@@ -213,11 +211,12 @@ Object regex_module_compile(Executor* E, Object* arguments, int arguments_count)
         RETURN_ERROR("REGEX_ERROR", arguments[0], buffer);
     } else {
         set(E, result, to_int(0), to_pointer(compiled_regex));
-        set_function(E, result, "call", 2, false, regex_object_call);
-        set_function(E, result, "split", 2, false, regex_object_split);
-        set_function(E, result, "replace", 3, false, regex_object_replace);
-        set_function(E, result, "process", 3, false, regex_object_process);
-        set_function(E, result, "destroy", 1, false, regex_object_destroy);
+        set_function_bound(E, result, "call", 2, false, regex_object_call);
+        set_function_bound(E, result, "split", 2, false, regex_object_split);
+        set_function_bound(E, result, "replace", 3, false, regex_object_replace);
+        set_function_bound(E, result, "process", 3, false, regex_object_process);
+        set_function_bound(E, result, "destroy", 1, false, regex_object_destroy);
+        table_protect(result.tp);
         return result;
     }
 }

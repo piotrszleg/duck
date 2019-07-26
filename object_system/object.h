@@ -112,14 +112,14 @@ OBJECT_INIT_E(table)
 
 #define CHECK_OBJECT(checked) \
     if(checked==NULL) { \
-        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to Function %s is null", __FUNCTION__); \
+        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); \
     } \
     if(checked->type<t_null||checked->type>LAST_OBJECT_TYPE) { \
         THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
     }
 
 // declaration of function pointer type used in function objects
-typedef Object (*ObjectSystemFunction)(Executor* E, Object* arguments, int arguments_count);
+typedef Object (*ObjectSystemFunction)(Executor* E, Object scope, Object* arguments, int arguments_count);
 
 typedef void (*gc_PointerFreeFunction)(gc_Pointer*);
 typedef void (*gc_PointerForeachChildrenCallback)(Executor*, Object*);

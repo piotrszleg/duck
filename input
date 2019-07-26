@@ -1,9 +1,2 @@
-patching_table.string=[]
-patching_table.string["%"]=(a, b)->{
-    arguments=[a]
-    b `##` (index, value)->{
-        arguments[index+1]=value
-    }
-    call(format, arguments)
-}
-"{.x={}, .y={}}" % [10, 20]
+file=open_file('input, 'r)
+file.read_line(10)

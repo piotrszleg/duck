@@ -14,17 +14,8 @@
         THROW_ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
     }
 
-#define REQUIRE(predicate, cause) if(!(predicate)) { RETURN_ERROR("WRONG_ARGUMENT", cause, "Requirement of function %s wasn't satisified: %s", __FUNCTION__, #predicate); }
-#define REQUIRE_TYPE(o, t) if(o.type!=t) { \
-    RETURN_ERROR("WRONG_OBJECT_TYPE", o, "Wrong type of \"%s\" in function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
-
-#define REQUIRE_ARGUMENT_TYPE(o, t) if(o.type!=t) { \
-    RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
-
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-
-#define EQUALS_STRING(object, str) (object.type==t_string && strcmp(object.text, str)==0)
 
 #define DEBUG_PRINT printf("<%i>\n", __COUNTER__);
 

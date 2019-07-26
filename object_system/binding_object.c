@@ -1,6 +1,6 @@
 #include "binding_object.h"
 
-Object binding_bind_operator(Executor* E, Object* arguments, int arguments_count){
+Object binding_bind_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object binding=arguments[0];
     Object binded_argument=arguments[1];
     Object count=get(E, binding, to_string("count"));
@@ -13,7 +13,7 @@ Object binding_bind_operator(Executor* E, Object* arguments, int arguments_count
     return binding;
 }
 
-Object binding_bind(Executor* E, Object* arguments, int arguments_count){
+Object binding_bind(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object binding=arguments[0];
     Object count=get(E, binding, to_string("count"));
 
@@ -27,7 +27,7 @@ Object binding_bind(Executor* E, Object* arguments, int arguments_count){
     return binding;
 }
 
-Object binding_call(Executor* E, Object* arguments, int arguments_count){
+Object binding_call(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object binding=arguments[0];
     Object count=get(E, binding, to_string("count"));
     Object f=get(E, binding, to_string("f"));
@@ -66,7 +66,7 @@ Object to_binding(Executor* E, Object f, Object argument){
     return binding;
 }
 
-Object new_binding(Executor* E, Object* arguments, int arguments_count){
+Object new_binding(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object binding;
     table_init(E, &binding);
 

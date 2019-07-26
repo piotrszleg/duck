@@ -24,7 +24,7 @@ Object executor_on_unhandled_error(Executor* E, Object error) {
 
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count){
     if(f->ftype==f_native){
-        return f->native_pointer(E, arguments, arguments_count);
+        return f->native_pointer(E, f->enclosing_scope, arguments, arguments_count);
     } else {
         THROW_ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
         return null_const;
@@ -90,7 +90,7 @@ void adding_strings(Executor* E){// tests whether "Hello "+"Cruel World"="Hello 
     printf("test successful\n");
 }
 
-Object add_three(Executor* E, Object* arguments, int arguments_count){
+Object add_three(Executor* E, Object scope, Object* arguments, int arguments_count){
     assert(arguments_count==1);
     Object three=to_int(3);
     Object result= operator(E, arguments[0], three, "+");

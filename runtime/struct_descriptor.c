@@ -22,8 +22,8 @@ char* NATIVE_TYPES_NAMES[]={
     "pointer"
 };
 
-static Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count);
-static Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count);
+static Object struct_descriptor_set(Executor* E, Object scope, Object* arguments, int arguments_count);
+static Object struct_descriptor_get(Executor* E, Object scope, Object* arguments, int arguments_count);
 
 bool is_struct_descriptor(Executor* E, Object o){
     if(o.type!=t_table){
@@ -81,7 +81,7 @@ Object struct_get_field(Executor* E, void* position, Object fields, Object key){
 }
 
 
-Object struct_descriptor_stringify(Executor* E, Object* arguments, int arguments_count){
+Object struct_descriptor_stringify(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table)
     stream s;
@@ -124,7 +124,7 @@ Object struct_descriptor_stringify(Executor* E, Object* arguments, int arguments
     return to_string((char*)stream_get_data(&s));
 }
 
-Object struct_descriptor_get(Executor* E, Object* arguments, int arguments_count){
+Object struct_descriptor_get(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object key=arguments[1];
 
@@ -220,7 +220,7 @@ Object struct_set_field(Executor* E, void* position, Object fields, Object key, 
     return field_set(E, field_position, field, value);
 }
 
-Object struct_descriptor_set(Executor* E, Object* arguments, int arguments_count){
+Object struct_descriptor_set(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object key=arguments[1];
     Object value=arguments[2];

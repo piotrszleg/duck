@@ -1,6 +1,6 @@
 #include "pipe_object.h"
 
-Object pipe_pipe_operator(Executor* E, Object* arguments, int arguments_count){
+Object pipe_pipe_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object pipe=arguments[0];
     Object f=arguments[1];
     Object count=get(E, pipe, to_string("count"));
@@ -13,7 +13,7 @@ Object pipe_pipe_operator(Executor* E, Object* arguments, int arguments_count){
     return pipe;
 }
 
-Object pipe_call(Executor* E, Object* arguments, int arguments_count){
+Object pipe_call(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object pipe=arguments[0];
     Object count=get(E, pipe, to_string("count"));
 
@@ -50,7 +50,7 @@ Object to_pipe(Executor* E, Object f1, Object f2){
     return pipe;
 }
 
-Object new_pipe(Executor* E, Object* arguments, int arguments_count){
+Object new_pipe(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object pipe;
     table_init(E, &pipe);
 

@@ -9,7 +9,7 @@ char* get_and_stringify(Executor* E, Object t, const char* key){
     }
 }
 
-Object multiple_causes_stringify(Executor* E, Object* arguments, int arguments_count){
+Object multiple_causes_stringify(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
 
     stream s;
@@ -65,7 +65,7 @@ Object multiple_causes(Executor* E, Object* causes, int causes_count){
     return null_const;
 }
 
-Object error_stringify(Executor* E, Object* arguments, int arguments_count){
+Object error_stringify(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     char* type=get_and_stringify(E, self, "type");
     char* message=get_and_stringify(E, self, "message");
@@ -109,7 +109,7 @@ void handle_if_error(Executor* E, Object o){
     }
 }
 
-Object error_destroy(Executor* E, Object* arguments, int arguments_count){
+Object error_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     if(is_falsy(get(E, self, to_string("handled")))){
         return executor_on_unhandled_error(E, self);

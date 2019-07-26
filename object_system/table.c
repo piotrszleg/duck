@@ -13,6 +13,9 @@ void table_component_init(Table* t){
 // returns true for string that doesn't start with number and has only letters, numbers and underscores inside
 bool is_valid_name(char* s){
     bool first=true;
+    if(s[0]=='\0'){
+        return false;
+    }
     for(char* p=s; *p!='\0'; p++){
         if(!(
             (*p>='a' && *p<='z')
@@ -403,19 +406,8 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
 Object get(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);
 
-Object table_iterator_object_get(Executor* E, Object* arguments, int arguments_count){
-    Object self=arguments[0];
-    REQUIRE_ARGUMENT_TYPE(self, t_table);
-    Object key=arguments[1];
-
-    if(EQUALS_STRING(key, "next")){
-        return table_get(E, self.tp, key);
-    } else {
-        return null_const;
-    }
-}
-
-Object table_iterator_object_next(Executor* E, Object* arguments, int arguments_count){
+Object table_iterator_object_next(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table);
     Object result;
@@ -432,7 +424,8 @@ Object table_iterator_object_next(Executor* E, Object* arguments, int arguments_
     return result;
 }
 
-Object table_iterator_object_destroy(Executor* E, Object* arguments, int arguments_count){
+Object table_iterator_object_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table);
     Object iterator_address=table_get(E, self.tp, to_int(0));
@@ -441,7 +434,7 @@ Object table_iterator_object_destroy(Executor* E, Object* arguments, int argumen
     return null_const;
 }
 
-Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_count){
+Object table_get_iterator_object(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object iterator;
     table_init(E, &iterator);
@@ -450,9 +443,8 @@ Object table_get_iterator_object(Executor* E, Object* arguments, int arguments_c
     *it=table_get_iterator(self.tp);
     set(E, iterator, to_int(0), to_pointer(it));
     set(E, iterator, to_string("table"), self);// ensures that table won't be destroyed before the iterator
-    set(E, iterator, to_string("get"), to_function(E, table_iterator_object_get, NULL, 2));
-    set(E, iterator, to_string("next"), to_function(E, table_iterator_object_next, NULL, 1));
-    set(E, iterator, to_string("destroy"), to_function(E, table_iterator_object_destroy, NULL, 1));
+    set_function_bound(E, iterator, "next", 1, false, table_iterator_object_next);
+    set_function_bound(E, iterator, "destroy", 1, false, table_iterator_object_destroy);
     table_protect(iterator.tp);
     return iterator;
 }

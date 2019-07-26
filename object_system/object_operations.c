@@ -57,9 +57,9 @@ static Object get_patch(Executor* E, const char* type_name, const char* patch_na
         return call(E, patch, arguments, sizeof(arguments)/sizeof(Object)); \
     }
 
-static Object table_get_override(Executor* E, Table* t, const char* override_name) {
-    if(table_has_special_fields(t)){
-        Object override=table_get(E, t, to_string(override_name));
+static Object table_get_override(Executor* E, Object o, const char* override_name) {
+    if(table_has_special_fields(o.tp)){
+        Object override=get(E, o, to_string(override_name));
         return override;
     } else {
         return null_const;
@@ -110,9 +110,9 @@ Object cast(Executor* E, Object o, ObjectType type){
             }
             break;
         }
-        case t_table:
+        case t_table: {
             char* override_name=string_add("to_", OBJECT_TYPE_NAMES[o.type]);
-            Object cast_override=table_get_override(E, o.tp, override_name);
+            Object cast_override=table_get_override(E, o, override_name);
             if(cast_override.type!=t_null){
                 // call get_function a and b as arguments
                 Object result=call(E, cast_override, &o, 1);
@@ -123,6 +123,7 @@ Object cast(Executor* E, Object o, ObjectType type){
             destroy_unreferenced(E, &cast_override);
             free(override_name);
             break;
+        }
         default:;
     }
     char* patch_name=string_add("to_", OBJECT_TYPE_NAMES[o.type]);
@@ -174,7 +175,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         case t_float:
             return sign(a.float_value-b.float_value);
         case t_table: {
-            Object compare_override=table_get_override(E, a.tp, "compare");
+            Object compare_override=table_get_override(E, a, "compare");
             if(compare_override.type!=t_null){
                 Object call_result=call(E, compare_override, (Object[]){a, b}, 2);
                 destroy_unreferenced(E, &compare_override);
@@ -231,7 +232,7 @@ unsigned hash(Executor* E, Object o, Object* error) {
         case t_null:
             return 0;
         case t_table: {
-            Object hash_override=table_get_override(E, o.tp, "hash");
+            Object hash_override=table_get_override(E, o, "hash");
             if(hash_override.type!=t_null){
                 Object call_result=call(E, hash_override, &o, 1);
                 destroy_unreferenced(E, &hash_override);
@@ -269,7 +270,7 @@ unsigned hash(Executor* E, Object o, Object* error) {
     }
 }
 
-Object coroutine_iterator_next(Executor* E, Object* arguments, int arguments_count){
+Object coroutine_iterator_next(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object iterator=arguments[0];
     Object coroutine=get(E, iterator, to_string("coroutine"));
     Object value=call(E, coroutine, NULL, 0);
@@ -291,7 +292,7 @@ Object coroutine_iterator(Executor* E, Object coroutine){
     return iterator;
 }
 
-Object string_iterator_next(Executor* E, Object* arguments, int arguments_count){
+Object string_iterator_next(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object iterator=arguments[0];
     Object iterated=get(E, iterator, to_string("iterated"));
     REQUIRE_TYPE(iterated, t_string)
@@ -325,11 +326,11 @@ Object string_iterator(Executor* E, Object str){
 Object get_iterator(Executor* E, Object o){
     switch(o.type){
         case t_table: {
-            Object iterator_override=table_get_override(E, o.tp, "iterator");
+            Object iterator_override=table_get_override(E, o, "iterator");
             if(iterator_override.type!=t_null){
                 return call(E, iterator_override, &o, 1);
             } else {
-                return table_get_iterator_object(E, &o, 1);
+                return table_get_iterator_object(E, null_const, &o, 1);
             }
         }
         case t_coroutine:
@@ -345,7 +346,7 @@ Object get_iterator(Executor* E, Object o){
 Object operator(Executor* E, Object a, Object b, const char* op){
     size_t op_length=strlen(op);
     if(a.type==t_table){
-        Object operator_override=table_get_override(E, a.tp, op);
+        Object operator_override=table_get_override(E, a, op);
         if(operator_override.type!=t_null){
             // call get_function a and b as arguments
             Object result=call(E, operator_override, ((Object[]){a, b}), 2);
@@ -535,7 +536,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
 
 char* stringify(Executor* E, Object o){
     if(o.type==t_table){
-        Object stringify_override=table_get_override(E, o.tp, "stringify");
+        Object stringify_override=table_get_override(E, o, "stringify");
         if(stringify_override.type!=t_null){
             Object result=call(E, stringify_override, &o, 1);
             if(result.type!=t_string){
@@ -672,14 +673,14 @@ Object get(Executor* E, Object o, Object key){
         case t_table:
         {
             // try to get "get" field overriding function from the table and use it
-            Object get_override=table_get_override(E, o.tp, "get");
+            Object get_override=null_const;
+            if(table_has_special_fields(o.tp)){
+                get_override=table_get(E, o.tp, to_string("get"));
+            }
             if(get_override.type!=t_null){
                 Object arguments[]={o, key};
                 Object result=call(E, get_override, arguments, 2);
                 return result;
-            } else if(table_is_protected(o.tp)){
-                RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){o, key}, 2), 
-                    "Attempted to get a field from a protected table.");
             } else {
                 return table_get(E, o.tp, key);
             }
@@ -729,7 +730,7 @@ Object get(Executor* E, Object o, Object key){
 Object set(Executor* E, Object o, Object key, Object value){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the Table and use it
-        Object set_override=table_get_override(E, o.tp, "set");
+        Object set_override=table_get_override(E, o, "set");
         if(set_override.type!=t_null){
             return call(E, set_override, (Object[]){o, key, value}, 3);
         } else if(table_is_protected(o.tp)){
@@ -757,7 +758,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
         }
         case t_table:
         {
-            Object call_override=table_get_override(E, o.tp, "call");
+            Object call_override=table_get_override(E, o, "call");
             if(call_override.type!=t_null){
                 // add o object as a first argument
                 Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
@@ -789,7 +790,7 @@ Object message_object(Executor* E, Object messaged, const char* message_identifi
     switch(messaged.type) {
         case t_table:
         {
-            Object message_override=table_get_override(E, messaged.tp, "message");
+            Object message_override=table_get_override(E, messaged, "message");
             if(message_override.type!=t_null){
                 // call "message" field of messaged, passing messaged, message_identifier and rest of the arguments
                 Object* override_arguments=malloc(sizeof(Object)*(arguments_count+2));
@@ -834,7 +835,7 @@ Object copy(Executor* E, Object o){
         }
         case t_table:
         {
-            Object copy_override=table_get_override(E, o.tp, "copy");
+            Object copy_override=table_get_override(E, o, "copy");
             if(copy_override.type!=t_null){
                 return call(E, copy_override, &o, 1);
             } else {
@@ -847,7 +848,7 @@ Object copy(Executor* E, Object o){
 }
 
 void call_destroy(Executor* E, Object o){
-    Object destroy_override=table_get_override(E, o.tp, "destroy");
+    Object destroy_override=table_get_override(E, o, "destroy");
     if(destroy_override.type!=t_null){
         Object destroy_result=call(E, destroy_override, &o, 1);
         destroy_unreferenced(E, &destroy_result);

@@ -50,6 +50,7 @@ bool vector_in_bounds(const vector* v, int index);
 void* vector_get_data(vector* v);
 void vector_copy(vector* source, vector* destination);
 
+// these functions will only work if items stored in vector are pointers
 void pointers_vector_push(vector* v, void* pointer);
 void* pointers_vector_get(vector* v, int index);
 void pointers_vector_set(vector* v, int index, void* value);

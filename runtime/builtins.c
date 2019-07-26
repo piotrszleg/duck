@@ -2,7 +2,7 @@
 
 // TODO: coroutine_free
 
-Object builtin_coroutine(Executor* E, Object* arguments, int arguments_count){
+Object builtin_coroutine(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object function=arguments[0];
     Object coroutine;
     coroutine_init(E, &coroutine);
@@ -62,19 +62,19 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
     }
 }
 
-Object builtin_print(Executor* E, Object* arguments, int arguments_count){
+Object builtin_print(Executor* E, Object scope, Object* arguments, int arguments_count){
     USING_STRING(cast(E, arguments[0], t_string).text,
         printf("%s\n", str));
     return null_const;
 }
 
-Object builtin_output(Executor* E, Object* arguments, int arguments_count){
+Object builtin_output(Executor* E, Object scope, Object* arguments, int arguments_count){
     USING_STRING(cast(E, arguments[0], t_string).text,
         printf("%s", str));
     return null_const;
 }
 
-Object builtin_input(Executor* E, Object* arguments, int arguments_count){
+Object builtin_input(Executor* E, Object scope, Object* arguments, int arguments_count){
     #define MAX_INPUT 128
     char* input=malloc(MAX_INPUT*sizeof(char));
     if(fgets_no_newline(input, MAX_INPUT, stdin)!=NULL){
@@ -87,7 +87,7 @@ Object builtin_input(Executor* E, Object* arguments, int arguments_count){
 
 // string operations
 
-Object builtin_substring(Executor* E, Object* arguments, int arguments_count){
+Object builtin_substring(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
     Object start=arguments[1];
@@ -104,13 +104,13 @@ Object builtin_substring(Executor* E, Object* arguments, int arguments_count){
     return to_string(result);
 }
 
-Object builtin_string_length(Executor* E, Object* arguments, int arguments_count){
+Object builtin_string_length(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
     return to_int(strlen(str.text));
 }
 
-Object builtin_to_character(Executor* E, Object* arguments, int arguments_count){
+Object builtin_to_character(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object n=arguments[0];
     REQUIRE_TYPE(n, t_int);
     char* result=malloc(sizeof(char)*2);
@@ -119,14 +119,14 @@ Object builtin_to_character(Executor* E, Object* arguments, int arguments_count)
     return to_string(result);
 }
 
-Object builtin_from_character(Executor* E, Object* arguments, int arguments_count){
+Object builtin_from_character(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
     REQUIRE(strlen(str.text)==1, str)
     return to_int(str.text[0]);
 }
 
-Object builtin_call(Executor* E, Object* arguments, int arguments_count){
+Object builtin_call(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object function=arguments[0];
     Object arguments_table=arguments[1];
     int i=0;
@@ -153,7 +153,7 @@ bool string_compare_parts(char* a, char* b, int length){
     return true;
 }
 
-Object builtin_format(Executor* E, Object* arguments, int arguments_count){
+Object builtin_format(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object str=arguments[0];
     REQUIRE_TYPE(str, t_string)
     stream s;
@@ -194,24 +194,33 @@ Object builtin_format(Executor* E, Object* arguments, int arguments_count){
     return to_string(stream_get_data(&s));
 }
 
-Object builtin_printf(Executor* E, Object* arguments, int arguments_count){
-    Object to_print=builtin_format(E, arguments, arguments_count);
+Object builtin_printf(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object to_print=builtin_format(E, scope, arguments, arguments_count);
     REQUIRE_TYPE(to_print, t_string)
     printf("%s\n", to_print.text);
     return null_const;
 }
 
-Object builtin_assert(Executor* E, Object* arguments, int arguments_count){
+Object builtin_assert(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object tested=arguments[0];
     if(is_falsy(tested)){
-        USING_STRING(stringify(E, tested), 
-            RETURN_ERROR("ASSERTION_FAILED", tested, "Assertion failed, %s is falsy.", str));
+        RETURN_ERROR("ASSERTION_FAILED", tested, "Assertion failed, the object is falsy.");
     } else {
         return null_const;
     }
 }
 
-Object builtin_typeof(Executor* E, Object* arguments, int arguments_count){
+Object builtin_assert_equal(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object a=arguments[0];
+    Object b=arguments[1];
+    if(compare(E, a, b)!=0){
+        RETURN_ERROR("ASSERTION_FAILED", multiple_causes(E, (Object[]){a, b}, 2), "Assertion failed, provided objects are not equal.");
+    } else {
+        return null_const;
+    }
+}
+
+Object builtin_typeof(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object type_name;
     string_init(&type_name);
@@ -219,18 +228,14 @@ Object builtin_typeof(Executor* E, Object* arguments, int arguments_count){
     return type_name;
 }
 
-Object builtin_table_get(Executor* E, Object* arguments, int arguments_count){
+Object builtin_table_get(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object key=arguments[1];
-    if(table_is_protected(self.tp)){
-        return table_get(E, self.tp, key);
-    } else {
-        RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){self, key}, 2), "Function table_get was called on protected table.")
-    }
+    return table_get(E, self.tp, key);
 }
 
-Object builtin_table_set(Executor* E, Object* arguments, int arguments_count){
+Object builtin_table_set(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object key=arguments[1]; 
@@ -243,38 +248,38 @@ Object builtin_table_set(Executor* E, Object* arguments, int arguments_count){
     }
 }
 
-Object builtin_disable_special_fields(Executor* E, Object* arguments, int arguments_count){
+Object builtin_disable_special_fields(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object table=arguments[0];
     REQUIRE_ARGUMENT_TYPE(table, t_table)
     table_disable_special_fields(table.tp);
     return table;
 }
 
-Object builtin_table_stringify(Executor* E, Object* arguments, int arguments_count){
+Object builtin_table_stringify(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object table=arguments[0];
     REQUIRE_ARGUMENT_TYPE(table, t_table)
     return to_string(table_stringify(E, table.tp));
 }
 
-Object builtin_table_copy(Executor* E, Object* arguments, int arguments_count){
+Object builtin_table_copy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object table=arguments[0];
     REQUIRE_ARGUMENT_TYPE(table, t_table)
     return table_copy(E, table.tp);
 }
 
-Object builtin_to_string(Executor* E, Object* arguments, int arguments_count){
+Object builtin_to_string(Executor* E, Object scope, Object* arguments, int arguments_count){
     return cast(E, arguments[0], t_string);
 }
 
-Object builtin_to_float(Executor* E, Object* arguments, int arguments_count){
+Object builtin_to_float(Executor* E, Object scope, Object* arguments, int arguments_count){
     return cast(E, arguments[0], t_float);
 }
 
-Object builtin_to_int(Executor* E, Object* arguments, int arguments_count){
+Object builtin_to_int(Executor* E, Object scope, Object* arguments, int arguments_count){
     return cast(E, arguments[0], t_int);
 }
 
-Object builtin_cast(Executor* E, Object* arguments, int arguments_count){
+Object builtin_cast(Executor* E, Object scope, Object* arguments, int arguments_count){
     REQUIRE_TYPE(arguments[1], t_string);
     for(int i=0; i<OBJECT_TYPE_NAMES_COUNT; i++){
         if(strcmp(OBJECT_TYPE_NAMES[i], arguments[1].text)==0){
@@ -284,51 +289,51 @@ Object builtin_cast(Executor* E, Object* arguments, int arguments_count){
     RETURN_ERROR("INCORRECT_ARGUMENT", arguments[1], "Incorrect type name");
 }
 
-Object builtin_iterator(Executor* E, Object* arguments, int arguments_count){
+Object builtin_iterator(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object o=arguments[0];
     return get_iterator(E, o);
 }
 
-Object builtin_include(Executor* E, Object* arguments, int arguments_count){
+Object builtin_include(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object path=arguments[0];
     Object result;
     REQUIRE_TYPE(path, t_string)
-    Object scope;
-    table_init(E, &scope);
-    inherit_scope(E, scope, E->bytecode_environment.scope);
-    result=evaluate_file(E, path.text, scope);
+    Object sub_scope;
+    table_init(E, &sub_scope);
+    inherit_scope(E, sub_scope, E->bytecode_environment.scope);
+    result=evaluate_file(E, path.text, sub_scope);
     return result;
 }
 
-Object builtin_eval(Executor* E, Object* arguments, int arguments_count){
+Object builtin_eval(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object text=arguments[0];
     Object result;
     REQUIRE_TYPE(text, t_string)
-    Object scope;
-    table_init(E, &scope);
-    inherit_scope(E, scope, E->bytecode_environment.scope);
-    result=evaluate_string(E, text.text, scope);
+    Object sub_scope;
+    table_init(E, &sub_scope);
+    inherit_scope(E, sub_scope, E->bytecode_environment.scope);
+    result=evaluate_string(E, text.text, sub_scope);
     return result;
 }
 
-Object file_destroy(Executor* E, Object* arguments, int arguments_count){
+Object file_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
-    Object pointer=table_get(E, self.tp, to_string("pointer"));
+    Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     fclose((FILE*)pointer.p);
     return null_const;
 }
 
-Object builtin_time(Executor* E, Object* arguments, int arguments_count){
+Object builtin_time(Executor* E, Object scope, Object* arguments, int arguments_count){
     return to_int(time(NULL));
 }
 
-Object file_iterator_next(Executor* E, Object* arguments, int arguments_count){
+Object file_iterator_next(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     Object iterated=get(E, self, to_string("iterated"));
     REQUIRE_ARGUMENT_TYPE(iterated, t_table)
-    Object pointer=table_get(E, iterated.tp, to_string("pointer"));
+    Object pointer=table_get(E, iterated.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     Object line_number=get(E, self, to_string("line_number"));
     REQUIRE_TYPE(line_number, t_int)
@@ -348,7 +353,8 @@ Object file_iterator_next(Executor* E, Object* arguments, int arguments_count){
     }
 }
 
-Object file_iterator(Executor* E, Object* arguments, int arguments_count){
+Object file_iterator(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object iterator;
@@ -356,16 +362,17 @@ Object file_iterator(Executor* E, Object* arguments, int arguments_count){
     set(E, iterator, to_string("iterated"), self);
     set(E, iterator, to_string("line_number"), to_int(0));
     set_function(E, iterator, "call", 1, false, file_iterator_next);
-    Object pointer=table_get(E, self.tp, to_string("pointer"));
+    Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     fseek((FILE*)pointer.p, 0, SEEK_SET);
     return iterator;
 }
 
-Object file_read_line(Executor* E, Object* arguments, int arguments_count){
+Object file_read_line(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
-    Object pointer=table_get(E, self.tp, to_string("pointer"));
+    Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     char* buffer=malloc(255);
     if(fgets_no_newline(buffer, 255, (FILE*)pointer.p)){
@@ -376,10 +383,11 @@ Object file_read_line(Executor* E, Object* arguments, int arguments_count){
     }
 }
 
-Object file_read_entire(Executor* E, Object* arguments, int arguments_count){
+Object file_read_entire(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
-    Object pointer=table_get(E, self.tp, to_string("pointer"));
+    Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     FILE* fp=(FILE*)pointer.p;
     fseek(fp, 0, SEEK_END);
@@ -397,18 +405,30 @@ Object file_read_entire(Executor* E, Object* arguments, int arguments_count){
     }
 }
 
-Object file_write(Executor* E, Object* arguments, int arguments_count){
+Object file_write(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object text=arguments[1];
     REQUIRE_ARGUMENT_TYPE(text, t_string)
-    Object pointer=table_get(E, self.tp, to_string("pointer"));
+    Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     fputs(text.text, (FILE*)pointer.p);
     return text;
 }
 
-Object builtin_open_file(Executor* E, Object* arguments, int arguments_count){
+/*
+How to make a safe object interacting with C pointers:
+- Create an empty table.
+- Use to_pointer function on the pointer and save it as one of table's fields.
+- Use set_function_bound to set the table as function's enclosing scope.
+- Use BOUND_FUNCTION_CHECK macro on top of all table's functions to check if first argument is same as the original table
+- Create destroy function that frees the pointer.
+- Call table_protect on the table.
+- You can provide your own set override if you want to allow some of the fields being set.
+*/
+
+Object builtin_open_file(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object filename=arguments[0];
     REQUIRE_TYPE(filename, t_string)
     Object mode=arguments[1];
@@ -420,45 +440,45 @@ Object builtin_open_file(Executor* E, Object* arguments, int arguments_count){
     }
     Object result;
     table_init(E, &result);
-    set(E, result, to_string("pointer"), to_pointer(fp));
-    set_function(E, result, "read_entire", 1, false, file_read_entire);
-    set_function(E, result, "read_line", 1, false, file_read_line);
-    set_function(E, result, "write", 2, false, file_write);
-    set_function(E, result, "iterator", 2, false, file_iterator);
-    set_function(E, result, "destroy", 1, false, file_destroy);
+    set(E, result, to_int(0), to_pointer(fp));
+    set_function_bound(E, result, "read_entire", 1, false, file_read_entire);
+    set_function_bound(E, result, "read_line", 1, false, file_read_line);
+    set_function_bound(E, result, "write", 2, false, file_write);
+    set_function_bound(E, result, "iterator", 2, false, file_iterator);
+    set_function_bound(E, result, "destroy", 1, false, file_destroy);
     table_protect(result.tp);
 
     return result;
 }
 
-Object builtin_remove_file(Executor* E, Object* arguments, int arguments_count){
+Object builtin_remove_file(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object filename=arguments[0];
     REQUIRE_TYPE(filename, t_string)
     remove(filename.text);
     return null_const;
 }
 
-Object builtin_import_dll(Executor* E, Object* arguments, int arguments_count){
+Object builtin_import_dll(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object filename=arguments[0];
     REQUIRE_TYPE(filename, t_string)
     return import_dll(E, filename.text);
 }
 
-Object builtin_exit(Executor* E, Object* arguments, int arguments_count){
+Object builtin_exit(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object execution_result=arguments[0];
     USING_STRING(stringify(E, execution_result), 
         printf("The script \"%s\" has exited with result:\n%s\n", E->file, str));
     exit(0);
 }
 
-Object builtin_terminate(Executor* E, Object* arguments, int arguments_count){
+Object builtin_terminate(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object exit_code=arguments[0];
     REQUIRE_TYPE(exit_code, t_int);
     printf("The script \"%s\" has terminated with return code %i", E->file, exit_code.int_value);
     exit(exit_code.int_value);
 }
 
-Object builtin_traceback(Executor* E, Object* arguments, int arguments_count){
+Object builtin_traceback(Executor* E, Object scope, Object* arguments, int arguments_count){
     printf("traceback:\n");
     for(int i=0; i<vector_count(&E->traceback); i++){
         TracebackPoint* traceback_point=(TracebackPoint*)vector_index(&E->traceback, i);
@@ -469,7 +489,7 @@ Object builtin_traceback(Executor* E, Object* arguments, int arguments_count){
     return null_const;
 }
 
-Object builtin_error(Executor* E, Object* arguments, int arguments_count){
+Object builtin_error(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object type=arguments[0];
     REQUIRE_ARGUMENT_TYPE(type, t_string)
     Object cause=arguments[1];
@@ -480,19 +500,19 @@ Object builtin_error(Executor* E, Object* arguments, int arguments_count){
     return error;
 }
 
-Object builtin_copy(Executor* E, Object* arguments, int arguments_count){
+Object builtin_copy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object to_copy=arguments[0];
     return copy(E, to_copy);
 }
 
-Object builtin_set_random_seed(Executor* E, Object* arguments, int arguments_count){
+Object builtin_set_random_seed(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object number=arguments[0];
     REQUIRE_ARGUMENT_TYPE(number, t_int)
     srand(number.int_value);
     return null_const;
 }
 
-Object builtin_random_int(Executor* E, Object* arguments, int arguments_count){
+Object builtin_random_int(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object left=arguments[0];
     Object right=arguments[1];
     REQUIRE_ARGUMENT_TYPE(left, t_int)
@@ -502,8 +522,12 @@ Object builtin_random_int(Executor* E, Object* arguments, int arguments_count){
     return to_int(left.int_value+random_in_interval);
 }
 
-Object builtin_random_01(Executor* E, Object* arguments, int arguments_count){
+Object builtin_random_01(Executor* E, Object scope, Object* arguments, int arguments_count){
     return to_float((float)rand()/RAND_MAX);
+}
+
+Object builtin_multiple_causes(Executor* E, Object scope, Object* arguments, int arguments_count){
+    return multiple_causes(E, arguments, arguments_count);
 }
 
 Object builtins_table(Executor* E){
@@ -521,6 +545,7 @@ Object builtins_table(Executor* E){
     REGISTER(output, 1)
     REGISTER(input, 0)
     REGISTER(assert, 1)
+    REGISTER(assert_equal, 2)
     REGISTER(typeof, 1)
     REGISTER(table_get, 2)
     REGISTER(table_set, 3)
@@ -577,12 +602,12 @@ Object builtins_table(Executor* E){
     set_function(E, scope, "coroutine", 1, true, builtin_coroutine);
     set_function(E, scope, "format", 1, true, builtin_format);
     set_function(E, scope, "printf", 1, true, builtin_printf);
-    set_function(E, scope, "multiple_causes", 0, true, multiple_causes);
+    set_function(E, scope, "multiple_causes", 0, true, builtin_multiple_causes);
 
     return scope;
 }
 
-Object scope_get_override(Executor* E, Object* arguments, int arguments_count){
+Object scope_get_override(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table)
     Object key=arguments[1];
@@ -602,11 +627,15 @@ Object scope_get_override(Executor* E, Object* arguments, int arguments_count){
     return map_get_result;
 }
 
-Object scope_set_override(Executor* E, Object* arguments, int arguments_count){
+Object scope_set_override(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table)
     Object key=arguments[1];
     Object value=arguments[2];
+
+    if(EQUALS_STRING(key, "set")){
+        key=to_string("_set");
+    }
 
     Object checked=self;
     Object checked_zero_index=null_const;
@@ -615,22 +644,24 @@ Object scope_set_override(Executor* E, Object* arguments, int arguments_count){
     do{
         map_get_result=table_get(E, checked.tp, key);
         if(map_get_result.type!=t_null){
-            destroy_unreferenced(E, &checked);
-            destroy_unreferenced(E, &checked_zero_index);
+            // key was found in outer scope
             table_set(E, checked.tp, key, value);
+
+            // destroy_unreferenced(E, &checked);
+            destroy_unreferenced(E, &checked_zero_index);
             return value;
         } else {
-            destroy_unreferenced(E, &checked);
+            // destroy_unreferenced(E, &checked);
             destroy_unreferenced(E, &checked_zero_index);
             checked=table_get(E, checked.tp, to_string("base"));
             checked_zero_index=table_get(E, checked.tp, to_int(0));
         }
     } while(checked.type==t_table 
-         && !EQUALS_STRING(checked_zero_index, "builtins_table"));
+         && !EQUALS_STRING(checked_zero_index, "builtins_table"));// builtins table can't be changed
     // key wasn't found in any outer scope
     table_set(E, self.tp, key, value);
     
-    destroy_unreferenced(E, &checked);
+    // destroy_unreferenced(E, &checked);
     destroy_unreferenced(E, &checked_zero_index);
     return value;
 }
