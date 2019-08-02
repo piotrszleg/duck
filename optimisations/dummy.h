@@ -5,11 +5,12 @@
 #include "../object_system/object.h"
 
 typedef enum {
-    d_any,
-    d_any_type,
-    d_known_type,
-    d_constant,
-    d_or
+    d_any, // we don't care about value in this dummy at all
+    // for the rest id is used to check if two dummies are the same 
+    d_any_type, 
+    d_known_type, // uses known_type from union
+    d_constant, // uses constant_value from union
+    d_or // used to merge two dummies into one, uses or from union
 } DummyType;
 
 typedef struct Dummy Dummy;
@@ -27,7 +28,12 @@ struct Dummy {
     };
 };
 
-Dummy* new_dummy(Executor* E);
+Dummy* new_any_dummy(Executor* E);
+Dummy* new_any_type_dummy(Executor* E, unsigned* id_counter);
+Dummy* new_known_type_dummy(Executor* E, ObjectType known_type, unsigned* id_counter);
+Dummy* new_constant_dummy(Executor* E, Object constant_value, unsigned* id_counter);
+Dummy* new_or_dummy(Executor* E, Dummy* left, Dummy* right, unsigned* id_counter);
+
 bool dummy_is_typed(const Dummy* dummy);
 ObjectType dummy_type(const Dummy* dummy);
 bool dummies_equal(const Dummy* a, const Dummy* b);

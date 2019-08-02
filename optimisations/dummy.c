@@ -34,10 +34,50 @@ void dummy_free(Dummy* dummy){
     free(dummy);
 }
 
-Dummy* new_dummy(Executor* E){
+static inline Dummy* new_dummy(Executor* E, DummyType type){
     Dummy* result=malloc(sizeof(Dummy));
     gc_pointer_init(E, (gc_Pointer*)result, (gc_PointerFreeFunction)dummy_free);
     result->gcp.foreach_children=(gc_PointerForeachChildrenFunction)dummy_foreach_children;
+    result->type=type;
+    return result;
+}
+
+Dummy* new_any_dummy(Executor* E){
+    return new_dummy(E, d_any);
+}
+
+Dummy* new_any_type_dummy(Executor* E, unsigned* id_counter){
+    Dummy* result=new_dummy(E, d_any_type);
+    result->id=*id_counter;
+    (*id_counter)++;
+    return result;
+}
+
+Dummy* new_known_type_dummy(Executor* E, ObjectType known_type, unsigned* id_counter){
+    Dummy* result=new_dummy(E, d_known_type);
+    result->known_type=known_type;
+    result->id=*id_counter;
+    (*id_counter)++;
+    return result;
+}
+
+Dummy* new_constant_dummy(Executor* E, Object constant_value, unsigned* id_counter){
+    Dummy* result=new_dummy(E, d_constant);
+    reference(&constant_value);
+    result->constant_value=constant_value;
+    result->id=*id_counter;
+    (*id_counter)++;
+    return result;
+}
+
+Dummy* new_or_dummy(Executor* E, Dummy* left, Dummy* right, unsigned* id_counter){
+    Dummy* result=new_dummy(E, d_or);
+    gc_object_reference((gc_Object*)left);
+    result->or.left=left;
+    gc_object_reference((gc_Object*)right);
+    result->or.right=right;
+    result->id=*id_counter;
+    (*id_counter)++;
     return result;
 }
 

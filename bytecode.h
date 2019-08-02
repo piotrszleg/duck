@@ -111,5 +111,20 @@ bool changes_scope(InstructionType instr);
 bool finishes_program(InstructionType instr);
 bool carries_stack(InstructionType instr);
 bool instruction_is_literal(InstructionType instr);
+int find_label(Instruction* code, int index);
+
+typedef struct {
+    vector branches;
+    bool revisit;
+    unsigned last;
+    unsigned start;
+}BytecodeIterator;
+
+int bytecode_iterator_start(BytecodeIterator* iterator, Instruction* code, unsigned start);
+int bytecode_iterator_next(BytecodeIterator* iterator, Instruction* code);
+
+#define BYTECODE_FOR(iterator_state, index, instructions) \
+    for(index=bytecode_iterator_start(&progress_state, (instructions), 0); index!=-1; \
+        index=bytecode_iterator_next(&progress_state, (instructions)))
 
 #endif

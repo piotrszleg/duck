@@ -6,59 +6,9 @@
 #include "execution.h"
 #include "utility.h"
 
-void path_length_test(){// tests whether "count: "+5="count: 5"
-    printf("TEST: %s\n", __FUNCTION__);
-
-    #define ASSERT_PATH_LENGTH(code, path_start, expected_length) \
-        assert(path_length(code, path_start)==expected_length);
-
-    // correct path starting from b_get
-    ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, .uint_argument=0},
-        {b_get, .uint_argument=0}
-    }), 1, 2)
-    // counting starts from load_string Instruction so path length should be zero
-    ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, .uint_argument=0},
-        {b_get, .uint_argument=0}
-    }), 0, 0)
-    // no path present
-    ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_double, .uint_argument=0},
-        {b_jump, .uint_argument=0}
-    }), 1, 0)
-    // path of length 4
-    ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, .uint_argument=0},
-        {b_get, .uint_argument=0},
-        {b_load_string, .uint_argument=0},
-        {b_table_get, .uint_argument=0}
-    }), 3, 4)
-    // path of length 6
-    ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_load_string, .uint_argument=0},
-        {b_get, .uint_argument=0},
-        {b_load_string, .uint_argument=0},
-        {b_table_get, .uint_argument=0},
-        {b_load_string, .uint_argument=0},
-        {b_table_get, .uint_argument=0}
-    }), 5, 6)
-    // path of length 4 and random instructions after it
-    ASSERT_PATH_LENGTH(((Instruction[]){
-        {b_double, .uint_argument=0},
-        {b_jump, .uint_argument=0},
-        {b_load_string, .uint_argument=0},
-        {b_get, .uint_argument=0},
-        {b_load_string, .uint_argument=0},
-        {b_table_get, .uint_argument=0}
-    }), 5, 4)
-
-    printf("test successful\n");
-}
-
 void evaluation_tests(Executor* E){
     printf("TEST: %s\n", __FUNCTION__);
-    assert(compare(evaluate_string(E, "1", null_const), to_int(1))==0);
+    assert(compare(E, evaluate_string(E, "1", null_const), to_int(1))==0);
 
     printf("test successful\n");
 }
@@ -161,7 +111,7 @@ void test_substructure(Executor* E, ExampleStructNested* st, Object substructure
 #define ASSERT_OBJECTS_EQUAL(a, b) \
     {Object temp_a=a; \
      Object temp_b=b; \
-     assert(compare(temp_a, temp_b)==0); \
+     assert(compare(E, temp_a, temp_b)==0); \
      destroy_unreferenced(E, &temp_a); \
      destroy_unreferenced(E, &temp_b);}
 
@@ -253,7 +203,6 @@ int main(){
     TRY_CATCH(
         vector_tests();
         evaluation_tests(&E);
-        path_length_test(&E);
         struct_descriptor_tests(&E);
         struct_descriptor_nested_tests(&E);
         string_replace_multiple_test();

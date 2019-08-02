@@ -48,12 +48,12 @@ struct BytecodeProgram {
     vector variants;
 };
 
-void print_instruction(const BytecodeProgram* program, Instruction instr);
+void print_instruction(Instruction instruction, void* constants);
 void print_bytecode_program(const BytecodeProgram* program);
 void bytecode_program_init(Executor* E, BytecodeProgram* program);
 void bytecode_program_free(BytecodeProgram* program);
 void list_program_labels(BytecodeProgram* program);
 void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy);
-bool instructions_equal(BytecodeProgram* program, Instruction a, Instruction b);
+bool instructions_equal(Instruction a, Instruction b, void* constants);
 
 #endif

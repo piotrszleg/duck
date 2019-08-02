@@ -1,6 +1,6 @@
 #include "bytecode_program.h"
 
-bool instructions_equal(BytecodeProgram* program, Instruction a, Instruction b){
+bool instructions_equal(Instruction a, Instruction b, void* constants){
     if(a.type!=b.type){
         return false;
     }
@@ -26,7 +26,7 @@ bool instructions_equal(BytecodeProgram* program, Instruction a, Instruction b){
         case b_load_int:
             return a.int_argument==b.int_argument;
         case b_load_string:
-            return a.uint_argument==b.uint_argument||strcmp(((char*)program->constants)+a.uint_argument, ((char*)program->constants)+b.uint_argument)==0;
+            return a.uint_argument==b.uint_argument||strcmp((char*)constants+a.uint_argument, (char*)constants+b.uint_argument)==0;
         case b_function_1:
             return a.pre_function_argument.is_variadic==b.pre_function_argument.is_variadic
             &&     a.pre_function_argument.arguments_count==b.pre_function_argument.arguments_count;
@@ -51,9 +51,9 @@ char* stringify_constants(const BytecodeProgram* program){
     return result;
 }
 
-void print_instruction(const BytecodeProgram* program, Instruction instr){
+void print_instruction(Instruction instruction, void* constants){
     #define STRINGIFY_BOOL(b) ((b) ? "true" : "false")
-    switch(instr.type){
+    switch(instruction.type){
         case b_end:
         case b_discard:
         case b_get_scope:
@@ -67,28 +67,28 @@ void print_instruction(const BytecodeProgram* program, Instruction instr){
         case b_table_set_keep:
         case b_get:
         case b_table_get:
-            printf("%s", INSTRUCTION_NAMES[instr.type]);// these instructions doesn't use the argument
+            printf("%s", INSTRUCTION_NAMES[instruction.type]);// these instructions doesn't use the argument
             break;
         case b_set:
-            printf("%s %s", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.bool_argument));
+            printf("%s %s", INSTRUCTION_NAMES[instruction.type], STRINGIFY_BOOL(instruction.bool_argument));
             break;
         case b_load_float:
-            printf("%s %f", INSTRUCTION_NAMES[instr.type], instr.float_argument);
+            printf("%s %f", INSTRUCTION_NAMES[instruction.type], instruction.float_argument);
             break;
         case b_load_int:
-            printf("%s %i", INSTRUCTION_NAMES[instr.type], instr.int_argument);
+            printf("%s %i", INSTRUCTION_NAMES[instruction.type], instruction.int_argument);
             break;
         case b_load_string:
-            printf("%s %u \"%s\"", INSTRUCTION_NAMES[instr.type], instr.uint_argument, ((char*)program->constants)+instr.uint_argument);
+            printf("%s %u \"%s\"", INSTRUCTION_NAMES[instruction.type], instruction.uint_argument, ((char*)constants)+instruction.uint_argument);
             break;
         case b_function_1:
-            printf("%s %s %u", INSTRUCTION_NAMES[instr.type], STRINGIFY_BOOL(instr.pre_function_argument.is_variadic), instr.pre_function_argument.arguments_count);
+            printf("%s %s %u", INSTRUCTION_NAMES[instruction.type], STRINGIFY_BOOL(instruction.pre_function_argument.is_variadic), instruction.pre_function_argument.arguments_count);
             break;
         case b_swap:
-            printf("%s %u %u", INSTRUCTION_NAMES[instr.type], instr.swap_argument.left, instr.swap_argument.right);
+            printf("%s %u %u", INSTRUCTION_NAMES[instruction.type], instruction.swap_argument.left, instruction.swap_argument.right);
             break;
         default:
-            printf("%s %u", INSTRUCTION_NAMES[instr.type], instr.uint_argument);
+            printf("%s %u", INSTRUCTION_NAMES[instruction.type], instruction.uint_argument);
     }
     #undef STRINGIFY_BOOL
 }
@@ -98,7 +98,7 @@ void print_bytecode_program(const BytecodeProgram* program){
     while(program->code[pointer].type!=b_end){
         printf("%i: ", pointer);
 
-        print_instruction(program, program->code[pointer]);
+        print_instruction(program->code[pointer], program->constants);
         /*int comment=program->information[pointer].comment;
         if(comment>=0 && comment<program->constants_size){
             printf(" # %s\n", &program->constants[comment]);
@@ -110,7 +110,7 @@ void print_bytecode_program(const BytecodeProgram* program){
     printf("CONSTANTS:");
     for(int i=0; i<program->constants_size-1;){
         printf("\n%i: ", i);
-        i+=printf(program->constants+i)+1;
+        i+=printf(program->constants+i)+1;// printf returns number of characters printed, we also skip the '\0' character
     }
     printf("\n");
     

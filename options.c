@@ -8,15 +8,27 @@ static const char* version="0.0.1";
 
 const Options default_options={
     .ast_only=false,
-    .print_ast=false,
-    .print_ast_optimisations=false,
-    .print_bytecode=false,
-    .print_bytecode_optimisations=false,
-    .optimise_ast=true,
-    .optimise_bytecode=true,
-    .runtime_optimisations=true,
     .debug_mode=false,
-    .include_builtins=true
+    .include_builtins=true,
+
+    .print_ast=false,
+    .optimise_ast=true,
+    .print_ast_optimisations=false,
+    .ast_remove_useless_expressions=true,
+    .ast_conditionals_optimisation=true,
+    .ast_constants_folding=true,
+
+    .print_bytecode=false,
+    .optimise_bytecode=true,
+    .print_bytecode_optimisations=false,
+    .optimise_tail_calls=true,
+    .optimise_jump_to_return=true,
+    .optimise_stack_operations=true,
+    .constants_folding=true,
+    .remove_useless_operations=true,
+    .typed_variants=true,
+
+    .runtime_optimisations=true
 };
 
 void handle_arguments(int argc, char **argv) {

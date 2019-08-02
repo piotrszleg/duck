@@ -3,11 +3,11 @@
 
 #include <stdbool.h>
 #include "../bytecode_program.h"
-#include "../options.h"
+#include "../execution.h"
 #include "../datatypes/vector.h"
 #include "dummy.h"
+#include "transformation.h"
 
-int path_length(const Instruction* code,  int path_start);
 void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisations);
 
 #endif

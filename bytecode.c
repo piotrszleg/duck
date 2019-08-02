@@ -107,3 +107,51 @@ bool instruction_is_literal(InstructionType instr){
     X(b_function_2);
 }
 #undef X
+
+int find_label(Instruction* code, int index){
+    for(int search_pointer=0; code[search_pointer].type!=b_end; search_pointer++){
+        if(code[search_pointer].type==b_label && code[search_pointer].uint_argument==index){
+            return search_pointer;
+        }
+    }
+    return -1;
+}
+
+int bytecode_iterator_start(BytecodeIterator* iterator, Instruction* code, unsigned start){
+    iterator->start=start;
+    iterator->last=start;
+    vector_init(&iterator->branches, sizeof(int), 8);
+    iterator->revisit=false;
+    return 0;
+}
+
+int bytecode_iterator_next(BytecodeIterator* iterator, Instruction* code){
+    vector* branches=&iterator->branches;
+    unsigned index=iterator->last;
+    if(finishes_program(code[index].type)){
+        if(iterator->revisit){
+            iterator->revisit=false;
+            index=iterator->start;
+            iterator->last=index;
+            return index;
+        } else {
+            vector_deinit(branches);
+            return -1;
+        }
+    }
+    if(code[index].type==b_jump_not){
+        if(vector_search(branches, &index)>0){
+            index=find_label(code, code[index].uint_argument);
+        } else {
+            vector_push(branches, &index);
+            iterator->revisit=true;
+            index++;
+        }
+    } else if(code[index].type==b_jump){
+        index=find_label(code, code[index].uint_argument);
+    } else {
+        index++;
+    }
+    iterator->last=index;
+    return index;
+}
