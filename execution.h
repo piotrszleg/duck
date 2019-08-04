@@ -19,7 +19,7 @@
 Object evaluate(Executor* E, expression* parsing_result, Object scope, const char* file_name, bool delete_ast);
 Object evaluate_string(Executor* E, const char* s, Object scope);
 Object evaluate_file(Executor* E, const char* file_name, Object scope);
-void execute_file(Executor* E, const char* file_name, char** arguments);
+void execute_file(Executor* E, const char* file_name);
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 void executor_init(Executor* E);
 void executor_deinit(Executor* E);

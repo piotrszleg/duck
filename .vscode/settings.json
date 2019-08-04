@@ -52,6 +52,8 @@
         "xiosbase": "c",
         "bytecode_program_gco.h": "c",
         "deque": "c",
-        "bytecode_program.h": "c"
+        "bytecode_program.h": "c",
+        "cstddef": "c",
+        "limits": "c"
     }
 }

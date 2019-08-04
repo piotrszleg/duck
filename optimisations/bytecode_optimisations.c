@@ -25,55 +25,6 @@ void highlight_instructions(Instruction* instructions, void* constants, char sym
     }
 }
 
-static bool operand_has_side_effects(Dummy* dummy){
-    return !dummy_is_typed(dummy)
-        || (dummy_type(dummy)==t_table && dummy_type(dummy)==t_function);
-}
-
-bool has_side_effects(Instruction* instruction, Transformation* transformation) {
-    switch(instruction->type) {
-        case b_null:
-        case b_load_int:
-        case b_load_float:
-        case b_load_string:
-        case b_table_literal:
-        case b_function_1:
-        case b_function_2:
-        case b_double:
-            return false;
-        case b_add:
-        case b_subtract:
-        case b_multiply:
-        case b_divide:
-        case b_divide_floor:
-        case b_modulo:
-        case b_add_int:
-        case b_subtract_int:
-        case b_multiply_int:
-        case b_divide_int:
-        case b_divide_floor_int:
-        case b_modulo_int:
-        case b_add_float:
-        case b_subtract_float:
-        case b_multiply_float:
-        case b_divide_float:
-        case b_add_string:
-            return operand_has_side_effects(transformation->inputs[0]) 
-            ||     operand_has_side_effects(transformation->inputs[1]);
-        case b_binary:
-            return operand_has_side_effects(transformation->inputs[1]) 
-            ||     operand_has_side_effects(transformation->inputs[2]);
-        case b_prefix:
-            return operand_has_side_effects(transformation->inputs[1]);
-        case b_minus:
-        case b_minus_int:  
-        case b_minus_float:
-        case b_not:
-            return operand_has_side_effects(transformation->inputs[0]);
-        default: return true;
-    }
-}
-
 Assumption* get_argument_assumption(BytecodeProgram* program, unsigned index){
     if(program->assumptions==NULL){
         return NULL;
@@ -110,15 +61,63 @@ Dummy* assumption_to_dummy(Executor* E, Assumption* assumption, unsigned* dummy_
     }
 }
 
+#define SPECIFIED_INSTRUCTIONS \
+    BINARY(b_add, "+") \
+    BINARY(b_subtract, "-") \
+    BINARY(b_multiply, "*") \
+    BINARY(b_divide, "/") \
+    BINARY(b_divide_floor, "//") \
+    BINARY(b_modulo, "%") \
+    BINARY(b_add_int, "+") \
+    BINARY(b_subtract_int, "-") \
+    BINARY(b_multiply_int, "*") \
+    BINARY(b_divide_int, "/") \
+    BINARY(b_divide_floor_int, "//") \
+    BINARY(b_modulo_int, "%") \
+    BINARY(b_add_float, "+") \
+    BINARY(b_subtract_float, "-") \
+    BINARY(b_multiply_float, "*") \
+    BINARY(b_divide_float, "/") \
+    BINARY(b_add_string, "+") \
+    PREFIX(b_minus, "-") \
+    PREFIX(b_minus_int, "-") \
+    PREFIX(b_minus_float, "-") \
+    PREFIX(b_not, "!")
+
+bool instruction_is_constant(Instruction* instruction, Transformation* transformation) {
+    switch(instruction->type) {
+        case b_null:
+        case b_load_int:
+        case b_load_float:
+        case b_load_string:
+        case b_table_literal:
+        case b_function_1:
+        case b_function_2:
+        case b_double:
+            return false;
+        #define BINARY(instruction, op) \
+            case instruction: return operator_is_constant(dummy_type(transformation->inputs[0]), dummy_type(transformation->inputs[1]), op);
+        #define PREFIX(instruction, op) \
+            case instruction: return operator_is_constant(dummy_type(transformation->inputs[0]), t_null, op);
+        SPECIFIED_INSTRUCTIONS
+        #undef BINARY
+        #undef PREFIX
+        case b_binary:
+            return transformation->inputs[0]->type==d_constant && transformation->inputs[0]->constant_value.type==t_string 
+            && operator_is_constant(dummy_type(transformation->inputs[1]), dummy_type(transformation->inputs[2]), transformation->inputs[0]->constant_value.text);
+        default: return true;
+    }
+}
+
 // function writes to transformation outputs the result of evaluating instruction with it's input
-void predict_instruction_output(Executor* E, BytecodeProgram* program, Instruction* instr, char* constants, unsigned* dummy_objects_counter, Transformation* transformation){
+void predict_instruction_output(Executor* E, BytecodeProgram* program, Instruction* instruction, char* constants, unsigned* dummy_objects_counter, Transformation* transformation){
     Dummy** outputs=transformation->outputs;
     Dummy** inputs=transformation->inputs;
-    if(carries_stack(instr->type)){
+    if(carries_stack(instruction->type)){
         int i=0;
         // jump_not takes one item from the stack as a predicate
         // so it needs to be skipped
-        if(instr->type==b_jump_not){
+        if(instruction->type==b_jump_not){
             i++;
         }
         for(; i<transformation->inputs_count; i++){
@@ -126,18 +125,18 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
         }
         return;
     }
-    switch (instr->type){
+    switch (instruction->type){
         case b_null:
             outputs[0]=new_constant_dummy(E, null_const, dummy_objects_counter);
             return;
         case b_load_int:
-            outputs[0]=new_constant_dummy(E, to_int(instr->int_argument), dummy_objects_counter);
+            outputs[0]=new_constant_dummy(E, to_int(instruction->int_argument), dummy_objects_counter);
             return;
         case b_load_float:
-            outputs[0]=new_constant_dummy(E, to_float(instr->float_argument), dummy_objects_counter);
+            outputs[0]=new_constant_dummy(E, to_float(instruction->float_argument), dummy_objects_counter);
             return;
         case b_load_string:
-            outputs[0]=new_constant_dummy(E, to_string(constants+instr->uint_argument), dummy_objects_counter);
+            outputs[0]=new_constant_dummy(E, to_string(constants+instruction->uint_argument), dummy_objects_counter);
             return;
         case b_table_literal:
             outputs[0]=new_known_type_dummy(E, t_table, dummy_objects_counter);
@@ -153,10 +152,10 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
             outputs[1]=inputs[0];
             return;
         case b_push_to_top:
-            outputs[instr->uint_argument]=inputs[0];
-            outputs[0]=inputs[instr->uint_argument];
-            for(int i=1; i<instr->uint_argument-1; i++){
-                outputs[i]=outputs[instr->uint_argument-2-i];
+            outputs[instruction->uint_argument]=inputs[0];
+            outputs[0]=inputs[instruction->uint_argument];
+            for(int i=1; i<instruction->uint_argument-1; i++){
+                outputs[i]=outputs[instruction->uint_argument-2-i];
             }
             return;
         case b_swap:
@@ -164,8 +163,8 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
             for(int i=0; i<transformation->outputs_count; i++){
                 outputs[transformation->outputs_count-1-i]=inputs[i];
             }
-            int left=transformation->outputs_count-1-instr->swap_argument.left;
-            int right=transformation->outputs_count-1-instr->swap_argument.right;
+            int left=transformation->outputs_count-1-instruction->swap_argument.left;
+            int right=transformation->outputs_count-1-instruction->swap_argument.right;
             Dummy* temp=outputs[left];
             outputs[left]=outputs[right];
             outputs[right]=temp;
@@ -182,8 +181,7 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
             return;
         case b_binary:
         {
-            if(inputs[0]->type==d_constant&&!operand_has_side_effects(inputs[1]) && !operand_has_side_effects(inputs[2])
-            ){
+            if(inputs[0]->type==d_constant && inputs[0]->constant_value.type==t_string && operator_is_constant(dummy_type(inputs[1]), dummy_type(inputs[2]), inputs[0]->constant_value.text)) {
                 if(inputs[0]->type==d_constant && inputs[1]->type==d_constant && inputs[2]->type==d_constant){
                     Object operator_result=operator(E, inputs[1]->constant_value, inputs[2]->constant_value, inputs[0]->constant_value.text);
                     if(is_unhandled_error(E, operator_result)){
@@ -200,11 +198,10 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
             }
             break;
         }
-        #define BINARY_OPERATOR(instruction, op) \
+        #define BINARY(instruction, op) \
             case instruction: \
             { \
-                if(!operand_has_side_effects(inputs[0]) && !operand_has_side_effects(inputs[1]) \
-                ){ \
+                if(operator_is_constant(dummy_type(inputs[0]), dummy_type(inputs[1]), op)){ \
                     if(inputs[0]->type==d_constant && inputs[1]->type==d_constant){ \
                         Object operator_result=operator(E, inputs[0]->constant_value, inputs[1]->constant_value, op); \
                         if(is_unhandled_error(E, operator_result)){ \
@@ -221,28 +218,11 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                 } \
                 break; \
             }
-        BINARY_OPERATOR(b_add, "+")
-        BINARY_OPERATOR(b_subtract, "-")
-        BINARY_OPERATOR(b_multiply, "*")
-        BINARY_OPERATOR(b_divide, "/")
-        BINARY_OPERATOR(b_divide_floor, "//")
-        BINARY_OPERATOR(b_modulo, "%")
-        BINARY_OPERATOR(b_add_int, "+")
-        BINARY_OPERATOR(b_subtract_int, "-")
-        BINARY_OPERATOR(b_multiply_int, "*")
-        BINARY_OPERATOR(b_divide_int, "/")
-        BINARY_OPERATOR(b_divide_floor_int, "//")
-        BINARY_OPERATOR(b_modulo_int, "%")
-        BINARY_OPERATOR(b_add_float, "+")
-        BINARY_OPERATOR(b_subtract_float, "-")
-        BINARY_OPERATOR(b_multiply_float, "*")
-        BINARY_OPERATOR(b_divide_float, "/")
-        BINARY_OPERATOR(b_add_string, "+")
-        #undef BINARY_OPERATOR
-        #define PREFIX_OPERATOR(instruction, op) \
+        
+        #define PREFIX(instruction, op) \
             case instruction: \
             { \
-                if(!operand_has_side_effects(inputs[0])){ \
+                if(operator_is_constant(dummy_type(inputs[0]), t_null, op)){ \
                     if(inputs[0]->type==d_constant){ \
                         outputs[0]=new_constant_dummy(E, operator(E, inputs[0]->constant_value, null_const, op), dummy_objects_counter); \
                     } else { \
@@ -252,11 +232,9 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                 } \
                 break; \
             }
-        PREFIX_OPERATOR(b_minus, "-")
-        PREFIX_OPERATOR(b_minus_int, "-")
-        PREFIX_OPERATOR(b_minus_float, "-")
-        PREFIX_OPERATOR(b_not, "!")
-        #undef PREFIX_OPERATOR
+        SPECIFIED_INSTRUCTIONS
+        #undef BINARY
+        #undef PREFIX
         default:;
     }
     for(int i=0; i<transformation->outputs_count; i++){
@@ -565,7 +543,7 @@ bool remove_useless_operations(BytecodeManipulation* manipulation, vector* instr
             for(int o=0; o<vector_index_transformation(transformations, search)->outputs_count; o++){
                 if(dummies_equal(vector_index_transformation(transformations, search)->outputs[o], discard_input)
                     &&( vector_index_transformation(transformations, search)->outputs_count==1 || vector_index_instruction(instructions, search)->type==b_double)
-                    && !has_side_effects(vector_index_instruction(instructions, search), vector_index_transformation(transformations, search))
+                    && !instruction_is_constant(vector_index_instruction(instructions, search), vector_index_transformation(transformations, search))
                     ){
                     LOG_IF_ENABLED("Removing operation which result is immediately discarded:\n")
                     Transformation* producer=vector_index_transformation(transformations, search);
@@ -608,7 +586,7 @@ bool constants_folding(
     if(vector_index_transformation(transformations, *pointer)->outputs_count==1 
     && vector_index_transformation(transformations, *pointer)->outputs[0]->type==d_constant
     && !instruction_is_literal(vector_index_instruction(instructions, *pointer)->type)
-    && !has_side_effects(vector_index_instruction(instructions, *pointer), vector_index_transformation(transformations, *pointer))){
+    && !instruction_is_constant(vector_index_instruction(instructions, *pointer), vector_index_transformation(transformations, *pointer))){
         Transformation producer=*vector_index_transformation(transformations, *pointer);
         if(constant_dummy_to_bytecode(E, vector_index_transformation(transformations, *pointer)->outputs[0], *pointer+1, instructions, transformations, constants)){
             LOG_IF_ENABLED("Replacing operation with it's result:\n")
@@ -794,9 +772,9 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
                 && tail_calls(&manipulation, &instructions, pointer, print_optimisations))
         || (E->options.remove_useless_operations 
                 && remove_useless_operations(&manipulation, &instructions, &transformations, pointer, print_optimisations))
-        || (E->options.constants_folding 
+        || (E->options.fold_constants
                 && constants_folding(E, &manipulation, &instructions, &transformations, &constants, &pointer, print_optimisations))
-        || (E->options.typed_variants 
+        || (E->options.use_typed_instructions
                 && typed_variants(&instructions, &transformations, pointer))
         ));
     }

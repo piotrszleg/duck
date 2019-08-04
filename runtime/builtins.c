@@ -300,7 +300,7 @@ Object builtin_include(Executor* E, Object scope, Object* arguments, int argumen
     REQUIRE_TYPE(path, t_string)
     Object sub_scope;
     table_init(E, &sub_scope);
-    inherit_scope(E, sub_scope, E->bytecode_environment.scope);
+    inherit_scope(E, sub_scope, E->scope);
     result=evaluate_file(E, path.text, sub_scope);
     return result;
 }
@@ -390,17 +390,11 @@ Object file_read_entire(Executor* E, Object scope, Object* arguments, int argume
     Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     FILE* fp=(FILE*)pointer.p;
-    fseek(fp, 0, SEEK_END);
-    long file_size=ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    char* buffer=malloc(file_size+1);
-    size_t read_characters=fread(buffer, 1, file_size, fp);
+    char* content=read_entire_file(fp);
 
-    if(read_characters){
-        buffer[read_characters]='\0';
-        return to_string(buffer);
+    if(content!=NULL){
+        return to_string(content);
     } else {
-        free(buffer);
         return to_string("");
     }
 }
@@ -512,6 +506,16 @@ Object builtin_set_random_seed(Executor* E, Object scope, Object* arguments, int
     return null_const;
 }
 
+Object builtin_create_variant(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object function=arguments[0];
+    REQUIRE_ARGUMENT_TYPE(function, t_function)
+    if(function.fp->ftype!=f_bytecode){
+        RETURN_ERROR("WRONG_ARGUMENT_TYPE", function, "Function passed to create_variant isn't a bytecode function");
+    }
+    create_variant(E, (BytecodeProgram*)function.fp->source_pointer);
+    return null_const;
+}
+
 Object builtin_random_int(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object left=arguments[0];
     Object right=arguments[1];
@@ -576,6 +580,7 @@ Object builtins_table(Executor* E){
     REGISTER(random_int, 2)
     REGISTER(random_01, 0)
     REGISTER(call, 2)
+    REGISTER(create_variant, 1)
     #undef REGISTER
 
     Object yield;

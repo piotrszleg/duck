@@ -10,8 +10,8 @@ options := -g -Wall -Wl,--out-implib,libhost.a -Wl,--export-all-symbols
 executable-path := duck.exe
 sandbox-path := sandbox.exe
 
-all: $(executable-path) input
-	./$(executable-path) input
+all: $(executable-path)
+	./$(executable-path)
 
 tests: $(executable-path) tests.dk
 	./$(executable-path) tests.dk

@@ -44,6 +44,7 @@ Object pop(vector* stack);
 Object execute_bytecode(Executor* E);
 void move_to_function(Executor* E, Function* f);
 void create_return_point(BytecodeEnvironment* environment, bool terminate);
+void create_variant(Executor* E, BytecodeProgram* program);
 
 #include "runtime/builtins.h"
 #include "error/execution_state.h"

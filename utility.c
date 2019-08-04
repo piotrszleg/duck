@@ -11,13 +11,29 @@ char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp) {
     }
 }
 
+char* read_entire_file(FILE* fp) {
+    fseek(fp, 0, SEEK_END);
+    long file_size=ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    char* buffer=malloc(file_size+1);
+    size_t read_characters=fread(buffer, 1, file_size, fp);
+
+    if(read_characters){
+        buffer[read_characters]='\0';
+        return buffer;
+    } else {
+        free(buffer);
+        return NULL;
+    }
+}
+
 int nearest_power_of_two(int number){
     int i;
     for(i=1; i<=number;i*=2);
     return i;
 }
 
-static bool strings_counted_equal(char* a, char* b, int count){
+bool strings_counted_equal(char* a, char* b, size_t count){
     for(int i=0; i<count; i++){
         if(a[i]!=b[i]){
             return false;

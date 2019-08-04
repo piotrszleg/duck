@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) duck input",
+            "name": "(gdb) duck",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/duck.exe",
-            "args": ["input"],
+            "args": ["input.dk", "command_line"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

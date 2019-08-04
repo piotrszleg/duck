@@ -20,6 +20,7 @@
 #define DEBUG_PRINT printf("<%i>\n", __COUNTER__);
 
 char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
+char* read_entire_file(FILE* fp);
 int nearest_power_of_two(int number);
 int sign(int x);
 
@@ -41,5 +42,6 @@ typedef struct {
 char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs, int replacement_pairs_count);
 char* string_add(const char* a, const char* b);
 char* string_repeat(const char* str, int times);
+bool strings_counted_equal(char* a, char* b, size_t count);
 
 #endif

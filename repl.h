@@ -7,6 +7,6 @@
 #include "runtime/builtins.h"
 #include "utility.h"
 
-void repl();
+void repl(Executor* E);
 
 #endif

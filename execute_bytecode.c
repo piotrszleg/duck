@@ -77,6 +77,88 @@ void assumption_deinit(Executor* E, Assumption* assumption){
     }
 }
 
+void create_variant(Executor* E, BytecodeProgram* program) {
+    CallStatistics* statistics=program->statistics;
+    if(statistics==NULL){
+        return;
+    }
+    int arguments_count=program->expected_arguments;
+    int call_fields=arguments_count+program->upvalues_count;
+    int collected_calls=program->calls_count-CALLS_UNTIL_STATISTICS_MODE;
+
+    bool already_covered[REMEMBERED_CALLS];
+    struct {
+        unsigned index;
+        unsigned score;
+    } most_compatible_signature={0, 0};
+    for(int i=0; i<collected_calls; i++){
+        if(!already_covered[i]){
+            unsigned score=0;
+            for(int j=0; j<collected_calls; j++){
+                bool exactly_equal=true;
+                for(int a=0; a<call_fields; a++){
+                    switch(compare_assumptions(E, &statistics->previous_calls[i][a], &statistics->previous_calls[j][a])){
+                        case ac_equal:
+                            score+=2;
+                            break;
+                        case ac_compatible:
+                            score++;
+                            exactly_equal=false;
+                            break;
+                        case ac_not_equal:
+                            goto next;
+                        default:;
+                    }
+                }
+                if(exactly_equal){
+                    already_covered[j]=true;
+                }
+                next:;
+            }
+            if(score>most_compatible_signature.score){
+                most_compatible_signature.score=score;
+                most_compatible_signature.index=i;
+            }
+        }
+    }
+    printf("Collected the following data:\n");
+    for(int i=0; i<collected_calls; i++){
+        printf("[");
+        for(int j=0; j<call_fields; j++){
+            print_assumption(E, &statistics->previous_calls[i][j]);
+            printf(", ");
+        }
+        printf("]\n");
+    }
+    printf("Generate variant with assumptions:\n");
+    printf("[");
+    for(int i=0; i<call_fields; i++){
+        print_assumption(E, &statistics->previous_calls[most_compatible_signature.index][i]);
+        printf(", ");
+    }
+    printf("]\n");
+    BytecodeProgram variant;
+    bytecode_program_copy(program, &variant);
+    variant.assumptions=statistics->previous_calls[most_compatible_signature.index];
+    optimise_bytecode(E, &variant, E->options.print_bytecode_optimisations);
+    vector_push(&program->variants, &variant);
+
+    /*for(int i=0; i<collected_calls; i++){
+        printf("%i\n", i);
+        if(i!=most_compatible_signature.index){
+            for(int j=0; j<call_fields; j++){
+                assumption_deinit(E, &statistics->previous_calls[i][j]);
+            }
+            free(statistics->previous_calls[i]);
+        }
+    } */
+    free(program->statistics->last_call);
+    free(program->statistics->constant_streaks);
+    free(program->statistics);
+    program->statistics=NULL;
+    program->calls_count=0;
+}
+
 void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
     BytecodeProgram* program=environment->executed_program;
     if(!E->options.runtime_optimisations||program->calls_count<CALLS_UNTIL_STATISTICS_MODE){
@@ -106,6 +188,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
             if(statistics->constant_streaks[i]>=CONSTANT_THRESHOLD) {
                 current_call[i].assumption_type=a_constant;
                 current_call[i].constant=copy(E, argument);
+                reference(&current_call[i].constant);
                 goto next_argument;
             }
         } else {
@@ -119,77 +202,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
     statistics->previous_calls[program->calls_count-CALLS_UNTIL_STATISTICS_MODE]=current_call;
     program->calls_count++;
     if(program->calls_count-CALLS_UNTIL_STATISTICS_MODE>REMEMBERED_CALLS){
-        bool already_covered[REMEMBERED_CALLS];
-        struct {
-            unsigned index;
-            unsigned score;
-        } most_compatible_signature={0, 0};
-        for(int i=0; i<REMEMBERED_CALLS; i++){
-            if(!already_covered[i]){
-                unsigned score=0;
-                for(int j=0; j<REMEMBERED_CALLS; j++){
-                    bool exactly_equal=true;
-                    for(int a=0; a<call_fields; a++){
-                        switch(compare_assumptions(E, &statistics->previous_calls[i][a], &statistics->previous_calls[j][a])){
-                            case ac_equal:
-                                score+=2;
-                                break;
-                            case ac_compatible:
-                                score++;
-                                exactly_equal=false;
-                                break;
-                            case ac_not_equal:
-                                goto next;
-                            default:;
-                        }
-                    }
-                    if(exactly_equal){
-                        already_covered[j]=true;
-                    }
-                    next:;
-                }
-                if(score>most_compatible_signature.score){
-                    most_compatible_signature.score=score;
-                    most_compatible_signature.index=i;
-                }
-            }
-        }
-        printf("Collected the following data:\n");
-        for(int i=0; i<REMEMBERED_CALLS; i++){
-            printf("[");
-            for(int j=0; j<call_fields; j++){
-                print_assumption(E, &statistics->previous_calls[i][j]);
-                printf(", ");
-            }
-            printf("]\n");
-        }
-        printf("Generate variant with assumptions:\n");
-        printf("[");
-        for(int i=0; i<call_fields; i++){
-            print_assumption(E, &statistics->previous_calls[most_compatible_signature.index][i]);
-            printf(", ");
-        }
-        printf("]\n");
-        BytecodeProgram variant;
-        bytecode_program_copy(program, &variant);
-        variant.assumptions=statistics->previous_calls[most_compatible_signature.index];
-        optimise_bytecode(E, &variant, E->options.print_bytecode_optimisations);
-        vector_push(&program->variants, &variant);
-
-        /*for(int i=0; i<REMEMBERED_CALLS; i++){
-            printf("%i\n", i);
-            if(i!=most_compatible_signature.index){
-                for(int j=0; j<call_fields; j++){
-                    assumption_deinit(E, &statistics->previous_calls[i][j]);
-                }
-                free(statistics->previous_calls[i]);
-            }
-        } */
-        free(program->statistics->last_call);
-        free(program->statistics->constant_streaks);
-        free(program->statistics);
-        program->statistics=NULL;
-        program->calls_count=0;
+        create_variant(E, program);
     }
 }
 
@@ -385,7 +398,7 @@ Object execute_bytecode(Executor* E){
     int* pointer=&E->bytecode_environment.pointer;// points to the current Instruction
 
     while(true){
-        if(E->options.debug_mode){
+        if(E->options.debug){
             debugger(E);
         }
         BytecodeProgram* program=E->bytecode_environment.executed_program;
@@ -918,7 +931,7 @@ Object execute_bytecode(Executor* E){
                                 RETURN(err)
                             }
                             // simply return the value from stack top
-                            if(E->options.debug_mode){
+                            if(E->options.debug){
                                 debugger(E);
                             }
                             (*pointer)++;
@@ -934,7 +947,7 @@ Object execute_bytecode(Executor* E){
                         case 1:// debugger
                         {
                             POP_ARGUMENTS
-                            if(E->options.debug_mode){
+                            if(E->options.debug){
                                 E->bytecode_environment.debugger.running=false;
                                 debugger(E);
                             }
@@ -961,7 +974,7 @@ Object execute_bytecode(Executor* E){
             case b_end:
             case b_return:
             {
-                if(E->options.debug_mode){
+                if(E->options.debug){
                     debugger(E);
                 }
                 gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);

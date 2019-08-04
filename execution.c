@@ -13,7 +13,7 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
             printf("Abstract Syntax Tree:\n%s\n", str));
     }
     Object execution_result;
-    if(E->options.ast_only){
+    if(E->options.disable_bytecode){
         reference(&scope);
         execution_result=execute_ast(E, ast, scope, 1);
         if(delete_ast){ 
@@ -58,25 +58,28 @@ Object evaluate_file(Executor* E, const char* file_name, Object scope){
     return evaluate(E, parsing_result, scope, file_name, true);
 }
 
-static Object arguments_to_table(Executor* E, char** arguments){
+static Object arguments_to_table(Executor* E, const char* file_name, char** arguments){
     Object arguments_table;
     table_init(E, &arguments_table);
+    table_set(E, arguments_table.tp, to_int(0), to_string(file_name));
     int i=0;
-    for(; arguments[i]!=NULL; i++){
-        table_set(E, arguments_table.tp, to_int(i), to_string(arguments[i]));
+    if(arguments!=NULL){
+        for(; arguments[i]!=NULL; i++){
+            table_set(E, arguments_table.tp, to_int(i+1), to_string(arguments[i]));
+        }
     }
-    table_set(E, arguments_table.tp, to_string("count"), to_int(i));
+    table_set(E, arguments_table.tp, to_string("count"), to_int(i+1));
     return arguments_table;
 }
 
-void execute_file(Executor* E, const char* file_name, char** arguments){
+void execute_file(Executor* E, const char* file_name){
     Object global_scope;
     table_init(E, &global_scope);
     Object patching_table;
     table_init(E, &patching_table);
     table_set(E, global_scope.tp, to_string("patching_table"), patching_table);
     reference(&global_scope);
-    table_set(E, global_scope.tp, to_string("arguments"), arguments_to_table(E, arguments));
+    table_set(E, global_scope.tp, to_string("arguments"), arguments_to_table(E, file_name, E->options.script_arguments));
     if(E->options.include_builtins){
         inherit_scope(E, global_scope, builtins_table(E));
     }

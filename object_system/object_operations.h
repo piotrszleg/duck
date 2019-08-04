@@ -15,6 +15,7 @@ int compare(Executor* E, Object a, Object b);
 int compare_and_get_error(Executor* E, Object a, Object b, Object* error);
 bool is(Executor* E, Object a, Object b);
 unsigned hash(Executor* E, Object o, Object* error);
+bool operator_is_constant(ObjectType a, ObjectType b, const char* op);
 Object operator(Executor* E, Object a, Object b, const char* op);
 
 Object cast(Executor* E, Object o, ObjectType type);

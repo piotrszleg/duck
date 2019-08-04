@@ -66,6 +66,21 @@ static Object table_get_override(Executor* E, Object o, const char* override_nam
     }
 }
 
+bool cast_is_constant(ObjectType from, ObjectType to) {
+    if(from==to) {
+        return true;
+    }
+    switch(to) {
+        case t_string: return true;
+        case t_int:
+            return from==t_float||from==t_null;
+        case t_float:
+            return from==t_int||from==t_null;
+        default:
+            return false;
+    }
+}
+
 Object cast(Executor* E, Object o, ObjectType type){
     if(o.type==type){
         return o;
@@ -137,12 +152,33 @@ Object cast(Executor* E, Object o, ObjectType type){
 }
 
 int compare(Executor* E, Object a, Object b){
-    Object error;
+    Object error=null_const;
     int comparison_result=compare_and_get_error(E, a, b, &error); \
     if(error.type!=t_null) {
         destroy_unreferenced(E, &error);
     }
     return comparison_result;
+}
+
+bool compare_is_constant(ObjectType a, ObjectType b) {
+    if(a==t_null||b==t_null){
+        return true;
+    }
+    if((a==t_int||a==t_float)&&(b==t_int||b==t_float)){
+        return true;
+    }
+    if(a!=b){
+        return false;
+    }
+    switch(a) {
+        case t_string:
+        case t_pointer:
+        case t_gc_pointer:
+        case t_function:
+            return true;
+        default:
+            return false;
+    }
 }
 
 // if a>b returns 1 if a<b returns -1, if a==b returns 0
@@ -341,6 +377,59 @@ Object get_iterator(Executor* E, Object o){
     }
     PATCH("iterator", o.type, o)
     RETURN_ERROR("ITERATION_ERROR", o, "Can't get iterator of object of type %s.", OBJECT_TYPE_NAMES[o.type]);
+}
+
+bool operator_is_constant(ObjectType a, ObjectType b, const char* op) {
+    if(a==t_table){
+        return false;
+    }
+    size_t op_length=strlen(op);
+    if(op_length==1) {
+        switch(op[0]){
+            case '!': return true;
+            case '-': return true;
+            case '#': return false;
+        }
+        #define CASE(character) \
+            case character: \
+                return cast_is_constant(b, a);
+        if(a==t_int) {
+            switch(op[0]){
+                CASE('+')
+                CASE('-')
+                CASE('*')
+                CASE('%')
+                CASE('/')
+            }
+        }
+        if(a==t_float) {
+            switch(op[0]){
+                CASE('+')
+                CASE('-')
+                CASE('*')
+                CASE('/')
+            }
+        }
+        #undef CASE
+    } else {  
+        if(strcmp(op, "--")==0) return false;
+        if(strcmp(op, "><")==0) return false;
+        if(strcmp(op, "##")==0) return false;
+        if(strcmp(op, "&&")==0) return true;
+        if(strcmp(op, "||")==0) return true;
+        if(strcmp(op, "//")==0) return a==t_int && cast_is_constant(b, a);
+        #define COMPARISSON(operator_name) if(strcmp(op, operator_name)==0) return compare_is_constant(a, b);
+        COMPARISSON("==") 
+        COMPARISSON("!=")
+        COMPARISSON(">")
+        COMPARISSON("<")
+        COMPARISSON(">=")
+        COMPARISSON("<=")
+        COMPARISSON("is")
+        COMPARISSON("compare")
+        #undef COMPARISSON
+    }
+    return false;
 }
 
 Object operator(Executor* E, Object a, Object b, const char* op){
@@ -640,6 +729,9 @@ char* stringify_object(Executor* E, Object o){
                         free(argument_buffer);
                     }
                 }
+                if(f->variadic){
+                    BUFFER_WRITE("...", 3);
+                }
                 BUFFER_WRITE(")", 1);
                 
                 buffer[buffer_size-1]='\0';// to make sure that the string won't overflow
@@ -649,7 +741,11 @@ char* stringify_object(Executor* E, Object o){
                 return buffer_truncated;
             } else if(f->arguments_count>0){
                 char* buffer=malloc(16*sizeof(char*));
-                snprintf(buffer, 16, "function(%i)", f->arguments_count);
+                if(f->variadic){
+                    snprintf(buffer, 16, "function(%i...)", f->arguments_count);
+                } else {
+                    snprintf(buffer, 16, "function(%i)", f->arguments_count);
+                }
                 return buffer;
             } else {
                 return strdup("function()");
