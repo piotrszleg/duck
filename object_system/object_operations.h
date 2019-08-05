@@ -21,7 +21,6 @@ Object operator(Executor* E, Object a, Object b, const char* op);
 Object cast(Executor* E, Object o, ObjectType type);
 
 Object call(Executor* E, Object o, Object* arguments, int arguments_count);
-Object message_object(Executor* E, Object messaged, const char* message_identifier, Object* arguments, int arguments_count);
 
 Object get(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);

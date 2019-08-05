@@ -23,13 +23,13 @@
     X(load_float) /*    (float_argument) */ \
     X(table_literal) \
     X(null) \
-    X(function_1)/*      (pre_function_argument) function needs to be splitted into two instructions to have all needed data */ \
-    X(function_2) /*     (uint_argument sub_program_index) */ \
-    X(native_call_1)/*   (uint_argument pointer_to_function) */ \
-    X(native_call_2) /*  (uint_argument arguments_count) */ \
+    X(function_1)/*     (pre_function_argument) function needs to be splitted into two instructions to have all needed data */ \
+    X(function_2) /*    (uint_argument sub_program_index) */ \
+    X(native_call_1)/*  (uint_argument pointer_to_function) */ \
+    X(native_call_2) /* (uint_argument arguments_count) */ \
     X(return) /*        [object_to_return] */ \
-    X(get_scope) /*     pushes current scope onto the stack */ \
-    X(set_scope) /*     [scope] sets the Object on the stack as the current scope */ \
+    X(enter_scope) /*   pushes current scope into the stack, creates a table and sets it as a new scope */ \
+    X(leave_scope) /*   [new_scope] discards the previous scope, sets the object on stack as the new scope */ \
     X(new_scope) /*     creates a new Table and sets it as the current scope */ \
     X(label) /*         (uint_argument label_index) sets label */ \
     X(jump) /*          (uint_argument label_index) jumps to label */ \
@@ -42,7 +42,6 @@
     X(call) /*          (uint_argument number_of_arguments) [function, arguments...] */ \
     X(tail_call) \
     X(binary) /*        [a, b, operator] */ \
-    X(message) /*       (arguments_count) [messaged, message_identifier, arguments...] */\
     X(prefix) /*        [a, operator] */ \
     X(swap) /*          (swap_argument) */ \
     X(add) /*           [a, b] */ \
@@ -107,7 +106,6 @@ typedef struct {
 int gets_from_stack(Instruction instr);
 int pushes_to_stack(Instruction instr);
 bool changes_flow(InstructionType instr);
-bool changes_scope(InstructionType instr);
 bool finishes_program(InstructionType instr);
 bool carries_stack(InstructionType instr);
 bool instruction_is_literal(InstructionType instr);

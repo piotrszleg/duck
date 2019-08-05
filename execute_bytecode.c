@@ -545,31 +545,29 @@ Object execute_bytecode(Executor* E){
                 dereference(E, &value);
                 break;
             }
-            case b_get_scope:
+            case b_enter_scope:
             {
+                Object new_scope;
+                table_init(E, &new_scope);
+                inherit_scope(E, new_scope, *scope);
+
                 push(object_stack, *scope);
+
+                reference(&new_scope);
+                dereference(E, scope);
+                *scope=new_scope;
                 break;
             }
-            case b_set_scope:
+            case b_leave_scope:
             {
                 dereference(E, scope);
                 Object o=pop(object_stack);
                 if(o.type!=t_table){
-                    BYTECODE_ERROR(o, "b_set_scope: Object isn't a table. It's type is: %i", o.type);
+                    BYTECODE_ERROR(o, "b_leave_scope: Object on stack isn't a table. It's type is: %i", o.type);
                 } else {
                     reference(&o);
                     *scope=o;
                 }
-                break;
-            }
-            case b_new_scope:
-            {
-                Object t;
-                table_init(E, &t);
-                inherit_scope(E, t, *scope);
-                reference(&t);
-                dereference(E, scope);
-                *scope=t;
                 break;
             }
             case b_binary:
@@ -824,23 +822,6 @@ Object execute_bytecode(Executor* E){
                 }
                 push(object_stack, f(E, null_const, arguments, arguments_count));
                 free(arguments);
-                break;
-            }
-            case b_message:
-            {
-                Object messaged=pop(object_stack);
-                Object message_identifier=pop(object_stack);
-                int provided_arguments=instr.uint_argument;
-                if(message_identifier.type!=t_string){
-                    BYTECODE_ERROR(message_identifier, "b_message: message_identifier type is %s", OBJECT_TYPE_NAMES[message_identifier.type]);
-                }
-                Object* arguments=malloc(sizeof(Object)*provided_arguments);
-                for (int i = provided_arguments-1; i >= 0; i--){
-                    arguments[i]=pop(object_stack);
-                }
-                Object message_result=message_object(E, messaged, message_identifier.text, arguments, provided_arguments);
-                free(arguments);
-                push(object_stack, message_result);
                 break;
             }
             case b_tail_call:

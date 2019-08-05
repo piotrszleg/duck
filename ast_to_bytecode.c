@@ -218,22 +218,21 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             block* b=(block*)exp;
 
             if(!keep_scope){
-                push_uint_instruction(translation, b_get_scope, 0);
-                push_uint_instruction(translation, b_new_scope, 0);
+                push_instruction(translation, b_enter_scope);
             }
 
             int lines_count=vector_count(&b->lines);
             for (int i = 0; i < lines_count; i++){
                 ast_to_bytecode_recursive(pointers_vector_get(&b->lines, i), translation, false);
                 if(i!=lines_count-1){// result of the last line isn't discarded
-                    push_uint_instruction(translation, b_discard, 0);
+                    push_instruction(translation, b_discard);
                 }
             }
             if(!keep_scope){
                 // the result of evaluating the last line is now on top
                 // so the scope object needs to be pushed to the top instead
                 push_uint_instruction(translation, b_push_to_top, 1);
-                push_uint_instruction(translation, b_set_scope, 0);
+                push_instruction(translation, b_leave_scope);
             }
 
             break;
@@ -327,18 +326,6 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             BytecodeProgram prog=closure_to_bytecode(d);
             stream_push(&translation->sub_programs, &prog, sizeof(BytecodeProgram));
             push_uint_instruction(translation, b_function_2, sub_program_index);
-            break;
-        }
-        case e_message:
-        {
-            message* m=(message*)exp;
-            int lines_count=vector_count(&m->arguments->lines);
-            for (int i = 0; i < lines_count; i++){
-                ast_to_bytecode_recursive(pointers_vector_get(&m->arguments->lines, i), translation, false);
-            }
-            push_string_load(translation, m->message_name->value);
-            ast_to_bytecode_recursive(m->messaged_object, translation, false);
-            push_uint_instruction(translation, b_message, lines_count);
             break;
         }
         case e_function_call:

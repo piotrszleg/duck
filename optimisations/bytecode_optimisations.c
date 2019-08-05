@@ -388,15 +388,18 @@ void fill_with_no_op(BytecodeManipulation* manipulation, unsigned start, unsigne
     }
 }
 
-void insert_instruction(BytecodeManipulation* manipulation, unsigned index, Instruction* instruction, Transformation* transformation) {
+// returns true if the result is inserting the instrcution and not changing b_no_op to it
+bool insert_instruction(BytecodeManipulation* manipulation, unsigned index, Instruction* instruction, Transformation* transformation) {
     if(vector_index_instruction(manipulation->instructions, index)->type==b_no_op) {
         *vector_index_instruction(manipulation->instructions, index)=*instruction;
         *vector_index_transformation(manipulation->transformations, index)=*transformation;
+        return false;
     } else {
         vector_insert(manipulation->instructions, index, instruction);
         vector_insert(manipulation->transformations, index, transformation);
         // copy information from previous instruction
         vector_insert(manipulation->informations, index, vector_index(manipulation->informations, index));
+        return true;
     }
     if(manipulation->print_optimisations){
         highlight_instructions(vector_get_data(manipulation->instructions), vector_get_data(manipulation->constants), '+', index, index);
@@ -424,10 +427,17 @@ void stack_usage_optimisations(
             }
             bool first_get_removal=true;
             bool used=false;
+            int inner_scope_depth=0;// used to check when the scope was left
+
             BytecodeIterator progress_state;
             int get_search;
             BYTECODE_FOR(progress_state, get_search, vector_get_data(instructions)){
-                if(changes_scope(vector_index_instruction(instructions, get_search)->type)){
+                if(vector_index_instruction(instructions, get_search)->type==b_enter_scope){
+                    inner_scope_depth++;
+                } else if(vector_index_instruction(instructions, get_search)->type==b_leave_scope){
+                    inner_scope_depth--;
+                }
+                if(inner_scope_depth<0){
                     // we optimised all gets in this scope so the variable isn't needed anymore
                     break;
                 }
@@ -452,8 +462,9 @@ void stack_usage_optimisations(
                         gc_object_reference((gc_Object*)doubled);
                         gc_object_reference((gc_Object*)doubled);
                         gc_object_reference((gc_Object*)doubled);
-                        insert_instruction(manipulation, pointer+1, &double_instruction, &double_transformation);
-                        get_search=bytecode_iterator_next(&progress_state, vector_get_data(instructions));// skip inserted instruction
+                        if(insert_instruction(manipulation, pointer+1, &double_instruction, &double_transformation)) {
+                            get_search=bytecode_iterator_next(&progress_state, vector_get_data(instructions));// skip inserted instruction
+                        }
                     }
                     // search for references to dummy object and replace them with this one
                     Dummy* to_replace=vector_index_transformation(transformations, get_search)->outputs[0];
@@ -558,9 +569,10 @@ bool remove_useless_operations(BytecodeManipulation* manipulation, vector* instr
                         transformation_from_instruction(&discard_transformation, &discard_instruction);
                         discard_transformation.inputs[0]=producer->inputs[i];
                         gc_object_reference((gc_Object*)discard_transformation.inputs[0]);
-                        insert_instruction(manipulation, search, &discard_instruction, &discard_transformation);
-                        search++;
-                        pointer++;
+                        if(insert_instruction(manipulation, search, &discard_instruction, &discard_transformation)) {
+                            search++;
+                            pointer++;
+                        }
                     }
                     // remove producer and discard instruction
                     fill_with_no_op(manipulation, search, search);

@@ -920,47 +920,6 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
     }
 }
 
-Object message_object(Executor* E, Object messaged, const char* message_identifier, Object* arguments, int arguments_count){
-    switch(messaged.type) {
-        case t_table:
-        {
-            Object message_override=table_get_override(E, messaged, "message");
-            if(message_override.type!=t_null){
-                // call "message" field of messaged, passing messaged, message_identifier and rest of the arguments
-                Object* override_arguments=malloc(sizeof(Object)*(arguments_count+2));
-                override_arguments[0]=messaged;
-                override_arguments[1]=to_string(message_identifier);
-                memcpy(override_arguments+2, arguments, arguments_count*sizeof(Object));
-
-                Object result=call(E, message_override, override_arguments, arguments_count+2);
-                free(override_arguments);
-                return result;
-            } else {
-                // call message_identifier field of messaged, passing messaged, and rest of the arguments
-                Object function_field=table_get(E, messaged.tp, to_string(message_identifier));
-                Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
-                arguments_with_self[0]=messaged;
-                memcpy(arguments_with_self+1, arguments, arguments_count*sizeof(Object));
-                return call(E, function_field, arguments_with_self, arguments_count+1);
-            }
-            break;
-        }
-        default: {
-            Object patch=get_patch(E, OBJECT_TYPE_NAMES[messaged.type], "message");
-            if(patch.type!=t_null){
-                Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
-                arguments_with_self[0]=messaged;
-                memcpy(arguments_with_self+1, arguments, arguments_count*sizeof(Object));
-                Object result=call(E, patch, arguments_with_self, arguments_count+1);
-                free(arguments_with_self);
-                return result;
-            } else {
-                RETURN_ERROR("WRONG_ARGUMENT_TYPE", messaged, "Can't message object of type <%s>", OBJECT_TYPE_NAMES[messaged.type]);
-            }
-        }
-    }
-}
-
 Object copy(Executor* E, Object o){
     switch(o.type){
         case t_string:

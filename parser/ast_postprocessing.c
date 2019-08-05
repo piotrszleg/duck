@@ -57,6 +57,51 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         }
         break;
     }
+    case e_message: {
+        /* 
+            change message to function call
+
+            messaged->message_name(arguments...)
+
+            {
+                messaged=messaged # save messaged to temporary variable to avoid executing it's statement two times
+                messaged.message_name(messaged, arguments...)
+            }
+        */
+        message* m=(message*)exp;
+        
+        name* messaged_name=new_name();
+        messaged_name->value=strdup("messaged");
+        path* messaged_path=new_path();
+        pointers_vector_push(&messaged_path->lines, messaged_name);
+
+        // messaged=messaged
+        assignment* messaged_assignment=new_assignment();
+        messaged_assignment->left=messaged_path;
+        messaged_assignment->right=copy_expression(m->messaged_object);
+        
+        // messaged.message_name
+        path* message_function_path=new_path();
+        pointers_vector_push(&message_function_path->lines, copy_expression((expression*)messaged_name));
+        pointers_vector_push(&message_function_path->lines, copy_expression((expression*)m->message_name));
+
+        function_call* call=new_function_call();
+        call->called=(expression*)message_function_path;
+        // (messaged, arguments...)
+        table_literal* call_arguments=new_table_literal();
+        pointers_vector_push(&call_arguments->lines, copy_expression((expression*)messaged_path));
+        for(int i=0; i<vector_count(&m->arguments->lines); i++) {
+            pointers_vector_push(&call_arguments->lines, copy_expression((expression*)pointers_vector_get(&m->arguments->lines, i)));
+        }
+        call->arguments=call_arguments;
+
+        // { }
+        block* sub_scope=new_block();
+        pointers_vector_push(&sub_scope->lines, messaged_assignment);
+        pointers_vector_push(&sub_scope->lines, call);
+        request.replacement=(expression*)sub_scope;
+        break;
+    }
     case e_function_declaration: {
         // if the function is already on the stack then ast_visitor is escaping it
         if(*(expression**)(vector_top(&state->functions))==exp) {

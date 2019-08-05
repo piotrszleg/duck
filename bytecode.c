@@ -15,7 +15,7 @@ int gets_from_stack(Instruction instr){
         X(b_move_top, instr.uint_argument+1)
         X(b_return, 1)
         X(b_end, 1)
-        X(b_set_scope, 1)
+        X(b_leave_scope, 1)
         X(b_get, 1)
         X(b_table_get, 2)
         X(b_set, 2)
@@ -23,7 +23,6 @@ int gets_from_stack(Instruction instr){
         X(b_table_set_keep, 3)
         X(b_call, instr.uint_argument+1)
         X(b_tail_call, instr.uint_argument+1)
-        X(b_message, instr.uint_argument+2)
         X(b_function_2, 1)
         X(b_jump_not, 1)
         X(b_swap, MAX(instr.swap_argument.left, instr.swap_argument.right)+1)
@@ -63,7 +62,7 @@ int pushes_to_stack(Instruction instr){
         X(b_end, 0)
         X(b_no_op, 0)
         X(b_discard, 0)
-        X(b_set_scope, 0)
+        X(b_leave_scope, 0)
         X(b_label, 0)
         X(b_jump, 0)
         X(b_jump_not, 0)
@@ -80,11 +79,6 @@ bool changes_flow(InstructionType instr){
     return false
     X(b_jump)
     X(b_jump_not);
-}
-bool changes_scope(InstructionType instr){
-    return false
-    X(b_new_scope)
-    X(b_set_scope);
 }
 bool finishes_program(InstructionType instr){
     return false

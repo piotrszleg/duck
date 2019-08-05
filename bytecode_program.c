@@ -7,8 +7,8 @@ bool instructions_equal(Instruction a, Instruction b, void* constants){
     switch(a.type){
         case b_end:
         case b_discard:
-        case b_get_scope:
-        case b_set_scope:
+        case b_enter_scope:
+        case b_leave_scope:
         case b_null:
         case b_return:
         case b_binary:
@@ -56,8 +56,8 @@ void print_instruction(Instruction instruction, void* constants){
     switch(instruction.type){
         case b_end:
         case b_discard:
-        case b_get_scope:
-        case b_set_scope:
+        case b_enter_scope:
+        case b_leave_scope:
         case b_null:
         case b_return:
         case b_binary:

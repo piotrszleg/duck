@@ -1,1 +1,3 @@
-10>10
+
+m=[pr=self->print("printing: "+self)]
+m::pr()

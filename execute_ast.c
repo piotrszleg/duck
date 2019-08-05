@@ -248,19 +248,6 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 return result;
             }
         }
-        case e_message:
-        {
-            message* m=(message*)exp;
-            Object messaged=execute_ast(E, m->messaged_object, scope, 0);
-            int arguments_count=vector_count(&m->arguments->lines);
-            Object* arguments=malloc(arguments_count*sizeof(Object));
-            for (int i = 0; i < vector_count(&m->arguments->lines); i++){
-                Object argument_value=execute_ast(E, pointers_vector_get(&m->arguments->lines, i), scope, 0);
-                arguments[i]=argument_value;
-            }
-            free(arguments);
-            return message_object(E, messaged, m->message_name->value, arguments, arguments_count);
-        }
         case e_path:
         {
             return path_get(E, scope, *(path*)exp);
