@@ -230,7 +230,7 @@ BytecodeProgram* choose_variant(Executor* E, BytecodeProgram* root){
 }
 
 void move_to_function(Executor* E, Function* f){
-    gc_object_reference(f->source_pointer);
+    heap_object_reference(f->source_pointer);
 
     Object function_scope;
     table_init(E, &function_scope);
@@ -239,7 +239,7 @@ void move_to_function(Executor* E, Function* f){
     }
     reference(&function_scope);
     E->bytecode_environment.scope=function_scope;
-    gc_object_reference((gc_Object*)f->source_pointer);
+    heap_object_reference((HeapObject*)f->source_pointer);
 
     E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
     E->bytecode_environment.pointer=0;
@@ -249,7 +249,7 @@ void move_to_function(Executor* E, Function* f){
 
 void create_return_point(BytecodeEnvironment* environment, bool terminate){
     ReturnPoint return_point;
-    gc_object_reference((gc_Object*)environment->executed_program);
+    heap_object_reference((HeapObject*)environment->executed_program);
     return_point.program=environment->executed_program;
     return_point.pointer=environment->pointer;
     reference(&environment->scope);
@@ -805,8 +805,8 @@ Object execute_bytecode(Executor* E){
                 f.fp->ftype=f_bytecode;
                 // b_function_2 always follows b_function_1 so it can be read directly
                 (*pointer)++;
-                f.fp->source_pointer=(gc_Object*)(E->bytecode_environment.executed_program->sub_programs+code[*pointer].uint_argument);
-                gc_object_reference((gc_Object*)f.fp->source_pointer);
+                f.fp->source_pointer=(HeapObject*)(E->bytecode_environment.executed_program->sub_programs+code[*pointer].uint_argument);
+                heap_object_reference((HeapObject*)f.fp->source_pointer);
                  push(object_stack, f);
                 break;
             }
@@ -958,7 +958,7 @@ Object execute_bytecode(Executor* E){
                 if(E->options.debug){
                     debugger(E);
                 }
-                gc_object_dereference(E, (gc_Object*)E->bytecode_environment.executed_program);
+                heap_object_dereference(E, (HeapObject*)E->bytecode_environment.executed_program);
                 dereference(E, scope);
                 if(vector_empty(return_stack)){
                     if(E->coroutine!=NULL){

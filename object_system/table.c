@@ -38,7 +38,7 @@ unsigned table_hash(Executor* E, Table* t, Object* error) {
         #define ERROR_CHECK(hashed_value) \
             if(field_error.type!=t_null){ \
                 NEW_ERROR(*error, "HASH_ERROR", \
-                multiple_causes(E, (Object[]){wrap_gc_object((gc_Object*)t), hashed_value, field_error}, 3), \
+                multiple_causes(E, (Object[]){wrap_heap_object((HeapObject*)t), hashed_value, field_error}, 3), \
                 "Hashing table failed because of error in hashing one of it's fields."); \
                 return result; \
             }
@@ -61,7 +61,7 @@ Object table_get(Executor* E, Table* t, Object key) {
     Object error=null_const;
     int hashed=hash(E, key, &error)%t->map_size;
     if(error.type!=t_null){
-        RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){wrap_gc_object((gc_Object*)t), key, error}, 3), 
+        RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){wrap_heap_object((HeapObject*)t), key, error}, 3), 
                      "Getting a field from table failed because of hashing error.")
     }
     MapElement* e=t->map[hashed];
@@ -263,7 +263,7 @@ Object table_copy(Executor* E, Table* t) {
     return copied;
 }
 
-void table_foreach_children(Executor* E, Table* t, gc_PointerForeachChildrenCallback callback){
+void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback){
     for(int i=0; i<t->array_size; i++){
         callback(E, &t->array[i]);
     }

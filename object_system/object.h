@@ -20,7 +20,7 @@ typedef struct Executor Executor;
     X(string) \
     X(table) \
     X(pointer) \
-    X(gc_pointer) \
+    X(managed_pointer) \
     X(coroutine)
 
 typedef enum {
@@ -34,12 +34,12 @@ typedef enum {
 extern const char* OBJECT_TYPE_NAMES[];// array mapping enum ObjectType to their names as strings
 extern const int OBJECT_TYPE_NAMES_COUNT;
 
-typedef struct gc_Object gc_Object;
-struct gc_Object {
+typedef struct HeapObject HeapObject;
+struct HeapObject {
     int ref_count;
-    // gc_objects form a double linked list starting from gc_root
-    struct gc_Object* previous;
-    struct gc_Object* next;
+    // heap_objects form a double linked list starting from gc_root
+    struct HeapObject* previous;
+    struct HeapObject* next;
 
     bool marked;
     ObjectType gc_type;
@@ -56,7 +56,7 @@ typedef enum {
 #define ALREADY_DESTROYED -5
 
 typedef struct {
-    gc_Object* root;
+    HeapObject* root;
     GarbageCollectorState state;
     int survivors_count;// how many objects survived last garbage collection
     int allocations_count;
@@ -68,7 +68,7 @@ void garbage_collector_init(GarbageCollector*);
 typedef struct Table Table;
 typedef struct Function Function;
 typedef struct Coroutine Coroutine;
-typedef struct gc_Pointer gc_Pointer;
+typedef struct ManagedPointer ManagedPointer;
 
 typedef struct {
     ObjectType type;
@@ -77,13 +77,13 @@ typedef struct {
         int int_value;
         char* text;
         void* p;
-        gc_Pointer* gcp;
+        ManagedPointer* gcp;
         Function* fp;
         Table* tp;
         Coroutine* co;
-        /* gc_Pointer, Function, Table and Coroutine structs have same memory layout as gc_Object
+        /* ManagedPointer, Function, Table and Coroutine structs have same memory layout as HeapObject
            and can be safely casted to it */
-        gc_Object* gco;
+        HeapObject* gco;
     };
 } Object;
 
@@ -121,18 +121,18 @@ OBJECT_INIT_E(table)
 // declaration of function pointer type used in function objects
 typedef Object (*ObjectSystemFunction)(Executor* E, Object scope, Object* arguments, int arguments_count);
 
-typedef void (*gc_PointerFreeFunction)(gc_Pointer*);
-typedef void (*gc_PointerForeachChildrenCallback)(Executor*, Object*);
-typedef void (*gc_PointerForeachChildrenFunction)(Executor* E, gc_Pointer*, gc_PointerForeachChildrenCallback);
+typedef void (*ManagedPointerFreeFunction)(ManagedPointer*);
+typedef void (*ManagedPointerForeachChildrenCallback)(Executor*, Object*);
+typedef void (*ManagedPointerForeachChildrenFunction)(Executor* E, ManagedPointer*, ManagedPointerForeachChildrenCallback);
 
-typedef struct gc_Pointer gc_Pointer;
-struct gc_Pointer {
-    gc_Object gco;
-    gc_PointerFreeFunction free;
-    gc_PointerForeachChildrenFunction foreach_children;
+typedef struct ManagedPointer ManagedPointer;
+struct ManagedPointer {
+    HeapObject gco;
+    ManagedPointerFreeFunction free;
+    ManagedPointerForeachChildrenFunction foreach_children;
 };
 
-void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerFreeFunction free);
+void managed_pointer_init(Executor* E, ManagedPointer* gcp, ManagedPointerFreeFunction free);
 
 typedef enum {
     f_native,
@@ -142,12 +142,12 @@ typedef enum {
 } FunctionType;
 
 struct Function {
-    gc_Object gco;
+    HeapObject gco;
 
     FunctionType ftype;
     union {
         ObjectSystemFunction native_pointer;
-        gc_Object* source_pointer;
+        HeapObject* source_pointer;
         unsigned special_index;
     };
     char** argument_names;
@@ -157,7 +157,7 @@ struct Function {
 };
 
 struct Coroutine {
-    gc_Object gco;
+    HeapObject gco;
     Executor* executor;
     enum State {
         co_uninitialized,
@@ -167,25 +167,25 @@ struct Coroutine {
 };
 
 void print_allocated_objects(Executor* E);
-bool is_gc_object(Object o);
+bool is_heap_object(Object o);
 bool gc_should_run(GarbageCollector* gc);
 void gc_unmark_all(GarbageCollector* gc);
 void gc_mark(Executor* E, Object* o);
 void gc_sweep(Executor* E);
-Object wrap_gc_object(gc_Object* o);
+Object wrap_heap_object(HeapObject* o);
 void call_destroy(Executor* E, Object o);
 
 Object to_string(const char* s);
 Object to_int(int n);
 Object to_float(float n);
 Object to_pointer(void* p);
-Object to_gc_pointer(gc_Pointer* p);
+Object to_managed_pointer(ManagedPointer* p);
 Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, int arguments_count);
 
 void reference(Object* o);
 void object_init(Object* o, ObjectType type);
-void gc_object_dereference(Executor* E, gc_Object* o);
-void gc_object_reference(gc_Object* o);
+void heap_object_dereference(Executor* E, HeapObject* o);
+void heap_object_reference(HeapObject* o);
 void dereference(Executor* E, Object* o);
 void destroy_unreferenced(Executor* E, Object* o);
 
@@ -199,7 +199,7 @@ void object_system_deinit(Executor* E);
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
 void coroutine_free(Coroutine* co);
-void coroutine_foreach_children(Executor* E, Coroutine* co, gc_PointerForeachChildrenCallback);
+void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeachChildrenCallback);
 Object executor_on_unhandled_error(Executor* E, Object error);
 GarbageCollector* executor_get_garbage_collector(Executor*);
 Object executor_get_patching_table(Executor*);

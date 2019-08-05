@@ -38,7 +38,7 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
         memcpy(E->bytecode_environment.executed_program, &prog, sizeof(BytecodeProgram));
         bytecode_program_init(E, E->bytecode_environment.executed_program);
         // the end instruction will dereference these later
-        gc_object_reference((gc_Object*)E->bytecode_environment.executed_program);
+        heap_object_reference((HeapObject*)E->bytecode_environment.executed_program);
         reference(&scope);
         E->bytecode_environment.scope=scope;
         
@@ -116,7 +116,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
             return execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, function_scope, 1);
         }
         default:
-            RETURN_ERROR("CALL_ERROR", wrap_gc_object((gc_Object*)f), "Function type has incorrect type value of %i", f->ftype)
+            RETURN_ERROR("CALL_ERROR", wrap_heap_object((HeapObject*)f), "Function type has incorrect type value of %i", f->ftype)
     }
 }
 
@@ -124,7 +124,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count){
 
     #define CALL_ERROR(message, ...) \
-        RETURN_ERROR("CALL_ERROR", wrap_gc_object((gc_Object*)f),message, ##__VA_ARGS__)
+        RETURN_ERROR("CALL_ERROR", wrap_heap_object((HeapObject*)f),message, ##__VA_ARGS__)
     
     int arguments_count_difference=arguments_count-f->arguments_count+f->variadic;
     if(arguments_count_difference<0){
@@ -172,14 +172,14 @@ Object executor_on_unhandled_error(Executor* E, Object error) {
     return null_const;
 }
 
-void executor_foreach_children(Executor* E, Executor* iterated_executor, gc_PointerForeachChildrenCallback callback){
+void executor_foreach_children(Executor* E, Executor* iterated_executor, ManagedPointerForeachChildrenCallback callback){
     vector* object_stack=&E->bytecode_environment.object_stack;
     vector* return_stack=&E->bytecode_environment.return_stack;
     vector* used_objects=&E->ast_execution_state.used_objects;
     for(int i=0; i<vector_count(return_stack); i++){
         ReturnPoint* return_point=vector_index(return_stack, i);
         callback(E, &return_point->scope);
-        Object wrapped_program=wrap_gc_object((gc_Object*)return_point->program);
+        Object wrapped_program=wrap_heap_object((HeapObject*)return_point->program);
         callback(E, &wrapped_program);
     }
     for(int i=0; i<vector_count(object_stack); i++){
@@ -189,11 +189,11 @@ void executor_foreach_children(Executor* E, Executor* iterated_executor, gc_Poin
         callback(E, (Object*)vector_index(used_objects, i));
     }
     callback(E, &E->scope);
-    Object wrapped_program=wrap_gc_object((gc_Object*)E->bytecode_environment.executed_program);
+    Object wrapped_program=wrap_heap_object((HeapObject*)E->bytecode_environment.executed_program);
     callback(E, &wrapped_program);
 }
 
-void coroutine_foreach_children(Executor* E, Coroutine* co, gc_PointerForeachChildrenCallback callback){
+void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeachChildrenCallback callback){
     executor_foreach_children(E, co->executor, callback);
 }
 

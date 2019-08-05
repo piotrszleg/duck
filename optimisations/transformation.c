@@ -19,11 +19,11 @@ void transformation_from_instruction(Transformation* transformation, Instruction
 
 void transformation_deinit(Executor* E, Transformation* transformation){
     for(int i=0; i<transformation->inputs_count; i++){
-        gc_object_dereference(E, (gc_Object*)transformation->inputs[i]);
+        heap_object_dereference(E, (HeapObject*)transformation->inputs[i]);
     }
     transformation->inputs_count=0;
     for(int i=0; i<transformation->outputs_count; i++){
-        gc_object_dereference(E, (gc_Object*)transformation->outputs[i]);
+        heap_object_dereference(E, (HeapObject*)transformation->outputs[i]);
     }
     transformation->outputs_count=0;
     free(transformation->inputs);

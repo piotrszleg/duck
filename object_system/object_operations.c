@@ -27,7 +27,7 @@ bool is_falsy(Object o){
         case t_table:
             return o.tp->elements_count==0;// empty table is falsy
         case t_function:
-        case t_gc_pointer:
+        case t_managed_pointer:
         case t_coroutine:
         case t_pointer:
             return false;
@@ -173,7 +173,7 @@ bool compare_is_constant(ObjectType a, ObjectType b) {
     switch(a) {
         case t_string:
         case t_pointer:
-        case t_gc_pointer:
+        case t_managed_pointer:
         case t_function:
             return true;
         default:
@@ -228,7 +228,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         }
         case t_pointer:
             return a.p==b.p;
-        case t_gc_pointer:
+        case t_managed_pointer:
             return a.gcp==b.gcp;
         case t_function:
             if(a.fp->ftype!=b.fp->ftype){
@@ -298,7 +298,7 @@ unsigned hash(Executor* E, Object o, Object* error) {
             }
          case t_pointer:
             return (unsigned)o.p;
-        case t_gc_pointer:
+        case t_managed_pointer:
             return (unsigned)o.gcp;
         default:
             NEW_ERROR(*error, "HASH_ERROR", o, "Can't hash object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
@@ -492,7 +492,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         OP_CASE("is"){
             if(a.type!=b.type){
                 return to_int(0);
-            } else if(is_gc_object(a)) {
+            } else if(is_heap_object(a)) {
                 return to_int(a.gco==b.gco);
             } else {
                 Object error;
@@ -793,8 +793,8 @@ char* stringify_object(Executor* E, Object o){
             return suprintf("coroutine(%#x)", (unsigned)o.co);
         case t_pointer:
             return suprintf("pointer(%#x)", (unsigned)o.p);
-        case t_gc_pointer:
-            return suprintf("gc_pointer(%#x)", (unsigned)o.gcp);
+        case t_managed_pointer:
+            return suprintf("managed_pointer(%#x)", (unsigned)o.gcp);
         case t_null:
             return strdup("null");
         default:

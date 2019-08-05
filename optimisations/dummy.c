@@ -14,14 +14,14 @@ ObjectType dummy_type(const Dummy* dummy){
     }
 }
 
-void dummy_foreach_children(Executor* E, Dummy* dummy, gc_PointerForeachChildrenCallback callback){
+void dummy_foreach_children(Executor* E, Dummy* dummy, ManagedPointerForeachChildrenCallback callback){
     if(dummy->type==d_constant){
         callback(E, &dummy->constant_value);
     }
     if(dummy->type==d_or){
-        Object wrapped_left=wrap_gc_object((gc_Object*)dummy->or.left);
+        Object wrapped_left=wrap_heap_object((HeapObject*)dummy->or.left);
         callback(E, &wrapped_left);
-        Object wrapped_right=wrap_gc_object((gc_Object*)dummy->or.right);
+        Object wrapped_right=wrap_heap_object((HeapObject*)dummy->or.right);
         callback(E, &wrapped_right);
     }
 }
@@ -36,8 +36,8 @@ void dummy_free(Dummy* dummy){
 
 static inline Dummy* new_dummy(Executor* E, DummyType type){
     Dummy* result=malloc(sizeof(Dummy));
-    gc_pointer_init(E, (gc_Pointer*)result, (gc_PointerFreeFunction)dummy_free);
-    result->gcp.foreach_children=(gc_PointerForeachChildrenFunction)dummy_foreach_children;
+    managed_pointer_init(E, (ManagedPointer*)result, (ManagedPointerFreeFunction)dummy_free);
+    result->gcp.foreach_children=(ManagedPointerForeachChildrenFunction)dummy_foreach_children;
     result->type=type;
     return result;
 }
@@ -72,9 +72,9 @@ Dummy* new_constant_dummy(Executor* E, Object constant_value, unsigned* id_count
 
 Dummy* new_or_dummy(Executor* E, Dummy* left, Dummy* right, unsigned* id_counter){
     Dummy* result=new_dummy(E, d_or);
-    gc_object_reference((gc_Object*)left);
+    heap_object_reference((HeapObject*)left);
     result->or.left=left;
-    gc_object_reference((gc_Object*)right);
+    heap_object_reference((HeapObject*)right);
     result->or.right=right;
     result->id=*id_counter;
     (*id_counter)++;
@@ -155,8 +155,8 @@ bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replace
         return dummy_replace(E, &(*dummy)->or.left, to_replace, replacement)
         ||     dummy_replace(E, &(*dummy)->or.right, to_replace, replacement);
     } else if(dummies_equal(*dummy, to_replace)) {
-        gc_object_reference((gc_Object*)replacement);
-        gc_object_dereference(E, (gc_Object*)*dummy);
+        heap_object_reference((HeapObject*)replacement);
+        heap_object_dereference(E, (HeapObject*)*dummy);
         *dummy=replacement;
         return true;
     } else {

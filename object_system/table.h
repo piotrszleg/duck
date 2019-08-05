@@ -20,7 +20,7 @@ struct MapElement {
 };
 
 struct Table {
-    gc_Object gco;
+    HeapObject gco;
 
     Object* array;
     unsigned elements_count;
@@ -55,7 +55,7 @@ bool table_is_protected(Table* t);
 void table_disable_special_fields(Table* t);
 bool table_has_special_fields(Table* t);
 void table_free(Table* t);
-void table_foreach_children(Executor* E, Table* t, gc_PointerForeachChildrenCallback callback);
+void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback);
 int table_compare(Executor* E, Table* a, Table* b, Object* error);
 char* table_serialize(Executor* E, Table* t);
 char* table_stringify(Executor* E, Table* t);

@@ -26,7 +26,7 @@ Object builtin_coroutine(Executor* E, Object scope, Object* arguments, int argum
     REQUIRE_TYPE(function, t_function)
     REQUIRE(function.fp->ftype==f_bytecode, function)
     coroutine_executor->bytecode_environment.executed_program=(BytecodeProgram*)function.fp->source_pointer;
-    gc_object_reference((gc_Object*)function.fp->source_pointer);
+    heap_object_reference((HeapObject*)function.fp->source_pointer);
     REQUIRE(function.fp->arguments_count==arguments_count-1, function)
     for(int i=1; i<arguments_count; i++){
         push(&coroutine_executor->bytecode_environment.object_stack, arguments[i]);
@@ -40,7 +40,7 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
     switch(coroutine->state){
         case co_uninitialized:
             if(arguments_count!=0){
-                RETURN_ERROR("COROUTINE_ERROR", wrap_gc_object((gc_Object*)coroutine), "First call to coroutine shouldn't have any arguments, %i given", arguments_count)
+                RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "First call to coroutine shouldn't have any arguments, %i given", arguments_count)
             } else {
                 coroutine->state=co_running;
                 return execute_bytecode(coroutine->executor);
@@ -52,11 +52,11 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
             } else if(arguments_count==0){
                 push(&coroutine->executor->bytecode_environment.object_stack, null_const);
             } else {
-                RETURN_ERROR("COROUTINE_ERROR", wrap_gc_object((gc_Object*)coroutine), "Coroutines can accept either zero or one argument, %i given", arguments_count)
+                RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "Coroutines can accept either zero or one argument, %i given", arguments_count)
             }
             return execute_bytecode(coroutine->executor);
         case co_finished: return null_const;
-        default: RETURN_ERROR("COROUTINE_ERROR", wrap_gc_object((gc_Object*)coroutine), "Unknown coroutine state: %i", coroutine->state)
+        default: RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "Unknown coroutine state: %i", coroutine->state)
     }
 }
 

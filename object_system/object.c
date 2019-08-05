@@ -14,9 +14,9 @@ void garbage_collector_init(GarbageCollector* gc){
     gc->allocations_count=0;
 }
 
-void gc_object_init(Executor* E, gc_Object* gco){
+void heap_object_init(Executor* E, HeapObject* gco){
     GarbageCollector* gc=executor_get_garbage_collector(E);
-    gc_Object* gc_root=gc->root;
+    HeapObject* gc_root=gc->root;
     gc->allocations_count++;
     
     gco->ref_count=0;
@@ -28,7 +28,7 @@ void gc_object_init(Executor* E, gc_Object* gco){
     gc->root=gco;
 }
 
-Object wrap_gc_object(gc_Object* o){
+Object wrap_heap_object(HeapObject* o){
     Object wrapped;
     wrapped.type=o->gc_type;
     wrapped.gco=o;
@@ -52,7 +52,7 @@ void function_init(Executor* E, Object* o){
     o->type=t_function;
     o->fp=malloc(sizeof(Function));
     CHECK_ALLOCATION(o->fp);
-    gc_object_init(E, o->gco);
+    heap_object_init(E, o->gco);
     o->gco->gc_type=t_function;
     o->fp->variadic=false;
     o->fp->argument_names=NULL;
@@ -65,7 +65,7 @@ void table_init(Executor* E, Object* o){
     o->type=t_table;
     o->tp=malloc(sizeof(Table));
     CHECK_ALLOCATION(o->tp);
-    gc_object_init(E, o->gco);
+    heap_object_init(E, o->gco);
     o->gco->gc_type=t_table;
     table_component_init(o->tp);
 }
@@ -74,13 +74,13 @@ void coroutine_init(Executor* E, Object* o){
     o->type=t_coroutine;
     o->co=malloc(sizeof(Coroutine));
     CHECK_ALLOCATION(o->co);
-    gc_object_init(E, o->gco);
+    heap_object_init(E, o->gco);
     o->gco->gc_type=t_coroutine;
 }
 
-void gc_pointer_init(Executor* E, gc_Pointer* gcp, gc_PointerFreeFunction free){
-    gc_object_init(E, &gcp->gco);
-    gcp->gco.gc_type=t_gc_pointer;
+void managed_pointer_init(Executor* E, ManagedPointer* gcp, ManagedPointerFreeFunction free){
+    heap_object_init(E, &gcp->gco);
+    gcp->gco.gc_type=t_managed_pointer;
     gcp->free=free;
     gcp->foreach_children=NULL;
 }
@@ -109,9 +109,9 @@ Object to_float(float n){
     return o;
 }
 
-Object to_gc_pointer(gc_Pointer* p){
+Object to_managed_pointer(ManagedPointer* p){
     Object o;
-    o.type=t_gc_pointer;
+    o.type=t_managed_pointer;
     o.gcp=p;
     return o;
 }
@@ -135,11 +135,11 @@ Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, i
 
 Object null_const={t_null};
 
-bool is_gc_object(Object o){
-    return o.type==t_table || o.type==t_function || o.type==t_gc_pointer || o.type==t_coroutine;
+bool is_heap_object(Object o){
+    return o.type==t_table || o.type==t_function || o.type==t_managed_pointer || o.type==t_coroutine;
 }
 
-void gc_object_unchain(Executor* E, gc_Object* o){
+void heap_object_unchain(Executor* E, HeapObject* o){
     if(executor_get_garbage_collector(E)->root==o){
         executor_get_garbage_collector(E)->root=o->next;
     }
@@ -152,7 +152,7 @@ void gc_object_unchain(Executor* E, gc_Object* o){
 }
 
 void reference(Object* o){
-    if(is_gc_object(*o) && o->gco->ref_count!=ALREADY_DESTROYED){
+    if(is_heap_object(*o) && o->gco->ref_count!=ALREADY_DESTROYED){
         o->gco->ref_count++;
     } else if(o->type==t_string){
         // maybe it is a dirty hack, will find out later
@@ -163,7 +163,7 @@ void reference(Object* o){
 }
 
 void print_allocated_objects(Executor* E){
-    gc_Object* o=executor_get_garbage_collector(E)->root;
+    HeapObject* o=executor_get_garbage_collector(E)->root;
     while(o){
         Object wrapped={o->gc_type};
         wrapped.gco=o;
@@ -178,7 +178,7 @@ bool function_uses_source_pointer(Function* f) {
 }
 
 void gc_mark(Executor* E, Object* o){
-    if(!is_gc_object(*o) || o->gco->marked==true){
+    if(!is_heap_object(*o) || o->gco->marked==true){
         return;
     }
     o->gco->marked=true;
@@ -190,11 +190,11 @@ void gc_mark(Executor* E, Object* o){
     case t_function:
         gc_mark(E, &o->fp->enclosing_scope);
         if(function_uses_source_pointer(o->fp)){
-            Object wrapped=wrap_gc_object(o->fp->source_pointer);
+            Object wrapped=wrap_heap_object(o->fp->source_pointer);
             gc_mark(E, &wrapped);
         }
         break;
-    case t_gc_pointer:
+    case t_managed_pointer:
         if(o->gcp->foreach_children!=NULL){
             o->gcp->foreach_children(E, o->gcp, gc_mark);
         }
@@ -209,7 +209,7 @@ void gc_mark(Executor* E, Object* o){
 }
 
 void gc_unmark_all(GarbageCollector* gc){
-    gc_Object* o=gc->root;
+    HeapObject* o=gc->root;
     while(o){
         o->marked=false;
         o=o->next;
@@ -218,11 +218,11 @@ void gc_unmark_all(GarbageCollector* gc){
 
 void gc_sweep(Executor* E){
     GarbageCollector* gc=executor_get_garbage_collector(E);
-    gc_Object* o=gc->root;
+    HeapObject* o=gc->root;
     #define FOREACH_UNMARKED_OBJECT(body) \
         o=gc->root; \
         while(o){ \
-            gc_Object* next=o->next; \
+            HeapObject* next=o->next; \
             if(!o->marked){ \
                 body \
             } \
@@ -235,7 +235,7 @@ void gc_sweep(Executor* E){
         if(o->ref_count>0){
             o->ref_count=0;
         }
-        gc_object_dereference(E, o);
+        heap_object_dereference(E, o);
     )
     // reset ref_count for the third pass to work
     FOREACH_UNMARKED_OBJECT(
@@ -244,7 +244,7 @@ void gc_sweep(Executor* E){
     gc->state=gcs_freeing_memory;
     // free the memory
     FOREACH_UNMARKED_OBJECT(
-       gc_object_dereference(E, o);
+       heap_object_dereference(E, o);
     )
     gc->state=gcs_inactive;
     gc->survivors_count=gc->allocations_count;
@@ -257,19 +257,19 @@ bool gc_should_run(GarbageCollector* gc){
 
 char* gc_text="<garbage collected text>";
 
-void gc_object_dereference(Executor* E, gc_Object* o){
-    Object wrapped=wrap_gc_object(o);
+void heap_object_dereference(Executor* E, HeapObject* o){
+    Object wrapped=wrap_heap_object(o);
     dereference(E, &wrapped);
 }
 
-void gc_object_reference(gc_Object* o){
-    Object wrapped=wrap_gc_object(o);
+void heap_object_reference(HeapObject* o){
+    Object wrapped=wrap_heap_object(o);
     reference(&wrapped);
 }
 
 void dereference(Executor* E, Object* o){
     CHECK_OBJECT(o)
-    if(is_gc_object(*o)) {
+    if(is_heap_object(*o)) {
         if(o->gco->ref_count!=ALREADY_DESTROYED){
             o->gco->ref_count--;
             destroy_unreferenced(E, o);
@@ -283,7 +283,7 @@ void dereference(Executor* E, Object* o){
 }
 
 void destroy_unreferenced(Executor* E, Object* o){
-    if(is_gc_object(*o) && o->gco->ref_count<=0 && o->gco->ref_count!=ALREADY_DESTROYED){
+    if(is_heap_object(*o) && o->gco->ref_count<=0 && o->gco->ref_count!=ALREADY_DESTROYED){
         GarbageCollector* gc=executor_get_garbage_collector(E);
         GarbageCollectorState gc_state=gc->state;
         o->gco->ref_count=ALREADY_DESTROYED;
@@ -292,12 +292,12 @@ void destroy_unreferenced(Executor* E, Object* o){
             {
                 if(gc_state!=gcs_freeing_memory){
                     if(function_uses_source_pointer(o->fp)){
-                        gc_object_dereference(E, o->fp->source_pointer);
+                        heap_object_dereference(E, o->fp->source_pointer);
                     }
                     dereference(E, &o->fp->enclosing_scope);
                 }
                 if(gc_state!=gcs_deinitializing){
-                    gc_object_unchain(E, o->gco);
+                    heap_object_unchain(E, o->gco);
                     if(o->fp->argument_names!=NULL){
                         for(int i=0; i<o->fp->arguments_count; i++){
                             free(o->fp->argument_names[i]);
@@ -316,20 +316,20 @@ void destroy_unreferenced(Executor* E, Object* o){
                     table_foreach_children(E, o->tp, dereference);
                 }
                 if(gc_state!=gcs_deinitializing){
-                    gc_object_unchain(E, o->gco);
+                    heap_object_unchain(E, o->gco);
                     gc->allocations_count--;
                     table_free(o->tp);
                     o->tp=NULL;
                 }
                 break;
             }
-            case t_gc_pointer:
+            case t_managed_pointer:
             {
                 if(gc_state!=gcs_freeing_memory && o->gcp->foreach_children!=NULL){
                     o->gcp->foreach_children(E, o->gcp, dereference);
                 }
                 if(gc_state!=gcs_deinitializing){
-                    gc_object_unchain(E, o->gco);
+                    heap_object_unchain(E, o->gco);
                     gc->allocations_count--;
                     o->gcp->free(o->gcp);
                     o->gcp=NULL;
@@ -342,7 +342,7 @@ void destroy_unreferenced(Executor* E, Object* o){
                     coroutine_foreach_children(E, o->co, dereference);
                 }
                 if(gc_state!=gcs_deinitializing){
-                    gc_object_unchain(E, o->gco);
+                    heap_object_unchain(E, o->gco);
                     gc->allocations_count--;
                     coroutine_free(o->co);
                     o->co=NULL;

@@ -10,7 +10,7 @@
 #include "utility.h"
 
 typedef struct {
-    gc_Pointer gcp;
+    ManagedPointer gcp;
     expression* body;
 } ASTSourcePointer;
 

@@ -206,9 +206,9 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
             f.fp->ftype=f_ast;
             ASTSourcePointer* sp=malloc(sizeof(ASTSourcePointer));
             sp->body=copy_expression(d->body);
-            gc_pointer_init(E, (gc_Pointer*)sp, (gc_PointerFreeFunction)ast_source_pointer_free);
-            f.fp->source_pointer=(gc_Object*)sp;
-            gc_object_reference((gc_Object*)sp);
+            managed_pointer_init(E, (ManagedPointer*)sp, (ManagedPointerFreeFunction)ast_source_pointer_free);
+            f.fp->source_pointer=(HeapObject*)sp;
+            heap_object_reference((HeapObject*)sp);
             f.fp->enclosing_scope=scope;
             reference(&scope);
             return f;

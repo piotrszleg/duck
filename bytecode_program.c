@@ -167,10 +167,10 @@ int* list_labels(Instruction* code){
     return labels;
 }
 
-void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, gc_PointerForeachChildrenCallback callback) {
+void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, ManagedPointerForeachChildrenCallback callback) {
     program->gcp.gco.marked=true;
     for(int i=0; i<program->sub_programs_count; i++){
-        Object wrapped=wrap_gc_object((gc_Object*)&program->sub_programs[i]);
+        Object wrapped=wrap_heap_object((HeapObject*)&program->sub_programs[i]);
         callback(E, &wrapped);
     }
 }
@@ -190,11 +190,11 @@ void bytecode_program_init(Executor* E, BytecodeProgram* program){
     program->statistics=NULL;
     program->assumptions=NULL;
     vector_init(&program->variants, sizeof(BytecodeProgram), 4);
-    gc_pointer_init(E, (gc_Pointer*)&program->gcp, (gc_PointerFreeFunction)bytecode_program_free);
-    program->gcp.foreach_children=(gc_PointerForeachChildrenFunction)bytecode_program_foreach_children;
+    managed_pointer_init(E, (ManagedPointer*)&program->gcp, (ManagedPointerFreeFunction)bytecode_program_free);
+    program->gcp.foreach_children=(ManagedPointerForeachChildrenFunction)bytecode_program_foreach_children;
     for(int i=0; i<program->sub_programs_count; i++){
         program->sub_programs[i].source_file_name=strdup(program->source_file_name);
         bytecode_program_init(E, &program->sub_programs[i]);
-        gc_object_reference((gc_Object*)&program->sub_programs[i]);
+        heap_object_reference((HeapObject*)&program->sub_programs[i]);
     }
 }

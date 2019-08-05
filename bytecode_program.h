@@ -27,7 +27,7 @@ typedef struct FunctionVariant FunctionVariant;
 
 typedef struct BytecodeProgram BytecodeProgram;
 struct BytecodeProgram {
-    gc_Pointer gcp;
+    ManagedPointer gcp;
     
     char* source_file_name;
     Instruction* code;
