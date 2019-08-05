@@ -137,7 +137,8 @@ IterationResult table_iterator_next(TableIterator* it){
     return result;
 }
 
-char* table_stringify(Executor* E, Table* t){
+// to avoid code duplication in table_serialize and table_stringify
+static char* table_to_text(Executor* E, Table* t, bool serialize) {
     TableIterator it=table_get_iterator(t);
     stream s;
     stream_init(&s, 64);
@@ -147,18 +148,31 @@ char* table_stringify(Executor* E, Table* t){
     int max_hole_size=3;
     
     bool add_whitespace=t->elements_count>3||t->protected||t->special_fields_disabled;
-    
+    if(serialize){
+        if(t->protected){
+            stream_push_const_string(&s, "protect(");
+        }
+        if(t->special_fields_disabled){
+            stream_push_const_string(&s, "disable_special_fields(");
+        }
+    }
     stream_push_const_string(&s, "[");
     if(add_whitespace){
         stream_push_const_string(&s, "\n\t");
     }
-    if(t->protected){
-        stream_push_const_string(&s, "# protected\n\t");
-    }
-    if(t->special_fields_disabled){
-        stream_push_const_string(&s, "# special fields disabled\n\t");
+    if(!serialize){
+        if(t->protected){
+            stream_push_const_string(&s, "# protected\n\t");
+        }
+        if(t->special_fields_disabled){
+            stream_push_const_string(&s, "# special fields disabled\n\t");
+        }
     }
     for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+        if(serialize && (!is_serializable(i.key) || !is_serializable(i.value))){
+            // skip fields that can't be serialized if serialize is true
+            continue;
+        }
         if(first){
             first=false;
         } else {
@@ -203,9 +217,9 @@ char* table_stringify(Executor* E, Table* t){
             stream_push_string_indented(&s, stringified_value);
         } else {
             char* stringified_key=stringify(E, i.key);
-            stream_push(&s, "[", 1);
+            stream_push_const_string(&s, "$[");
             stream_push_string_indented(&s, stringified_key);
-            stream_push(&s, "]=", 2);
+            stream_push_const_string(&s, "]=");
             stream_push_string_indented(&s, stringified_value);
             free(stringified_key);
         }
@@ -216,9 +230,26 @@ char* table_stringify(Executor* E, Table* t){
     if(add_whitespace){
         stream_push_const_string(&s, "\n");
     }
-    stream_push_const_string(&s, "]\0");
+    stream_push_const_string(&s, "]");
+    if(serialize){
+        if(t->protected){
+            stream_push_const_string(&s, ")");
+        }
+        if(t->special_fields_disabled){
+            stream_push_const_string(&s, ")");
+        }
+    }
+    stream_push_const_string(&s, "\0");
     
     return (char*)stream_get_data(&s);
+}
+
+char* table_serialize(Executor* E, Table* t) {
+    return table_to_text(E, t, true);
+}
+
+char* table_stringify(Executor* E, Table* t){
+    return table_to_text(E, t, false);
 }
 
 Object table_copy(Executor* E, Table* t) {

@@ -57,6 +57,7 @@ bool table_has_special_fields(Table* t);
 void table_free(Table* t);
 void table_foreach_children(Executor* E, Table* t, gc_PointerForeachChildrenCallback callback);
 int table_compare(Executor* E, Table* a, Table* b, Object* error);
+char* table_serialize(Executor* E, Table* t);
 char* table_stringify(Executor* E, Table* t);
 Object table_copy(Executor* E, Table* t);
 void table_component_init(Table* t);

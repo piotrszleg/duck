@@ -72,6 +72,7 @@ null				    { COUNT_COLUMNS; return NULL_LITERAL; }
 ->                      { COUNT_COLUMNS; return ARROW; }
 ::                      { COUNT_COLUMNS; return FOUR_DOTS; }
 \?						{ COUNT_COLUMNS; return QUESTION_MARK; }
+\$						{ COUNT_COLUMNS; return DOLLAR; }
 [0-9]+\.[0-9]+          { COUNT_COLUMNS; yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+                  { COUNT_COLUMNS; yylval.ival = atoi(yytext); return INT; }
 \"([^\\\"]|\\.)*\"      { COUNT_COLUMNS; yylval.sval = proccess_quoted_string(yytext); return STRING; }// double quote string literal god bless stack overflow

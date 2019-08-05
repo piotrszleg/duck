@@ -14,7 +14,7 @@
     BOOLEAN(ast_remove_useless_expressions, true) \
     BOOLEAN(ast_optimise_conditionals, true) \
     BOOLEAN(ast_fold_constants, true) \
-    BOOLEAN(runtime_optimisations, true) \
+    BOOLEAN(optimise_at_runtime, true) \
     BOOLEAN(optimise_bytecode, true) \
     BOOLEAN(print_bytecode_optimisations, false) \
     BOOLEAN(optimise_tail_calls, true) \

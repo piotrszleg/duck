@@ -136,7 +136,20 @@ void bytecode_path_get(BytecodeTranslation* translation, path p){
         }
         push_instruction(translation, b_table_get);
     }
-} 
+}
+
+void table_literal_key(BytecodeTranslation* translation, path p) {
+    if(vector_count(&p.lines)!=1){
+        THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of lines in table literal key should be one.\n");
+    } else {
+        expression* e=pointers_vector_get(&p.lines, 0);
+        if(e->type==e_name){
+            push_string_load(translation, ((name*)e)->value);
+        } else{
+            ast_to_bytecode_recursive(e, translation, 0);
+        }
+    }
+}
 
 void bytecode_path_set(BytecodeTranslation* translation, path p, bool used_in_closure){
     int lines_count=vector_count(&p.lines);
@@ -186,11 +199,11 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
                     expression* line=pointers_vector_get(&b->lines, i);
                     if(line->type==e_assignment){
                         assignment* assignment_line=((assignment*)line);
-                        ast_to_bytecode_recursive(assignment_line->right, translation, 1);
-                        push_string_load(translation, table_literal_extract_key(assignment_line));// assuming that assignment_line inside of Table always has one item
+                        ast_to_bytecode_recursive(assignment_line->right, translation, true);
+                        table_literal_key(translation, *assignment_line->left);// assuming that assignment_line inside of Table always has one item
                         push_instruction(translation, b_table_set_keep);
                     } else {
-                        // if the expression isn't assignment use last index as a key
+                        // if the expression isn't assignment use last index as the key
                         // arr=[5, 4] => arr[0=5, 1=4]
                         ast_to_bytecode_recursive(line, translation, 1);
                         push_int_load(translation, (float)last_index++);

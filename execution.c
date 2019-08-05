@@ -31,6 +31,7 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
         if(E->options.print_bytecode){
             print_bytecode_program(&prog);
         }
+        
         create_return_point(&E->bytecode_environment, true);
         E->bytecode_environment.pointer=0;
         E->bytecode_environment.executed_program=malloc(sizeof(BytecodeProgram));
@@ -209,6 +210,7 @@ void executor_collect_garbage(Executor* E){
     gc_unmark_all(E->gc);
     executor_foreach_children(E, E, gc_mark);
     gc_sweep(E);
+    
 }
 
 void executor_init(Executor* E){

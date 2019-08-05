@@ -60,6 +60,7 @@ argument* name_to_argument(name* n) {
 %token FOUR_DOTS
 %token AT
 %token QUESTION_MARK
+%token DOLLAR
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
@@ -155,6 +156,12 @@ path:
 		path* p=new_path();
 		ADD_DEBUG_INFO(p)
 		pointers_vector_push(&p->lines, $1);
+		$$=(expression*)p;
+	}
+	| DOLLAR '[' expression ']' {
+		path* p=new_path();
+		ADD_DEBUG_INFO(p)
+		pointers_vector_push(&p->lines, $3);
 		$$=(expression*)p;
 	}
 	| path '.' name {

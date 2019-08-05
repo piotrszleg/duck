@@ -159,7 +159,6 @@ char* stringify_expression(expression*, int);
 void delete_expression_keep_children(expression* exp);
 void delete_expression(expression*);
 expression* copy_expression(expression*);
-char* table_literal_extract_key(assignment* a);
 bool expressions_equal(expression* expression_a, expression* expression_b);
 void allow_unused_variable(void* variable);
 

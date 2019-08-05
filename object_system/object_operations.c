@@ -445,15 +445,18 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         destroy_unreferenced(E, &operator_override);
     }
     #define OP_CASE(operator_name) if(strcmp(op, operator_name)==0)
-    #define COMPARISON_OPERATOR(operator_name, check) \
+    #define COMPARISON_OPERATOR(check) { \
+        Object error=null_const; \
+        int comparison_result=compare_and_get_error(E, a, b, &error); \
+        if(error.type!=t_null){ \
+            return error; \
+        } else { \
+            return to_int(check); \
+        } \
+    }
+    #define COMPARISON_OPERATOR_CASE(operator_name, check) \
         OP_CASE(operator_name) { \
-            Object error=null_const; \
-            int comparison_result=compare_and_get_error(E, a, b, &error); \
-            if(error.type!=t_null){ \
-                return error; \
-            } else { \
-                return to_int(check); \
-            }  \
+            COMPARISON_OPERATOR(check) \
         }
     if(op_length==1){
         // call b with iterator result's value for each iteration
@@ -476,14 +479,16 @@ Object operator(Executor* E, Object a, Object b, const char* op){
                 } else {
                     break;
                 }
+            case '>':
+                COMPARISON_OPERATOR(comparison_result==1)
+            case '<':
+                COMPARISON_OPERATOR(comparison_result==-1)
         }
     } else if(op_length==2){
-        COMPARISON_OPERATOR("==", comparison_result==0)
-        COMPARISON_OPERATOR("!=", comparison_result!=0)
-        COMPARISON_OPERATOR(">", comparison_result==1)
-        COMPARISON_OPERATOR("<", comparison_result==-1)
-        COMPARISON_OPERATOR(">=", comparison_result==1||comparison_result==0)
-        COMPARISON_OPERATOR("<=", comparison_result==-1||comparison_result==0)
+        COMPARISON_OPERATOR_CASE("==", comparison_result==0)
+        COMPARISON_OPERATOR_CASE("!=", comparison_result!=0)
+        COMPARISON_OPERATOR_CASE(">=", comparison_result==1||comparison_result==0)
+        COMPARISON_OPERATOR_CASE("<=", comparison_result==-1||comparison_result==0)
         OP_CASE("is"){
             if(a.type!=b.type){
                 return to_int(0);
@@ -534,7 +539,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             return call_result;
         }
     } else {
-        COMPARISON_OPERATOR("compare", comparison_result)
+        COMPARISON_OPERATOR_CASE("compare", comparison_result)
     }
     Object b_casted;
     #define CAST_B \
@@ -621,6 +626,39 @@ Object operator(Executor* E, Object a, Object b, const char* op){
     }
     PATCH(op, a.type, a, b);
     RETURN_ERROR("OPERATOR_ERROR", multiple_causes(E, (Object[]){a, b}, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+}
+
+bool is_serializable(Object o) {
+    switch(o.type) {
+        case t_string:
+        case t_float:
+        case t_int:
+        case t_null:
+        case t_table:
+            return true;
+        default:
+            return false;
+    }
+}
+
+char* serialize(Executor* E, Object o) {
+    if(o.type==t_table){
+        Object serialize_override=table_get_override(E, o, "serialize");
+        if(serialize_override.type!=t_null){
+            Object result=call(E, serialize_override, &o, 1);
+            if(result.type!=t_string){
+                return stringify_object(E, result);
+            } else {
+                return result.text;
+            }
+        } else {
+            return table_serialize(E, o.tp);
+        }
+    } else if(is_serializable(o)){
+        return stringify_object(E, o);
+    } else {
+        return strdup("");
+    }
 }
 
 char* stringify(Executor* E, Object o){

@@ -1,1 +1,0 @@
--disable_bytecode input.dk

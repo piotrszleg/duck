@@ -1,7 +1,5 @@
 #include "builtins.h"
 
-// TODO: coroutine_free
-
 Object builtin_coroutine(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object function=arguments[0];
     Object coroutine;
@@ -265,6 +263,11 @@ Object builtin_table_copy(Executor* E, Object scope, Object* arguments, int argu
     Object table=arguments[0];
     REQUIRE_ARGUMENT_TYPE(table, t_table)
     return table_copy(E, table.tp);
+}
+
+Object builtin_serialize(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object self=arguments[0];
+    return to_string(serialize(E, self));
 }
 
 Object builtin_to_string(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -581,6 +584,7 @@ Object builtins_table(Executor* E){
     REGISTER(random_01, 0)
     REGISTER(call, 2)
     REGISTER(create_variant, 1)
+    REGISTER(serialize, 1)
     #undef REGISTER
 
     Object yield;

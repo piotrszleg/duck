@@ -94,7 +94,16 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 Object set_result;
                 if(line->type==e_assignment){
                     assignment* a=(assignment*)line;
-                    set_result=set(E, table, to_string(table_literal_extract_key(a)), execute_ast(E, a->right, scope, 0));
+                    if(vector_count(&a->left->lines)!=1){
+                        THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of lines in table literal key should be one.\n");
+                    } else {
+                        expression* e=pointers_vector_get(&a->left->lines, 0);
+                        if(e->type==e_name) {
+                            set_result=set(E, table, to_string(((name*)e)->value), execute_ast(E, a->right, scope, 0));
+                        } else {
+                            set_result=set(E, table, execute_ast(E, e, scope, 0), execute_ast(E, a->right, scope, 0));
+                        }
+                    }
                 } else {
                     set_result=set(E, table, to_int(array_counter++), execute_ast(E, line, scope, 0));
                 }

@@ -295,16 +295,3 @@ bool expressions_equal(expression* expression_a, expression* expression_b){
         #undef END
     }
 }
-
-char* table_literal_extract_key(assignment* a){
-    if(vector_count(&a->left->lines)!=1) {
-        THROW_ERROR(BYTECODE_ERROR, "Table literal key should have only one name in path.");
-        return NULL;
-    }
-    expression* e=pointers_vector_get(&a->left->lines, 0);
-    if(e->type!=e_name) {
-        THROW_ERROR(BYTECODE_ERROR, "Table literal key should be of type name.");
-        return NULL;
-    }
-    return ((name*)e)->value;
-}

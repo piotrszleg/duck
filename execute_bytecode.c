@@ -161,7 +161,7 @@ void create_variant(Executor* E, BytecodeProgram* program) {
 
 void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
     BytecodeProgram* program=environment->executed_program;
-    if(!E->options.runtime_optimisations||program->calls_count<CALLS_UNTIL_STATISTICS_MODE){
+    if(!E->options.optimise_at_runtime||program->calls_count<CALLS_UNTIL_STATISTICS_MODE){
         program->calls_count++;
         return;
     }
@@ -243,7 +243,7 @@ void move_to_function(Executor* E, Function* f){
 
     E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
     E->bytecode_environment.pointer=0;
-
+    
     proccess_statistics(E, &E->bytecode_environment);
 }
 

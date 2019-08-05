@@ -1,2 +1,1 @@
-iteration=include("standard_library\iteration.dk")
-iteration.iterable_to_table
+10>10
