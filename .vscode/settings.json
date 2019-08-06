@@ -54,6 +54,7 @@
         "deque": "c",
         "bytecode_program.h": "c",
         "cstddef": "c",
-        "limits": "c"
+        "limits": "c",
+        "pipe_object.h": "c"
     }
 }

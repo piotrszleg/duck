@@ -378,8 +378,8 @@ Object ffi_function(Executor* E, Object scope, Object* arguments, int arguments_
 
     set(E, result, to_string("cif"), to_pointer(cif));
     set(E, result, to_string("basic_types"), basic_types);
-    set_function_bound(E, result, "call", 1, true, ffi_function_call);
-    set_function_bound(E, result, "destroy", 1, false, ffi_function_destroy);
+    set(E, result, OVERRIDE(E, call), to_bound_function(E, result, 1, true, ffi_function_call));
+    set(E, result, OVERRIDE(E, destroy), to_bound_function(E, result, 1, false, ffi_function_destroy));
     table_protect(result.tp);
     table_set(E, self.tp, function_name, result);
 
@@ -463,7 +463,7 @@ Object ffi_struct(Executor* E, Object scope, Object* arguments, int arguments_co
     }
     struct_type->elements[arguments_count-1]=NULL;
     
-    set_function_bound(E, result, "destroy", 1, false, ffi_struct_destroy);
+    set(E, result, OVERRIDE(E, destroy), to_bound_function(E, result, 1, false, ffi_struct_destroy));
     set_function_bound(E, result, "new_struct_descriptor", 1, false, ffi_struct_new_struct_descriptor);
     table_protect(result.tp);
     return result;
@@ -508,7 +508,7 @@ Object ffi_open(Executor* E, Object scope, Object* arguments, int arguments_coun
     
     set_function_bound(E, result, "struct", 1, true, ffi_struct);
     set_function_bound(E, result, "function", 2, true, ffi_function);
-    set_function_bound(E, result, "destroy", 1, false, ffi_destroy);
+    set(E, result, OVERRIDE(E, destroy), to_bound_function(E, result, 1, false, ffi_destroy));
     
     Object basic_types;
     table_init(E, &basic_types);

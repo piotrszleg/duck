@@ -6,6 +6,7 @@
 
 Object set_function(Executor* E, Object o, const char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
 Object set_function_bound(Executor* E, Object o, char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
+Object to_bound_function(Executor* E, Object o, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
 
 #define BOUND_FUNCTION_CHECK \
     if(arguments[0].type!=t_table || scope.tp!=arguments[0].tp) { \
@@ -15,10 +16,10 @@ Object set_function_bound(Executor* E, Object o, char* name, int minimal_argumen
 
 #define REQUIRE(predicate, cause) if(!(predicate)) { RETURN_ERROR("WRONG_ARGUMENT", cause, "Requirement of function %s wasn't satisfied: %s", __FUNCTION__, #predicate); }
 #define REQUIRE_TYPE(o, t) if(o.type!=t) { \
-    RETURN_ERROR("WRONG_OBJECT_TYPE", o, "Wrong type of \"%s\" in function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
+    RETURN_ERROR("WRONG_OBJECT_TYPE", o, "Wrong type of \"%s\" in function %s, it should be %s.", #o, __FUNCTION__, get_type_name(t)); }
 
 #define REQUIRE_ARGUMENT_TYPE(o, t) if(o.type!=t) { \
-    RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, OBJECT_TYPE_NAMES[t]); }
+    RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Wrong type of argument \"%s\" passed to function %s, it should be %s.", #o, __FUNCTION__, get_type_name(t)); }
 
 #define EQUALS_STRING(object, str) (object.type==t_string && strcmp(object.text, str)==0)
 

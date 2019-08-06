@@ -48,7 +48,7 @@ void print_assumption(Executor* E, Assumption* a){
                 printf("constant(%s)", str))
             break;
         case a_type:
-            printf("type(%s)", OBJECT_TYPE_NAMES[a->type]);
+            printf("type(%s)", get_type_name(a->type));
             break;
         default:
             printf("Incorrect assumption type.");
@@ -464,10 +464,7 @@ Object execute_bytecode(Executor* E){
             #undef INDEX_STACK
             case b_load_string:
             {
-                Object s;
-                string_init(&s);
-                s.text=strdup(((char*)constants)+instr.uint_argument);
-                push(object_stack, s);
+                push(object_stack, to_string(((char*)constants)+instr.uint_argument));
                 break;
             }
             case b_load_float:
@@ -576,7 +573,7 @@ Object execute_bytecode(Executor* E){
                 Object a=pop(object_stack);
                 Object b=pop(object_stack); 
                 if(op.type!=t_string){
-                    BYTECODE_ERROR(op, "Operator must be of string type, it's type is %s", OBJECT_TYPE_NAMES[op.type]);
+                    BYTECODE_ERROR(op, "Operator must be of string type, it's type is %s", get_type_name(op.type));
                 }
                 push(object_stack, operator(E, a, b, op.text));
                 dereference(E, &op);
@@ -743,7 +740,7 @@ Object execute_bytecode(Executor* E){
                 Object op=pop(object_stack);
                 Object a=pop(object_stack);
                 if(op.type!=t_string){
-                    BYTECODE_ERROR(op, "Operator must be of string type, it's type is %s", OBJECT_TYPE_NAMES[op.type]);
+                    BYTECODE_ERROR(op, "Operator must be of string type, it's type is %s", get_type_name(op.type));
                 }
                 push(object_stack, operator(E, null_const, a, op.text));
                 dereference(E, &op);
@@ -975,7 +972,7 @@ Object execute_bytecode(Executor* E){
                     if(return_point->terminate){
                         Object last=pop(object_stack);
                         return last;
-                    } else if(gc_should_run(E->gc)){
+                    } else if(gc_should_run(E->beginning.gc)){
                         executor_collect_garbage(E);
                     }
                 }

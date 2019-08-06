@@ -2,14 +2,6 @@
 
 #define INITIAL_BUFFER_SIZE 16
 
-bool is_number(const char *s)
-{
-    while (*s) {
-        if (isdigit(*s++) == 0) return false;
-    }
-    return true;
-}
-
 bool is_truthy(Object o){
     return !is_falsy(o);
 }
@@ -36,35 +28,26 @@ bool is_falsy(Object o){
     }
 }
 
-static Object get_patch(Executor* E, const char* type_name, const char* patch_name) {
+static Object get_patch(Executor* E, ObjectType object_type, Object patch_symbol) {
     Object patching_table=executor_get_patching_table(E);
     if(patching_table.type==t_null){
         return null_const;
     }
     REQUIRE_TYPE(patching_table, t_table)
-    Object type_patching_table=table_get(E, patching_table.tp, to_string(type_name));
+    Object type_patching_table=table_get(E, patching_table.tp, get_type_symbol(E, object_type));
     if(type_patching_table.type==t_null){
         return null_const;
     }
     REQUIRE_TYPE(type_patching_table, t_table)
-    return table_get(E, type_patching_table.tp, to_string(patch_name));
+    return table_get(E, type_patching_table.tp, patch_symbol);
 }
 
 #define PATCH(patch_name, object_type, ...) \
-    Object patch=get_patch(E, OBJECT_TYPE_NAMES[object_type], patch_name); \
+    Object patch=get_patch(E, object_type, OVERRIDE(E, patch_name)); \
     if(patch.type!=t_null){ \
         Object arguments[]={__VA_ARGS__}; \
         return call(E, patch, arguments, sizeof(arguments)/sizeof(Object)); \
     }
-
-static Object table_get_override(Executor* E, Object o, const char* override_name) {
-    if(table_has_special_fields(o.tp)){
-        Object override=get(E, o, to_string(override_name));
-        return override;
-    } else {
-        return null_const;
-    }
-}
 
 bool cast_is_constant(ObjectType from, ObjectType to) {
     if(from==to) {
@@ -81,6 +64,28 @@ bool cast_is_constant(ObjectType from, ObjectType to) {
     }
 }
 
+static bool is_int_literal(const char *s) {
+    while (*s!='\0') {
+        if (!isdigit(*s)){
+            return false;
+        } else {
+            s++;
+        }
+    }
+    return true;
+}
+
+static bool is_float_literal(const char *s) {
+    while (*s!='\0') {
+        if (!(isdigit(*s) || *s=='.')){
+            return false;
+        } else {
+            s++;
+        }
+    }
+    return true;
+}
+
 Object cast(Executor* E, Object o, ObjectType type){
     if(o.type==type){
         return o;
@@ -88,67 +93,45 @@ Object cast(Executor* E, Object o, ObjectType type){
     switch(type){
         case t_string:
         {
-            Object result;
-            string_init(&result);
-            result.text=stringify(E, o);
-            return result;
+            return to_string(stringify(E, o));
         }
         case t_int:
         {
-            Object result;
-            int_init(&result);
             if(o.type==t_float){
-                result.int_value=o.float_value;
-                return result;
+                return to_int(o.float_value);
             } else if(o.type==t_null){
-                result.int_value=0;// null is zero
-                return result;
-            } else if(o.type==t_string && is_number(o.text)){
-                result.int_value=strtol(o.text, NULL, 10);// convert string to int if it contains number
-                return result;
+                return to_int(0);
+            } else if(o.type==t_string && is_int_literal(o.text)){
+                return to_int(strtol(o.text, NULL, 10));// convert string to int if it contains number
             }
             break;
         }
         case t_float:
         {
-            Object result;
-            float_init(&result);
             if(o.type==t_int){
-                result.float_value=o.int_value;
-                return result;
+                return to_float(o.int_value);
             }else if(o.type==t_null){
-                result.float_value=0;// null is zero
-                return result;
-            } else if(o.type==t_string && is_number(o.text)){
-                result.float_value=strtof(o.text, NULL);// convert string to int if it contains number
-                return result;
+                return to_float(0.0f);
+            } else if(o.type==t_string && is_float_literal(o.text)){
+                return to_float(strtof(o.text, NULL));// convert string to float if it contains number
             }
             break;
         }
         case t_table: {
-            char* override_name=string_add("to_", OBJECT_TYPE_NAMES[o.type]);
-            Object cast_override=table_get_override(E, o, override_name);
+            Object cast_override=get(E, o, OVERRIDE(E, cast));
             if(cast_override.type!=t_null){
                 // call get_function a and b as arguments
-                Object result=call(E, cast_override, &o, 1);
+                Object result=call(E, cast_override, (Object[]){o, to_string(get_type_name(type))}, 2);
                 destroy_unreferenced(E, &cast_override);
-                free(override_name);
                 return result;
             }
             destroy_unreferenced(E, &cast_override);
-            free(override_name);
             break;
         }
         default:;
     }
-    char* patch_name=string_add("to_", OBJECT_TYPE_NAMES[o.type]);
-    Object patch=get_patch(E, OBJECT_TYPE_NAMES[o.type], patch_name);
-    if(patch.type!=t_null){
-        free(patch_name);
-        return call(E, patch, &o, 1);
-    }
-    free(patch_name);
-    RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", OBJECT_TYPE_NAMES[o.type], OBJECT_TYPE_NAMES[type]);
+    PATCH(cast, o.type, o, to_string(get_type_name(type)))
+    RETURN_ERROR("TYPE_CONVERSION_FAILURE", o, "Can't convert from <%s> to <%s>", get_type_name(o.type), get_type_name(type));
 }
 
 int compare(Executor* E, Object a, Object b){
@@ -175,6 +158,7 @@ bool compare_is_constant(ObjectType a, ObjectType b) {
         case t_pointer:
         case t_managed_pointer:
         case t_function:
+        case t_symbol:
             return true;
         default:
             return false;
@@ -200,8 +184,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         return sign((float)a.int_value-b.float_value);
     }
     if(a.type!=b.type){
-        NEW_ERROR(*error, "COMPARISON_ERROR", multiple_causes(E, (Object[]){a, b}, 2), "Can't compare objects of different types.");
-        return 1;
+        return 1;// objects of different types can't be equal
     }
     switch(a.type){
         case t_string:
@@ -211,7 +194,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         case t_float:
             return sign(a.float_value-b.float_value);
         case t_table: {
-            Object compare_override=table_get_override(E, a, "compare");
+            Object compare_override=get(E, a, OVERRIDE(E, compare));
             if(compare_override.type!=t_null){
                 Object call_result=call(E, compare_override, (Object[]){a, b}, 2);
                 destroy_unreferenced(E, &compare_override);
@@ -227,9 +210,11 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
             }
         }
         case t_pointer:
-            return a.p==b.p;
+            return sign((unsigned)a.p-(unsigned)b.p);
         case t_managed_pointer:
-            return a.gcp==b.gcp;
+            return sign((unsigned)a.gcp-(unsigned)b.gcp);
+        case t_symbol:
+            return sign((unsigned)a.sp->index-(unsigned)b.sp->index);
         case t_function:
             if(a.fp->ftype!=b.fp->ftype){
                 return 1;
@@ -244,7 +229,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
                     return sign((int)a.fp->native_pointer-(int)b.fp->native_pointer);
             }
         default:
-            NEW_ERROR(*error, "COMPARISON_ERROR", multiple_causes(E, (Object[]){a, b}, 2), "Can't compare objects of type %s", OBJECT_TYPE_NAMES[a.type]);
+            NEW_ERROR(*error, "COMPARISON_ERROR", multiple_causes(E, (Object[]){a, b}, 2), "Can't compare objects of type %s", get_type_name(a.type));
             return 1;
     }
 }
@@ -268,7 +253,7 @@ unsigned hash(Executor* E, Object o, Object* error) {
         case t_null:
             return 0;
         case t_table: {
-            Object hash_override=table_get_override(E, o, "hash");
+            Object hash_override=get(E, o, OVERRIDE(E, hash));
             if(hash_override.type!=t_null){
                 Object call_result=call(E, hash_override, &o, 1);
                 destroy_unreferenced(E, &hash_override);
@@ -300,8 +285,10 @@ unsigned hash(Executor* E, Object o, Object* error) {
             return (unsigned)o.p;
         case t_managed_pointer:
             return (unsigned)o.gcp;
+        case t_symbol:
+            return o.sp->index;
         default:
-            NEW_ERROR(*error, "HASH_ERROR", o, "Can't hash object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+            NEW_ERROR(*error, "HASH_ERROR", o, "Can't hash object of type <%s>", get_type_name(o.type));
             return 0;
     }
 }
@@ -362,7 +349,7 @@ Object string_iterator(Executor* E, Object str){
 Object get_iterator(Executor* E, Object o){
     switch(o.type){
         case t_table: {
-            Object iterator_override=table_get_override(E, o, "iterator");
+            Object iterator_override=get(E, o, OVERRIDE(E, iterator));
             if(iterator_override.type!=t_null){
                 return call(E, iterator_override, &o, 1);
             } else {
@@ -375,8 +362,8 @@ Object get_iterator(Executor* E, Object o){
             return string_iterator(E, o);
         default:;
     }
-    PATCH("iterator", o.type, o)
-    RETURN_ERROR("ITERATION_ERROR", o, "Can't get iterator of object of type %s.", OBJECT_TYPE_NAMES[o.type]);
+    PATCH(iterator, o.type, o)
+    RETURN_ERROR("ITERATION_ERROR", o, "Can't get iterator of object of type %s.", get_type_name(o.type));
 }
 
 bool operator_is_constant(ObjectType a, ObjectType b, const char* op) {
@@ -435,10 +422,10 @@ bool operator_is_constant(ObjectType a, ObjectType b, const char* op) {
 Object operator(Executor* E, Object a, Object b, const char* op){
     size_t op_length=strlen(op);
     if(a.type==t_table){
-        Object operator_override=table_get_override(E, a, op);
+        Object operator_override=get(E, a, OVERRIDE(E, get));
         if(operator_override.type!=t_null){
             // call get_function a and b as arguments
-            Object result=call(E, operator_override, ((Object[]){a, b}), 2);
+            Object result=call(E, operator_override, OBJECTS_ARRAY(a, b, to_string(op)), 3);
             destroy_unreferenced(E, &operator_override);
             return result;
         }
@@ -465,7 +452,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
                 Object it;
                 Object call_result=null_const;
                 FOREACH(a, it, 
-                    call_result=call(E, b, (Object[]){get(E, it, to_string("value"))}, 1);
+                    call_result=call(E, b, OBJECTS_ARRAY(get(E, it, to_string("value"))), 1);
                 )
                 return call_result;
             }
@@ -534,7 +521,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             Object it;
             Object call_result=null_const;
             FOREACH(a, it, 
-                call_result=call(E, b, (Object[]){get(E, it, to_string("key")), get(E, it, to_string("value"))}, 2);
+                call_result=call(E, b, OBJECTS_ARRAY(get(E, it, to_string("key")), get(E, it, to_string("value"))), 2);
             )
             return call_result;
         }
@@ -624,8 +611,8 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         }
         default:;
     }
-    PATCH(op, a.type, a, b);
-    RETURN_ERROR("OPERATOR_ERROR", multiple_causes(E, (Object[]){a, b}, 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, OBJECT_TYPE_NAMES[a.type], OBJECT_TYPE_NAMES[b.type]);
+    PATCH(operator, a.type, a, b);
+    RETURN_ERROR("OPERATOR_ERROR", multiple_causes(E, OBJECTS_ARRAY(a, b), 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, get_type_name(a.type), get_type_name(b.type));
 }
 
 bool is_serializable(Object o) {
@@ -643,7 +630,7 @@ bool is_serializable(Object o) {
 
 char* serialize(Executor* E, Object o) {
     if(o.type==t_table){
-        Object serialize_override=table_get_override(E, o, "serialize");
+        Object serialize_override=get(E, o, OVERRIDE(E, serialize));
         if(serialize_override.type!=t_null){
             Object result=call(E, serialize_override, &o, 1);
             if(result.type!=t_string){
@@ -663,7 +650,7 @@ char* serialize(Executor* E, Object o) {
 
 char* stringify(Executor* E, Object o){
     if(o.type==t_table){
-        Object stringify_override=table_get_override(E, o, "stringify");
+        Object stringify_override=get(E, o, OVERRIDE(E, stringify));
         if(stringify_override.type!=t_null){
             Object result=call(E, stringify_override, &o, 1);
             if(result.type!=t_string){
@@ -691,39 +678,43 @@ char* suprintf (const char * format, ...){
     return buffer;
 }
 
+char* quote_string(char* original) {
+    ReplacementPair replacements[]={
+        CONSTANT_REPLACEMENT_PAIR("\"", "\\\""),
+        CONSTANT_REPLACEMENT_PAIR("\t", "\\t"),
+        CONSTANT_REPLACEMENT_PAIR("\n", "\\n"),
+        CONSTANT_REPLACEMENT_PAIR("\\", "\\\\")
+    };
+    // escape quotes
+    char* replacement_result=string_replace_multiple(original, replacements, 4);
+    char* text;
+    char* result;
+    if(replacement_result!=NULL){
+        text=replacement_result;
+    } else {
+        text=original;
+    }
+    if(is_valid_name(text)){
+        int length=strlen(text)+2;
+        result=malloc(length*sizeof(char));
+        snprintf(result, length, "'%s", text);
+    } else {
+        int length=strlen(text)+3;
+        result=malloc(length*sizeof(char));
+        snprintf(result, length, "\"%s\"", text);
+    }
+
+    if(replacement_result!=NULL){
+        free(replacement_result);
+    }
+    return result;
+}
+
 char* stringify_object(Executor* E, Object o){
     switch(o.type){
         case t_string:
         {
-            ReplacementPair replacements[]={
-                CONSTANT_REPLACEMENT_PAIR("\"", "\\\""),
-                CONSTANT_REPLACEMENT_PAIR("\t", "\\t"),
-                CONSTANT_REPLACEMENT_PAIR("\n", "\\n"),
-                CONSTANT_REPLACEMENT_PAIR("\\", "\\\\")
-            };
-            // escape quotes
-            char* replacement_result=string_replace_multiple(o.text, replacements, 4);
-            char* text;
-            char* result;
-            if(replacement_result!=NULL){
-                text=replacement_result;
-            } else {
-                text=o.text;
-            }
-            if(is_valid_name(text)){
-                int length=strlen(text)+2;
-                result=malloc(length*sizeof(char));
-                snprintf(result, length, "'%s", text);
-            } else {
-                int length=strlen(text)+3;
-                result=malloc(length*sizeof(char));
-                snprintf(result, length, "\"%s\"", text);
-            }
-
-            if(replacement_result!=NULL){
-                free(replacement_result);
-            }
-            return result;
+            return quote_string(o.text);
         }
         case t_int:
             return suprintf("%d", o.int_value);
@@ -739,18 +730,18 @@ char* stringify_object(Executor* E, Object o){
                 CHECK_ALLOCATION(buffer);
                 buffer[0]='\0';
                 int buffer_size=STRINGIFY_BUFFER_SIZE;
-                int buffer_filled=0;// how many characters were written to the buffer
+                int buffer_count=0;// how many characters were written to the buffer
                 
                 // if buffer isn't big enough to hold the added string characters double its size
                 #define BUFFER_WRITE(string, count) \
-                    while(buffer_size<=buffer_filled+count){ \
+                    while(buffer_size<=buffer_count+count){ \
                         buffer_size*=2; \
                         buffer=realloc(buffer, buffer_size*sizeof(char)); \
                     } \
                     strncat(buffer, string, buffer_size); \
-                    buffer_filled+=count;
+                    buffer_count+=count;
                 
-                BUFFER_WRITE("function(", 9);
+                BUFFER_WRITE("<function (", 10);
                 int first=1;
                 for (int i = 0; i < f->arguments_count; i++){
                     char* argument_name=f->argument_names[i];
@@ -770,31 +761,31 @@ char* stringify_object(Executor* E, Object o){
                 if(f->variadic){
                     BUFFER_WRITE("...", 3);
                 }
-                BUFFER_WRITE(")", 1);
+                BUFFER_WRITE(")>\0", 2);
                 
-                buffer[buffer_size-1]='\0';// to make sure that the string won't overflow
-
-                char* buffer_truncated=strdup(buffer);
-                free(buffer);
-                return buffer_truncated;
-            } else if(f->arguments_count>0){
-                char* buffer=malloc(16*sizeof(char*));
-                if(f->variadic){
-                    snprintf(buffer, 16, "function(%i...)", f->arguments_count);
-                } else {
-                    snprintf(buffer, 16, "function(%i)", f->arguments_count);
-                }
                 return buffer;
             } else {
-                return strdup("function()");
+                char* buffer=malloc(16*sizeof(char*));
+                if(f->variadic){
+                    snprintf(buffer, 16, "<function %i...>", f->arguments_count);
+                } else {
+                    snprintf(buffer, 16, "<function %i>", f->arguments_count);
+                }
+                return buffer;
             }
         }
         case t_coroutine:
-            return suprintf("coroutine(%#x)", (unsigned)o.co);
+            return suprintf("<coroutine %#x>", (unsigned)o.co);
         case t_pointer:
-            return suprintf("pointer(%#x)", (unsigned)o.p);
+            return suprintf("<pointer %#x>", (unsigned)o.p);
         case t_managed_pointer:
-            return suprintf("managed_pointer(%#x)", (unsigned)o.gcp);
+            return suprintf("<managed_pointer %#x>", (unsigned)o.gcp);
+        case t_symbol: {
+            char* quoted_comment=quote_string(o.sp->comment);
+            char* result=suprintf("<symbol %s>", quoted_comment);
+            free(quoted_comment);
+            return result;
+        }
         case t_null:
             return strdup("null");
         default:
@@ -807,17 +798,30 @@ Object get(Executor* E, Object o, Object key){
         case t_table:
         {
             // try to get "get" field overriding function from the table and use it
-            Object get_override=null_const;
-            if(table_has_special_fields(o.tp)){
-                get_override=table_get(E, o.tp, to_string("get"));
-            }
+            Object get_override=get_override=table_get(E, o.tp, OVERRIDE(E, get));
+            Object result;
             if(get_override.type!=t_null){
                 Object arguments[]={o, key};
-                Object result=call(E, get_override, arguments, 2);
+                result=call(E, get_override, arguments, 2);
+                destroy_unreferenced(E, &get_override);
                 return result;
             } else {
-                return table_get(E, o.tp, key);
+                destroy_unreferenced(E, &get_override);
+                result=table_get(E, o.tp, key);
+                if(result.type!=t_null) {
+                    return result;
+                } else {
+                    Object prototype=get_override=table_get(E, o.tp, OVERRIDE(E, prototype));
+                    if(prototype.type!=t_null){
+                        result=get(E, prototype, key);
+                        destroy_unreferenced(E, &prototype);
+                        return result;
+                    } else {
+                        return result;
+                    }
+                }
             }
+            break;
         }
         #define FIELD(identifier) if(key.type==t_string && strcmp(key.text, identifier)==0)
         case t_string:
@@ -855,16 +859,21 @@ Object get(Executor* E, Object o, Object key){
                 return to_int(o.fp->arguments_count);
             }
             break;
+        case t_symbol:
+            FIELD("comment"){
+                return to_string(o.sp->comment);
+            }
+            break;
         default:;
     }
-    PATCH("get", o.type, o, key);
-    RETURN_ERROR("GET_ERROR",  multiple_causes(E, (Object[]){o, key}, 2), "Can't get field in object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+    PATCH(get, o.type, o, key);
+    RETURN_ERROR("GET_ERROR",  multiple_causes(E, (Object[]){o, key}, 2), "Can't get field in object of type <%s>", get_type_name(o.type));
 }
 
 Object set(Executor* E, Object o, Object key, Object value){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the Table and use it
-        Object set_override=table_get_override(E, o, "set");
+        Object set_override=get(E, o, OVERRIDE(E, set));
         if(set_override.type!=t_null){
             return call(E, set_override, (Object[]){o, key, value}, 3);
         } else if(table_is_protected(o.tp)){
@@ -875,8 +884,8 @@ Object set(Executor* E, Object o, Object key, Object value){
             return value;
         }
     } else {
-        PATCH("set", o.type, o, key);
-        RETURN_ERROR("SET_ERROR", o, "Can't set field in object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+        PATCH(set, o.type, o, key);
+        RETURN_ERROR("SET_ERROR", o, "Can't set field in object of type <%s>", get_type_name(o.type));
     }
 }
 
@@ -892,7 +901,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
         }
         case t_table:
         {
-            Object call_override=table_get_override(E, o, "call");
+            Object call_override=get(E, o, OVERRIDE(E, call));
             if(call_override.type!=t_null){
                 // add o object as a first argument
                 Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
@@ -905,7 +914,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
             }// else go to default label
         }
         default: {
-            Object patch=get_patch(E, OBJECT_TYPE_NAMES[o.type], "call");
+            Object patch=get_patch(E, o.type, OVERRIDE(E, call));
             if(patch.type!=t_null){
                 Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
                 arguments_with_self[0]=o;
@@ -914,7 +923,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
                 free(arguments_with_self);
                 return result;
             } else {
-                RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", OBJECT_TYPE_NAMES[o.type]);
+                RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", get_type_name(o.type));
             }
         }
     }
@@ -928,7 +937,7 @@ Object copy(Executor* E, Object o){
         }
         case t_table:
         {
-            Object copy_override=table_get_override(E, o, "copy");
+            Object copy_override=get(E, o, OVERRIDE(E, copy));
             if(copy_override.type!=t_null){
                 return call(E, copy_override, &o, 1);
             } else {
@@ -941,7 +950,7 @@ Object copy(Executor* E, Object o){
 }
 
 void call_destroy(Executor* E, Object o){
-    Object destroy_override=table_get_override(E, o, "destroy");
+    Object destroy_override=get(E, o, OVERRIDE(E, destroy));
     if(destroy_override.type!=t_null){
         Object destroy_result=call(E, destroy_override, &o, 1);
         destroy_unreferenced(E, &destroy_result);

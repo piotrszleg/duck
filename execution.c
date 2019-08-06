@@ -110,8 +110,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
                 inherit_scope(E, function_scope, f->enclosing_scope);
             }
             for(int i=0; i<arguments_count; i++){
-                STRING_OBJECT(argument_name, f->argument_names[i]);
-                set(E, function_scope, argument_name, arguments[i]);
+                set(E, function_scope, to_string(f->argument_names[i]), arguments[i]);
             }
             return execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, function_scope, 1);
         }
@@ -156,10 +155,6 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
     }
 }
 
-GarbageCollector* executor_get_garbage_collector(Executor* E){
-    return E->gc;
-}
-
 Object executor_on_unhandled_error(Executor* E, Object error) {
     if(E->scope.type==t_table){
         Object handler=get(E, E->scope, to_string("on_unhandled_error"));
@@ -198,7 +193,11 @@ void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeac
 }
 
 Object executor_get_patching_table(Executor* E){
-    return get(E, E->scope, to_string("patching_table"));
+    if(E->scope.type==t_table){
+        return table_get(E, E->scope.tp, to_string("patching_table"));
+    } else {
+        return null_const;
+    }
 }
 
 void coroutine_free(Coroutine* co){
@@ -207,17 +206,18 @@ void coroutine_free(Coroutine* co){
 }
 
 void executor_collect_garbage(Executor* E){
-    gc_unmark_all(E->gc);
+    gc_unmark_all(E->beginning.gc);
     executor_foreach_children(E, E, gc_mark);
     gc_sweep(E);
     
 }
 
 void executor_init(Executor* E){
-    E->gc=malloc(sizeof(GarbageCollector));
+    E->beginning.gc=malloc(sizeof(GarbageCollector));
     E->options=default_options;
     E->ast_execution_state.returning=false;
     E->scope=null_const;
+    E->file=NULL;
     vector_init(&E->traceback, sizeof(TracebackPoint), 16);
     vector_init(&E->ast_execution_state.used_objects, sizeof(Object), 8);
     object_system_init(E);
@@ -230,5 +230,5 @@ void executor_deinit(Executor* E){
     vector_deinit(&E->traceback);
     vector_deinit(&E->ast_execution_state.used_objects);
     bytecode_environment_deinit(&E->bytecode_environment);
-    free(E->gc);
+    free(E->beginning.gc);
 }

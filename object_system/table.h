@@ -28,7 +28,6 @@ struct Table {
     MapElement** map;
     unsigned map_size;
     bool protected;
-    bool special_fields_disabled;
 };
 
 typedef struct {
@@ -52,8 +51,6 @@ Object table_get(Executor* E, Table* t, Object key);
 void table_set(Executor* E, Table* t, Object key, Object value);
 void table_protect(Table* t);
 bool table_is_protected(Table* t);
-void table_disable_special_fields(Table* t);
-bool table_has_special_fields(Table* t);
 void table_free(Table* t);
 void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback);
 int table_compare(Executor* E, Table* a, Table* b, Object* error);

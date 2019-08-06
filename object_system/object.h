@@ -10,6 +10,21 @@
 #include "../utility.h"
 #include "../datatypes/vector.h"
 
+#define OVERRIDES \
+    X(operator) \
+    X(cast) \
+    X(compare) \
+    X(hash) \
+    X(iterator) \
+    X(serialize) \
+    X(stringify) \
+    X(call) \
+    X(get) \
+    X(set) \
+    X(copy) \
+    X(destroy) \
+    X(prototype)
+
 typedef struct Executor Executor;
 
 #define OBJECT_TYPES \
@@ -21,7 +36,8 @@ typedef struct Executor Executor;
     X(table) \
     X(pointer) \
     X(managed_pointer) \
-    X(coroutine)
+    X(coroutine) \
+    X(symbol)
 
 typedef enum {
     #define X(type) t_##type,
@@ -29,10 +45,7 @@ typedef enum {
     #undef X
 } ObjectType;
 
-#define LAST_OBJECT_TYPE t_coroutine
-
-extern const char* OBJECT_TYPE_NAMES[];// array mapping enum ObjectType to their names as strings
-extern const int OBJECT_TYPE_NAMES_COUNT;
+#define LAST_OBJECT_TYPE t_symbol
 
 typedef struct HeapObject HeapObject;
 struct HeapObject {
@@ -69,6 +82,7 @@ typedef struct Table Table;
 typedef struct Function Function;
 typedef struct Coroutine Coroutine;
 typedef struct ManagedPointer ManagedPointer;
+typedef struct Symbol Symbol;
 
 typedef struct {
     ObjectType type;
@@ -81,11 +95,28 @@ typedef struct {
         Function* fp;
         Table* tp;
         Coroutine* co;
+        Symbol* sp;
         /* ManagedPointer, Function, Table and Coroutine structs have same memory layout as HeapObject
            and can be safely casted to it */
         HeapObject* gco;
     };
 } Object;
+
+typedef struct {
+    GarbageCollector* gc;
+    unsigned symbols_counter;
+    struct {
+        #define X(name) Object name;
+        OVERRIDES
+        #undef X
+    } builtin_symbols;
+    Object builtin_symbols_table;
+    Object type_symbols[LAST_OBJECT_TYPE];
+    // rest of executor is defined in the higher level module
+} ExecutorBeginning;
+
+#define BEGINNING(executor) ((ExecutorBeginning*)executor)
+#define OVERRIDE(executor, override_name) BEGINNING(executor)->builtin_symbols.override_name
 
 extern Object null_const;
 
@@ -107,16 +138,6 @@ OBJECT_INIT_E(table)
 
 #undef OBJECT_INIT
 #undef OBJECT_INIT_E
-
-#define STRING_OBJECT(name, string_text) Object name; string_init(&name); name.text=(char*)string_text;
-
-#define CHECK_OBJECT(checked) \
-    if(checked==NULL) { \
-        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object pointer \"" #checked "\" passed to function %s is null", __FUNCTION__); \
-    } \
-    if(checked->type<t_null||checked->type>LAST_OBJECT_TYPE) { \
-        THROW_ERROR(INCORRECT_OBJECT_POINTER, "Object \"" #checked "\" passed to function %s has incorrect type value %i", __FUNCTION__, checked->type); \
-    }
 
 // declaration of function pointer type used in function objects
 typedef Object (*ObjectSystemFunction)(Executor* E, Object scope, Object* arguments, int arguments_count);
@@ -166,6 +187,12 @@ struct Coroutine {
     } state;
 };
 
+struct Symbol {
+    HeapObject gco;
+    unsigned index;
+    char* comment;
+};
+
 void print_allocated_objects(Executor* E);
 bool is_heap_object(Object o);
 bool gc_should_run(GarbageCollector* gc);
@@ -175,12 +202,15 @@ void gc_sweep(Executor* E);
 Object wrap_heap_object(HeapObject* o);
 void call_destroy(Executor* E, Object o);
 
+Object get_type_symbol(Executor* E, ObjectType type);
+const char* get_type_name(ObjectType type);
+
 Object to_string(const char* s);
 Object to_int(int n);
 Object to_float(float n);
 Object to_pointer(void* p);
-Object to_managed_pointer(ManagedPointer* p);
-Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, int arguments_count);
+Object to_native_function(Executor* E, ObjectSystemFunction f, char** argument_names, int arguments_count, bool variadic);
+Object new_symbol(Executor* E, char* comment);
 
 void reference(Object* o);
 void object_init(Object* o, ObjectType type);
@@ -201,7 +231,6 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
 void coroutine_free(Coroutine* co);
 void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeachChildrenCallback);
 Object executor_on_unhandled_error(Executor* E, Object error);
-GarbageCollector* executor_get_garbage_collector(Executor*);
 Object executor_get_patching_table(Executor*);
 
 #include "table.h"

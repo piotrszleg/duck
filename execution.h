@@ -40,7 +40,7 @@ struct ASTExecutionState {
 };
 
 struct Executor {
-    GarbageCollector* gc;
+    ExecutorBeginning beginning;
     unsigned line;
     unsigned column;
     vector traceback;

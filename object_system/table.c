@@ -7,7 +7,6 @@ void table_component_init(Table* t){
     t->array=calloc(t->array_size, sizeof(Object));
     t->map=calloc(t->map_size, sizeof(MapElement*));
     t->protected=false;
-    t->special_fields_disabled=false;
 }
 
 // returns true for string that doesn't start with number and has only letters, numbers and underscores inside
@@ -82,13 +81,6 @@ bool table_is_protected(Table* t){
     return t->protected;
 }
 
-void table_disable_special_fields(Table* t){
-    t->special_fields_disabled=true;
-}
-bool table_has_special_fields(Table* t){
-    return !t->special_fields_disabled;
-}
-
 TableIterator table_get_iterator(Table* iterated){
     TableIterator result={iterated, true, 0, iterated->map[0]};
     return result;
@@ -147,26 +139,16 @@ static char* table_to_text(Executor* E, Table* t, bool serialize) {
     bool array_part_holey=false;
     int max_hole_size=3;
     
-    bool add_whitespace=t->elements_count>3||t->protected||t->special_fields_disabled;
-    if(serialize){
-        if(t->protected){
-            stream_push_const_string(&s, "protect(");
-        }
-        if(t->special_fields_disabled){
-            stream_push_const_string(&s, "disable_special_fields(");
-        }
+    bool add_whitespace=t->elements_count>3||t->protected;
+    if(serialize && t->protected){
+        stream_push_const_string(&s, "protect(");
     }
     stream_push_const_string(&s, "[");
     if(add_whitespace){
         stream_push_const_string(&s, "\n\t");
     }
-    if(!serialize){
-        if(t->protected){
-            stream_push_const_string(&s, "# protected\n\t");
-        }
-        if(t->special_fields_disabled){
-            stream_push_const_string(&s, "# special fields disabled\n\t");
-        }
+    if(!serialize && t->protected){
+        stream_push_const_string(&s, "# protected\n\t");
     }
     for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
         if(serialize && (!is_serializable(i.key) || !is_serializable(i.value))){
@@ -231,13 +213,8 @@ static char* table_to_text(Executor* E, Table* t, bool serialize) {
         stream_push_const_string(&s, "\n");
     }
     stream_push_const_string(&s, "]");
-    if(serialize){
-        if(t->protected){
-            stream_push_const_string(&s, ")");
-        }
-        if(t->special_fields_disabled){
-            stream_push_const_string(&s, ")");
-        }
+    if(serialize && t->protected){
+        stream_push_const_string(&s, ")");
     }
     stream_push_const_string(&s, "\0");
     

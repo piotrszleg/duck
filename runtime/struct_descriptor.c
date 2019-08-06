@@ -249,9 +249,9 @@ void add_struct_descriptor_fields(Executor* E, Table* sd, void* position){
     table_set(E, sd, to_string("position"), to_pointer(position));
     table_set(E, sd, to_string("is_struct_descriptor"), to_int(1));
     
-    table_set(E, sd, to_string("stringify"), to_function(E, struct_descriptor_stringify, NULL, 1));
-    table_set(E, sd, to_string("get"), to_function(E, struct_descriptor_get, NULL, 2));
-    table_set(E, sd, to_string("set"), to_function(E, struct_descriptor_set, NULL, 3));
+    table_set(E, sd, OVERRIDE(E, stringify), to_native_function(E, struct_descriptor_stringify, NULL, 1, false));
+    table_set(E, sd, OVERRIDE(E, get), to_native_function(E, struct_descriptor_get, NULL, 2, false));
+    table_set(E, sd, OVERRIDE(E, set), to_native_function(E, struct_descriptor_set, NULL, 3, false));
 }
 
 Object new_struct_descriptor(Executor* E, void* position, Object fields){

@@ -12,6 +12,16 @@ Object set_function(Executor* E, Object o, const char* name, int minimal_argumen
     return set(E, o, to_string(name), function_object);
 }
 
+Object to_bound_function(Executor* E, Object o, int minimal_arguments, bool variadic, ObjectSystemFunction native_function){
+    REQUIRE_ARGUMENT_TYPE(o, t_table)
+    Object function;
+    function_init(E, &function);
+    REQUIRE_TYPE(function, t_function)
+    function.fp->enclosing_scope=o;
+    reference(&o);
+    return function;
+}
+
 Object set_function_bound(Executor* E, Object o, char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function){
     REQUIRE_ARGUMENT_TYPE(o, t_table)
     Object function=set_function(E, o, name, minimal_arguments, variadic, native_function);

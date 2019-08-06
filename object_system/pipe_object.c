@@ -1,16 +1,22 @@
 #include "pipe_object.h"
 
-Object pipe_pipe_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object pipe_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object pipe=arguments[0];
     Object f=arguments[1];
-    Object count=get(E, pipe, to_string("count"));
-    if(count.type!=t_int) {
-        RETURN_ERROR("PIPE_ERROR", pipe, "Count field in pipe object is not a number.");
+    Object op=arguments[2];
+    REQUIRE_ARGUMENT_TYPE(op, t_string)
+    if(strcmp(op.text, "--")==0){
+        Object count=get(E, pipe, to_string("count"));
+        if(count.type!=t_int) {
+            RETURN_ERROR("PIPE_ERROR", pipe, "Count field in pipe object is not a number.");
+        }
+        set(E, pipe, count, f);
+        count.int_value++;
+        set(E, pipe, to_string("count"), count);
+        return pipe;
+    } else {
+        OPERATOR_OVERRIDE_FAILURE
     }
-    set(E, pipe, count, f);
-    count.int_value++;
-    set(E, pipe, to_string("count"), count);
-    return pipe;
 }
 
 Object pipe_call(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -36,13 +42,16 @@ Object pipe_call(Executor* E, Object scope, Object* arguments, int arguments_cou
     return previous_result;
 }
 
+static void add_pipe_fields(Executor* E, Object pipe){
+    set(E, pipe, OVERRIDE(E, operator), to_native_function(E, pipe_operator, NULL, 2, false));
+    set(E, pipe, OVERRIDE(E, call), to_native_function(E, pipe_call, NULL, 1, true));
+}
+
 Object to_pipe(Executor* E, Object f1, Object f2){
     Object pipe;
     table_init(E, &pipe);
 
-    set_function(E, pipe, "--", 2, false, pipe_pipe_operator);
-    set_function(E, pipe, "call", 2, true, pipe_call);
-
+    add_pipe_fields(E, pipe);
     set(E, pipe, to_string("count"), to_int(2));
     set(E, pipe, to_string("0"), f1);
     set(E, pipe, to_string("1"), f2);
@@ -54,9 +63,7 @@ Object new_pipe(Executor* E, Object scope, Object* arguments, int arguments_coun
     Object pipe;
     table_init(E, &pipe);
 
-    set_function(E, pipe, "--", 2, false, pipe_pipe_operator);
-    set_function(E, pipe, "call", 2, true, pipe_call);
-
+    add_pipe_fields(E, pipe);
     set(E, pipe, to_string("count"), to_int(arguments_count));
     for(int i=0; i<arguments_count; i++){
         set(E, pipe, to_int(i), arguments[i]);

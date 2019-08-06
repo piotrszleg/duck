@@ -34,10 +34,7 @@ Object multiple_causes_stringify(Executor* E, Object scope, Object* arguments, i
     }
     stream_push(&s, "\0", 1);
 
-    Object result;
-    string_init(&result);
-    result.text=(char*)stream_get_data(&s);
-    return result;
+    return to_string((char*)stream_get_data(&s));
 }
 
 Object multiple_causes(Executor* E, Object* causes, int causes_count){
@@ -49,17 +46,13 @@ Object multiple_causes(Executor* E, Object* causes, int causes_count){
         snprintf(buffer, 64, "%i", i);
         set(E, result, to_string(buffer), causes[i]);
     }
-    
-    Object count;
-    int_init(&count);
-    count.int_value=causes_count;
-    set(E, result, to_string("count"), count);
+    set(E, result, to_string("count"), to_int(causes_count));
 
     Object stringify_f;
     function_init(E, &stringify_f);
     stringify_f.fp->arguments_count=1;
     stringify_f.fp->native_pointer=multiple_causes_stringify;
-    set(E, result, to_string("stringify"), stringify_f);
+    set(E, result, OVERRIDE(E, stringify), stringify_f);
 
     return result;
     return null_const;
@@ -71,9 +64,7 @@ Object error_stringify(Executor* E, Object scope, Object* arguments, int argumen
     char* message=get_and_stringify(E, self, "message");
     char* location=get_and_stringify(E, self, "location");
     char* cause=get_and_stringify(E, self, "cause");
-    Object result;
-    string_init(&result);
-    result.text=suprintf("%s: %s\n%s\ncaused by:\n%s", type, message, location, cause);
+    Object result=to_string(suprintf("%s: %s\n%s\ncaused by:\n%s", type, message, location, cause));
     free(type);
     free(message);
     free(location);
@@ -129,8 +120,8 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
     set(E, err, to_string("error"), to_int(1));
     set(E, err, to_string("handled"), to_int(0));
 
-    set(E, err, to_string("stringify"), to_function(E, error_stringify, NULL, 1));
-    set(E, err, to_string("destroy"), to_function(E, error_destroy, NULL, 1));
+    set(E, err, OVERRIDE(E, stringify), to_native_function(E, error_stringify, NULL, 1, false));
+    set(E, err, OVERRIDE(E, destroy), to_native_function(E, error_destroy, NULL, 1, false));
 
     set(E, err, to_string("cause"), cause);
 

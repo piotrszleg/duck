@@ -210,12 +210,11 @@ Object regex_module_compile(Executor* E, Object scope, Object* arguments, int ar
         regerror (regcomp_result, compiled_regex, buffer, length);
         RETURN_ERROR("REGEX_ERROR", arguments[0], buffer);
     } else {
-        set(E, result, to_int(0), to_pointer(compiled_regex));
-        set_function_bound(E, result, "call", 2, false, regex_object_call);
+        set(E, result, OVERRIDE(E, call), to_bound_function(E, result, 1, true, regex_object_call));
         set_function_bound(E, result, "split", 2, false, regex_object_split);
         set_function_bound(E, result, "replace", 3, false, regex_object_replace);
         set_function_bound(E, result, "process", 3, false, regex_object_process);
-        set_function_bound(E, result, "destroy", 1, false, regex_object_destroy);
+        set(E, result, OVERRIDE(E, destroy), to_bound_function(E, result, 1, false, regex_object_destroy));
         table_protect(result.tp);
         return result;
     }

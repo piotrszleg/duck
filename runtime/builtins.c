@@ -12,8 +12,10 @@ Object builtin_coroutine(Executor* E, Object scope, Object* arguments, int argum
     bytecode_environment_init(&coroutine_executor->bytecode_environment);
 
     // coroutine shares garbage collector with owner
-    coroutine_executor->gc=E->gc;
+    coroutine_executor->beginning.gc=E->beginning.gc;
     vector_init(&coroutine_executor->traceback, sizeof(TracebackPoint), 16);
+    coroutine_executor->beginning.symbols_counter=0;
+    // TODO: symbols table
 
     // create a coroutine scope inheriting from global scope
     table_init(coroutine_executor, &coroutine_executor->bytecode_environment.scope);
@@ -218,12 +220,12 @@ Object builtin_assert_equal(Executor* E, Object scope, Object* arguments, int ar
     }
 }
 
-Object builtin_typeof(Executor* E, Object scope, Object* arguments, int arguments_count){
-    Object self=arguments[0];
-    Object type_name;
-    string_init(&type_name);
-    type_name.text=strdup(OBJECT_TYPE_NAMES[self.type]);
-    return type_name;
+Object builtin_get_type(Executor* E, Object scope, Object* arguments, int arguments_count){
+    return get_type_symbol(E, arguments[0].type);
+}
+
+Object builtin_get_type_name(Executor* E, Object scope, Object* arguments, int arguments_count){
+    return to_string(get_type_name(arguments[0].type));
 }
 
 Object builtin_table_get(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -246,10 +248,10 @@ Object builtin_table_set(Executor* E, Object scope, Object* arguments, int argum
     }
 }
 
-Object builtin_disable_special_fields(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object builtin_protect(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object table=arguments[0];
     REQUIRE_ARGUMENT_TYPE(table, t_table)
-    table_disable_special_fields(table.tp);
+    table_protect(table.tp);
     return table;
 }
 
@@ -283,10 +285,10 @@ Object builtin_to_int(Executor* E, Object scope, Object* arguments, int argument
 }
 
 Object builtin_cast(Executor* E, Object scope, Object* arguments, int arguments_count){
-    REQUIRE_TYPE(arguments[1], t_string);
-    for(int i=0; i<OBJECT_TYPE_NAMES_COUNT; i++){
-        if(strcmp(OBJECT_TYPE_NAMES[i], arguments[1].text)==0){
-            return cast(E, arguments[0], (ObjectType)i);
+    REQUIRE_TYPE(arguments[1], t_symbol);
+    for(int i=0; i<LAST_OBJECT_TYPE; i++){
+        if(compare(E, get_type_symbol(E, i), arguments[1])==0){
+            return cast(E, arguments[0], i);
         }
     }
     RETURN_ERROR("INCORRECT_ARGUMENT", arguments[1], "Incorrect type name");
@@ -441,7 +443,7 @@ Object builtin_open_file(Executor* E, Object scope, Object* arguments, int argum
     set_function_bound(E, result, "read_entire", 1, false, file_read_entire);
     set_function_bound(E, result, "read_line", 1, false, file_read_line);
     set_function_bound(E, result, "write", 2, false, file_write);
-    set_function_bound(E, result, "iterator", 2, false, file_iterator);
+    set(E, result, OVERRIDE(E, iterator), to_bound_function(E, result, 2, false, file_iterator));
     set_function_bound(E, result, "destroy", 1, false, file_destroy);
     table_protect(result.tp);
 
@@ -537,11 +539,20 @@ Object builtin_multiple_causes(Executor* E, Object scope, Object* arguments, int
     return multiple_causes(E, arguments, arguments_count);
 }
 
+Object builtin_symbol(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object comment=arguments[0];
+    REQUIRE_ARGUMENT_TYPE(comment, t_string)
+    return new_symbol(E, comment.text);
+}
+
 Object builtins_table(Executor* E){
     Object scope;
     table_init(E, &scope);
+
     set(E, scope, to_int(0), to_string("builtins_table"));
     set(E, scope, to_string("builtins"), scope);
+    set(E, scope, to_string("symbols"), E->beginning.builtin_symbols_table);
+
     #define REGISTER(f, args_count) \
         Object f##_function; \
         function_init(E, &f##_function); \
@@ -553,12 +564,13 @@ Object builtins_table(Executor* E){
     REGISTER(input, 0)
     REGISTER(assert, 1)
     REGISTER(assert_equal, 2)
-    REGISTER(typeof, 1)
+    REGISTER(get_type, 1)
+    REGISTER(get_type_name, 1)
     REGISTER(table_get, 2)
     REGISTER(table_set, 3)
     REGISTER(table_stringify, 1)
     REGISTER(table_copy, 1)
-    REGISTER(disable_special_fields, 1)
+    REGISTER(protect, 1)
     REGISTER(include, 1)
     REGISTER(eval, 1)
     REGISTER(substring, 3)
@@ -585,6 +597,7 @@ Object builtins_table(Executor* E){
     REGISTER(call, 2)
     REGISTER(create_variant, 1)
     REGISTER(serialize, 1)
+    REGISTER(symbol, 1)
     #undef REGISTER
 
     Object yield;
@@ -616,35 +629,11 @@ Object builtins_table(Executor* E){
     return scope;
 }
 
-Object scope_get_override(Executor* E, Object scope, Object* arguments, int arguments_count){
-    Object self=arguments[0];
-    REQUIRE_TYPE(self, t_table)
-    Object key=arguments[1];
-
-    Object base=self;
-    Object map_get_result=table_get(E, self.tp, key);
-
-    // we assume that all scopes are of type Table and have same get behaviour
-    while(map_get_result.type==t_null){
-        base=table_get(E, base.tp, to_string("base"));
-        if(base.type!=t_table){
-            return null_const;
-        } else {
-            map_get_result=table_get(E, base.tp, key);
-        }
-    }
-    return map_get_result;
-}
-
 Object scope_set_override(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table)
     Object key=arguments[1];
     Object value=arguments[2];
-
-    if(EQUALS_STRING(key, "set")){
-        key=to_string("_set");
-    }
 
     Object checked=self;
     Object checked_zero_index=null_const;
@@ -662,7 +651,7 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
         } else {
             // destroy_unreferenced(E, &checked);
             destroy_unreferenced(E, &checked_zero_index);
-            checked=table_get(E, checked.tp, to_string("base"));
+            checked=table_get(E, checked.tp, OVERRIDE(E, prototype));
             checked_zero_index=table_get(E, checked.tp, to_int(0));
         }
     } while(checked.type==t_table 
@@ -691,7 +680,6 @@ void inherit_scope(Executor* E, Object scope, Object base){
         }
         destroy_unreferenced(E, &base_zero_index);
     }
-    table_set(E, scope.tp, to_string("base"), base);
-    set_function(E, scope, "get", 2, false, scope_get_override);
-    set_function(E, scope, "set", 3, false, scope_set_override);
+    table_set(E, scope.tp, OVERRIDE(E, prototype), base);
+    table_set(E, scope.tp, OVERRIDE(E, set), to_native_function(E, scope_set_override, NULL, 3, false));
 }

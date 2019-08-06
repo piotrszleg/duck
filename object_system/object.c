@@ -1,11 +1,14 @@
 #include "object.h"
 
-const char* OBJECT_TYPE_NAMES[]={
+static const char* OBJECT_TYPE_NAMES[]={
     #define X(t) #t,
     OBJECT_TYPES
     #undef X
 };
-const int OBJECT_TYPE_NAMES_COUNT=5;
+
+static inline GarbageCollector* executor_get_garbage_collector(Executor* E){
+    return ((ExecutorBeginning*)E)->gc;
+} 
 
 void garbage_collector_init(GarbageCollector* gc){
     gc->root=NULL;
@@ -35,18 +38,20 @@ Object wrap_heap_object(HeapObject* o){
     return wrapped;
 }
 
-#define OBJECT_INIT(t) \
-    void t##_init (Object* o){  \
-        o->type=t_##t; \
-    }
-
-OBJECT_INIT(null)
-OBJECT_INIT(float)
-OBJECT_INIT(int)
-OBJECT_INIT(string)
-OBJECT_INIT(pointer)
-
-#undef OBJECT_INIT
+Object new_symbol(Executor* E, char* comment) {
+    Object result;
+    result.type=t_symbol;
+    result.sp=malloc(sizeof(Symbol));
+    CHECK_ALLOCATION(result.sp);
+    heap_object_init(E, result.gco);
+    
+    result.gco->gc_type=t_symbol;
+    unsigned* symbols_counter=&((ExecutorBeginning*)E)->symbols_counter;
+    result.sp->index=*symbols_counter;
+    (*symbols_counter)++;
+    result.sp->comment=strdup(comment);
+    return result;
+}
 
 void function_init(Executor* E, Object* o){
     o->type=t_function;
@@ -87,7 +92,7 @@ void managed_pointer_init(Executor* E, ManagedPointer* gcp, ManagedPointerFreeFu
 
 Object to_string(const char* s){
     Object o; 
-    string_init(&o);
+    o.type=t_string;
     /* String Object can contain const string as long as it doesn't dereference it.
     If some object takes ownership over the string it will copy it by calling reference function.
     This way strings are allocated dynamically only if it's needed. */
@@ -97,46 +102,40 @@ Object to_string(const char* s){
 
 Object to_int(int n){
     Object o; 
-    int_init(&o); 
+    o.type=t_int;
     o.int_value=n;
     return o;
 }
 
 Object to_float(float n){
     Object o; 
-    float_init(&o); 
+    o.type=t_float;
     o.float_value=n;
-    return o;
-}
-
-Object to_managed_pointer(ManagedPointer* p){
-    Object o;
-    o.type=t_managed_pointer;
-    o.gcp=p;
     return o;
 }
 
 Object to_pointer(void* p){
     Object o; 
-    pointer_init(&o); 
+    o.type=t_pointer;
     o.p=p;
     return o;
 }
 
-Object to_function(Executor* E, ObjectSystemFunction f, char** argument_names, int arguments_count){
+Object to_native_function(Executor* E, ObjectSystemFunction f, char** argument_names, int arguments_count, bool variadic) {
     Object o;
     function_init(E, &o);
     
     o.fp->native_pointer=f;
     o.fp->argument_names=argument_names;
     o.fp->arguments_count=arguments_count;
+    o.fp->variadic=variadic;
     return o;
 }
 
 Object null_const={t_null};
 
 bool is_heap_object(Object o){
-    return o.type==t_table || o.type==t_function || o.type==t_managed_pointer || o.type==t_coroutine;
+    return o.type==t_table || o.type==t_function || o.type==t_managed_pointer || o.type==t_coroutine || o.type==t_symbol;
 }
 
 void heap_object_unchain(Executor* E, HeapObject* o){
@@ -268,7 +267,6 @@ void heap_object_reference(HeapObject* o){
 }
 
 void dereference(Executor* E, Object* o){
-    CHECK_OBJECT(o)
     if(is_heap_object(*o)) {
         if(o->gco->ref_count!=ALREADY_DESTROYED){
             o->gco->ref_count--;
@@ -287,16 +285,23 @@ void destroy_unreferenced(Executor* E, Object* o){
         GarbageCollector* gc=executor_get_garbage_collector(E);
         GarbageCollectorState gc_state=gc->state;
         o->gco->ref_count=ALREADY_DESTROYED;
+        // during garbage collection objects are dereferenced two times
+        // first their children are dereferenced and then their memory is freed
+        // this allows calling destructors correctly
+        // if objects are dereferenced normally (without garbage collector running)
+        // both of these actions are performed at one call
+        bool dereferencing_children=gc_state==gcs_inactive||gc_state==gcs_deinitializing;
+        bool freeing_memory=gc_state==gcs_inactive||gc_state==gcs_freeing_memory;
         switch(o->type){
             case t_function:
             {
-                if(gc_state!=gcs_freeing_memory){
+                if(dereferencing_children){
                     if(function_uses_source_pointer(o->fp)){
                         heap_object_dereference(E, o->fp->source_pointer);
                     }
                     dereference(E, &o->fp->enclosing_scope);
                 }
-                if(gc_state!=gcs_deinitializing){
+                if(freeing_memory){
                     heap_object_unchain(E, o->gco);
                     if(o->fp->argument_names!=NULL){
                         for(int i=0; i<o->fp->arguments_count; i++){
@@ -311,11 +316,11 @@ void destroy_unreferenced(Executor* E, Object* o){
             }
             case t_table:
             {
-                if(gc_state!=gcs_freeing_memory){
+                if(dereferencing_children){
                     call_destroy(E, *o);
                     table_foreach_children(E, o->tp, dereference);
                 }
-                if(gc_state!=gcs_deinitializing){
+                if(freeing_memory){
                     heap_object_unchain(E, o->gco);
                     gc->allocations_count--;
                     table_free(o->tp);
@@ -325,10 +330,10 @@ void destroy_unreferenced(Executor* E, Object* o){
             }
             case t_managed_pointer:
             {
-                if(gc_state!=gcs_freeing_memory && o->gcp->foreach_children!=NULL){
+                if(dereferencing_children && o->gcp->foreach_children!=NULL){
                     o->gcp->foreach_children(E, o->gcp, dereference);
                 }
-                if(gc_state!=gcs_deinitializing){
+                if(freeing_memory){
                     heap_object_unchain(E, o->gco);
                     gc->allocations_count--;
                     o->gcp->free(o->gcp);
@@ -338,14 +343,24 @@ void destroy_unreferenced(Executor* E, Object* o){
             }
             case t_coroutine:
             {
-                if(gc_state!=gcs_freeing_memory){
+                if(dereferencing_children){
                     coroutine_foreach_children(E, o->co, dereference);
                 }
-                if(gc_state!=gcs_deinitializing){
+                if(freeing_memory){
                     heap_object_unchain(E, o->gco);
                     gc->allocations_count--;
                     coroutine_free(o->co);
                     o->co=NULL;
+                }
+                break;
+            }
+            case t_symbol:
+            {
+                if(freeing_memory){
+                    heap_object_unchain(E, o->gco);
+                    gc->allocations_count--;
+                    free(o->sp->comment);
+                    o->sp=NULL;
                 }
                 break;
             }
@@ -356,6 +371,31 @@ void destroy_unreferenced(Executor* E, Object* o){
 
 void object_system_init(Executor* E){
     garbage_collector_init(executor_get_garbage_collector(E));
+    ExecutorBeginning* beginning=(ExecutorBeginning*)E;
+    table_init(E, &beginning->builtin_symbols_table);
+    reference(&beginning->builtin_symbols_table);
+    beginning->symbols_counter=0;
+
+    #define X(name) \
+        beginning->builtin_symbols.name=new_symbol(E, #name); \
+        table_set(E, beginning->builtin_symbols_table.tp, to_string(#name), beginning->builtin_symbols.name);
+    OVERRIDES
+    #undef X
+
+    #define X(name) \
+        beginning->type_symbols[t_##name]=new_symbol(E, #name); \
+        table_set(E, beginning->builtin_symbols_table.tp, to_string(#name), beginning->type_symbols[t_##name]);
+    OBJECT_TYPES
+    #undef X
+     
+}
+
+Object get_type_symbol(Executor* E, ObjectType type){
+    return BEGINNING(E)->type_symbols[type];
+}
+
+const char* get_type_name(ObjectType type){
+    return OBJECT_TYPE_NAMES[type];
 }
 
 void object_system_deinit(Executor* E){

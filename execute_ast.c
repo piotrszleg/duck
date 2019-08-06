@@ -135,7 +135,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 }
             }
             STOP_USING(block_scope)
-            if(gc_should_run(E->gc)){
+            if(gc_should_run(E->beginning.gc)){
                 executor_collect_garbage(E);
             }
             RETURN_USED(result)

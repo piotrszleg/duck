@@ -5,12 +5,8 @@
 #include "../error/error.h"
 
 struct Executor {
-    GarbageCollector gc;
+    ExecutorBeginning beggining;
 };
-
-GarbageCollector* executor_get_garbage_collector(Executor* E){
-    return &E->gc;
-}
 
 Object executor_get_patching_table(Executor* E){
     return null_const;
@@ -69,24 +65,16 @@ void adding_numbers(Executor* E){// tests whether 1+2=3
     Object num2=to_int(2);
     assert_stringification(E, operator(E, num1, num2, "+"), "3");
 
-    dereference(E, &num1);
-    dereference(E, &num2);
     printf("test successful\n");
 }
 
 void adding_strings(Executor* E){// tests whether "Hello "+"Cruel World"="Hello Cruel World"
     printf("TEST: %s\n", __FUNCTION__);
     
-    Object str1;
-    string_init(&str1);
-    str1.text="Hello ";
-    Object str2;
-    string_init(&str2);
-    str2.text="Cruel World";
+    Object str1=to_string("Hello ");
+    Object str2=to_string("Cruel World");
     assert_stringification(E, (operator(E, str1, str2, "+")), "\"Hello Cruel World\"");
 
-    dereference(E, &str1);
-    dereference(E, &str2);
     printf("test successful\n");
 }
 
@@ -94,7 +82,6 @@ Object add_three(Executor* E, Object scope, Object* arguments, int arguments_cou
     assert(arguments_count==1);
     Object three=to_int(3);
     Object result= operator(E, arguments[0], three, "+");
-    dereference(E, &three);
     return result;
 }
 
@@ -114,7 +101,6 @@ void function_calling(Executor* E){// tests whether f(5)==8 where f(x)=x+3
     assert_stringification(E, call(E, f, arguments, 1), "8");
 
     dereference(E, &f);
-    dereference(E, &five);
     printf("test successful\n");
 }
 
@@ -123,7 +109,7 @@ void table_indexing(Executor* E){// t["name"]="John" => t["name"]=="John"
     Object t;
     table_init(E, &t);
 
-    STRING_OBJECT(name_key, "name");
+    Object name_key=to_string("name");
 
     // test if setting works
     #define TEST_SET(key, value) \
@@ -148,15 +134,11 @@ void table_indexing(Executor* E){// t["name"]="John" => t["name"]=="John"
 void adding_number_string(Executor* E){// tests whether "count: "+5="count: 5"
     printf("TEST: %s\n", __FUNCTION__);
 
-    Object str;
-    string_init(&str);
-    str.text="count: ";
+    Object str=to_string("count: ");
 
     Object num=to_int(5);
     assert_stringification(E, operator(E, str, num, "+"), "\"count: 5\"");
 
-    dereference(E, &num);
-    dereference(E, &str);
     printf("test successful\n");
 }
 

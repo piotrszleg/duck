@@ -68,11 +68,11 @@ Object expression_descriptor_destroy(Executor* E, Object scope, Object* argument
 
 void postprocess_expression_descriptor(Executor* E, Table* descriptor){
     table_set(E, descriptor, to_string("is_expression"), to_int(1));
-    table_set(E, descriptor, to_string("destroy"), to_function(E, expression_descriptor_destroy, NULL, 1));
+    table_set(E, descriptor, OVERRIDE(E, destroy), to_native_function(E, expression_descriptor_destroy, NULL, 1, false));
     table_set(E, descriptor, to_string("has_ownership"), to_int(1));
     if(table_get(E, descriptor, to_string("replaced_get")).type==t_null){
         table_set(E, descriptor, to_string("replaced_get"), table_get(E, descriptor, to_string("get")));
-        table_set(E, descriptor, to_string("get"), to_function(E, expression_descriptor_get, NULL, 2));
+        table_set(E, descriptor, OVERRIDE(E, get), to_native_function(E, expression_descriptor_get, NULL, 2, false));
     }
 }
 
@@ -168,7 +168,7 @@ Object new_expression_descriptor(Executor* E, Object scope, Object* arguments, i
 }
 
 void register_ast_types(Executor* E, Object scope){
-    #define EXPRESSION(type){ Object function=to_function(E, new_expression_descriptor, NULL, 0); \
+    #define EXPRESSION(type){ Object function=to_native_function(E, new_expression_descriptor, NULL, 0, false); \
                               function.fp->enclosing_scope=to_pointer(new_##type); \
                               set(E, scope, to_string("new_"#type), function); }
     #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
@@ -270,7 +270,7 @@ expression* to_expression(Executor* E, Object o){
         if(is_truthy(is_expression)) {
             dereference(E, &is_expression);
             expression* exp=(expression*)struct_descriptor_get_pointer(E, o.tp);
-            table_set(E, o.tp, to_string("destroy"), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression
+            table_set(E, o.tp, OVERRIDE(E, destroy), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression
             if(exp!=NULL){
                 remove_nulls_from_expression(&exp);
             }

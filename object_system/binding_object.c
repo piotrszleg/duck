@@ -1,14 +1,17 @@
 #include "binding_object.h"
 
-Object binding_bind_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object binding_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object binding=arguments[0];
     Object binded_argument=arguments[1];
+    Object op=arguments[2];
     Object count=get(E, binding, to_string("count"));
-
-    if(count.type==t_int){
+    REQUIRE_TYPE(count, t_int)
+    if(strcmp(op.text, "><")==0){
         set(E, binding, count, binded_argument);
         count.int_value++;
         set(E, binding, to_string("count"), count);
+    } else {
+        OPERATOR_OVERRIDE_FAILURE
     }
     return binding;
 }
@@ -49,8 +52,8 @@ Object binding_call(Executor* E, Object scope, Object* arguments, int arguments_
 }
 
 void add_binding_fields(Executor* E, Object binding){
-    set_function(E, binding, "><", 2, false, binding_bind_operator);
-    set_function(E, binding, "call", 1, true, binding_call);
+    set(E, binding, OVERRIDE(E, operator), to_native_function(E,  binding_operator, NULL, 2, false));
+    set(E, binding, OVERRIDE(E, call), to_native_function(E, binding_call, NULL, 1, true));
     set_function(E, binding, "bind", 1, true, binding_bind);
 }
 

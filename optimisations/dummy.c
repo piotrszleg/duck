@@ -130,7 +130,7 @@ void dummy_print(const Dummy* dummy){
             print_id(dummy->id);
             break;
         case d_known_type:
-            printf("(%s)", OBJECT_TYPE_NAMES[dummy->known_type]);
+            printf("(%s)", get_type_name(dummy->known_type));
             print_id(dummy->id);
             break;
         case d_constant:

@@ -17,6 +17,10 @@ bool is(Executor* E, Object a, Object b);
 unsigned hash(Executor* E, Object o, Object* error);
 bool operator_is_constant(ObjectType a, ObjectType b, const char* op);
 Object operator(Executor* E, Object a, Object b, const char* op);
+#define OBJECTS_ARRAY(...) ((Object[]){__VA_ARGS__})
+#define OPERATOR_OVERRIDE_FAILURE \
+    RETURN_ERROR("OPERATOR_ERROR", multiple_causes(E, OBJECTS_ARRAY(arguments[0], arguments[1]), 2), \
+    "Can't perform operotion '%s' on objects of type <%s> and <%s>", arguments[2].text, get_type_name(arguments[0].type), get_type_name(arguments[1].type));
 
 Object cast(Executor* E, Object o, ObjectType type);
 
