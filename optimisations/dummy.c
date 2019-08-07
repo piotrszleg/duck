@@ -37,7 +37,7 @@ void dummy_free(Dummy* dummy){
 static inline Dummy* new_dummy(Executor* E, DummyType type){
     Dummy* result=malloc(sizeof(Dummy));
     managed_pointer_init(E, (ManagedPointer*)result, (ManagedPointerFreeFunction)dummy_free);
-    result->gcp.foreach_children=(ManagedPointerForeachChildrenFunction)dummy_foreach_children;
+    result->mp.foreach_children=(ManagedPointerForeachChildrenFunction)dummy_foreach_children;
     result->type=type;
     return result;
 }
@@ -147,7 +147,7 @@ void dummy_print(const Dummy* dummy){
         default:
             THROW_ERROR(BYTECODE_ERROR, "Incorrect dummy type %i.", dummy->type);
     }
-    //printf("<%i>", dummy->gcp.gco.ref_count);
+    //printf("<%i>", dummy->mp.hp.ref_count);
 }
 
 bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replacement){

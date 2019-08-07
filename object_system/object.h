@@ -91,14 +91,14 @@ typedef struct {
         int int_value;
         char* text;
         void* p;
-        ManagedPointer* gcp;
+        ManagedPointer* mp;
         Function* fp;
         Table* tp;
         Coroutine* co;
         Symbol* sp;
         /* ManagedPointer, Function, Table and Coroutine structs have same memory layout as HeapObject
            and can be safely casted to it */
-        HeapObject* gco;
+        HeapObject* hp;
     };
 } Object;
 
@@ -110,8 +110,9 @@ typedef struct {
         OVERRIDES
         #undef X
     } builtin_symbols;
-    Object builtin_symbols_table;
-    Object type_symbols[LAST_OBJECT_TYPE];
+    Object overrides_table;
+    Object types_table;
+    Object type_symbols[LAST_OBJECT_TYPE+1];
     // rest of executor is defined in the higher level module
 } ExecutorBeginning;
 
@@ -148,12 +149,12 @@ typedef void (*ManagedPointerForeachChildrenFunction)(Executor* E, ManagedPointe
 
 typedef struct ManagedPointer ManagedPointer;
 struct ManagedPointer {
-    HeapObject gco;
+    HeapObject hp;
     ManagedPointerFreeFunction free;
     ManagedPointerForeachChildrenFunction foreach_children;
 };
 
-void managed_pointer_init(Executor* E, ManagedPointer* gcp, ManagedPointerFreeFunction free);
+void managed_pointer_init(Executor* E, ManagedPointer* mp, ManagedPointerFreeFunction free);
 
 typedef enum {
     f_native,
@@ -163,7 +164,7 @@ typedef enum {
 } FunctionType;
 
 struct Function {
-    HeapObject gco;
+    HeapObject hp;
 
     FunctionType ftype;
     union {
@@ -178,7 +179,7 @@ struct Function {
 };
 
 struct Coroutine {
-    HeapObject gco;
+    HeapObject hp;
     Executor* executor;
     enum State {
         co_uninitialized,
@@ -188,7 +189,7 @@ struct Coroutine {
 };
 
 struct Symbol {
-    HeapObject gco;
+    HeapObject hp;
     unsigned index;
     char* comment;
 };

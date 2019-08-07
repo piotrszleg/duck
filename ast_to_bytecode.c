@@ -430,7 +430,7 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
 BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
-
+    
     ast_to_bytecode_recursive(exp, &translation, keep_scope);
     finish_translation(&translation);
 

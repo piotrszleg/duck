@@ -1,1 +1,1 @@
--print_bytecode -print_bytecode_optimisations input.dk
+input.dk

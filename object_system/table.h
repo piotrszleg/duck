@@ -20,7 +20,7 @@ struct MapElement {
 };
 
 struct Table {
-    HeapObject gco;
+    HeapObject hp;
 
     Object* array;
     unsigned elements_count;

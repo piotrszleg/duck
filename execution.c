@@ -32,15 +32,13 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
             print_bytecode_program(&prog);
         }
         
-        create_return_point(&E->bytecode_environment, true);
         E->bytecode_environment.pointer=0;
         E->bytecode_environment.executed_program=malloc(sizeof(BytecodeProgram));
         memcpy(E->bytecode_environment.executed_program, &prog, sizeof(BytecodeProgram));
         bytecode_program_init(E, E->bytecode_environment.executed_program);
         // the end instruction will dereference these later
-        heap_object_reference((HeapObject*)E->bytecode_environment.executed_program);
-        reference(&scope);
         E->bytecode_environment.scope=scope;
+        create_return_point(&E->bytecode_environment, true);
         
         execution_result=execute_bytecode(E);
     }
@@ -89,6 +87,7 @@ void execute_file(Executor* E, const char* file_name){
         printf("The script \"%s\" has exited with result:\n%s\n", file_name, str));
     dereference(E, &execution_result);
     dereference(E, &global_scope);
+    E->scope=null_const;
 }
 
 // this function should only be called from call_function, it's there to simplify the code structure

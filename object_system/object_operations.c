@@ -212,7 +212,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         case t_pointer:
             return sign((unsigned)a.p-(unsigned)b.p);
         case t_managed_pointer:
-            return sign((unsigned)a.gcp-(unsigned)b.gcp);
+            return sign((unsigned)a.mp-(unsigned)b.mp);
         case t_symbol:
             return sign((unsigned)a.sp->index-(unsigned)b.sp->index);
         case t_function:
@@ -284,7 +284,7 @@ unsigned hash(Executor* E, Object o, Object* error) {
          case t_pointer:
             return (unsigned)o.p;
         case t_managed_pointer:
-            return (unsigned)o.gcp;
+            return (unsigned)o.mp;
         case t_symbol:
             return o.sp->index;
         default:
@@ -480,7 +480,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             if(a.type!=b.type){
                 return to_int(0);
             } else if(is_heap_object(a)) {
-                return to_int(a.gco==b.gco);
+                return to_int(a.hp==b.hp);
             } else {
                 Object error;
                 int comparison_result=compare_and_get_error(E, a, b, &error);
@@ -779,7 +779,7 @@ char* stringify_object(Executor* E, Object o){
         case t_pointer:
             return suprintf("<pointer %#x>", (unsigned)o.p);
         case t_managed_pointer:
-            return suprintf("<managed_pointer %#x>", (unsigned)o.gcp);
+            return suprintf("<managed_pointer %#x>", (unsigned)o.mp);
         case t_symbol: {
             char* quoted_comment=quote_string(o.sp->comment);
             char* result=suprintf("<symbol %s>", quoted_comment);

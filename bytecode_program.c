@@ -168,7 +168,6 @@ int* list_labels(Instruction* code){
 }
 
 void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, ManagedPointerForeachChildrenCallback callback) {
-    program->gcp.gco.marked=true;
     for(int i=0; i<program->sub_programs_count; i++){
         Object wrapped=wrap_heap_object((HeapObject*)&program->sub_programs[i]);
         callback(E, &wrapped);
@@ -190,8 +189,8 @@ void bytecode_program_init(Executor* E, BytecodeProgram* program){
     program->statistics=NULL;
     program->assumptions=NULL;
     vector_init(&program->variants, sizeof(BytecodeProgram), 4);
-    managed_pointer_init(E, (ManagedPointer*)&program->gcp, (ManagedPointerFreeFunction)bytecode_program_free);
-    program->gcp.foreach_children=(ManagedPointerForeachChildrenFunction)bytecode_program_foreach_children;
+    managed_pointer_init(E, (ManagedPointer*)&program->mp, (ManagedPointerFreeFunction)bytecode_program_free);
+    program->mp.foreach_children=(ManagedPointerForeachChildrenFunction)bytecode_program_foreach_children;
     for(int i=0; i<program->sub_programs_count; i++){
         program->sub_programs[i].source_file_name=strdup(program->source_file_name);
         bytecode_program_init(E, &program->sub_programs[i]);

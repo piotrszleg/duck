@@ -619,7 +619,7 @@ bool constants_folding(
     return false;
 }
 
-bool typed_variants(vector* instructions, vector* transformations, int pointer){
+bool typed_instructions(vector* instructions, vector* transformations, int pointer){
     #define OPERATOR_VARIANT(base_instruction, type_name) \
     if(vector_index_instruction(instructions, pointer)->type==base_instruction \
         && dummy_type(vector_index_transformation(transformations, pointer)->inputs[0])==t_##type_name \
@@ -787,7 +787,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
         || (E->options.fold_constants
                 && constants_folding(E, &manipulation, &instructions, &transformations, &constants, &pointer, print_optimisations))
         || (E->options.use_typed_instructions
-                && typed_variants(&instructions, &transformations, pointer))
+                && typed_instructions(&instructions, &transformations, pointer))
         ));
     }
 

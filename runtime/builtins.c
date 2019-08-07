@@ -551,7 +551,8 @@ Object builtins_table(Executor* E){
 
     set(E, scope, to_int(0), to_string("builtins_table"));
     set(E, scope, to_string("builtins"), scope);
-    set(E, scope, to_string("symbols"), E->beginning.builtin_symbols_table);
+    set(E, scope, to_string("overrides"), E->beginning.overrides_table);
+    set(E, scope, to_string("types"), E->beginning.types_table);
 
     #define REGISTER(f, args_count) \
         Object f##_function; \

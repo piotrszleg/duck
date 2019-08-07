@@ -15,7 +15,7 @@ typedef enum {
 
 typedef struct Dummy Dummy;
 struct Dummy {
-    ManagedPointer gcp;
+    ManagedPointer mp;
     unsigned int id;
     DummyType type;
     union {
