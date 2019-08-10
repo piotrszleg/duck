@@ -5,7 +5,7 @@
 #include "../error/error.h"
 
 struct Executor {
-    ExecutorBeginning beggining;
+    ObjectSystem beggining;
 };
 
 Object executor_get_patching_table(Executor* E){

@@ -113,11 +113,11 @@ typedef struct {
     Object overrides_table;
     Object types_table;
     Object type_symbols[LAST_OBJECT_TYPE+1];
-    // rest of executor is defined in the higher level module
-} ExecutorBeginning;
+} ObjectSystem;
 
-#define BEGINNING(executor) ((ExecutorBeginning*)executor)
-#define OVERRIDE(executor, override_name) BEGINNING(executor)->builtin_symbols.override_name
+// ObjectSystem struct should be the first field of executor
+#define OBJECT_SYSTEM(executor) ((ObjectSystem*)executor)
+#define OVERRIDE(executor, override_name) OBJECT_SYSTEM(executor)->builtin_symbols.override_name
 
 extern Object null_const;
 

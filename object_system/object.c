@@ -7,7 +7,7 @@ static const char* OBJECT_TYPE_NAMES[]={
 };
 
 static inline GarbageCollector* executor_get_garbage_collector(Executor* E){
-    return ((ExecutorBeginning*)E)->gc;
+    return ((ObjectSystem*)E)->gc;
 } 
 
 void garbage_collector_init(GarbageCollector* gc){
@@ -46,7 +46,7 @@ Object new_symbol(Executor* E, char* comment) {
     heap_object_init(E, result.hp);
     
     result.hp->gc_type=t_symbol;
-    unsigned* symbols_counter=&((ExecutorBeginning*)E)->symbols_counter;
+    unsigned* symbols_counter=&((ObjectSystem*)E)->symbols_counter;
     result.sp->index=*symbols_counter;
     (*symbols_counter)++;
     result.sp->comment=strdup(comment);
@@ -163,13 +163,11 @@ void reference(Object* o){
 
 void print_allocated_objects(Executor* E){
     HeapObject* o=executor_get_garbage_collector(E)->root;
-    HeapObject* previous=o;// variable for debugging
     while(o){
         Object wrapped={o->gc_type};
         wrapped.hp=o;
         USING_STRING(stringify(E, wrapped),
             printf("%s\tref_count: %i\n", str, o->ref_count))
-        previous=o;
         o=o->next;
     }
 }
@@ -211,8 +209,10 @@ void gc_mark(Executor* E, Object* o){
 
 void gc_unmark_all(GarbageCollector* gc){
     HeapObject* o=gc->root;
+    HeapObject* previous=o;
     while(o){
         o->marked=false;
+        previous=o;
         o=o->next;
     }
 }
@@ -372,8 +372,9 @@ void destroy_unreferenced(Executor* E, Object* o){
 }
 
 void object_system_init(Executor* E){
-    garbage_collector_init(executor_get_garbage_collector(E));
-    ExecutorBeginning* executor=BEGINNING(E);
+    ObjectSystem* executor=OBJECT_SYSTEM(E);
+    executor->gc=malloc(sizeof(GarbageCollector));
+    garbage_collector_init(executor->gc);
     executor->symbols_counter=0;
     table_init(E, &executor->overrides_table);
     reference(&executor->overrides_table);
@@ -395,7 +396,7 @@ void object_system_init(Executor* E){
 }
 
 Object get_type_symbol(Executor* E, ObjectType type){
-    return BEGINNING(E)->type_symbols[type];
+    return OBJECT_SYSTEM(E)->type_symbols[type];
 }
 
 const char* get_type_name(ObjectType type){
@@ -406,4 +407,5 @@ void object_system_deinit(Executor* E){
     // free all allocated objects
     gc_unmark_all(executor_get_garbage_collector(E));
     gc_sweep(E);
+    free(OBJECT_SYSTEM(E)->gc);
 }

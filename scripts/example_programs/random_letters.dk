@@ -6,6 +6,6 @@ loop=(start, end ,f)->{
     } 
 }
 symbols="ABCDEFGHIJKLMNOPRSTUWXYZabcdefghijklmnoprstuwxyz\n   "
-random_symbols=->symbols[random_int(0, symbols.length]
+random_symbols=->symbols[random_int(0, symbols.length)]
 loop(1, 10000, i->output(random_symbols()))
 output("\n")

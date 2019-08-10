@@ -9,35 +9,46 @@
         free(after_string); \
     }
 
-bool is_literal(expression* exp){
+bool expression_is_literal(expression* exp){
     switch(exp->type){
         case e_empty:
         case e_int_literal:
         case e_float_literal:
         case e_string_literal:
+        case e_function_declaration:
+        case e_table_literal:
             return true;
         default:
             return false;
     }
 }
 
-bool is_constant(expression* exp){
+ObjectTypeOrUnknown expression_object_type(expression* exp){
     switch(exp->type){
-        case e_empty:
-        case e_expression:
-        case e_int_literal:
-        case e_float_literal:
-        case e_string_literal:
-            return true;
+        case e_empty: return tu_null;
+        case e_int_literal: return tu_int;
+        case e_float_literal: return tu_float;
+        case e_string_literal: return tu_string;
+        case e_table_literal: return tu_table;
+        case e_function_declaration: return tu_function;
+        default: return tu_unknown;
+    }
+}
+
+bool expression_is_constant(expression* exp){
+    if(expression_is_literal(exp)){
+        return true;
+    }
+    switch(exp->type){
         case e_binary:
         {
-            binary* u=(binary*)exp;
-            return  is_constant(u->left) && is_constant(u->right);
+            binary* b=(binary*)exp;
+            return operator_predict_result(expression_object_type(b->left), expression_object_type(b->right), b->op)!=tu_unknown;
         }
         case e_prefix:
         {
             prefix* p=(prefix*)exp;
-            return is_constant(p->right);
+            return operator_predict_result(tu_null, expression_object_type(p->right), p->op)!=tu_unknown;
         }
         default:
             return false;
@@ -96,7 +107,7 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
         }
         for (int i = 0; i < vector_count(&b->lines)-1; i++){// last line isn't optimised because it is a result of the block
             expression* line=pointers_vector_get(&b->lines, i);
-            if(is_constant(line)){
+            if(expression_is_constant(line)){
                 USING_STRING(stringify_expression(line, 0),
                     printf("\ndeleting useless statement:%s\n", str));
                 delete_expression(line);
@@ -109,7 +120,7 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
     // if conditional condition is constant replace it with corresponding branch
     else if(exp->type==e_conditional){
         conditional* c=(conditional*)exp;
-        if(is_constant(c->condition)){
+        if(expression_is_constant(c->condition)){
             Object evaluated=evaluate_expression(E, c->condition);
             handle_if_error(E, evaluated);
             ASTVisitorRequest request={next};
@@ -123,7 +134,7 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
         }
     }
     // constants folding
-    else if(!is_literal(exp) && is_constant(exp)){
+    else if(!expression_is_literal(exp) && expression_is_constant(exp)){
         ASTVisitorRequest request={next};
         Object evaluated=evaluate_expression(E, exp);
         request.replacement=to_literal(E, evaluated);

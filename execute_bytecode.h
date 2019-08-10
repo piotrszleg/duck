@@ -22,7 +22,6 @@ typedef struct {
 
 typedef struct {
     int pointer;
-    Object scope;
     BytecodeProgram* executed_program;
     vector object_stack;
     vector return_stack;
@@ -43,7 +42,8 @@ void push(vector* stack, Object o);
 Object pop(vector* stack);
 Object execute_bytecode(Executor* E);
 void move_to_function(Executor* E, Function* f);
-void create_return_point(BytecodeEnvironment* environment, bool terminate);
+void create_return_point(Executor* E, bool terminate);
+bool pop_return_point(Executor* E);
 void create_variant(Executor* E, BytecodeProgram* program);
 
 #include "runtime/builtins.h"

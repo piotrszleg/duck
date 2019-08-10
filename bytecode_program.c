@@ -28,8 +28,8 @@ bool instructions_equal(Instruction a, Instruction b, void* constants){
         case b_load_string:
             return a.uint_argument==b.uint_argument||strcmp((char*)constants+a.uint_argument, (char*)constants+b.uint_argument)==0;
         case b_function_1:
-            return a.pre_function_argument.is_variadic==b.pre_function_argument.is_variadic
-            &&     a.pre_function_argument.arguments_count==b.pre_function_argument.arguments_count;
+            return a.function_argument.is_variadic==b.function_argument.is_variadic
+            &&     a.function_argument.arguments_count==b.function_argument.arguments_count;
         case b_swap:
             return a.swap_argument.left==b.swap_argument.left
             &&     a.swap_argument.right==b.swap_argument.right;
@@ -82,7 +82,7 @@ void print_instruction(Instruction instruction, void* constants){
             printf("%s %u \"%s\"", INSTRUCTION_NAMES[instruction.type], instruction.uint_argument, ((char*)constants)+instruction.uint_argument);
             break;
         case b_function_1:
-            printf("%s %s %u", INSTRUCTION_NAMES[instruction.type], STRINGIFY_BOOL(instruction.pre_function_argument.is_variadic), instruction.pre_function_argument.arguments_count);
+            printf("%s %s %u", INSTRUCTION_NAMES[instruction.type], STRINGIFY_BOOL(instruction.function_argument.is_variadic), instruction.function_argument.arguments_count);
             break;
         case b_swap:
             printf("%s %u %u", INSTRUCTION_NAMES[instruction.type], instruction.swap_argument.left, instruction.swap_argument.right);
@@ -117,7 +117,7 @@ void print_bytecode_program(const BytecodeProgram* program){
     if(program->sub_programs_count>0){
         for(int i=0; i<program->sub_programs_count; i++){
             printf("SUBPROGRAM[%i]\n", i);
-            print_bytecode_program(&program->sub_programs[i]);
+            print_bytecode_program(program->sub_programs[i]);
         }
     }
 }
@@ -145,7 +145,7 @@ void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy)
     copy->sub_programs_count=source->sub_programs_count;
     copy->sub_programs=malloc(sizeof(BytecodeProgram)*copy->sub_programs_count);
     for(int i=0; i<source->sub_programs_count; i++){
-       bytecode_program_copy(&source->sub_programs[i], &copy->sub_programs[i]);
+       bytecode_program_copy(source->sub_programs[i], copy->sub_programs[i]);
     }
 }
 
@@ -169,7 +169,7 @@ int* list_labels(Instruction* code){
 
 void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, ManagedPointerForeachChildrenCallback callback) {
     for(int i=0; i<program->sub_programs_count; i++){
-        Object wrapped=wrap_heap_object((HeapObject*)&program->sub_programs[i]);
+        Object wrapped=wrap_heap_object((HeapObject*)program->sub_programs[i]);
         callback(E, &wrapped);
     }
 }
@@ -192,8 +192,8 @@ void bytecode_program_init(Executor* E, BytecodeProgram* program){
     managed_pointer_init(E, (ManagedPointer*)&program->mp, (ManagedPointerFreeFunction)bytecode_program_free);
     program->mp.foreach_children=(ManagedPointerForeachChildrenFunction)bytecode_program_foreach_children;
     for(int i=0; i<program->sub_programs_count; i++){
-        program->sub_programs[i].source_file_name=strdup(program->source_file_name);
-        bytecode_program_init(E, &program->sub_programs[i]);
-        heap_object_reference((HeapObject*)&program->sub_programs[i]);
+        program->sub_programs[i]->source_file_name=strdup(program->source_file_name);
+        bytecode_program_init(E, program->sub_programs[i]);
+        heap_object_reference((HeapObject*)program->sub_programs[i]);
     }
 }

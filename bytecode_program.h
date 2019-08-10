@@ -36,7 +36,7 @@ struct BytecodeProgram {
     char* constants;
     int constants_size;
 
-    BytecodeProgram* sub_programs;
+    BytecodeProgram** sub_programs;
     int sub_programs_count;
     
     Assumption* assumptions;

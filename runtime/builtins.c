@@ -1,65 +1,7 @@
 #include "builtins.h"
 
 Object builtin_coroutine(Executor* E, Object scope, Object* arguments, int arguments_count){
-    Object function=arguments[0];
-    Object coroutine;
-    coroutine_init(E, &coroutine);
-    
-    Executor* coroutine_executor=malloc(sizeof(Executor));
-
-    // copy bytecode program
-    coroutine_executor->options=E->options;
-    bytecode_environment_init(&coroutine_executor->bytecode_environment);
-
-    // coroutine shares garbage collector with owner
-    coroutine_executor->beginning.gc=E->beginning.gc;
-    vector_init(&coroutine_executor->traceback, sizeof(TracebackPoint), 16);
-    coroutine_executor->beginning.symbols_counter=0;
-    // TODO: symbols table
-
-    // create a coroutine scope inheriting from global scope
-    table_init(coroutine_executor, &coroutine_executor->bytecode_environment.scope);
-    inherit_scope(coroutine_executor, coroutine_executor->bytecode_environment.scope, get(E, E->bytecode_environment.scope, to_string("global")));
-
-    coroutine_executor->coroutine=coroutine.co;
-    coroutine.co->state=co_uninitialized;
-
-    // pass arguments and move to given function but don't call it yet
-    REQUIRE_TYPE(function, t_function)
-    REQUIRE(function.fp->ftype==f_bytecode, function)
-    coroutine_executor->bytecode_environment.executed_program=(BytecodeProgram*)function.fp->source_pointer;
-    heap_object_reference((HeapObject*)function.fp->source_pointer);
-    REQUIRE(function.fp->arguments_count==arguments_count-1, function)
-    for(int i=1; i<arguments_count; i++){
-        push(&coroutine_executor->bytecode_environment.object_stack, arguments[i]);
-    }
-
-    coroutine.co->executor=coroutine_executor;
-    return coroutine;
-}
-
-Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count){
-    switch(coroutine->state){
-        case co_uninitialized:
-            if(arguments_count!=0){
-                RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "First call to coroutine shouldn't have any arguments, %i given", arguments_count)
-            } else {
-                coroutine->state=co_running;
-                return execute_bytecode(coroutine->executor);
-            }
-        case co_running:
-            // coroutine expects one value to be emitted from yield call
-            if(arguments_count==1){
-                push(&coroutine->executor->bytecode_environment.object_stack, arguments[0]);
-            } else if(arguments_count==0){
-                push(&coroutine->executor->bytecode_environment.object_stack, null_const);
-            } else {
-                RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "Coroutines can accept either zero or one argument, %i given", arguments_count)
-            }
-            return execute_bytecode(coroutine->executor);
-        case co_finished: return null_const;
-        default: RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "Unknown coroutine state: %i", coroutine->state)
-    }
+    return new_coroutine(E, arguments[0], arguments+1, arguments_count-1);
 }
 
 Object builtin_print(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -213,8 +155,15 @@ Object builtin_assert(Executor* E, Object scope, Object* arguments, int argument
 Object builtin_assert_equal(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object a=arguments[0];
     Object b=arguments[1];
-    if(compare(E, a, b)!=0){
-        RETURN_ERROR("ASSERTION_FAILED", multiple_causes(E, (Object[]){a, b}, 2), "Assertion failed, provided objects are not equal.");
+    Object error=null_const;
+    if(compare_and_get_error(E, a, b, &error)!=0){
+        Object causes;
+        if(error.type!=t_null){
+            causes=multiple_causes(E, OBJECTS_ARRAY(a, b, error), 3);
+        } else {
+            causes=multiple_causes(E, OBJECTS_ARRAY(a, b), 2);
+        }
+        RETURN_ERROR("ASSERTION_FAILED", causes, "Assertion failed, objects aren't equal.");
     } else {
         return null_const;
     }
@@ -299,7 +248,7 @@ Object builtin_iterator(Executor* E, Object scope, Object* arguments, int argume
     return get_iterator(E, o);
 }
 
-Object builtin_include(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object builtin_import(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object path=arguments[0];
     Object result;
     REQUIRE_TYPE(path, t_string)
@@ -310,18 +259,19 @@ Object builtin_include(Executor* E, Object scope, Object* arguments, int argumen
     return result;
 }
 
-Object builtin_eval(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object builtin_evaluate(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object text=arguments[0];
     Object result;
     REQUIRE_TYPE(text, t_string)
     Object sub_scope;
     table_init(E, &sub_scope);
-    inherit_scope(E, sub_scope, E->bytecode_environment.scope);
+    inherit_scope(E, sub_scope, E->scope);
     result=evaluate_string(E, text.text, sub_scope);
     return result;
 }
 
 Object file_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
+    BOUND_FUNCTION_CHECK
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object pointer=table_get(E, self.tp, to_int(0));
@@ -551,8 +501,8 @@ Object builtins_table(Executor* E){
 
     set(E, scope, to_int(0), to_string("builtins_table"));
     set(E, scope, to_string("builtins"), scope);
-    set(E, scope, to_string("overrides"), E->beginning.overrides_table);
-    set(E, scope, to_string("types"), E->beginning.types_table);
+    set(E, scope, to_string("overrides"), E->object_system.overrides_table);
+    set(E, scope, to_string("types"), E->object_system.types_table);
 
     #define REGISTER(f, args_count) \
         Object f##_function; \
@@ -572,8 +522,8 @@ Object builtins_table(Executor* E){
     REGISTER(table_stringify, 1)
     REGISTER(table_copy, 1)
     REGISTER(protect, 1)
-    REGISTER(include, 1)
-    REGISTER(eval, 1)
+    REGISTER(import, 1)
+    REGISTER(evaluate, 1)
     REGISTER(substring, 3)
     REGISTER(string_length, 1)
     REGISTER(from_character, 1)

@@ -35,7 +35,7 @@ Dummy* new_constant_dummy(Executor* E, Object constant_value, unsigned* id_count
 Dummy* new_or_dummy(Executor* E, Dummy* left, Dummy* right, unsigned* id_counter);
 
 bool dummy_is_typed(const Dummy* dummy);
-ObjectType dummy_type(const Dummy* dummy);
+ObjectTypeOrUnknown dummy_type(const Dummy* dummy);
 bool dummies_equal(const Dummy* a, const Dummy* b);
 bool dummies_compatible(const Dummy* a, const Dummy* b);
 bool dummy_contains(const Dummy* a, const Dummy* b);

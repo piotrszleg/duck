@@ -299,7 +299,7 @@ static bool array_downsize_allowed(Table* t, int new_size){
 }
 
 static void move_from_map_to_array(Table* t){
-  for(int i=0; i<t->array_size; i++) {
+  for(int i=0; i<MIN(t->array_size, t->map_size); i++) {
     MapElement* previous=NULL;
     MapElement* e=t->map[i];
     while(e) {

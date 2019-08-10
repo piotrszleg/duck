@@ -23,7 +23,7 @@
     X(load_float) /*    (float_argument) */ \
     X(table_literal) \
     X(null) \
-    X(function_1)/*     (pre_function_argument) function needs to be splitted into two instructions to have all needed data */ \
+    X(function_1)/*     (function_argument) function needs to be splitted into two instructions to have all needed data */ \
     X(function_2) /*    (uint_argument sub_program_index) */ \
     X(native_call_1)/*  (uint_argument pointer_to_function) */ \
     X(native_call_2) /* (uint_argument arguments_count) */ \
@@ -84,7 +84,7 @@ typedef struct {
 typedef struct{
     unsigned char arguments_count;
     bool is_variadic:1;
-} PreFunctionArgument;
+} FunctionArgument;
 
 typedef struct{
     unsigned char left;
@@ -94,7 +94,7 @@ typedef struct{
 typedef struct {
     InstructionType type;
     union {
-        PreFunctionArgument pre_function_argument;
+        FunctionArgument function_argument;
         SwapArgument swap_argument;
         float float_argument;
         unsigned int uint_argument;

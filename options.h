@@ -4,7 +4,9 @@
 #include "utility.h"
 
 #define OPTIONS \
+    BOOLEAN(disable_garbage_collector, false) \
     BOOLEAN(disable_bytecode, false) \
+    BOOLEAN(disable_ast_execution, false) \
     BOOLEAN(print_ast, false) \
     BOOLEAN(print_ast_optimisations, false) \
     BOOLEAN(print_bytecode, false) \
@@ -20,6 +22,7 @@
     BOOLEAN(optimise_tail_calls, true) \
     BOOLEAN(optimise_jump_to_return, true) \
     BOOLEAN(optimise_stack_operations, true) \
+    BOOLEAN(inline_functions, true) \
     BOOLEAN(fold_constants, true) \
     BOOLEAN(remove_useless_operations, true) \
     BOOLEAN(use_typed_instructions, true) \

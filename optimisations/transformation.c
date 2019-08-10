@@ -13,7 +13,7 @@ void transformation_init(Transformation* transformation, int inputs_count, int o
     }
 }
 
-void transformation_from_instruction(Transformation* transformation, Instruction* instruction){
+void transformation_from_instruction(Transformation* transformation, const Instruction* instruction){
     transformation_init(transformation, gets_from_stack(*instruction), pushes_to_stack(*instruction));
 }
 

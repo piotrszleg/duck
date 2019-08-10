@@ -97,11 +97,14 @@ char* string_add(const char* a, const char* b){
 }
 
 char* string_repeat(const char* str, int times){
-    char* buffer=malloc(strlen(str)*times+1);
+    size_t str_length=strlen(str);
+    size_t buffer_size=str_length*times+1;
+    char* buffer=malloc(buffer_size);
     CHECK_ALLOCATION(buffer);
-    buffer[0]='\0';
-    for(int i=0; i<times; i++){
-        strcat(buffer, str);
+    
+    for(int i=0; i<buffer_size; i++){
+        buffer[i]=str[i%str_length];
     }
+    buffer[buffer_size-1]='\0';
     return buffer;
 }

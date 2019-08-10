@@ -8,7 +8,6 @@
 int labels_count=0;
 
 void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation, bool keep_scope);
-BytecodeProgram closure_to_bytecode(function_declaration* d);
 
 void repeat_information(BytecodeTranslation* translation){
     stream_push(&translation->information, &translation->last_information, sizeof(InstructionInformation));
@@ -60,7 +59,6 @@ unsigned push_string_constant(BytecodeTranslation* translation, const char* stri
 }
 
 unsigned push_string_load(BytecodeTranslation* translation, const char* string_constant){
-    repeat_information(translation);
     unsigned push_position= push_string_constant(translation, string_constant);
     push_uint_instruction(translation, b_load_string, push_position);
     return push_position;
@@ -313,18 +311,18 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
         {
             function_declaration* d=(function_declaration*)exp;
             int arguments_count=vector_count(&d->arguments);
-            int sub_program_index=(translation->sub_programs.position/sizeof(BytecodeProgram));
+            int sub_program_index=(translation->sub_programs.position/sizeof(BytecodeProgram*));
 
-            PreFunctionArgument argument;
+            FunctionArgument argument;
             argument.arguments_count=arguments_count;
             argument.is_variadic=d->variadic;
             Instruction instr={b_function_1};
-            instr.pre_function_argument=argument;
+            instr.function_argument=argument;
             stream_push(&translation->code, &instr, sizeof(Instruction));
             repeat_information(translation);
 
-            BytecodeProgram prog=closure_to_bytecode(d);
-            stream_push(&translation->sub_programs, &prog, sizeof(BytecodeProgram));
+            BytecodeProgram* program=ast_function_to_bytecode(d);
+            stream_push(&translation->sub_programs, &program, sizeof(BytecodeProgram*));
             push_uint_instruction(translation, b_function_2, sub_program_index);
             break;
         }
@@ -384,24 +382,24 @@ void bytecode_translation_init(BytecodeTranslation* translation){
     stream_init(&translation->upvalues, UPVALUES_SIZE);
 }
 
-BytecodeProgram translation_to_bytecode(BytecodeTranslation* translation, int expected_arguments){
-    BytecodeProgram prog;
-    prog.source_file_name=NULL;
+BytecodeProgram* translation_to_bytecode(BytecodeTranslation* translation, int expected_arguments){
+    BytecodeProgram* program=malloc(sizeof(BytecodeProgram));
+    program->source_file_name=NULL;
     stream_truncate(&translation->code);
-    stream_truncate(&translation->information);
     stream_truncate(&translation->constants);
+    stream_truncate(&translation->information);
     stream_truncate(&translation->sub_programs);
-    prog.code=stream_get_data(&translation->code);
-    prog.constants=stream_get_data(&translation->constants);
-    prog.constants_size=stream_size(&translation->constants);
-    prog.information=stream_get_data(&translation->information);
-    prog.sub_programs=stream_get_data(&translation->sub_programs);
-    prog.sub_programs_count=translation->sub_programs.position/sizeof(BytecodeProgram);
-    prog.expected_arguments=expected_arguments;
-    prog.upvalues_count=stream_size(&translation->upvalues)/sizeof(unsigned);
-    prog.upvalues=stream_get_data(&translation->upvalues);
-    prog.assumptions=NULL;
-    return prog;
+    program->code=stream_get_data(&translation->code);
+    program->constants=stream_get_data(&translation->constants);
+    program->constants_size=stream_size(&translation->constants);
+    program->information=stream_get_data(&translation->information);
+    program->sub_programs=stream_get_data(&translation->sub_programs);
+    program->sub_programs_count=translation->sub_programs.position/sizeof(BytecodeProgram*);
+    program->expected_arguments=expected_arguments;
+    program->upvalues_count=stream_size(&translation->upvalues)/sizeof(unsigned);
+    program->upvalues=stream_get_data(&translation->upvalues);
+    program->assumptions=NULL;
+    return program;
 }
 
 void finish_translation(BytecodeTranslation* translation) {
@@ -409,9 +407,10 @@ void finish_translation(BytecodeTranslation* translation) {
     repeat_information(translation);
 }
 
-BytecodeProgram closure_to_bytecode(function_declaration* d){
+BytecodeProgram* ast_function_to_bytecode(function_declaration* d){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
+    translation.last_information=information_from_ast(&translation, (expression*)d);
     
     int arguments_count=vector_count(&d->arguments);
     for (int i = 0; i < arguments_count; i++){
@@ -427,7 +426,7 @@ BytecodeProgram closure_to_bytecode(function_declaration* d){
     return translation_to_bytecode(&translation, arguments_count);
 }
 
-BytecodeProgram ast_to_bytecode(expression* exp, bool keep_scope){
+BytecodeProgram* ast_to_bytecode(expression* exp, bool keep_scope){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
     

@@ -1,0 +1,6 @@
+f=->{
+    predicate=a->(->a+"test")
+    predicate("->")
+}
+ret=f()
+ret()

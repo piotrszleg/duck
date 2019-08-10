@@ -181,7 +181,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
             argument=*(Object*)vector_index(&environment->object_stack, vector_count(&environment->object_stack)-1-i);
         } else {
             char* upvalue_name=program->constants+program->upvalues[i-arguments_count];
-            argument=get(E, environment->scope, to_string(upvalue_name));
+            argument=get(E, E->scope, to_string(upvalue_name));
         }
         if(compare(E, statistics->last_call[i], argument)==0) {
             statistics->constant_streaks[i]++;
@@ -216,7 +216,7 @@ BytecodeProgram* choose_variant(Executor* E, BytecodeProgram* root){
                 argument=*(Object*)vector_index(&E->bytecode_environment.object_stack, vector_count(&E->bytecode_environment.object_stack)-1-i);
             } else {
                 char* upvalue_name=variant->constants+variant->upvalues[i-arguments_count];
-                argument=get(E, E->bytecode_environment.scope, to_string(upvalue_name));
+                argument=get(E, E->scope, to_string(upvalue_name));
             }
             Assumption a={a_constant, .constant=argument};
             if(compare_assumptions(E, &a, &variant->assumptions[j])==ac_not_equal){
@@ -238,7 +238,7 @@ void move_to_function(Executor* E, Function* f){
         inherit_scope(E, function_scope, f->enclosing_scope);
     }
     reference(&function_scope);
-    E->bytecode_environment.scope=function_scope;
+    E->scope=function_scope;
     heap_object_reference((HeapObject*)f->source_pointer);
 
     E->bytecode_environment.executed_program=(BytecodeProgram*)f->source_pointer;
@@ -247,19 +247,41 @@ void move_to_function(Executor* E, Function* f){
     proccess_statistics(E, &E->bytecode_environment);
 }
 
-void create_return_point(BytecodeEnvironment* environment, bool terminate){
+void create_return_point(Executor* E, bool terminate){
+    BytecodeEnvironment* environment=&E->bytecode_environment;
+    
     ReturnPoint return_point;
-    heap_object_reference((HeapObject*)environment->executed_program);
+    if(environment->executed_program!=NULL){
+        heap_object_reference((HeapObject*)environment->executed_program);
+    }
     return_point.program=environment->executed_program;
     return_point.pointer=environment->pointer;
-    reference(&environment->scope);
-    return_point.scope=environment->scope;
+    reference(&E->scope);
+    return_point.scope=E->scope;
     return_point.terminate=terminate;
     vector_push(&environment->return_stack, &return_point);
 }
 
+// returns true if execute_bytecode function should return value from stack instead of continueing
+bool pop_return_point(Executor* E) {
+    if(E->bytecode_environment.executed_program!=NULL){
+        heap_object_dereference(E, (HeapObject*)E->bytecode_environment.executed_program);
+    }
+    dereference(E, &E->scope);
+    vector* return_stack=&E->bytecode_environment.return_stack;
+    if(vector_empty(return_stack)){
+        return true;
+    }
+    ReturnPoint* return_point=vector_pop(return_stack);
+    E->bytecode_environment.executed_program=return_point->program;
+    E->bytecode_environment.pointer=return_point->pointer;
+    E->scope=return_point->scope;
+    return return_point->terminate;
+}
+
 void bytecode_environment_init(BytecodeEnvironment* environment){
     environment->pointer=0;
+    environment->executed_program=NULL;
     vector_init(&environment->debugger.breakpoints, sizeof(Breakpoint*), 4);
     environment->debugger.running=false;
     vector_init(&environment->object_stack, sizeof(Object), STACK_SIZE);
@@ -326,11 +348,11 @@ void debugger(Executor* E){
                 printf("%s\n", str));
         )
         COMMAND("scope",
-            USING_STRING(stringify(E, environment->scope),
+            USING_STRING(stringify(E, E->scope),
                 printf("%s\n", str));
         )
         COMMAND_PARAMETERIZED("eval", 
-            Object result=evaluate_string(E, parameter, environment->scope);
+            Object result=evaluate_string(E, parameter, E->scope);
             USING_STRING(stringify(E, result),
                 printf("%s\n", str));
             dereference(E, &result);
@@ -403,16 +425,14 @@ Object execute_bytecode(Executor* E){
         }
         BytecodeProgram* program=E->bytecode_environment.executed_program;
         vector* object_stack=&E->bytecode_environment.object_stack;
-        vector* return_stack=&E->bytecode_environment.return_stack;
-        Instruction* code=program->code;
-        void* constants=program->constants;
-        Object* scope=&E->bytecode_environment.scope;
-
-        Instruction instr=code[*pointer];
+        Instruction instruction=program->code[*pointer];
         E->file=program->source_file_name;
         E->line=program->information[*pointer].line;
         E->column=program->information[*pointer].column;
-        E->scope=*scope;
+
+        #define NEXT_INSTRUCTION \
+            (*pointer)++; \
+            Instruction instruction=program->code[*pointer];
 
         #define BYTECODE_ERROR(cause, message, ...) \
             {   Object err; \
@@ -420,7 +440,7 @@ Object execute_bytecode(Executor* E){
                 push(object_stack, err); \
                 break;   }
 
-        switch(instr.type){
+        switch(instruction.type){
             case b_discard:
             {
                 // remove item from the stack and delete it if it's not referenced
@@ -433,7 +453,7 @@ Object execute_bytecode(Executor* E){
             #define INDEX_STACK(index) ((Object*)object_stack->items)[object_stack->count-1-(index)]
             case b_move_top:
             {
-                for(int i=0; i<instr.uint_argument; i++){
+                for(int i=0; i<instruction.uint_argument; i++){
                     Object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i+1);
                     INDEX_STACK(i+1)=temporary;
@@ -442,7 +462,7 @@ Object execute_bytecode(Executor* E){
             }
             case b_push_to_top:
             {
-                for(int i=instr.uint_argument; i>=1; i--){
+                for(int i=instruction.uint_argument; i>=1; i--){
                     Object temporary=INDEX_STACK(i);
                     INDEX_STACK(i)=INDEX_STACK(i-1);
                     INDEX_STACK(i-1)=temporary;
@@ -451,9 +471,9 @@ Object execute_bytecode(Executor* E){
             }
             case b_swap:
             {
-                Object temporary=INDEX_STACK(instr.swap_argument.left);
-                INDEX_STACK(instr.swap_argument.left)=INDEX_STACK(instr.swap_argument.right);
-                INDEX_STACK(instr.swap_argument.right)=temporary;
+                Object temporary=INDEX_STACK(instruction.swap_argument.left);
+                INDEX_STACK(instruction.swap_argument.left)=INDEX_STACK(instruction.swap_argument.right);
+                INDEX_STACK(instruction.swap_argument.right)=temporary;
                 break;
             }
             case b_double:
@@ -464,17 +484,17 @@ Object execute_bytecode(Executor* E){
             #undef INDEX_STACK
             case b_load_string:
             {
-                push(object_stack, to_string(((char*)constants)+instr.uint_argument));
+                push(object_stack, to_string(((char*)program->constants)+instruction.uint_argument));
                 break;
             }
             case b_load_float:
             {
-                push(object_stack, to_float(instr.float_argument));
+                push(object_stack, to_float(instruction.float_argument));
                 break;
             }
             case b_load_int:
             {
-                push(object_stack, to_int(instr.int_argument));
+                push(object_stack, to_int(instruction.int_argument));
                 break;
             }
             case b_table_literal:
@@ -492,7 +512,7 @@ Object execute_bytecode(Executor* E){
             case b_get:
             {
                 Object key=pop(object_stack);
-                push(object_stack, get(E, *scope, key));
+                push(object_stack, get(E, E->scope, key));
                 dereference(E, &key);
                 break;
             }
@@ -509,7 +529,7 @@ Object execute_bytecode(Executor* E){
             {
                 Object key=pop(object_stack);
                 Object value=pop(object_stack);
-                push(object_stack, set(E, *scope, key, value));
+                push(object_stack, set(E, E->scope, key, value));
                 dereference(E, &key);
                 dereference(E, &value);
                 break;
@@ -546,24 +566,24 @@ Object execute_bytecode(Executor* E){
             {
                 Object new_scope;
                 table_init(E, &new_scope);
-                inherit_scope(E, new_scope, *scope);
+                inherit_scope(E, new_scope, E->scope);
 
-                push(object_stack, *scope);
+                push(object_stack, E->scope);
 
                 reference(&new_scope);
-                dereference(E, scope);
-                *scope=new_scope;
+                dereference(E, &E->scope);
+                E->scope=new_scope;
                 break;
             }
             case b_leave_scope:
             {
-                dereference(E, scope);
+                dereference(E, &E->scope);
                 Object o=pop(object_stack);
                 if(o.type!=t_table){
                     BYTECODE_ERROR(o, "b_leave_scope: Object on stack isn't a table. It's type is: %i", o.type);
                 } else {
                     reference(&o);
-                    *scope=o;
+                    E->scope=o;
                 }
                 break;
             }
@@ -787,7 +807,7 @@ Object execute_bytecode(Executor* E){
             }
             case b_jump:
             {
-                *pointer=E->bytecode_environment.executed_program->labels[instr.uint_argument];
+                *pointer=E->bytecode_environment.executed_program->labels[instruction.uint_argument];
                 break;
             }
             // these two instructions should always be called one after another
@@ -795,24 +815,25 @@ Object execute_bytecode(Executor* E){
             {
                 Object f;
                 function_init(E, &f);
-                f.fp->enclosing_scope=*scope;
-                reference(scope);
-                f.fp->arguments_count=instr.pre_function_argument.arguments_count;
-                f.fp->variadic=instr.pre_function_argument.is_variadic;
+                f.fp->enclosing_scope=E->scope;
+                reference(&E->scope);
+                f.fp->arguments_count=instruction.function_argument.arguments_count;
+                f.fp->variadic=instruction.function_argument.is_variadic;
                 f.fp->ftype=f_bytecode;
                 // b_function_2 always follows b_function_1 so it can be read directly
-                (*pointer)++;
-                f.fp->source_pointer=(HeapObject*)(E->bytecode_environment.executed_program->sub_programs+code[*pointer].uint_argument);
-                heap_object_reference((HeapObject*)f.fp->source_pointer);
-                 push(object_stack, f);
+                NEXT_INSTRUCTION
+                HeapObject* program=(HeapObject*)E->bytecode_environment.executed_program->sub_programs[instruction.uint_argument];
+                f.fp->source_pointer=program;
+                heap_object_reference(program);
+                push(object_stack, f);
                 break;
             }
             case b_native_call_1:
             {
-                ObjectSystemFunction f=(ObjectSystemFunction)instr.uint_argument;
+                ObjectSystemFunction f=(ObjectSystemFunction)instruction.uint_argument;
                 // b_native_call_2 always follows b_native_call_1 so it can be read directly
-                (*pointer)++;
-                unsigned arguments_count=code[*pointer].uint_argument;
+                NEXT_INSTRUCTION
+                unsigned arguments_count=instruction.uint_argument;
                 Object* arguments=malloc(sizeof(Object)*arguments_count);
                 for(int i=0; i<arguments_count; i++){
                     arguments[i]=pop(object_stack);
@@ -825,7 +846,7 @@ Object execute_bytecode(Executor* E){
             case b_call:
             {
                 Object o=pop(object_stack);
-                int provided_arguments=instr.uint_argument;
+                int provided_arguments=instruction.uint_argument;
 
                 InstructionInformation call_information=program->information[E->bytecode_environment.pointer];
                 TracebackPoint traceback_point={program->source_file_name, call_information.line};
@@ -834,7 +855,7 @@ Object execute_bytecode(Executor* E){
                 #define RETURN(value) \
                     push(object_stack, value); \
                     vector_pop(&E->traceback); \
-                    if(instr.type==b_call) { \
+                    if(instruction.type==b_call) { \
                         break; \
                     } else { \
                         goto tail_call_return; \
@@ -892,8 +913,8 @@ Object execute_bytecode(Executor* E){
                         }
                         push(object_stack, variadic_table);
                     }
-                    if(instr.type!=b_tail_call){
-                        create_return_point(&E->bytecode_environment, false);
+                    if(instruction.type!=b_tail_call){
+                        create_return_point(E, false);
                     }
                     move_to_function(E, o.fp);
                     dereference(E, &o);
@@ -955,33 +976,20 @@ Object execute_bytecode(Executor* E){
                 if(E->options.debug){
                     debugger(E);
                 }
-                heap_object_dereference(E, (HeapObject*)E->bytecode_environment.executed_program);
-                dereference(E, scope);
-                if(vector_empty(return_stack)){
+                if(pop_return_point(E)){
                     if(E->coroutine!=NULL){
                         E->coroutine->state=co_finished;
                     }
                     return pop(object_stack);
-                } else {
-                    ReturnPoint* return_point=vector_pop(return_stack);
-                    
-                    E->bytecode_environment.executed_program=return_point->program;
-                    E->bytecode_environment.pointer=return_point->pointer;
-                    *scope=return_point->scope;
-                    E->scope=*scope;
-                    if(return_point->terminate){
-                        Object last=pop(object_stack);
-                        return last;
-                    } else if(gc_should_run(E->beginning.gc)){
-                        executor_collect_garbage(E);
-                    }
+                } else if(gc_should_run(E->object_system.gc) && !E->options.disable_garbage_collector){
+                    executor_collect_garbage(E);
                 }
                 break;
             }
             case b_label:
                 break;
             default:
-                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instr.type, *pointer);
+                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instruction.type, *pointer);
         }
         (*pointer)++;
     }

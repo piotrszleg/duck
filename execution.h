@@ -32,15 +32,8 @@ typedef struct {
 
 #include "runtime/builtins.h"
 
-typedef struct ASTExecutionState ASTExecutionState;
-struct ASTExecutionState {
-    bool initialized;
-    bool returning;
-    vector used_objects;
-};
-
 struct Executor {
-    ExecutorBeginning beginning;
+    ObjectSystem object_system;
     unsigned line;
     unsigned column;
     vector traceback;
@@ -53,20 +46,5 @@ struct Executor {
     BytecodeEnvironment bytecode_environment;
     Options options;
 };
-
-#define INSERT_ERROR(error_type, cause, message, ...) \
-    { Object err; \
-    NEW_ERROR(err, error_type, cause, message, ##__VA_ARGS__) \
-    if(E->error.type!=t_null) { \
-        dereference(E, &E->error); \
-    } \
-    E->error=err; }
-
-#define CHECK_FOR_ERROR \
-    if(E->error.type!=t_null){ \
-        Object error_to_return=E->error; \
-        E->error=null_const; \
-        return error_to_return; \
-    }
 
 #endif

@@ -1,5 +1,14 @@
 #include "execute_ast.h"
 
+void ast_execution_state_init(ASTExecutionState* state) {
+    state->returning=false;
+    vector_init(&state->used_objects, sizeof(Object), 8);
+}
+
+void ast_execution_state_deinit(ASTExecutionState* state) {
+    vector_deinit(&state->used_objects);
+}
+
 Object path_get(Executor* E, Object scope, path p){
     Object current=scope;
     int lines_count=vector_count(&p.lines);
@@ -47,9 +56,9 @@ void path_set(Executor* E, Object scope, path p, Object value){
     }
 }
 
-void ast_source_pointer_free(Executor* E, ASTSourcePointer* sp){
-    delete_expression(sp->body);
-    free(sp);
+void ast_source_pointer_free(Executor* E, ASTSourcePointer* source_pointer){
+    delete_expression(source_pointer->body);
+    free(source_pointer);
 }
 
 Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
@@ -80,7 +89,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         case e_int_literal:
             return to_int(((int_literal*)exp)->value);
         case e_string_literal:
-            return to_string(((string_literal*)exp)->value);
+            return to_string(strdup(((string_literal*)exp)->value));
         case e_table_literal:
         {
             block* b=(block*)exp;
@@ -135,7 +144,7 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
                 }
             }
             STOP_USING(block_scope)
-            if(gc_should_run(E->beginning.gc)){
+            if(gc_should_run(E->object_system.gc)){
                 executor_collect_garbage(E);
             }
             RETURN_USED(result)
@@ -193,24 +202,38 @@ Object execute_ast(Executor* E, expression* exp, Object scope, int keep_scope){
         {
             function_declaration* d=(function_declaration*)exp;
             int arguments_count=vector_count(&d->arguments);
-
             Object f;
             function_init(E, &f);
             f.fp->argument_names=malloc(sizeof(char*)*arguments_count);
             f.fp->arguments_count=arguments_count;
             f.fp->variadic=d->variadic;
-
             for (int i = 0; i < arguments_count; i++){
                 f.fp->argument_names[i]=strdup(((argument*)pointers_vector_get(&d->arguments, i))->name);
             }
-            f.fp->ftype=f_ast;
-            ASTSourcePointer* sp=malloc(sizeof(ASTSourcePointer));
-            sp->body=copy_expression(d->body);
-            managed_pointer_init(E, (ManagedPointer*)sp, (ManagedPointerFreeFunction)ast_source_pointer_free);
-            f.fp->source_pointer=(HeapObject*)sp;
-            heap_object_reference((HeapObject*)sp);
             f.fp->enclosing_scope=scope;
             reference(&scope);
+
+            if(!E->options.disable_bytecode){
+                f.fp->ftype=f_bytecode;
+                BytecodeProgram* bytecode_program=ast_function_to_bytecode(d);
+                bytecode_program->source_file_name=strdup(E->file);
+                bytecode_program_init(E, bytecode_program);
+                heap_object_reference((HeapObject*)bytecode_program);
+                if(E->options.optimise_bytecode){
+                    optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);
+                }
+                if(E->options.print_bytecode){
+                    print_bytecode_program(bytecode_program);
+                }
+                f.fp->source_pointer=(HeapObject*)bytecode_program;
+            } else {
+                f.fp->ftype=f_ast;
+                ASTSourcePointer* source_pointer=malloc(sizeof(ASTSourcePointer));
+                source_pointer->body=copy_expression(d->body);
+                managed_pointer_init(E, (ManagedPointer*)source_pointer, (ManagedPointerFreeFunction)ast_source_pointer_free);
+                heap_object_reference((HeapObject*)source_pointer);
+                f.fp->source_pointer=(HeapObject*)source_pointer;
+            }
             return f;
         }
         case e_function_call:

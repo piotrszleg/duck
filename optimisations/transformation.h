@@ -14,7 +14,7 @@ typedef struct
 } Transformation;
 
 void transformation_init(Transformation* transformation, int inputs_count, int outputs_count);
-void transformation_from_instruction(Transformation* transformation, Instruction* instruction);
+void transformation_from_instruction(Transformation* transformation, const Instruction* instruction);
 void transformation_deinit(Executor* E, Transformation* transformation);
 
 #endif

@@ -10,7 +10,7 @@ void stream_init(stream* s, size_t size){
 void stream_fit(stream* s, int minimal_size){
     if(s->size<minimal_size){
         s->size=nearest_power_of_two(minimal_size);
-        s->data=realloc(s->data, s->size*2);
+        s->data=realloc(s->data, s->size);
         CHECK_ALLOCATION(s->data);
     }
 }

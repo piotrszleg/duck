@@ -4,6 +4,7 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
     if(ast==NULL){
         return null_const;// there was an error while parsing
     }
+    create_return_point(E, true);
     execute_macros(E, &ast);
     if(E->options.optimise_ast){
         optimise_ast(E, &ast);
@@ -13,34 +14,34 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
             printf("Abstract Syntax Tree:\n%s\n", str));
     }
     Object execution_result;
-    if(E->options.disable_bytecode){
+    if(!E->options.disable_ast_execution){
         reference(&scope);
         execution_result=execute_ast(E, ast, scope, 1);
-        if(delete_ast){ 
+        if(delete_ast){
             delete_expression(ast);
         }
-    } else {
-        BytecodeProgram prog=ast_to_bytecode(ast, true);
-        prog.source_file_name=strdup(file_name);
+    } else if(!E->options.disable_bytecode) {
+        BytecodeProgram* bytecode_program=ast_to_bytecode(ast, true);
+        bytecode_program_init(E, bytecode_program);
+        bytecode_program->source_file_name=strdup(file_name);
         if(delete_ast){
             delete_expression(ast);// at this point ast is useless and only wastes memory
         }
         if(E->options.optimise_bytecode){
-            optimise_bytecode(E, &prog, E->options.print_bytecode_optimisations);
+            optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);
         }
         if(E->options.print_bytecode){
-            print_bytecode_program(&prog);
+            print_bytecode_program(bytecode_program);
         }
-        
         E->bytecode_environment.pointer=0;
-        E->bytecode_environment.executed_program=malloc(sizeof(BytecodeProgram));
-        memcpy(E->bytecode_environment.executed_program, &prog, sizeof(BytecodeProgram));
-        bytecode_program_init(E, E->bytecode_environment.executed_program);
+        E->bytecode_environment.executed_program=bytecode_program;
         // the end instruction will dereference these later
-        E->bytecode_environment.scope=scope;
-        create_return_point(&E->bytecode_environment, true);
-        
+        heap_object_reference((HeapObject*)E->bytecode_environment.executed_program);
+        reference(&scope);
+        E->scope=scope;
         execution_result=execute_bytecode(E);
+    } else {
+        NEW_ERROR(execution_result, "EVALUATION_ERROR", null_const, "Both bytecode and ast execution are disabled.")
     }
     return execution_result;
 }
@@ -96,7 +97,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
         case f_native:
             return f->native_pointer(E, f->enclosing_scope, arguments, arguments_count);
         case f_bytecode:
-            create_return_point(&E->bytecode_environment, true);
+            create_return_point(E, true);
             move_to_function(E, f);
             for(int i=0; i<arguments_count; i++){
                 push(&E->bytecode_environment.object_stack, arguments[i]);
@@ -173,8 +174,10 @@ void executor_foreach_children(Executor* E, Executor* iterated_executor, Managed
     for(int i=0; i<vector_count(return_stack); i++){
         ReturnPoint* return_point=vector_index(return_stack, i);
         callback(E, &return_point->scope);
-        Object wrapped_program=wrap_heap_object((HeapObject*)return_point->program);
-        callback(E, &wrapped_program);
+        if(return_point->program!=NULL){
+            Object wrapped_program=wrap_heap_object((HeapObject*)return_point->program);
+            callback(E, &wrapped_program);
+        }
     }
     for(int i=0; i<vector_count(object_stack); i++){
         callback(E, (Object*)vector_index(object_stack, i));
@@ -183,12 +186,10 @@ void executor_foreach_children(Executor* E, Executor* iterated_executor, Managed
         callback(E, (Object*)vector_index(used_objects, i));
     }
     callback(E, &E->scope);
-    Object wrapped_program=wrap_heap_object((HeapObject*)E->bytecode_environment.executed_program);
-    callback(E, &wrapped_program);
-}
-
-void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeachChildrenCallback callback){
-    executor_foreach_children(E, co->executor, callback);
+    if(E->bytecode_environment.executed_program!=NULL){
+        Object wrapped_program=wrap_heap_object((HeapObject*)E->bytecode_environment.executed_program);
+        callback(E, &wrapped_program);
+    }
 }
 
 Object executor_get_patching_table(Executor* E){
@@ -199,35 +200,30 @@ Object executor_get_patching_table(Executor* E){
     }
 }
 
-void coroutine_free(Coroutine* co){
-    free(co->executor);
-    free(co);
-}
-
 void executor_collect_garbage(Executor* E){
-    gc_unmark_all(E->beginning.gc);
+    gc_unmark_all(E->object_system.gc);
     executor_foreach_children(E, E, gc_mark);
     gc_sweep(E);
     
 }
 
 void executor_init(Executor* E){
-    E->beginning.gc=malloc(sizeof(GarbageCollector));
     E->options=default_options;
-    E->ast_execution_state.returning=false;
     E->scope=null_const;
     E->file=NULL;
+    E->line=0;
+    E->column=0;
+    E->coroutine=NULL;
     vector_init(&E->traceback, sizeof(TracebackPoint), 16);
-    vector_init(&E->ast_execution_state.used_objects, sizeof(Object), 8);
     object_system_init(E);
     bytecode_environment_init(&E->bytecode_environment);
+    ast_execution_state_init(&E->ast_execution_state);
 }
 
 void executor_deinit(Executor* E){
     E->scope=null_const;
     object_system_deinit(E);
     vector_deinit(&E->traceback);
-    vector_deinit(&E->ast_execution_state.used_objects);
     bytecode_environment_deinit(&E->bytecode_environment);
-    free(E->beginning.gc);
+    ast_execution_state_deinit(&E->ast_execution_state);
 }

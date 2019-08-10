@@ -366,21 +366,24 @@ Object get_iterator(Executor* E, Object o){
     RETURN_ERROR("ITERATION_ERROR", o, "Can't get iterator of object of type %s.", get_type_name(o.type));
 }
 
-bool operator_is_constant(ObjectType a, ObjectType b, const char* op) {
-    if(a==t_table){
-        return false;
+ObjectTypeOrUnknown operator_predict_result(ObjectTypeOrUnknown a, ObjectTypeOrUnknown b, const char* op) {
+    if(a==tu_table || a==tu_unknown || b==tu_unknown){
+        return tu_unknown;
     }
     size_t op_length=strlen(op);
     if(op_length==1) {
         switch(op[0]){
-            case '!': return true;
-            case '-': return true;
-            case '#': return false;
+            case '!': return tu_int;
+            case '#': return tu_unknown;
         }
         #define CASE(character) \
             case character: \
-                return cast_is_constant(b, a);
-        if(a==t_int) {
+                if(cast_is_constant(b, a)){ \
+                    return (ObjectTypeOrUnknown)a; \
+                } else { \
+                    return tu_unknown; \
+                }
+        if(a==tu_int) {
             switch(op[0]){
                 CASE('+')
                 CASE('-')
@@ -389,7 +392,11 @@ bool operator_is_constant(ObjectType a, ObjectType b, const char* op) {
                 CASE('/')
             }
         }
-        if(a==t_float) {
+        // '-' prefix
+        if(a==tu_null && op[0]=='-'&&(b==tu_int||b==tu_float)) {
+            return (ObjectTypeOrUnknown)b;
+        }
+        if(a==tu_float) {
             switch(op[0]){
                 CASE('+')
                 CASE('-')
@@ -399,13 +406,26 @@ bool operator_is_constant(ObjectType a, ObjectType b, const char* op) {
         }
         #undef CASE
     } else {  
-        if(strcmp(op, "--")==0) return false;
-        if(strcmp(op, "><")==0) return false;
-        if(strcmp(op, "##")==0) return false;
-        if(strcmp(op, "&&")==0) return true;
-        if(strcmp(op, "||")==0) return true;
-        if(strcmp(op, "//")==0) return a==t_int && cast_is_constant(b, a);
-        #define COMPARISSON(operator_name) if(strcmp(op, operator_name)==0) return compare_is_constant(a, b);
+        if(strcmp(op, "--")==0) return tu_unknown;
+        if(strcmp(op, "><")==0) return tu_unknown;
+        if(strcmp(op, "##")==0) return tu_unknown;
+        if(strcmp(op, "&&")==0) return tu_int;
+        if(strcmp(op, "||")==0) return tu_int;
+        if(strcmp(op, "//")==0) { 
+            if(a==tu_int && cast_is_constant(b, a)) {
+                return tu_int;
+            } else{
+                return tu_unknown;
+            }
+        }
+        #define COMPARISSON(operator_name) \
+            if(strcmp(op, operator_name)==0) { \
+                if(compare_is_constant(a, b)) { \
+                    return tu_int; \
+                } else { \
+                    return tu_unknown; \
+                } \
+            }
         COMPARISSON("==") 
         COMPARISSON("!=")
         COMPARISSON(">")
@@ -416,7 +436,7 @@ bool operator_is_constant(ObjectType a, ObjectType b, const char* op) {
         COMPARISSON("compare")
         #undef COMPARISSON
     }
-    return false;
+    return tu_unknown;
 }
 
 Object operator(Executor* E, Object a, Object b, const char* op){
