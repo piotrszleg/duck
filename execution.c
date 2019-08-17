@@ -98,10 +98,10 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
             return f->native_pointer(E, f->enclosing_scope, arguments, arguments_count);
         case f_bytecode:
             create_return_point(E, true);
-            move_to_function(E, f);
             for(int i=0; i<arguments_count; i++){
                 push(&E->bytecode_environment.object_stack, arguments[i]);
             }
+            move_to_function(E, f);
             return execute_bytecode(E);
         case f_ast: {
             Object function_scope;

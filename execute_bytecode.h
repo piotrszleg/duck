@@ -9,6 +9,7 @@
 #include "bytecode_program.h"
 #include "object_system/object_operations.h"
 #include "options.h"
+#include "c_fixes.h"
 
 typedef struct {
     char* file;
@@ -18,14 +19,14 @@ typedef struct {
 typedef struct {
     vector breakpoints;
     bool running;
-} debugger_state;
+} Debugger;
 
 typedef struct {
     int pointer;
     BytecodeProgram* executed_program;
     vector object_stack;
     vector return_stack;
-    debugger_state debugger;
+    Debugger debugger;
 } BytecodeEnvironment;
 
 typedef struct {

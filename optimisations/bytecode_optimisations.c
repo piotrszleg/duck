@@ -94,7 +94,9 @@ bool instruction_is_constant(Instruction* instruction, Transformation* transform
         case b_function_1:
         case b_function_2:
         case b_double:
-            return false;
+        case b_get:
+        case b_discard:
+            return true;
         #define BINARY(instruction, op) \
             case instruction: \
                 return operator_predict_result(dummy_type(transformation->inputs[0]), dummy_type(transformation->inputs[1]), op)!=tu_unknown;
@@ -112,7 +114,7 @@ bool instruction_is_constant(Instruction* instruction, Transformation* transform
             return transformation->inputs[0]->type==d_constant 
             && transformation->inputs[0]->constant_value.type==t_string
             && operator_predict_result(tu_null, dummy_type(transformation->inputs[1]), transformation->inputs[0]->constant_value.text)!=tu_unknown;
-        default: return true;
+        default: return false;
     }
 }
 
@@ -205,6 +207,9 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
             break;
         case b_set:
             outputs[0]=inputs[1];
+            return;
+        case b_table_set_keep:
+            outputs[0]=inputs[2];
             return;
         case b_binary:
         {
@@ -735,20 +740,91 @@ void jump_to_return(
 }
 
 // replace normal calls with tail calls if possible
-bool tail_calls(BytecodeManipulation* manipulation, vector* instructions, int pointer, bool print_optimisations){
+bool tail_calls(BytecodeManipulation* manipulation, vector* instructions, vector* transformations, int pointer, bool print_optimisations){
     if(vector_index_instruction(instructions, pointer)->type==b_call){
-        if(vector_index_instruction(instructions, pointer+1)->type==b_end){
+        InstructionType next_type=vector_index_instruction(instructions, pointer+1)->type;
+        if(next_type==b_end || next_type==b_return){
+            Transformation tail_call_transformation;
+            transformation_init(&tail_call_transformation, vector_index_transformation(transformations, pointer)->inputs_count, 0);
+            for(int i=0; i<tail_call_transformation.inputs_count; i++){
+                tail_call_transformation.inputs[i]=vector_index_transformation(transformations, pointer)->inputs[i];
+                heap_object_reference((HeapObject*)tail_call_transformation.inputs[i]);
+            }
+            transformation_deinit(manipulation->executor, vector_index_transformation(transformations, pointer));
+            *vector_index_transformation(transformations, pointer)=tail_call_transformation;
             vector_index_instruction(instructions, pointer)->type=b_tail_call;
-            return true;
-        }
-        if(vector_index_instruction(instructions, pointer+1)->type==b_return){
-            vector_index_instruction(instructions, pointer)->type=b_tail_call;
-            fill_with_no_op(manipulation, pointer+1, pointer+1);
+            if(next_type==b_end){
+                vector_index_transformation(transformations, pointer+1)->inputs[0]=new_any_dummy(manipulation->executor);
+                heap_object_reference((HeapObject*)vector_index_transformation(transformations, pointer+1)->inputs);
+            } else {
+                fill_with_no_op(manipulation, pointer+1, pointer+1);
+            }
             return true;
         }
     }
     return false;
 }
+
+bool insert_discard(BytecodeManipulation* manipulation, Dummy* discard_input, uint index) {
+    Instruction discard_instruction={b_discard};
+    Transformation discard_transformation;
+    transformation_from_instruction(&discard_transformation, &discard_instruction);
+    discard_transformation.inputs[0]=discard_input;
+    heap_object_reference((HeapObject*)discard_transformation.inputs[0]);
+    return insert_instruction(manipulation, index, &discard_instruction, &discard_transformation);
+}
+
+// returns the number of inserted instructions
+uint cut_out_instruction(BytecodeManipulation* manipulation, uint index) {
+    uint inserted=0;
+    Transformation* transformation=vector_index_transformation(manipulation->transformations, index);
+    for(int i=0; i<transformation->inputs_count; i++){
+        inserted+=insert_discard(manipulation, transformation->inputs[i], index);
+    }
+    fill_with_no_op(manipulation, index+inserted, index+inserted);
+    return inserted;
+}
+
+bool inline_native_calls(BytecodeManipulation* manipulation, vector* instructions, vector* transformations, int pointer, bool print_optimisations) {
+    if((vector_index_instruction(instructions, pointer)->type==b_call || vector_index_instruction(instructions, pointer)->type==b_tail_call)
+        && vector_index_transformation(transformations, pointer)->inputs[0]->type==d_constant) {
+            bool is_tail_call=vector_index_instruction(instructions, pointer)->type==b_tail_call;
+            uint arguments_count=vector_index_instruction(instructions, pointer)->uint_argument;
+            Transformation* call_transformation=vector_index_transformation(transformations, pointer);
+            Function* function=call_transformation->inputs[0]->constant_value.fp;
+            if(function->ftype==f_native){
+                Instruction call_1_instruction={is_tail_call?b_native_tail_call_1:b_native_call_1, .uint_argument=(uint)function->native_pointer};
+                Transformation call_1_transformation;
+                transformation_init(&call_1_transformation, call_transformation->inputs_count-1, is_tail_call?0:1);
+                for(int i=0; i<call_1_transformation.inputs_count; i++){
+                    call_1_transformation.inputs[i]=call_transformation->inputs[i+1];
+                    heap_object_reference((HeapObject*)call_1_transformation.inputs[i]);
+                }
+
+                Instruction call_2_instruction={is_tail_call?b_native_tail_call_2:b_native_call_2, .uint_argument=arguments_count};
+                Transformation call_2_transformation;
+                transformation_from_instruction(&call_2_transformation, &call_2_instruction);
+                if(!is_tail_call){
+                    call_2_transformation.outputs[0]=call_transformation->outputs[0];
+                }
+                pointer+=insert_discard(manipulation, call_transformation->inputs[0], pointer);
+                fill_with_no_op(manipulation, pointer, pointer);
+                insert_instruction(manipulation, pointer, &call_1_instruction, &call_1_transformation);
+                insert_instruction(manipulation, pointer+1, &call_2_instruction, &call_2_transformation);
+
+                return true;
+            }
+    }
+    return false;
+}
+
+/*bool flatten_table(){
+    // if only operations on table_literal output are table_set_keep, table_set and table_get
+    // and it doesn't have overriding symbols
+        // for each table_set_keep belonging to the literal find corresponding table_get and replace it's output with table_set_keep second input
+        // using replace_dummies_in_transformations
+    // remove table literal
+}*/
 
 // if an operation has no side effects and it's result is immediately discarded removes it
 bool remove_useless_operations(BytecodeManipulation* manipulation, vector* instructions, vector* transformations, int pointer, bool print_optimisations){
@@ -792,9 +868,9 @@ bool remove_useless_operations(BytecodeManipulation* manipulation, vector* instr
     return false;
 }
 
+
 // if operation has no side effect and it's output is known it is replaced with it's result literal
 bool fold_constants(
-    Executor* E,
     BytecodeManipulation* manipulation,
     vector* instructions, 
     vector* transformations, 
@@ -805,9 +881,9 @@ bool fold_constants(
     if(vector_index_transformation(transformations, *pointer)->outputs_count==1 
     && vector_index_transformation(transformations, *pointer)->outputs[0]->type==d_constant
     && !instruction_is_literal(vector_index_instruction(instructions, *pointer)->type)
-    && !instruction_is_constant(vector_index_instruction(instructions, *pointer), vector_index_transformation(transformations, *pointer))){
+    && instruction_is_constant(vector_index_instruction(instructions, *pointer), vector_index_transformation(transformations, *pointer))){
         Transformation producer=*vector_index_transformation(transformations, *pointer);
-        if(constant_dummy_to_bytecode(E, vector_index_transformation(transformations, *pointer)->outputs[0], *pointer+1, instructions, transformations, constants)){
+        if(constant_dummy_to_bytecode(manipulation->executor, producer.outputs[0], *pointer+1, instructions, transformations, constants)){
             LOG_IF_ENABLED("Replacing operation with it's result:\n")
             // discard inputs to producer
             for(int i=0; i<producer.inputs_count; i++){
@@ -960,6 +1036,19 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
             }
         }
     }
+    // fill unreachable transformations with any dummies so their deinitialization doesn't cause errors
+    for(int p=0; p<vector_count(&transformations); p++){
+        Transformation* transformation=vector_index_transformation(&transformations, p);
+        if(!transformation->visited){
+            transformation_from_instruction(transformation, vector_index_instruction(&instructions, p));
+            for(int i=0; i<transformation->inputs_count; i++){
+                transformation->inputs[i]=new_any_dummy(E);
+            }
+            for(int i=0; i<transformation->outputs_count; i++){
+                transformation->outputs[i]=new_any_dummy(E);
+            }
+        }
+    }
     if(print_optimisations){
         printf("Deduced flow chart:\n");
         print_transformations(vector_get_data(&instructions), vector_get_data(&transformations));
@@ -977,6 +1066,14 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     manipulation.dummy_objects_counter=&dummy_objects_counter;
     manipulation.program=program;
     manipulation.print_optimisations=print_optimisations;
+
+    // remove swap instructions because they are only making code more confusing and prevent some optimisations
+    // they will be readded later in the most optimal way
+    for(int p=0; p<vector_count(&instructions); p++){
+        if(vector_index_instruction(&instructions, p)->type==b_swap){
+            fill_with_no_op(&manipulation, p, p);
+        }
+    }
 
     /*
         As you probably noticed some variables are passed two times, in manipulation struct
@@ -998,15 +1095,17 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     if(E->options.optimise_jump_to_return){
         jump_to_return(&manipulation, &instructions, &transformations);
     }
-    for(int pointer=count_instructions((Instruction*)vector_get_data(&instructions))-1; pointer>=1; pointer--){
+    for(int pointer=vector_count(&instructions)-2; pointer>=1; pointer--){
         // here short circuit evaluation is used so that if one of optimisations succeeds the rest is not performed on the same instruction
         allow_unused_variable((void*)(// prevent emitting "value computed is not used" warning
-           (E->options.optimise_tail_calls
-                && tail_calls(&manipulation, &instructions, pointer, print_optimisations))
+           (E->options.inline_native_calls
+                && inline_native_calls(&manipulation, &instructions, &transformations, pointer, print_optimisations))
+        || (E->options.optimise_tail_calls
+                && tail_calls(&manipulation, &instructions, &transformations, pointer, print_optimisations))
         || (E->options.remove_useless_operations 
                 && remove_useless_operations(&manipulation, &instructions, &transformations, pointer, print_optimisations))
         || (E->options.fold_constants
-                && fold_constants(E, &manipulation, &instructions, &transformations, &constants, &pointer, print_optimisations))
+                && fold_constants(&manipulation, &instructions, &transformations, &constants, &pointer, print_optimisations))
         || (E->options.use_typed_instructions
                 && typed_instructions(&instructions, &transformations, pointer))
         ));
@@ -1032,7 +1131,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
                 vector_push(&stack, vector_index(&provided, i));
             }
         }
-        for(int i=0; i<gets_from_stack(*vector_index_instruction(&instructions, p)); i++){
+        for(int i=0; i<vector_index_transformation(&transformations, p)->inputs_count; i++){
             Dummy* top=*STACK(i);
             Dummy* expected=vector_index_transformation(&transformations, p)->inputs[i];
             if(!dummies_compatible(top, expected)){
@@ -1070,10 +1169,10 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
                 }
             }
         }
-        for(int j=0; j<gets_from_stack(*vector_index_instruction(&instructions, p)); j++){
+        for(int j=0; j<vector_index_transformation(&transformations, p)->inputs_count; j++){
             vector_pop(&stack);
         }
-        for(int i=0; i<pushes_to_stack(*vector_index_instruction(&instructions, p)); i++){
+        for(int i=0; i<vector_index_transformation(&transformations, p)->outputs_count; i++){
             vector_push(&stack, &vector_index_transformation(&transformations, p)->outputs[i]);
         }
     }

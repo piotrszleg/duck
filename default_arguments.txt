@@ -1,1 +1,1 @@
-input.dk
+-print_bytecode_optimisations -disable_ast_execution input.dk

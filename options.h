@@ -23,11 +23,13 @@
     BOOLEAN(optimise_jump_to_return, true) \
     BOOLEAN(optimise_stack_operations, true) \
     BOOLEAN(inline_functions, true) \
+    BOOLEAN(inline_native_calls, true) \
     BOOLEAN(fold_constants, true) \
     BOOLEAN(remove_useless_operations, true) \
     BOOLEAN(use_typed_instructions, true) \
-    UNSIGNED(calls_before_optimisation, 3) \
-    UNSIGNED(collected_calls, 10)
+    UNSIGNED(calls_before_optimisation, 5) \
+    UNSIGNED(collected_calls, 10) \
+    UNSIGNED(constant_threshold, 3)
 
 typedef struct {
     char* file_path;

@@ -25,8 +25,10 @@
     X(null) \
     X(function_1)/*     (function_argument) function needs to be splitted into two instructions to have all needed data */ \
     X(function_2) /*    (uint_argument sub_program_index) */ \
-    X(native_call_1)/*  (uint_argument pointer_to_function) */ \
-    X(native_call_2) /* (uint_argument arguments_count) */ \
+    X(native_call_1)/*  (uint_argument arguments_count) */ \
+    X(native_call_2) /* (uint_argument pointer_to_function) */ \
+    X(native_tail_call_1)/*  (uint_argument arguments_count) */ \
+    X(native_tail_call_2) /* (uint_argument pointer_to_function) */ \
     X(return) /*        [object_to_return] */ \
     X(enter_scope) /*   pushes current scope into the stack, creates a table and sets it as a new scope */ \
     X(leave_scope) /*   [new_scope] discards the previous scope, sets the object on stack as the new scope */ \

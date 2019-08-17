@@ -55,6 +55,7 @@
         "bytecode_program.h": "c",
         "cstddef": "c",
         "limits": "c",
-        "pipe_object.h": "c"
+        "pipe_object.h": "c",
+        "algorithm": "c"
     }
 }

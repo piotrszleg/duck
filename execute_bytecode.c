@@ -77,24 +77,38 @@ void assumption_deinit(Executor* E, Assumption* assumption){
     }
 }
 
+void statistics_init(CallStatistics* statistics, uint call_fields, uint collected_calls) {
+    statistics->last_call=calloc(call_fields, sizeof(Object));
+    statistics->previous_calls=malloc(collected_calls*sizeof(Assumption*));
+    statistics->constant_streaks=calloc(call_fields, sizeof(uint));
+    statistics->collected_calls=0;
+    statistics->initialized=true;
+}
+
+void statistics_deinit(CallStatistics* statistics) {
+    statistics->initialized=false;
+    free(statistics->previous_calls);
+    free(statistics->last_call);
+    free(statistics->constant_streaks);
+}
+
 void create_variant(Executor* E, BytecodeProgram* program) {
-    CallStatistics* statistics=program->statistics;
-    if(statistics==NULL){
+    CallStatistics* statistics=&program->statistics;
+    if(!statistics->initialized){
         return;
     }
     int arguments_count=program->expected_arguments;
     int call_fields=arguments_count+program->upvalues_count;
-    int collected_calls=program->calls_count-CALLS_UNTIL_STATISTICS_MODE;
 
-    bool already_covered[REMEMBERED_CALLS];
+    bool* already_covered=calloc(statistics->collected_calls, sizeof(bool));
     struct {
         unsigned index;
         unsigned score;
     } most_compatible_signature={0, 0};
-    for(int i=0; i<collected_calls; i++){
+    for(int i=0; i<statistics->collected_calls; i++){
         if(!already_covered[i]){
             unsigned score=0;
-            for(int j=0; j<collected_calls; j++){
+            for(int j=0; j<statistics->collected_calls; j++){
                 bool exactly_equal=true;
                 for(int a=0; a<call_fields; a++){
                     switch(compare_assumptions(E, &statistics->previous_calls[i][a], &statistics->previous_calls[j][a])){
@@ -121,59 +135,57 @@ void create_variant(Executor* E, BytecodeProgram* program) {
             }
         }
     }
-    printf("Collected the following data:\n");
-    for(int i=0; i<collected_calls; i++){
+    if(E->options.print_bytecode_optimisations){
+        printf("Collected the following data:\n");
+        for(int i=0; i<statistics->collected_calls; i++){
+            printf("[");
+            for(int j=0; j<call_fields; j++){
+                print_assumption(E, &statistics->previous_calls[i][j]);
+                printf(", ");
+            }
+            printf("]\n");
+        }
+        printf("Generating variant with assumptions:\n");
         printf("[");
-        for(int j=0; j<call_fields; j++){
-            print_assumption(E, &statistics->previous_calls[i][j]);
+        for(int i=0; i<call_fields; i++){
+            print_assumption(E, &statistics->previous_calls[most_compatible_signature.index][i]);
             printf(", ");
         }
         printf("]\n");
     }
-    printf("Generate variant with assumptions:\n");
-    printf("[");
-    for(int i=0; i<call_fields; i++){
-        print_assumption(E, &statistics->previous_calls[most_compatible_signature.index][i]);
-        printf(", ");
-    }
-    printf("]\n");
     BytecodeProgram variant;
     bytecode_program_copy(program, &variant);
     variant.assumptions=statistics->previous_calls[most_compatible_signature.index];
     optimise_bytecode(E, &variant, E->options.print_bytecode_optimisations);
     vector_push(&program->variants, &variant);
 
-    /*for(int i=0; i<collected_calls; i++){
-        printf("%i\n", i);
+    for(int i=0; i<statistics->collected_calls; i++){
         if(i!=most_compatible_signature.index){
             for(int j=0; j<call_fields; j++){
                 assumption_deinit(E, &statistics->previous_calls[i][j]);
             }
             free(statistics->previous_calls[i]);
         }
-    } */
-    free(program->statistics->last_call);
-    free(program->statistics->constant_streaks);
-    free(program->statistics);
-    program->statistics=NULL;
+    }
+    statistics_deinit(&program->statistics);
     program->calls_count=0;
 }
 
 void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
     BytecodeProgram* program=environment->executed_program;
-    if(!E->options.optimise_at_runtime||program->calls_count<CALLS_UNTIL_STATISTICS_MODE){
-        program->calls_count++;
+    program->calls_count++;
+    if(!E->options.optimise_at_runtime||program->calls_count<=E->options.calls_before_optimisation){
         return;
     }
     int arguments_count=program->expected_arguments;
     int call_fields=arguments_count+program->upvalues_count;
-    if(program->statistics==NULL){
-        printf("<BEGIN RECORDING>");
-        program->statistics=malloc(sizeof(CallStatistics));
-        program->statistics->last_call=calloc(call_fields, sizeof(Object));
-        program->statistics->constant_streaks=calloc(call_fields, sizeof(unsigned));
+    CallStatistics* statistics=&program->statistics;
+    if(!statistics->initialized){
+        if(E->options.print_bytecode_optimisations){
+            printf("<BEGAN RECORDING>");
+        }
+        statistics_init(&program->statistics, call_fields, E->options.collected_calls);
     }
-    CallStatistics* statistics=program->statistics;
     Assumption* current_call=malloc(sizeof(Assumption)*call_fields);
     for(int i=0; i<call_fields; i++){
         Object argument;
@@ -185,23 +197,24 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
         }
         if(compare(E, statistics->last_call[i], argument)==0) {
             statistics->constant_streaks[i]++;
-            if(statistics->constant_streaks[i]>=CONSTANT_THRESHOLD) {
-                current_call[i].assumption_type=a_constant;
-                current_call[i].constant=copy(E, argument);
-                reference(&current_call[i].constant);
-                goto next_argument;
-            }
         } else {
             statistics->constant_streaks[i]=0;
         }
-        current_call[i].assumption_type=a_type;
-        current_call[i].type=argument.type;
-        next_argument:
-        statistics->last_call[i]=copy(E, argument);
+        if(statistics->constant_streaks[i]>=E->options.constant_threshold) {
+            current_call[i].assumption_type=a_constant;
+            current_call[i].constant=copy(E, argument);
+            reference(&current_call[i].constant);
+        } else {
+            current_call[i].assumption_type=a_type;
+            current_call[i].type=argument.type;
+        }
+        statistics->last_call[i]=argument;
+        reference(&statistics->last_call[i]);
     }
-    statistics->previous_calls[program->calls_count-CALLS_UNTIL_STATISTICS_MODE]=current_call;
+    statistics->previous_calls[statistics->collected_calls]=current_call;
+    statistics->collected_calls++;
     program->calls_count++;
-    if(program->calls_count-CALLS_UNTIL_STATISTICS_MODE>REMEMBERED_CALLS){
+    if(statistics->collected_calls>=E->options.collected_calls){
         create_variant(E, program);
     }
 }
@@ -830,10 +843,10 @@ Object execute_bytecode(Executor* E){
             }
             case b_native_call_1:
             {
-                ObjectSystemFunction f=(ObjectSystemFunction)instruction.uint_argument;
+                unsigned arguments_count=instruction.uint_argument;
                 // b_native_call_2 always follows b_native_call_1 so it can be read directly
                 NEXT_INSTRUCTION
-                unsigned arguments_count=instruction.uint_argument;
+                ObjectSystemFunction f=(ObjectSystemFunction)instruction.uint_argument;
                 Object* arguments=malloc(sizeof(Object)*arguments_count);
                 for(int i=0; i<arguments_count; i++){
                     arguments[i]=pop(object_stack);

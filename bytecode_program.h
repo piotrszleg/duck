@@ -2,6 +2,7 @@
 #define BYTECODE_PROGRAM_H
 
 #include "bytecode.h"
+#include "c_fixes.h"
 
 typedef struct {
     enum Type {
@@ -14,13 +15,15 @@ typedef struct {
     };
 } Assumption;
 
-#define CALLS_UNTIL_STATISTICS_MODE 10
-#define REMEMBERED_CALLS 10
-#define CONSTANT_THRESHOLD 3
 typedef struct {
-    Assumption* previous_calls[REMEMBERED_CALLS];
+    // CallStatistics take incredible amount of memory
+    // so I decided to allocate them only when the calls are collected
+    // and then deallocate them after a variant is generated
+    bool initialized;
+    Assumption** previous_calls;
     Object* last_call;
     unsigned* constant_streaks;
+    uint collected_calls;
 } CallStatistics;
 
 typedef struct FunctionVariant FunctionVariant;
@@ -44,7 +47,7 @@ struct BytecodeProgram {
     unsigned* upvalues;
     unsigned upvalues_count;
     unsigned calls_count;
-    CallStatistics* statistics;
+    CallStatistics statistics;
     vector variants;
 };
 

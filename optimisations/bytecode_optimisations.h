@@ -5,6 +5,7 @@
 #include "../bytecode_program.h"
 #include "../execution.h"
 #include "../datatypes/vector.h"
+#include "../c_fixes.h"
 #include "dummy.h"
 #include "transformation.h"
 

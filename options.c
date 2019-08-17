@@ -60,9 +60,9 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
                 OPTION("dont_"#name, options->name=false;) \
                 OPTION(#name"=0", options->name=false;)
             #define UNSIGNED(name, default) \
-                if(strings_counted_equal(arguments[i]+1, #name"=", sizeof(#name"="))){ \
+                if(strings_counted_equal(arguments[i]+1, #name"=", sizeof(#name"=")-1)){ \
                     matched=true; \
-                    options->name=strtol(arguments[i]+1+sizeof(#name"="), NULL, 10); \
+                    options->name=strtol(arguments[i]+1+sizeof(#name"=")-1, NULL, 10); \
                 }
             OPTIONS
             #undef BOOLEAN
@@ -76,6 +76,7 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
             if(!matched){
                 printf("Unknown command %s", arguments[i]);
                 options->should_run=false;
+                return;
             }
         } else {
             options->file_path=strdup(arguments[i]);

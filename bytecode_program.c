@@ -139,7 +139,7 @@ void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy)
     copy->expected_arguments=source->expected_arguments;
 
     copy->calls_count=0;
-    copy->statistics=NULL;
+    copy->statistics.initialized=false;
     copy->assumptions=NULL;
     
     copy->sub_programs_count=source->sub_programs_count;
@@ -186,7 +186,7 @@ void bytecode_program_free(BytecodeProgram* program) {
 void bytecode_program_init(Executor* E, BytecodeProgram* program){
     program->labels=list_labels(program->code);
     program->calls_count=0;
-    program->statistics=NULL;
+    program->statistics.initialized=false;
     program->assumptions=NULL;
     vector_init(&program->variants, sizeof(BytecodeProgram), 4);
     managed_pointer_init(E, (ManagedPointer*)&program->mp, (ManagedPointerFreeFunction)bytecode_program_free);

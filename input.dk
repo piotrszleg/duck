@@ -1,11 +1,2 @@
-assert_error=o->{
-    assert(o.error)
-    o.handled=1
-}
-f=x->{
-    if(x){
-        format("{}")?
-    }
-    10
-}
-assert_error(f(1))
+tab=[1, 2]
+tab[0]+tab[1]

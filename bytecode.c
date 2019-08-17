@@ -23,6 +23,8 @@ int gets_from_stack(Instruction instr){
         X(b_table_set_keep, 3)
         X(b_call, instr.uint_argument+1)
         X(b_tail_call, instr.uint_argument+1)
+        X(b_native_call_1, instr.uint_argument)
+        X(b_native_tail_call_1, instr.uint_argument)
         X(b_function_2, 1)
         X(b_jump_not, 1)
         X(b_swap, MAX(instr.swap_argument.left, instr.swap_argument.right)+1)
@@ -69,6 +71,9 @@ int pushes_to_stack(Instruction instr){
         X(b_new_scope, 0)
         X(b_return, 0)
         X(b_tail_call, 0)
+        X(b_native_call_1, 0)
+        X(b_native_tail_call_1, 0)
+        X(b_native_tail_call_2, 0)
         default: return 1;
     }
 }

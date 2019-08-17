@@ -24,6 +24,7 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
 void executor_init(Executor* E);
 void executor_deinit(Executor* E);
 void executor_collect_garbage(Executor* E);
+void executor_foreach_children(Executor* E, Executor* iterated_executor, ManagedPointerForeachChildrenCallback callback);
 
 typedef struct {
     const char* file_name;
