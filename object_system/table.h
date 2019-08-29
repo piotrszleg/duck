@@ -56,7 +56,7 @@ void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildren
 int table_compare(Executor* E, Table* a, Table* b, Object* error);
 char* table_serialize(Executor* E, Table* t);
 char* table_stringify(Executor* E, Table* t);
-Object table_copy(Executor* E, Table* t);
+Object table_copy(Executor* E, Table* t, Table* copies);
 void table_component_init(Table* t);
 Object table_get_iterator_object(Executor* E, Object scope, Object* arguments, int arguments_count);
 TableIterator table_get_iterator(Table* iterated);

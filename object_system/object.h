@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include "../error/error.h"
 #include "../utility.h"
+#include "../c_fixes.h"
 #include "../datatypes/vector.h"
 
 #define OVERRIDES \
@@ -23,7 +24,8 @@
     X(set) \
     X(copy) \
     X(destroy) \
-    X(prototype)
+    X(prototype) \
+    X(is_error)
 
 typedef struct Executor Executor;
 
@@ -55,6 +57,8 @@ struct HeapObject {
     struct HeapObject* next;
 
     bool marked;
+    bool attached;
+
     ObjectType gc_type;
 };
 
@@ -110,6 +114,7 @@ typedef struct {
         OVERRIDES
         #undef X
     } builtin_symbols;
+    uint last_builtin_symbol;
     Object overrides_table;
     Object types_table;
     Object type_symbols[LAST_OBJECT_TYPE+1];
@@ -136,20 +141,21 @@ OBJECT_INIT(pointer)
 OBJECT_INIT_E(coroutine)
 OBJECT_INIT_E(function)
 OBJECT_INIT_E(table)
+OBJECT_INIT_E(symbol)
 
 #undef OBJECT_INIT
 #undef OBJECT_INIT_E
 
-// declaration of function pointer type used in function objects
-typedef Object (*ObjectSystemFunction)(Executor* E, Object scope, Object* arguments, int arguments_count);
+typedef struct ManagedPointer ManagedPointer;
 
 typedef void (*ManagedPointerFreeFunction)(ManagedPointer*);
 typedef void (*ManagedPointerForeachChildrenCallback)(Executor*, Object*);
 typedef void (*ManagedPointerForeachChildrenFunction)(Executor* E, ManagedPointer*, ManagedPointerForeachChildrenCallback);
+typedef ManagedPointer* (*ManagedPointerCopyFunction)(Executor* E, const ManagedPointer*);
 
-typedef struct ManagedPointer ManagedPointer;
 struct ManagedPointer {
     HeapObject hp;
+    ManagedPointerCopyFunction copy;
     ManagedPointerFreeFunction free;
     ManagedPointerForeachChildrenFunction foreach_children;
 };
@@ -162,6 +168,9 @@ typedef enum {
     f_bytecode,
     f_special
 } FunctionType;
+
+// declaration of function pointer type used in function objects
+typedef Object (*ObjectSystemFunction)(Executor* E, Object scope, Object* arguments, int arguments_count);
 
 struct Function {
     HeapObject hp;
@@ -225,6 +234,10 @@ char* stringify(Executor* E, Object o);
 
 void object_system_init(Executor* E);
 void object_system_deinit(Executor* E);
+bool symbol_is_builtin(Executor* E, Symbol* sp);
+
+void attach(Executor* E, Object* o);
+void detach(Executor* E, Object* o);
 
 // these functions should be implemented in higher level module
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);

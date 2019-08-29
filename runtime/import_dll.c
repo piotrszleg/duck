@@ -20,7 +20,7 @@ void* get_dll_handle(char* library_name, char** error){
     HINSTANCE lib_handle = LoadLibrary(library_name);
 
     if(lib_handle == NULL) {
-        *error=get_windows_error_message();
+        *error=strdup(get_windows_error_message());
         return NULL;
     } else {
         return lib_handle;
@@ -40,7 +40,7 @@ void* find_symbol(void* dll_handle, char* name, char** error){
     #ifdef WINDOWS
     FARPROC address=GetProcAddress(dll_handle, name);
     if(address==NULL){
-        *error=get_windows_error_message();
+        *error=strdup(get_windows_error_message());
         return NULL;
     } else{
         return address;
@@ -94,8 +94,7 @@ Object import_dll(Executor* E, const char* library_name){
         (LPTSTR) &lpMsgBuf,
         0, NULL );
         Object err;
-        NEW_ERROR(err, "DLL_IMPORT_ERROR", null_const, (char*)lpMsgBuf)
-        free(lpMsgBuf);
+        NEW_ERROR(err, "DLL_IMPORT_ERROR", to_string(library_name), (char*)lpMsgBuf)
         return err;
     }
     #else

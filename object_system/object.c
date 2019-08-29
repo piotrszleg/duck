@@ -8,7 +8,7 @@ static const char* OBJECT_TYPE_NAMES[]={
 
 static inline GarbageCollector* executor_get_garbage_collector(Executor* E){
     return ((ObjectSystem*)E)->gc;
-} 
+}
 
 void garbage_collector_init(GarbageCollector* gc){
     gc->root=NULL;
@@ -17,18 +17,86 @@ void garbage_collector_init(GarbageCollector* gc){
     gc->allocations_count=0;
 }
 
-void heap_object_init(Executor* E, HeapObject* hp){
+bool is_heap_object(Object o){
+    return o.type==t_table || o.type==t_function || o.type==t_managed_pointer || o.type==t_coroutine || o.type==t_symbol;
+}
+
+void heap_object_chain(Executor* E, HeapObject* heap_object){
     GarbageCollector* gc=executor_get_garbage_collector(E);
-    HeapObject* gc_root=gc->root;
-    gc->allocations_count++;
-    
-    hp->ref_count=0;
     if(gc->root!=NULL){
-        gc->root->previous=hp;
+        gc->root->previous=heap_object;
     }
-    hp->next=gc_root;
-    hp->previous=NULL;
-    gc->root=hp;
+    heap_object->next=gc->root;
+    heap_object->previous=NULL;
+    heap_object->attached=true;
+    gc->root=heap_object;
+    gc->allocations_count++;
+}
+
+void heap_object_unchain(Executor* E, HeapObject* heap_object){
+    GarbageCollector* gc=executor_get_garbage_collector(E);
+    if(gc->root==heap_object){
+        gc->root=heap_object->next;
+    }
+    if(heap_object->previous!=NULL){
+        heap_object->previous->next=heap_object->next;
+    }
+    if(heap_object->next!=NULL){
+        heap_object->next->previous=heap_object->previous;
+    }
+    heap_object->previous=heap_object->next=NULL;
+    heap_object->attached=false;
+    gc->allocations_count--;
+}
+
+// The following two functions are used to transfer objects between different object_system instances
+
+void attach(Executor* E, Object* o){
+    if(is_heap_object(*o) && !o->hp->attached){
+        heap_object_chain(E, o->hp);
+        switch(o->type){
+            case t_function:
+                attach(E, &o->fp->enclosing_scope);
+                break;
+            case t_table:
+                table_foreach_children(E, o->tp, attach);
+                break;
+            case t_coroutine:
+                coroutine_foreach_children(E, o->co, attach);
+                break;
+            case t_managed_pointer:
+                o->mp->foreach_children(E, o->mp, attach);
+            default:;
+            // TODO: error on symbols that are not builtin
+        }
+    }
+}
+
+void detach(Executor* E, Object* o){
+    if(is_heap_object(*o) && o->hp->attached){
+        heap_object_unchain(E, o->hp);
+        switch(o->type){
+            case t_function:
+                detach(E, &o->fp->enclosing_scope);
+                break;
+            case t_table:
+                table_foreach_children(E, o->tp, detach);
+                break;
+            case t_coroutine:
+                coroutine_foreach_children(E, o->co, detach);
+                break;
+            case t_managed_pointer:
+                o->mp->foreach_children(E, o->mp, detach);
+            default:;
+            // TODO: error on symbols that are not builtin
+        }
+    }
+}
+
+void heap_object_init(Executor* E, HeapObject* ho){
+    ho->marked=false;
+    ho->ref_count=0;
+    heap_object_chain(E, ho);
 }
 
 Object wrap_heap_object(HeapObject* o){
@@ -75,6 +143,14 @@ void table_init(Executor* E, Object* o){
     table_component_init(o->tp);
 }
 
+void symbol_init(Executor* E, Object* o){
+    o->type=t_symbol;
+    o->sp=malloc(sizeof(Symbol));
+    CHECK_ALLOCATION(o->sp);
+    heap_object_init(E, o->hp);
+    o->hp->gc_type=t_symbol;
+}
+
 void coroutine_init(Executor* E, Object* o){
     o->type=t_coroutine;
     o->co=malloc(sizeof(Coroutine));
@@ -86,6 +162,7 @@ void coroutine_init(Executor* E, Object* o){
 void managed_pointer_init(Executor* E, ManagedPointer* mp, ManagedPointerFreeFunction free){
     heap_object_init(E, &mp->hp);
     mp->hp.gc_type=t_managed_pointer;
+    mp->copy=NULL;
     mp->free=free;
     mp->foreach_children=NULL;
 }
@@ -133,22 +210,6 @@ Object to_native_function(Executor* E, ObjectSystemFunction f, char** argument_n
 }
 
 Object null_const={t_null};
-
-bool is_heap_object(Object o){
-    return o.type==t_table || o.type==t_function || o.type==t_managed_pointer || o.type==t_coroutine || o.type==t_symbol;
-}
-
-void heap_object_unchain(Executor* E, HeapObject* o){
-    if(executor_get_garbage_collector(E)->root==o){
-        executor_get_garbage_collector(E)->root=o->next;
-    }
-    if(o->previous!=NULL){
-        o->previous->next=o->next;
-    }
-    if(o->next!=NULL){
-        o->next->previous=o->previous;
-    }
-}
 
 void reference(Object* o){
     if(is_heap_object(*o) && o->hp->ref_count!=ALREADY_DESTROYED){
@@ -256,8 +317,6 @@ bool gc_should_run(GarbageCollector* gc){
     return gc->allocations_count-gc->survivors_count>MAX_ALLOCATIONS_INCREASE;
 }
 
-char* gc_text="<garbage collected text>";
-
 void heap_object_dereference(Executor* E, HeapObject* o){
     Object wrapped=wrap_heap_object(o);
     dereference(E, &wrapped);
@@ -267,6 +326,8 @@ void heap_object_reference(HeapObject* o){
     Object wrapped=wrap_heap_object(o);
     reference(&wrapped);
 }
+
+static char* gc_text="<garbage collected text>";
 
 void dereference(Executor* E, Object* o){
     if(is_heap_object(*o)) {
@@ -310,7 +371,6 @@ void destroy_unreferenced(Executor* E, Object* o){
                             free(o->fp->argument_names[i]);
                         }
                     }
-                    gc->allocations_count--;
                     free(o->fp);
                     o->fp=NULL;
                 }
@@ -324,7 +384,6 @@ void destroy_unreferenced(Executor* E, Object* o){
                 }
                 if(freeing_memory){
                     heap_object_unchain(E, o->hp);
-                    gc->allocations_count--;
                     table_free(o->tp);
                     o->tp=NULL;
                 }
@@ -337,7 +396,6 @@ void destroy_unreferenced(Executor* E, Object* o){
                 }
                 if(freeing_memory){
                     heap_object_unchain(E, o->hp);
-                    gc->allocations_count--;
                     o->mp->free(o->mp);
                     o->mp=NULL;
                 }
@@ -350,7 +408,6 @@ void destroy_unreferenced(Executor* E, Object* o){
                 }
                 if(freeing_memory){
                     heap_object_unchain(E, o->hp);
-                    gc->allocations_count--;
                     coroutine_free(o->co);
                     o->co=NULL;
                 }
@@ -360,7 +417,6 @@ void destroy_unreferenced(Executor* E, Object* o){
             {
                 if(freeing_memory){
                     heap_object_unchain(E, o->hp);
-                    gc->allocations_count--;
                     free(o->sp->comment);
                     o->sp=NULL;
                 }
@@ -372,27 +428,31 @@ void destroy_unreferenced(Executor* E, Object* o){
 }
 
 void object_system_init(Executor* E){
-    ObjectSystem* executor=OBJECT_SYSTEM(E);
-    executor->gc=malloc(sizeof(GarbageCollector));
-    garbage_collector_init(executor->gc);
-    executor->symbols_counter=0;
-    table_init(E, &executor->overrides_table);
-    reference(&executor->overrides_table);
-    table_init(E, &executor->types_table);
-    reference(&executor->types_table);
+    ObjectSystem* object_system=OBJECT_SYSTEM(E);
+    object_system->gc=malloc(sizeof(GarbageCollector));
+    garbage_collector_init(object_system->gc);
+    object_system->symbols_counter=0;
+    table_init(E, &object_system->overrides_table);
+    reference(&object_system->overrides_table);
+    table_init(E, &object_system->types_table);
+    reference(&object_system->types_table);
 
     #define X(name) \
-        executor->builtin_symbols.name=new_symbol(E, #name); \
-        table_set(E, executor->overrides_table.tp, to_string(#name), executor->builtin_symbols.name);
+        object_system->builtin_symbols.name=new_symbol(E, #name); \
+        table_set(E, object_system->overrides_table.tp, to_string(#name), object_system->builtin_symbols.name);
     OVERRIDES
     #undef X
 
     #define X(name) \
-        executor->type_symbols[t_##name]=new_symbol(E, #name); \
-        table_set(E, executor->types_table.tp, to_string(#name), executor->type_symbols[t_##name]);
+        object_system->type_symbols[t_##name]=new_symbol(E, #name); \
+        table_set(E, object_system->types_table.tp, to_string(#name), object_system->type_symbols[t_##name]);
     OBJECT_TYPES
     #undef X
-     
+    object_system->last_builtin_symbol=object_system->symbols_counter;
+}
+
+bool symbol_is_builtin(Executor* E, Symbol* sp){
+    return sp->index<=OBJECT_SYSTEM(E)->last_builtin_symbol;
 }
 
 Object get_type_symbol(Executor* E, ObjectType type){

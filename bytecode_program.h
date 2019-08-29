@@ -56,7 +56,7 @@ void print_bytecode_program(const BytecodeProgram* program);
 void bytecode_program_init(Executor* E, BytecodeProgram* program);
 void bytecode_program_free(BytecodeProgram* program);
 void list_program_labels(BytecodeProgram* program);
-void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy);
+BytecodeProgram* bytecode_program_copy(Executor* E, const BytecodeProgram* source, bool copy_assumptions);
 bool instructions_equal(Instruction a, Instruction b, void* constants);
 
 #endif

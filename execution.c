@@ -5,6 +5,8 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
         return null_const;// there was an error while parsing
     }
     create_return_point(E, true);
+    reference(&scope);
+    E->scope=scope;
     execute_macros(E, &ast);
     if(E->options.optimise_ast){
         optimise_ast(E, &ast);
@@ -15,8 +17,7 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
     }
     Object execution_result;
     if(!E->options.disable_ast_execution){
-        reference(&scope);
-        execution_result=execute_ast(E, ast, scope, 1);
+        execution_result=execute_ast(E, ast, true);
         if(delete_ast){
             delete_expression(ast);
         }
@@ -37,8 +38,6 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
         E->bytecode_environment.executed_program=bytecode_program;
         // the end instruction will dereference these later
         heap_object_reference((HeapObject*)E->bytecode_environment.executed_program);
-        reference(&scope);
-        E->scope=scope;
         execution_result=execute_bytecode(E);
     } else {
         NEW_ERROR(execution_result, "EVALUATION_ERROR", null_const, "Both bytecode and ast execution are disabled.")
@@ -112,7 +111,8 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
             for(int i=0; i<arguments_count; i++){
                 set(E, function_scope, to_string(f->argument_names[i]), arguments[i]);
             }
-            return execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, function_scope, 1);
+            E->scope=function_scope;
+            return execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, true);
         }
         default:
             RETURN_ERROR("CALL_ERROR", wrap_heap_object((HeapObject*)f), "Function type has incorrect type value of %i", f->ftype)

@@ -1,1 +1,1 @@
--print_bytecode_optimisations -disable_ast_execution input.dk
+-disable_bytecode -dont_optimise_ast -disable_garbage_collector dlls\threads\tests.dk

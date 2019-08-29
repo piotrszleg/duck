@@ -213,7 +213,11 @@ Object builtin_table_stringify(Executor* E, Object scope, Object* arguments, int
 Object builtin_table_copy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object table=arguments[0];
     REQUIRE_ARGUMENT_TYPE(table, t_table)
-    return table_copy(E, table.tp);
+    Object copies;
+    table_init(E, &copies);
+    Object result=table_copy(E, table.tp, copies.tp);
+    dereference(E, &copies);
+    return result;
 }
 
 Object builtin_serialize(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -277,6 +281,14 @@ Object file_destroy(Executor* E, Object scope, Object* arguments, int arguments_
     Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     fclose((FILE*)pointer.p);
+    return null_const;
+}
+
+Object builtin_sleep(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object interval=arguments[0];
+    REQUIRE_ARGUMENT_TYPE(interval, t_int)
+    time_t after_interval=time(NULL)+interval.int_value;
+    while(time(NULL)<=after_interval);
     return null_const;
 }
 
@@ -536,6 +548,7 @@ Object builtins_table(Executor* E){
     REGISTER(remove_file, 1)
     REGISTER(import_dll, 1)
     REGISTER(iterator, 1)
+    REGISTER(sleep, 1)
     REGISTER(time, 0)
     REGISTER(exit, 1)
     REGISTER(terminate, 1)
@@ -603,7 +616,9 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
             // destroy_unreferenced(E, &checked);
             destroy_unreferenced(E, &checked_zero_index);
             checked=table_get(E, checked.tp, OVERRIDE(E, prototype));
-            checked_zero_index=table_get(E, checked.tp, to_int(0));
+            if(checked.type==t_table){
+                checked_zero_index=table_get(E, checked.tp, to_int(0));
+            }
         }
     } while(checked.type==t_table 
          && !EQUALS_STRING(checked_zero_index, "builtins_table"));// builtins table can't be changed
@@ -619,7 +634,7 @@ void inherit_scope(Executor* E, Object scope, Object base){
     if(scope.type!=t_table){
         return;
     }
-    Object base_global=table_get(E, base.tp, to_string("global"));
+    /* Object base_global=table_get(E, base.tp, to_string("global"));
     if(base_global.type!=t_null){
         table_set(E, scope.tp, to_string("global"), base_global);
     } else {
@@ -630,7 +645,7 @@ void inherit_scope(Executor* E, Object scope, Object base){
             table_set(E, scope.tp, to_string("global"), base);
         }
         destroy_unreferenced(E, &base_zero_index);
-    }
+    } */
     table_set(E, scope.tp, OVERRIDE(E, prototype), base);
     table_set(E, scope.tp, OVERRIDE(E, set), to_native_function(E, scope_set_override, NULL, 3, false));
 }

@@ -122,7 +122,18 @@ void print_bytecode_program(const BytecodeProgram* program){
     }
 }
 
-void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy) {
+Assumption assumption_copy(Executor* E, Assumption source){
+    Assumption copied={source.type};
+    if(source.assumption_type==a_constant){
+        copied.constant=copy(E, source.constant);
+    } else {
+        copied.type=source.type;
+    }
+    return copied;
+}
+
+BytecodeProgram* bytecode_program_copy(Executor* E, const BytecodeProgram* source, bool copy_assumptions) {
+    BytecodeProgram* copy=malloc(sizeof(BytecodeProgram));
     int c=0;
     for(; source->code[c].type!=b_end; c++);
     c++;
@@ -140,14 +151,28 @@ void bytecode_program_copy(const BytecodeProgram* source, BytecodeProgram* copy)
 
     copy->calls_count=0;
     copy->statistics.initialized=false;
-    copy->assumptions=NULL;
+    if(copy_assumptions && source->assumptions!=NULL){
+        uint assumptions_count=copy->upvalues_count+copy->expected_arguments;
+        copy->assumptions=malloc(sizeof(Assumption)*assumptions_count);
+        for(int i=0; i<assumptions_count; i++){
+            copy->assumptions[i]=assumption_copy(E, source->assumptions[i]);
+        }
+    } else {
+        copy->assumptions=NULL;
+    }
     
     copy->sub_programs_count=source->sub_programs_count;
     copy->sub_programs=malloc(sizeof(BytecodeProgram)*copy->sub_programs_count);
     for(int i=0; i<source->sub_programs_count; i++){
-       bytecode_program_copy(source->sub_programs[i], copy->sub_programs[i]);
+       copy->sub_programs[i]=bytecode_program_copy(E, source->sub_programs[i], true);
     }
+    bytecode_program_init(E, copy);
+    return copy;
 }
+
+ BytecodeProgram* bytecode_program_copy_override(Executor* E, const BytecodeProgram* source){
+     return bytecode_program_copy(E, source, true);
+ }
 
 #define INITIAL_LABELS_COUNT 4
 int* list_labels(Instruction* code){
@@ -172,6 +197,10 @@ void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, Ma
         Object wrapped=wrap_heap_object((HeapObject*)program->sub_programs[i]);
         callback(E, &wrapped);
     }
+    for(int i=0; i<vector_count(&program->variants); i++){
+        Object wrapped=wrap_heap_object((HeapObject*)pointers_vector_get(&program->variants, i));
+        callback(E, &wrapped);
+    }
 }
 
 void bytecode_program_free(BytecodeProgram* program) {
@@ -181,6 +210,7 @@ void bytecode_program_free(BytecodeProgram* program) {
     free(program->information);
     free(program->constants);
     free(program);
+    vector_deinit(&program->variants);
 }
 
 void bytecode_program_init(Executor* E, BytecodeProgram* program){
@@ -191,6 +221,7 @@ void bytecode_program_init(Executor* E, BytecodeProgram* program){
     vector_init(&program->variants, sizeof(BytecodeProgram), 4);
     managed_pointer_init(E, (ManagedPointer*)&program->mp, (ManagedPointerFreeFunction)bytecode_program_free);
     program->mp.foreach_children=(ManagedPointerForeachChildrenFunction)bytecode_program_foreach_children;
+    program->mp.copy=(ManagedPointerCopyFunction)bytecode_program_copy_override;
     for(int i=0; i<program->sub_programs_count; i++){
         program->sub_programs[i]->source_file_name=strdup(program->source_file_name);
         bytecode_program_init(E, program->sub_programs[i]);

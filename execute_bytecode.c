@@ -153,11 +153,10 @@ void create_variant(Executor* E, BytecodeProgram* program) {
         }
         printf("]\n");
     }
-    BytecodeProgram variant;
-    bytecode_program_copy(program, &variant);
-    variant.assumptions=statistics->previous_calls[most_compatible_signature.index];
-    optimise_bytecode(E, &variant, E->options.print_bytecode_optimisations);
-    vector_push(&program->variants, &variant);
+    BytecodeProgram* variant=bytecode_program_copy(E, program, false);
+    variant->assumptions=statistics->previous_calls[most_compatible_signature.index];
+    optimise_bytecode(E, variant, E->options.print_bytecode_optimisations);
+    pointers_vector_push(&program->variants, variant);
 
     for(int i=0; i<statistics->collected_calls; i++){
         if(i!=most_compatible_signature.index){
@@ -221,7 +220,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
 
 BytecodeProgram* choose_variant(Executor* E, BytecodeProgram* root){
     for(int i=0; i<vector_count(&root->variants); i++){
-        BytecodeProgram* variant=vector_index(&root->variants, i);
+        BytecodeProgram* variant=pointers_vector_get(&root->variants, i);
         unsigned arguments_count=variant->expected_arguments;
         for(int j=0; j<arguments_count; i++){
             Object argument;

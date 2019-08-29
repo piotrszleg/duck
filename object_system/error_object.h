@@ -20,6 +20,9 @@
     NEW_ERROR(err, type, cause, message, ##__VA_ARGS__) \
     return err; }
 
+#define MULTIPLE_CAUSES(...) \
+    multiple_causes(E, OBJECTS_ARRAY(__VA_ARGS__), sizeof(OBJECTS_ARRAY(__VA_ARGS__))/sizeof(Object))
+
 Object multiple_causes(Executor* E, Object* causes, int causes_count);
 Object new_error(Executor* E, char* type, Object cause, char* message, char* location);
 bool is_error(Executor* E, Object o);

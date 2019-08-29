@@ -229,13 +229,43 @@ char* table_stringify(Executor* E, Table* t){
     return table_to_text(E, t, false);
 }
 
-Object table_copy(Executor* E, Table* t) {
+Object table_copy(Executor* E, Table* t, Table* copies) {
     Object copied;
     table_init(E, &copied);
     TableIterator it=table_get_iterator(t);
 
+    #define CHECK_COPIES(before_return) \
+    { \
+        Object copies_field=table_get(E, copies, to_pointer(t)); \
+        if(copies_field.type==t_pointer){ \
+            dereference(E, &copied); \
+            before_return \
+            return wrap_heap_object((HeapObject*)copies_field.p); \
+        } \
+    }
+
+    CHECK_COPIES()
+
     for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
-        table_set(E, copied.tp, copy(E, i.key), copy(E, i.value));
+        Object copied_key=copy_recursive(E, i.key, copies);
+        if(is_error(E, copied_key)){
+            dereference(E, &copied);
+            RETURN_ERROR("COPY_ERROR", MULTIPLE_CAUSES(wrap_heap_object((HeapObject*)t), copied_key), "Copying table failed, because copying one of it's keys failed.");
+        }
+        CHECK_COPIES(
+            dereference(E, &copied_key);
+        )
+        Object copied_value=copy_recursive(E, i.value, copies);
+        if(is_error(E, copied_value)){
+            dereference(E, &copied_key);
+            dereference(E, &copied);
+            RETURN_ERROR("COPY_ERROR", MULTIPLE_CAUSES(wrap_heap_object((HeapObject*)t), copied_value), "Copying table failed, because copying one of it's values failed.");
+        }
+        CHECK_COPIES(
+            dereference(E, &copied_key); 
+            dereference(E, &copied_value);
+        )
+        table_set(E, copied.tp, copied_key, copied_value);
     }
     return copied;
 }

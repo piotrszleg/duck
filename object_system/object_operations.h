@@ -4,6 +4,7 @@
 #include "object.h"
 #include "Table.h"
 #include "../utility.h"
+#include "../datatypes/map.h"
 #include <stdbool.h>
 
 #define STRINGIFY_BUFFER_SIZE 32
@@ -42,6 +43,7 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
 
 bool is_serializable(Object o);
 char* serialize(Executor* E, Object o);
+Object copy_recursive(Executor* E, Object o, Table* copies);
 Object copy(Executor* E, Object o);
 char* suprintf (const char * format, ...);
 char* stringify_object(Executor* E, Object o);

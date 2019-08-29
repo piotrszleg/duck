@@ -1,0 +1,10 @@
+threads=import_dll("dlls/threads/threads.dll")
+test=channel->{
+    print("Thread started")
+    print("Received: "+channel::receive())
+}
+channel=threads.new_channel()
+th=threads.start(test, channel)
+sleep(1)
+channel::send([10, 10])
+th::join()

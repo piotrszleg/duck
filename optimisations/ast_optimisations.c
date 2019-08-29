@@ -86,9 +86,7 @@ expression* to_literal(Executor* E, Object o){
 }
 
 Object evaluate_expression(Executor* E, expression* exp){
-    Object scope;
-    table_init(E, &scope);
-    return execute_ast(E, exp, scope, 0);
+    return execute_ast(E, exp, false);
 }
 
 ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){

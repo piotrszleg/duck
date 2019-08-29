@@ -18,7 +18,7 @@ range_iterator=(start, end, step)->[
 repeat=(times ,f)->{
     f()
     if(times>1){
-        loop(times-1, f)
+        repeat(times-1, f)
     }
 }
 while=f->if(f()) while(f) else null

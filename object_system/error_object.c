@@ -20,10 +20,7 @@ Object multiple_causes_stringify(Executor* E, Object scope, Object* arguments, i
     int count=count_object.int_value;
 
     for(int i=0; i<count; i++){
-        char stringified_key[64];
-        snprintf(stringified_key, 64, "%i", i);
-
-        Object value=get(E, self, to_string(stringified_key));
+        Object value=get(E, self, to_int(i));
         char* stringified_value=stringify(E, value);
 
         char* formatted=suprintf("(%i/%i) %s\n", i+1, count, stringified_value);
@@ -42,9 +39,7 @@ Object multiple_causes(Executor* E, Object* causes, int causes_count){
     table_init(E, &result);
 
     for(int i=0; i<causes_count; i++){
-        char buffer[64];
-        snprintf(buffer, 64, "%i", i);
-        set(E, result, to_string(buffer), causes[i]);
+        set(E, result, to_int(i), causes[i]);
     }
     set(E, result, to_string("count"), to_int(causes_count));
 
@@ -76,7 +71,7 @@ Object error_stringify(Executor* E, Object scope, Object* arguments, int argumen
 bool is_error(Executor* E, Object o){
     bool result=false;
     if(o.type==t_table){
-        Object is_error=get(E, o, to_string("error"));
+        Object is_error=get(E, o, OVERRIDE(E, is_error));
         result=is_truthy(is_error);
         destroy_unreferenced(E, &is_error);
     }
@@ -117,7 +112,7 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
     set(E, err, to_string("message"), to_string(message));
     set(E, err, to_string("location"), to_string(location));
 
-    set(E, err, to_string("error"), to_int(1));
+    set(E, err, OVERRIDE(E, is_error), to_int(1));
     set(E, err, to_string("handled"), to_int(0));
 
     set(E, err, OVERRIDE(E, stringify), to_native_function(E, error_stringify, NULL, 1, false));
