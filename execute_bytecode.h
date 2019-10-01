@@ -39,6 +39,7 @@ typedef struct {
 void bytecode_environment_init(BytecodeEnvironment* environment);
 void bytecode_environment_deinit(BytecodeEnvironment* environment);
 
+void print_object_stack(Executor* E, const vector* s);
 void push(vector* stack, Object o);
 Object pop(vector* stack);
 Object execute_bytecode(Executor* E);

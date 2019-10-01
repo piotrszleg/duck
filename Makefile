@@ -1,13 +1,32 @@
 submodules := object_system/object_system.a parser/parser.a
 
-source-files := bytecode.c bytecode_program.c ast_to_bytecode.c execute_bytecode.c execute_ast.c \
-error/execution_state.c execution.c runtime/builtins.c optimisations/ast_optimisations.c \
-optimisations/bytecode_optimisations.c optimisations/dummy.c optimisations/transformation.c \
-datatypes/stream.c datatypes/vector.c runtime/struct_descriptor.c repl.c runtime/import_dll.c \
-options.c utility.c macros.c coroutine.c
+source-files := \
+	bytecode.c \
+	bytecode_program.c \
+	ast_to_bytecode.c \
+	execute_bytecode.c \
+	execute_ast.c \
+	error/execution_state.c \
+	execution.c \
+	runtime/builtins.c \
+	optimisations/ast_optimisations.c \
+	optimisations/bytecode_optimisations.c \
+	optimisations/dummy.c \
+	optimisations/transformation.c \
+	datatypes/stream.c \
+	datatypes/vector.c \
+	runtime/struct_descriptor.c \
+	repl.c \
+	runtime/import_dll.c \
+	options.c \
+	utility.c \
+	macros.c \
+	coroutine.c \
+	myjit/jitlib-core.c \
+	bytecode_to_myjit.c\
 
 host-tests-path := tests.exe
-options := -g -Wall -Wl,--out-implib,libhost.a -Wl,--export-all-symbols
+options := -g -Wall -Wl,--out-implib,libhost.a -Wl,--export-all-symbols -IE:\Libraries\libffi-3.2.1/i686-pc-mingw32/include/
 executable-path := duck.exe
 sandbox-path := sandbox.exe
 

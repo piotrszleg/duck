@@ -237,6 +237,9 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
                 if(E->options.print_bytecode){
                     print_bytecode_program(bytecode_program);
                 }
+                if(E->options.compile_bytecode_immediately){
+                    compile_bytecode_program(E, bytecode_program);
+                }
                 f.fp->source_pointer=(HeapObject*)bytecode_program;
             } else {
                 f.fp->ftype=f_ast;

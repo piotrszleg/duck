@@ -167,6 +167,19 @@ Object new_channel(Executor* E, Object scope, Object* arguments, int arguments_c
     }
 }
 
+/*
+shared table
+{
+    Table* table,
+    pthread_cond_t condition
+    pthread_mutex_t mutex
+}
+
+get - access the table through mutex, get field, copy it over
+set - detach nad copy the object
+destroy - attach all table fields to current executor and call destroy on them
+*/
+
 Object thread_join(Executor* E, pthread_t thread){
     Object* returned_value;
     if(pthread_join(thread, (void**)&returned_value)) {

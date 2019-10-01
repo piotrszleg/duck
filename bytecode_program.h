@@ -26,15 +26,19 @@ typedef struct {
     uint collected_calls;
 } CallStatistics;
 
+typedef struct BytecodeProgram BytecodeProgram;
+
+typedef void (*CompiledFunction)(Executor* E, BytecodeProgram* bytecode_program, Object* result);
+
 typedef struct FunctionVariant FunctionVariant;
 
-typedef struct BytecodeProgram BytecodeProgram;
 struct BytecodeProgram {
     ManagedPointer mp;
     
     char* source_file_name;
     Instruction* code;
-    int* labels;
+    uint* labels;
+    uint labels_count;
     InstructionInformation* information;
     char* constants;
     int constants_size;
@@ -43,12 +47,13 @@ struct BytecodeProgram {
     int sub_programs_count;
     
     Assumption* assumptions;
-    unsigned expected_arguments;
-    unsigned* upvalues;
-    unsigned upvalues_count;
-    unsigned calls_count;
+    uint expected_arguments;
+    uint* upvalues;
+    uint upvalues_count;
+    uint calls_count;
     CallStatistics statistics;
     vector variants;
+    CompiledFunction compiled;
 };
 
 void print_instruction(Instruction instruction, void* constants);

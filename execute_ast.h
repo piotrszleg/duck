@@ -3,6 +3,7 @@
 
 #include "parser/ast.h"
 #include "object_system/object.h"
+#include "bytecode_to_myjit.h"
 
 typedef struct {
     ManagedPointer mp;

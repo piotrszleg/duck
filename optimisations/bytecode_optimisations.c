@@ -61,29 +61,6 @@ Dummy* assumption_to_dummy(Executor* E, Assumption* assumption, unsigned* dummy_
     }
 }
 
-#define SPECIFIED_INSTRUCTIONS \
-    BINARY(b_add, "+") \
-    BINARY(b_subtract, "-") \
-    BINARY(b_multiply, "*") \
-    BINARY(b_divide, "/") \
-    BINARY(b_divide_floor, "//") \
-    BINARY(b_modulo, "%") \
-    BINARY(b_add_int, "+") \
-    BINARY(b_subtract_int, "-") \
-    BINARY(b_multiply_int, "*") \
-    BINARY(b_divide_int, "/") \
-    BINARY(b_divide_floor_int, "//") \
-    BINARY(b_modulo_int, "%") \
-    BINARY(b_add_float, "+") \
-    BINARY(b_subtract_float, "-") \
-    BINARY(b_multiply_float, "*") \
-    BINARY(b_divide_float, "/") \
-    BINARY(b_add_string, "+") \
-    PREFIX(b_minus, "-") \
-    PREFIX(b_minus_int, "-") \
-    PREFIX(b_minus_float, "-") \
-    PREFIX(b_not, "!")
-
 bool instruction_is_constant(Instruction* instruction, Transformation* transformation) {
     switch(instruction->type) {
         case b_null:
@@ -103,7 +80,7 @@ bool instruction_is_constant(Instruction* instruction, Transformation* transform
         #define PREFIX(instruction, op) \
             case instruction: \
                 return operator_predict_result(t_null, dummy_type(transformation->inputs[0]), op)!=tu_unknown;
-        SPECIFIED_INSTRUCTIONS
+        OPERATOR_INSTRUCTIONS
         #undef BINARY
         #undef PREFIX
         case b_binary:
@@ -268,7 +245,7 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                 } \
                 break; \
             }
-        SPECIFIED_INSTRUCTIONS
+        OPERATOR_INSTRUCTIONS
         #undef BINARY
         #undef PREFIX
         default:;

@@ -175,22 +175,24 @@ BytecodeProgram* bytecode_program_copy(Executor* E, const BytecodeProgram* sourc
  }
 
 #define INITIAL_LABELS_COUNT 4
-int* list_labels(Instruction* code){
-    int* labels=malloc(INITIAL_LABELS_COUNT*sizeof(int));
+void bytecode_program_list_labels(BytecodeProgram* program){
+    uint* labels=malloc(INITIAL_LABELS_COUNT*sizeof(uint));
     int labels_count=INITIAL_LABELS_COUNT;
     int pointer=0;
-    while(code[pointer].type!=b_end){
-        if(code[pointer].type==b_label){
-            while(code[pointer].uint_argument>labels_count){
+    while(program->code[pointer].type!=b_end){
+        if(program->code[pointer].type==b_label){
+            while(program->code[pointer].uint_argument>labels_count){
                 labels_count*=2;
-                labels=realloc(labels, labels_count*sizeof(int));
+                labels=realloc(labels, labels_count*sizeof(uint));
             }
-            labels[code[pointer].uint_argument]=pointer;
+            labels[program->code[pointer].uint_argument]=pointer;
         }
         pointer++;
     }
-    return labels;
+    program->labels=labels;
+    program->labels_count=labels_count;
 }
+#undef INITIAL_LABELS_COUNT
 
 void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, ManagedPointerForeachChildrenCallback callback) {
     for(int i=0; i<program->sub_programs_count; i++){
@@ -214,7 +216,7 @@ void bytecode_program_free(BytecodeProgram* program) {
 }
 
 void bytecode_program_init(Executor* E, BytecodeProgram* program){
-    program->labels=list_labels(program->code);
+    bytecode_program_list_labels(program);
     program->calls_count=0;
     program->statistics.initialized=false;
     program->assumptions=NULL;
@@ -227,4 +229,5 @@ void bytecode_program_init(Executor* E, BytecodeProgram* program){
         bytecode_program_init(E, program->sub_programs[i]);
         heap_object_reference((HeapObject*)program->sub_programs[i]);
     }
+    program->compiled=NULL;
 }

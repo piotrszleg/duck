@@ -11,20 +11,20 @@ static const char* help= \
     "\t-version\n"
     "\t-?\n"
     "\nOptions with integer argument are:\n"
-    #define BOOLEAN(name, default)
-    #define UNSIGNED(name, default) \
+    #define BOOL(name, default)
+    #define UINT(name, default) \
         "\t-"#name"=<number>\n"
     OPTIONS
-    #undef BOOLEAN
-    #undef UNSIGNED
+    #undef BOOL
+    #undef UINT
     "Example of usage: \"-collected_calls=10\"\n"
-    "\nBoolean options are:\n"
-    #define BOOLEAN(name, default) \
+    "\nBOOL options are:\n"
+    #define BOOL(name, default) \
         "\t-"#name"\n"
-    #define UNSIGNED(name, default)
+    #define UINT(name, default)
     OPTIONS
-    #undef BOOLEAN
-    #undef UNSIGNED
+    #undef BOOL
+    #undef UINT
     "To disable them prepend their name with \"dont_\", for example: \"-dont_print_ast\"\n"
     "You can also enable and disable them using equality sign, for example: \"-print_ast=1\" and \"-print_ast=0\"\n"
     "\nFirst argument without \"-\" is script file name, the arguments following it are passed to the script in variable named \"arguments\"\n"
@@ -36,11 +36,11 @@ const Options default_options={
     .script_arguments=NULL,
     .should_run=true,
     .repl=false,
-    #define BOOLEAN(name, default) .name=default,
-    #define UNSIGNED(name, default) .name=default,
+    #define BOOL(name, default) .name=default,
+    #define UINT(name, default) .name=default,
     OPTIONS
-    #undef BOOLEAN
-    #undef UNSIGNED
+    #undef BOOL
+    #undef UINT
 };
 
 void read_arguments(Options* options, int arguments_count, char **arguments) {
@@ -54,25 +54,25 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
                     matched=true; \
                     {action} \
                 }
-            #define BOOLEAN(name, default) \
+            #define BOOL(name, default) \
                 OPTION(#name, options->name=true;) \
                 OPTION(#name"=1", options->name=true;) \
                 OPTION("dont_"#name, options->name=false;) \
                 OPTION(#name"=0", options->name=false;)
-            #define UNSIGNED(name, default) \
+            #define UINT(name, default) \
                 if(strings_counted_equal(arguments[i]+1, #name"=", sizeof(#name"=")-1)){ \
                     matched=true; \
                     options->name=strtol(arguments[i]+1+sizeof(#name"=")-1, NULL, 10); \
                 }
             OPTIONS
-            #undef BOOLEAN
-            #undef UNSIGNED
+            #undef BOOL
+            #undef UINT
             OPTION("repl", options->repl=true; ) \
             OPTION("version", printf(version); options->should_run=false; )
             OPTION("?", printf(help);
                     options->should_run=false; )
             #undef OPTION
-            #undef BOOLEAN_OPTION
+            #undef BOOL_OPTION
             if(!matched){
                 printf("Unknown command %s", arguments[i]);
                 options->should_run=false;

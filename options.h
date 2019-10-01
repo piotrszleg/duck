@@ -4,43 +4,44 @@
 #include "utility.h"
 
 #define OPTIONS \
-    BOOLEAN(disable_garbage_collector, false) \
-    BOOLEAN(disable_bytecode, false) \
-    BOOLEAN(disable_ast_execution, false) \
-    BOOLEAN(print_ast, false) \
-    BOOLEAN(print_ast_optimisations, false) \
-    BOOLEAN(print_bytecode, false) \
-    BOOLEAN(debug, false) \
-    BOOLEAN(include_builtins, true) \
-    BOOLEAN(optimise_ast, true) \
-    BOOLEAN(ast_remove_useless_expressions, true) \
-    BOOLEAN(ast_optimise_conditionals, true) \
-    BOOLEAN(ast_fold_constants, true) \
-    BOOLEAN(optimise_at_runtime, true) \
-    BOOLEAN(optimise_bytecode, true) \
-    BOOLEAN(print_bytecode_optimisations, false) \
-    BOOLEAN(optimise_tail_calls, true) \
-    BOOLEAN(optimise_jump_to_return, true) \
-    BOOLEAN(optimise_stack_operations, true) \
-    BOOLEAN(inline_functions, true) \
-    BOOLEAN(inline_native_calls, true) \
-    BOOLEAN(fold_constants, true) \
-    BOOLEAN(remove_useless_operations, true) \
-    BOOLEAN(use_typed_instructions, true) \
-    UNSIGNED(calls_before_optimisation, 5) \
-    UNSIGNED(collected_calls, 10) \
-    UNSIGNED(constant_threshold, 3)
+    BOOL(disable_garbage_collector, false) \
+    BOOL(disable_bytecode, false) \
+    BOOL(disable_ast_execution, false) \
+    BOOL(print_ast, false) \
+    BOOL(print_ast_optimisations, false) \
+    BOOL(print_bytecode, false) \
+    BOOL(debug, false) \
+    BOOL(include_builtins, true) \
+    BOOL(optimise_ast, true) \
+    BOOL(ast_remove_useless_expressions, true) \
+    BOOL(ast_optimise_conditionals, true) \
+    BOOL(ast_fold_constants, true) \
+    BOOL(optimise_at_runtime, true) \
+    BOOL(optimise_bytecode, true) \
+    BOOL(print_bytecode_optimisations, false) \
+    BOOL(optimise_tail_calls, true) \
+    BOOL(optimise_jump_to_return, true) \
+    BOOL(optimise_stack_operations, true) \
+    BOOL(inline_functions, true) \
+    BOOL(inline_native_calls, true) \
+    BOOL(fold_constants, true) \
+    BOOL(remove_useless_operations, true) \
+    BOOL(use_typed_instructions, true) \
+    BOOL(compile_bytecode_immediately, true) \
+    UINT(calls_before_optimisation, 5) \
+    UINT(collected_calls, 10) \
+    UINT(constant_threshold, 3)
 
 typedef struct {
     char* file_path;
     char** script_arguments;// NULL terminated array
     bool should_run;
     bool repl;
-    #define BOOLEAN(name, default) bool name;
-    #define UNSIGNED(name, default) unsigned name;
+    #define BOOL(name, default) bool name;
+    #define UINT(name, default) unsigned name;
     OPTIONS
-    #undef BOOLEAN
-    #undef UNSIGNED
+    #undef BOOL
+    #undef UINT
 } Options;
 
 extern const Options default_options;

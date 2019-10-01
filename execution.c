@@ -101,7 +101,15 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
                 push(&E->bytecode_environment.object_stack, arguments[i]);
             }
             move_to_function(E, f);
-            return execute_bytecode(E);
+            BytecodeProgram* bytecode_program=(BytecodeProgram*)f->source_pointer;
+            if(bytecode_program->compiled!=NULL){
+                Object result;
+                bytecode_program->compiled(E, bytecode_program, &result);
+                pop_return_point(E);
+                return result;
+            } else {
+                return execute_bytecode(E);
+            }
         case f_ast: {
             Object function_scope;
             table_init(E, &function_scope);

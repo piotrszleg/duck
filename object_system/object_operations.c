@@ -551,7 +551,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
     Object b_casted;
     #define CAST_B \
         if(b.type!=a.type){/* checking it here avoids unecessary function call */ \
-            Object b_casted=cast(E, b, a.type); \
+            b_casted=cast(E, b, a.type); \
             if(b_casted.type!=a.type){ \
                 return b_casted;/* b_casted is conversion error */ \
             } \

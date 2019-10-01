@@ -15,8 +15,7 @@
     X(end) /*           denotes the end of the program */ \
     X(no_op) /*         used in optimisation proccess, does nothing */ \
     X(discard) /*       removes one value from the stack */ \
-    X(move_top) /*      (uint_argument) moves the object on the top of the stack by argument move_top(ABC, 1)=ACB move_top(ABC, 2)=CAB */ \
-    X(push_to_top)/*    (uint_argument) moves the Object lying argument number of items from the top to the top move_top(ABC, 1)=ACB move_top(ABC, 2)=BCA */ \
+    X(push_to_top)/*    (uint_argument) moves the Object lying argument number of items from the top to the top push_to_top(ABC, 1)=ACB push_to_top(ABC, 2)=BCA */ \
     X(double) /*        creates a copy of topmost stack item */ \
     X(load_string) /*   (uint_argument position_in_constants) */ \
     X(load_int) /*      (int_argument) */ \
@@ -67,6 +66,29 @@
     X(divide_float) \
     X(minus_float) \
     X(add_string)
+
+#define OPERATOR_INSTRUCTIONS \
+    BINARY(b_add, "+") \
+    BINARY(b_subtract, "-") \
+    BINARY(b_multiply, "*") \
+    BINARY(b_divide, "/") \
+    BINARY(b_divide_floor, "//") \
+    BINARY(b_modulo, "%") \
+    BINARY(b_add_int, "+") \
+    BINARY(b_subtract_int, "-") \
+    BINARY(b_multiply_int, "*") \
+    BINARY(b_divide_int, "/") \
+    BINARY(b_divide_floor_int, "//") \
+    BINARY(b_modulo_int, "%") \
+    BINARY(b_add_float, "+") \
+    BINARY(b_subtract_float, "-") \
+    BINARY(b_multiply_float, "*") \
+    BINARY(b_divide_float, "/") \
+    BINARY(b_add_string, "+") \
+    PREFIX(b_minus, "-") \
+    PREFIX(b_minus_int, "-") \
+    PREFIX(b_minus_float, "-") \
+    PREFIX(b_not, "!")
 
 typedef enum {
     #define X(t) b_##t,

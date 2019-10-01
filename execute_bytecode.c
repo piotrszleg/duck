@@ -17,28 +17,15 @@ Object peek(vector* stack){
     return *(Object*)vector_top(stack);
 }
 
-char* stringify_object_stack(Executor* E, const vector* s){
+void print_object_stack(Executor* E, const vector* s){
+    printf("Object stack:\n");
     int pointer=0;
-    int string_end=0;
-    int result_size=64;
-    char* result=calloc(64, sizeof(char));
-    CHECK_ALLOCATION(result);
-    
     Object* casted_items=(Object*)s->items;
     while(pointer<vector_count(s)){
-        char* stringified_item=stringify(E, *(casted_items+pointer));
-        int stringified_length=strlen(stringified_item);
-        if(result_size-string_end+2<=stringified_length){// +2 for separator
-            result_size*=2;
-            result=realloc(result, result_size);
-        }
-        strncat(result, stringified_item, result_size);
-        strncat(result, ", ", result_size);
-        string_end+=stringified_length+2;
+        USING_STRING(stringify(E, casted_items[pointer]), 
+            printf("%s\n", str))
         pointer++;
     }
-    result[string_end]='\0';
-    return result;
 }
 
 void print_assumption(Executor* E, Assumption* a){
@@ -274,7 +261,7 @@ void create_return_point(Executor* E, bool terminate){
     vector_push(&environment->return_stack, &return_point);
 }
 
-// returns true if execute_bytecode function should return value from stack instead of continueing
+// returns true if execute_bytecode function should return value from stack instead of continuing
 bool pop_return_point(Executor* E) {
     if(E->bytecode_environment.executed_program!=NULL){
         heap_object_dereference(E, (HeapObject*)E->bytecode_environment.executed_program);
@@ -356,8 +343,7 @@ void debugger(Executor* E){
             print_allocated_objects(E);
         )
         COMMAND("stack",
-            USING_STRING(stringify_object_stack(E, &environment->object_stack),
-                printf("%s\n", str));
+            print_object_stack(E, &environment->object_stack);
         )
         COMMAND("scope",
             USING_STRING(stringify(E, E->scope),
@@ -453,6 +439,8 @@ Object execute_bytecode(Executor* E){
                 break;   }
 
         switch(instruction.type){
+            case b_no_op:
+                break;
             case b_discard:
             {
                 // remove item from the stack and delete it if it's not referenced
@@ -460,18 +448,7 @@ Object execute_bytecode(Executor* E){
                 dereference(E, &top);
                 break;
             }
-            case b_no_op:
-                break;
             #define INDEX_STACK(index) ((Object*)object_stack->items)[object_stack->count-1-(index)]
-            case b_move_top:
-            {
-                for(int i=0; i<instruction.uint_argument; i++){
-                    Object temporary=INDEX_STACK(i);
-                    INDEX_STACK(i)=INDEX_STACK(i+1);
-                    INDEX_STACK(i+1)=temporary;
-                }
-                break;
-            }
             case b_push_to_top:
             {
                 for(int i=instruction.uint_argument; i>=1; i--){

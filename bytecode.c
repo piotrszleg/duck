@@ -12,7 +12,6 @@ int gets_from_stack(Instruction instr){
         X(b_discard, 1)
         X(b_double, 1)
         X(b_push_to_top, instr.uint_argument+1)
-        X(b_move_top, instr.uint_argument+1)
         X(b_return, 1)
         X(b_end, 1)
         X(b_leave_scope, 1)
@@ -59,7 +58,6 @@ int pushes_to_stack(Instruction instr){
     switch(instr.type){
         X(b_double, 2)
         X(b_push_to_top, instr.uint_argument+1)
-        X(b_move_top, instr.uint_argument+1)
         X(b_swap, MAX(instr.swap_argument.left, instr.swap_argument.right)+1)
         X(b_end, 0)
         X(b_no_op, 0)

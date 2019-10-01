@@ -164,7 +164,8 @@ void vector_delete_range(vector* v, int start, int end){
 }
 
 void* vector_pop(vector* v){
-    vector_check_downsize(v);// downsize is here because we don't want to deallocate the returned pointer
+    // TEMPORARY
+    // vector_check_downsize(v);// downsize is here because we don't want to deallocate the returned pointer
     v->count--;
     char* item_position=((char*)v->items) + v->count*v->item_size;
     return (void*)item_position;
