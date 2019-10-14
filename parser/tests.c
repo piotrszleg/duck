@@ -128,10 +128,16 @@ void paths(){
     printf("TEST: %s\n", __FUNCTION__);
 
     block* as_block=parse_block("base.call, options[\"volume\"], options[user.name], base.graphics[\"effects\"]", 4);
+    expression_type line_types[]={
+        e_member_access,
+        e_indexer,
+        e_indexer,
+        e_indexer
+    };
     // test if type of each expression is 'prefix' and compare operators on each line to the ones in tested_operators array
     for (int i = 0; i < vector_count(&as_block->lines); i++){
         expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
-        assert(e->type==e_path);
+        assert(e->type==line_types[i]);
     }
 
     delete_expression((expression*)as_block);
@@ -250,7 +256,7 @@ void blocks(){
 void messages(){
     printf("TEST: %s\n", __FUNCTION__);
 
-    int counts[]={0, 1, 2, 2};
+    int counts[]={1, 2, 3, 3};
 
     block* as_block=parse_block(
     "a::b()\n"
@@ -260,8 +266,13 @@ void messages(){
     , 4);
     for (int i = 0; i < vector_count(&as_block->lines); i++){
         expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
-        assert(e->type==e_message);
-        assert(vector_count(&((message*)e)->arguments->lines)==counts[i]);
+        assert(e->type==e_block);// TODO: make it more specific
+        block* message_block=(block*)e;
+        assert(vector_count(&message_block->lines)==2);
+        expression* second_line=pointers_vector_get(&message_block->lines, 1);
+        assert(second_line->type==e_function_call);
+        table_literal* arguments=((function_call*)second_line)->arguments;
+        assert(vector_count(&arguments->lines)==counts[i]);
     }
     delete_expression((expression*)as_block);
     printf("test successful\n");
@@ -278,7 +289,7 @@ void closures(){
     block* as_block=parse_block(
     "{a=1, ->a}\n"
     "{->a=1, ->a}\n"
-    "{a=1, ->->a}"
+    "{a=1, ->(->a)}"
     , 3);
     
     // TODO: some kind of pattern matching traversal instead of these macros
@@ -290,17 +301,17 @@ void closures(){
     printf("test successful\n");
 }
 
-void question_marks(){
+void return_if_errors(){
     printf("TEST: %s\n", __FUNCTION__);
 
     block* as_block=parse_block(
-    "1?\n"
-    "1?, 1?\n"
+    "1!?\n"
+    "1!?, 1!?\n"
     , 3);
 
     for (int i = 0; i < vector_count(&as_block->lines); i++){
         expression* e=(expression*)pointers_vector_get(&as_block->lines, i);
-        assert(e->type==e_question_mark);
+        assert(e->type==e_return_if_error);
     }
     delete_expression((expression*)as_block);
     printf("test successful\n");
@@ -400,5 +411,5 @@ int main(){
     messages();
     ast_tests();
     closures();
-    question_marks();
+    return_if_errors();
 }

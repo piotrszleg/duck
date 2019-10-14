@@ -23,7 +23,6 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
         }
     } else if(!E->options.disable_bytecode) {
         BytecodeProgram* bytecode_program=ast_to_bytecode(ast, true);
-        bytecode_program_init(E, bytecode_program);
         bytecode_program->source_file_name=strdup(file_name);
         if(delete_ast){
             delete_expression(ast);// at this point ast is useless and only wastes memory
@@ -31,6 +30,7 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
         if(E->options.optimise_bytecode){
             optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);
         }
+        bytecode_program_init(E, bytecode_program);
         if(E->options.print_bytecode){
             print_bytecode_program(bytecode_program);
         }

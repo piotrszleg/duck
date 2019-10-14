@@ -61,5 +61,6 @@
         "list": "c",
         "unordered_map": "c",
         "xhash": "c"
-    }
+    },
+    "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
 }

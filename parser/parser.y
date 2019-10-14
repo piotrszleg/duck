@@ -55,15 +55,14 @@ argument* name_to_argument(name* n) {
 %token ELIF
 %token ELSE
 %token NULL_LITERAL
+%token DOT
 %token ELLIPSIS
 %token ARROW
 %token FOUR_DOTS
 %token AT
-%token QUESTION_MARK
-%token DOLLAR
+%token QUESTION_MARK 
 
-// define the "terminal symbol" token types I'm going to use (in CAPS
-// by convention), and associate each with a field of the union:
+// define the "terminal symbol" token types and associate each with a field of the union:
 %token <ival> INT
 %token <fval> FLOAT
 %token <sval> STRING
@@ -75,7 +74,13 @@ argument* name_to_argument(name* n) {
 %type <exp> block;
 %type <exp> table;
 %type <exp> table_contents;
-%type <exp> path;
+%type <exp> identifier;
+%type <exp> member_access;
+%type <exp> self_member_access;
+%type <exp> null_conditional_member_access;
+%type <exp> indexer;
+%type <exp> null_conditional_indexer;
+%type <exp> self_indexer;
 %type <exp> lines;
 %type <exp> expression;
 %type <exp> literal;
@@ -95,7 +100,7 @@ argument* name_to_argument(name* n) {
 %type <exp> macro_declaration;
 %type <exp> argument;
 %type <exp> return;
-%type <exp> question_mark;
+%type <exp> return_if_error;
 
 %%
 program:
@@ -151,32 +156,12 @@ table:
 		$$=(expression*)b;
 	}
 	;
-path:
-	name {
-		path* p=new_path();
-		ADD_DEBUG_INFO(p)
-		pointers_vector_push(&p->lines, $1);
-		$$=(expression*)p;
-	}
-	| DOLLAR '[' expression ']' {
-		path* p=new_path();
-		ADD_DEBUG_INFO(p)
-		pointers_vector_push(&p->lines, $3);
-		$$=(expression*)p;
-	}
-	| path '.' name {
-		pointers_vector_push(&((path*)$1)->lines, $3);
-	}
-	| path '[' expression ']' {
-		pointers_vector_push(&((path*)$1)->lines, $3);
-	}
-	;
 expression:
 	| parentheses
 	| literal
 	| block
 	| table
-	| path
+	| identifier
 	| assignment
 	| call
 	| function
@@ -188,7 +173,7 @@ expression:
 	| macro
 	| macro_declaration
 	| return
-	| question_mark
+	| return_if_error
 	;
 parentheses:
 	'(' expression ')' {
@@ -196,6 +181,67 @@ parentheses:
 		ADD_DEBUG_INFO(p)
 		p->value=$2;
 		$$=(expression*)p;
+	}
+	;
+identifier:
+	name
+	| self_member_access
+	| member_access
+	| self_indexer
+	| indexer
+	| null_conditional_member_access
+	| null_conditional_indexer
+	;
+self_member_access:
+	DOT name {
+		self_member_access* ma=new_self_member_access();
+		ADD_DEBUG_INFO(ma)
+		ma->right=(name*)$2;
+		$$=(expression*)ma;
+	}
+	;
+member_access:
+	identifier DOT name {
+		member_access* ma=new_member_access();
+		ADD_DEBUG_INFO(ma)
+		ma->left=$1;
+		ma->right=(name*)$3;
+		$$=(expression*)ma;
+	}
+	;
+null_conditional_member_access:
+	identifier QUESTION_MARK DOT name {
+		null_conditional_member_access* ma=new_null_conditional_member_access();
+		ADD_DEBUG_INFO(ma)
+		ma->left=$1;
+		ma->right=(name*)$4;
+		$$=(expression*)ma;
+	}
+	;
+indexer:
+	identifier '[' expression ']' {
+		indexer* i=new_indexer();
+		ADD_DEBUG_INFO(i)
+		i->left=$1;
+		i->right=$3;
+		$$=(expression*)i;
+	}
+	;
+null_conditional_indexer:
+	identifier QUESTION_MARK '[' expression ']' {
+		null_conditional_indexer* i=new_null_conditional_indexer();
+		ADD_DEBUG_INFO(i)
+		i->left=$1;
+		i->right=$4;
+		$$=(expression*)i;
+	}
+	;
+self_indexer:
+	DOT '[' expression ']' {
+		self_indexer* i=new_self_indexer();
+		ADD_DEBUG_INFO(i)
+		i->right=$3;
+		$$=(expression*)i;
 	}
 	;
 return:
@@ -207,10 +253,10 @@ return:
 	}
 	;
 macro:
-	AT path {
+	AT name {
 		macro* m=new_macro();
 		ADD_DEBUG_INFO(m)
-		m->pth=(path*)$2;
+		m->identifier=(name*)$2;
 		$$=(expression*)m;
 	}
 	;
@@ -356,11 +402,11 @@ name:
 	  }
 	  ;
 assignment:
-	path ASSIGN_BINARY_OPERATOR expression 
+	identifier ASSIGN_BINARY_OPERATOR expression 
 	{
 		assignment* a=new_assignment();
 		ADD_DEBUG_INFO(a)
-		a->left=(path*)$1;
+		a->left=(expression*)$1;
 		binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
 		u->left=copy_expression($1);
@@ -370,11 +416,11 @@ assignment:
 		a->used_in_closure=false;
 		$$=(expression*)a;
 	}
-	| path '=' expression 
+	| identifier '=' expression 
 	{
 		assignment* a=new_assignment();
 		ADD_DEBUG_INFO(a)
-		a->left=(path*)$1;
+		a->left=(expression*)$1;
 		a->right=$3;
 		a->used_in_closure=false;
 		$$=(expression*)a;
@@ -464,13 +510,13 @@ prefix:
 		$$=(expression*)p;
 	}
 	;
-question_mark:
-	expression QUESTION_MARK
+return_if_error:
+	expression '!' QUESTION_MARK
 	{
-		question_mark* q=new_question_mark();
-		ADD_DEBUG_INFO(q)
-		q->value=$1;
-		$$=(expression*)q;
+		return_if_error* r=new_return_if_error();
+		ADD_DEBUG_INFO(r)
+		r->value=$1;
+		$$=(expression*)r;
 	}
 	;
 OPT_ENDLS:

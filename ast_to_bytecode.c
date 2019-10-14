@@ -111,59 +111,84 @@ bool is_upvalue(BytecodeTranslation* translation, char* key){
     return true;
 }
 
-void bytecode_path_get(BytecodeTranslation* translation, path p){
-    expression* first_line= pointers_vector_get(&p.lines, 0);
-    if(first_line->type!=e_name){
-        USING_STRING(stringify_expression(first_line, 0),
-            THROW_ERROR(BYTECODE_ERROR, "Variable name must be of type name. Caused by %s", str))
-        return;
-    }
-    char* variable_name=((name*)first_line)->value;
-    unsigned push_position=push_string_load(translation, variable_name);
-    push_instruction(translation, b_get);
-    if(is_upvalue(translation, variable_name)){
-        stream_push(&translation->upvalues, &push_position, sizeof(unsigned));
-    }
-    int lines_count=vector_count(&p.lines);
-    for (int i = 1; i < lines_count; i++){
-        expression* e= pointers_vector_get(&p.lines, i);
-        if(e->type==e_name){
-            push_string_load(translation, ((name*)e)->value);
-        } else{
-            ast_to_bytecode_recursive(e, translation, 0);
-        }
-        push_instruction(translation, b_table_get);
+void table_literal_key(BytecodeTranslation* translation, expression* exp) {
+    switch(exp->type){
+        case e_name:
+            push_string_load(translation, ((name*)exp)->value);
+            break;
+        case e_self_indexer:
+            ast_to_bytecode_recursive(((self_indexer*)exp)->right, translation, 0);
+            break;
+        default: 
+            // TODO: More informative message
+            THROW_ERROR(WRONG_ARGUMENT_TYPE, "Incorrect expression in table literal key.\n");
+            break;
     }
 }
 
-void table_literal_key(BytecodeTranslation* translation, path p) {
-    if(vector_count(&p.lines)!=1){
-        THROW_ERROR(WRONG_ARGUMENT_TYPE, "Number of lines in table literal key should be one.\n");
-    } else {
-        expression* e=pointers_vector_get(&p.lines, 0);
-        if(e->type==e_name){
-            push_string_load(translation, ((name*)e)->value);
-        } else{
-            ast_to_bytecode_recursive(e, translation, 0);
+void bytecode_get(BytecodeTranslation* translation, expression* exp){
+    switch(exp->type){
+        case e_name:
+        {
+            name* n=(name*)exp;
+            uint push_position=push_string_load(translation, n->value);
+            if(is_upvalue(translation, n->value)){
+                stream_push(&translation->upvalues, &push_position, sizeof(unsigned));
+            }
+            push_instruction(translation, b_get);
+            break;
         }
+        case e_member_access:
+        {
+            member_access* m=(member_access*)exp;
+            bytecode_get(translation, m->left);
+            push_string_load(translation, m->right->value);
+            push_instruction(translation, b_table_get);
+            break;
+        }
+        case e_indexer:
+        {
+            indexer* i=(indexer*)exp;
+            bytecode_get(translation, i->left);
+            ast_to_bytecode_recursive(i->right, translation, false);
+            push_instruction(translation, b_table_get);
+            break;
+        }
+        default:;
     }
 }
 
-void bytecode_path_set(BytecodeTranslation* translation, path p, bool used_in_closure){
-    int lines_count=vector_count(&p.lines);
-    for (int i = 0; i < lines_count; i++){
-        expression* e= pointers_vector_get(&p.lines, i);
-        if(e->type==e_name){
-            push_string_load(translation, ((name*)e)->value);
-        } else{
-            ast_to_bytecode_recursive(e, translation, 0);
+void bytecode_set(BytecodeTranslation* translation, expression* exp, bool used_in_closure){
+    switch(exp->type){
+        case e_name:
+        {
+            name* n=(name*)exp;
+            uint push_position=push_string_load(translation, n->value);
+            if(is_upvalue(translation, n->value)){
+                stream_push(&translation->upvalues, &push_position, sizeof(unsigned));
+            }
+            push_bool_instruction(translation, b_set, used_in_closure);
+            break;
         }
-        if(i==lines_count-1){
-            // final isntruction is always set
-            push_bool_instruction(translation, i==0 ? b_set : b_table_set, used_in_closure);
-        } else {
-            push_instruction(translation, i==0 ? b_get : b_table_get);
+        case e_member_access:
+        {
+            member_access* m=(member_access*)exp;
+            bytecode_get(translation, m->left);
+            push_string_load(translation, m->right->value);
+            push_instruction(translation, b_table_set);
+            break;
         }
+        case e_indexer:
+        {
+            indexer* i=(indexer*)exp;
+            bytecode_get(translation, i->left);
+            ast_to_bytecode_recursive(i->right, translation, false);
+            push_instruction(translation, b_table_set);
+            break;
+        }
+        default:
+            USING_STRING(stringify_expression(exp, 0),
+                THROW_ERROR(BYTECODE_ERROR, "Incorrect expression on left hand of assignment: \n%s", str);)
     }
 }
 
@@ -198,7 +223,7 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
                     if(line->type==e_assignment){
                         assignment* assignment_line=((assignment*)line);
                         ast_to_bytecode_recursive(assignment_line->right, translation, true);
-                        table_literal_key(translation, *assignment_line->left);// assuming that assignment_line inside of Table always has one item
+                        table_literal_key(translation, assignment_line->left);// assuming that assignment_line inside of Table always has one item
                         push_instruction(translation, b_table_set_keep);
                     } else {
                         // if the expression isn't assignment use last index as the key
@@ -235,18 +260,11 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
 
             break;
         }
-        case e_name:
-        {
-            name* n=(name*)exp;
-            push_string_load(translation, n->value);
-            push_uint_instruction(translation, b_get, 0);
-            break;
-        }
         case e_assignment:
         {
             assignment* a=(assignment*)exp;
             ast_to_bytecode_recursive(a->right, translation, false);
-            bytecode_path_set(translation, *a->left, a->used_in_closure);
+            bytecode_set(translation, a->left, a->used_in_closure);
             break;
         }
         case e_binary:
@@ -349,24 +367,25 @@ void ast_to_bytecode_recursive(expression* exp, BytecodeTranslation* translation
             push_instruction(translation, b_return);
             break;
         }
-        case e_question_mark:
+        case e_return_if_error:
         {
-            question_mark* q=(question_mark*)exp;
-            ast_to_bytecode_recursive((expression*)q->value, translation, false);
+            return_if_error* r=(return_if_error*)exp;
+            ast_to_bytecode_recursive((expression*)r->value, translation, false);
             push_instruction(translation, b_double);
-            push_string_load(translation, "error");
-            push_instruction(translation, b_table_get);
+            push_string_load(translation, "is_error");
+            push_instruction(translation, b_get);
+            push_uint_instruction(translation, b_call, 1);
             int after_return=labels_count++;
             push_uint_instruction(translation, b_jump_not, after_return);
             push_instruction(translation, b_return);
             push_uint_instruction(translation, b_label, after_return);
             break;
         }
-        case e_path:
-        {
-            bytecode_path_get(translation, *((path*)exp));
+        case e_name:
+        case e_member_access:
+        case e_indexer:
+            bytecode_get(translation, exp);
             break;
-        }
         default:
         {
             THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched expression Instruction type: %i\n", exp->type);

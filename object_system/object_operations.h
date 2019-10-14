@@ -2,7 +2,7 @@
 #define OBJECT_OPERATIONS_H
 
 #include "object.h"
-#include "Table.h"
+#include "table.h"
 #include "../utility.h"
 #include "../datatypes/map.h"
 #include <stdbool.h>

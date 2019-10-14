@@ -207,22 +207,6 @@ typedef struct {
     map_t(Object) macro_definitions;
 } MacroVisitorState;
 
-char* path_to_string(path* p){
-    stream s;
-    stream_init(&s, 32);
-    for(int i=0; i<vector_count(&p->lines); i++){
-        expression* line=pointers_vector_get(&p->lines, i);
-        if(line->type!=e_name){
-            USING_STRING(stringify_expression(line, 0),
-                THROW_ERROR(AST_ERROR, "Macro path can only consist of names, %s given.", str))
-        }
-        char* name_value=((name*)line)->value;
-        stream_push(&s, name_value, strlen(name_value));
-    }
-    stream_push(&s, "\0", 1);
-    return stream_get_data(&s);
-}
-
 ASTVisitorRequest remove_nulls_from_expression_visitor(expression* exp, void* data){
     if(exp==NULL) {
         ASTVisitorRequest request={down, (expression*)new_empty()};
@@ -305,9 +289,7 @@ void proccess_macro_declaration(macro_declaration* md, MacroVisitorState* state)
         inherit_scope(E, scope, builtins_table(E));
     }
     register_ast_types(E, scope);
-    char* key=path_to_string(md->left->pth);
-    map_set(&state->macro_definitions, key, evaluate(E, md->right, scope, "macro", false));
-    free(key);
+    map_set(&state->macro_definitions, md->left->identifier->value, evaluate(E, md->right, scope, "macro", false));
 }
 
 ASTVisitorRequest macro_visitor(expression* exp, void* data){
@@ -324,7 +306,7 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
                 proccess_macro_declaration((macro_declaration*)line, state);
             } else if(line->type==e_macro){
                 macro* m=(macro*)line;
-                char* key=path_to_string(m->pth);
+                char* key=m->identifier->value;
 
                 Object* map_get_result=map_get(&state->macro_definitions, key);
                 if(map_get_result==NULL){
@@ -354,12 +336,10 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
                         dereference(state->executor, &arguments[j]);
                         vector_delete(&b->lines, i+1);
                     }
-                    free(key);
                     dereference(state->executor, &evaluation_result);
                     ASTVisitorRequest request={down};
                     return request;
                 } else {
-                    free(key);
                     dereference(state->executor, &evaluation_result);
                     USING_STRING(stringify(state->executor, evaluation_result),
                         THROW_ERROR(AST_ERROR, "Can't put back the result of evaluating macro \"%s\", the result is: \n%s", key, str))
@@ -368,7 +348,7 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
         }
     } else if(exp->type==e_macro){
         macro* m=(macro*)exp;
-        char* key=path_to_string(m->pth);
+        char* key=m->identifier->value;
         Object* map_get_result=map_get(&state->macro_definitions, key);
         if(map_get_result==NULL){
             THROW_ERROR(AST_ERROR, "Unknown macro %s.", key)

@@ -43,6 +43,8 @@ struct BytecodeProgram {
     char* constants;
     int constants_size;
 
+    uint stack_depth;
+
     BytecodeProgram** sub_programs;
     int sub_programs_count;
     

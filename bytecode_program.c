@@ -194,6 +194,19 @@ void bytecode_program_list_labels(BytecodeProgram* program){
 }
 #undef INITIAL_LABELS_COUNT
 
+void bytecode_program_count_stack_depth(BytecodeProgram* program){
+    int max_stack_depth=0;
+    int current_stack_depth=0;
+    for(Instruction* i=program->code; i->type!=b_end; i++){
+        current_stack_depth+=pushes_to_stack(*i);
+        if(current_stack_depth>max_stack_depth){
+            max_stack_depth=current_stack_depth;
+        }
+        current_stack_depth-=gets_from_stack(*i);
+    }
+    program->stack_depth=max_stack_depth;
+}
+
 void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, ManagedPointerForeachChildrenCallback callback) {
     for(int i=0; i<program->sub_programs_count; i++){
         Object wrapped=wrap_heap_object((HeapObject*)program->sub_programs[i]);
@@ -217,6 +230,7 @@ void bytecode_program_free(BytecodeProgram* program) {
 
 void bytecode_program_init(Executor* E, BytecodeProgram* program){
     bytecode_program_list_labels(program);
+    bytecode_program_count_stack_depth(program);
     program->calls_count=0;
     program->statistics.initialized=false;
     program->assumptions=NULL;

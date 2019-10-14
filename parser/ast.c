@@ -86,7 +86,7 @@ char* stringify_expression(expression* exp, int indentation){
         #define SPECIFIED_EXPRESSION_FIELD(type, field_name) WRITE_EXPRESSION_FIELD(field_name)
         #define EXPRESSION_FIELD(field_name)                 WRITE_EXPRESSION_FIELD(field_name)
         #define BOOL_FIELD(field_name)                       WRITE_FIELD(field_name, casted->field_name ? "true" : "false")
-        #define STRING_FIELD(field_name)                     if(casted->field_name!=NULL) { WRITE_FIELD(field_name, casted->field_name) }
+        #define STRING_FIELD(field_name)                     if(casted->field_name!=NULL) { WRITE_FORMATTED("\"%s\"", casted->field_name) }
         #define FLOAT_FIELD(field_name)                      WRITE_FORMATTED("%f", casted->field_name)
         #define INT_FIELD(field_name)                        WRITE_FORMATTED("%i", casted->field_name)
         #define VECTOR_FIELD(field_name) \

@@ -24,14 +24,33 @@ bool ast_allocations_zero();
     EXPRESSION(table_literal) \
         VECTOR_FIELD(lines)\
     END \
-    EXPRESSION(path) \
-        VECTOR_FIELD(lines)\
-    END \
     EXPRESSION(name) \
-        STRING_FIELD(value)\
+        STRING_FIELD(value) \
+    END \
+    EXPRESSION(self_member_access) \
+        SPECIFIED_EXPRESSION_FIELD(name, right) \
+    END \
+    EXPRESSION(member_access) \
+        EXPRESSION_FIELD(left) \
+        SPECIFIED_EXPRESSION_FIELD(name, right) \
+    END \
+    EXPRESSION(indexer) \
+        EXPRESSION_FIELD(left) \
+        EXPRESSION_FIELD(right) \
+    END \
+    EXPRESSION(self_indexer) \
+        EXPRESSION_FIELD(right) \
+    END \
+    EXPRESSION(null_conditional_member_access) \
+        EXPRESSION_FIELD(left) \
+        SPECIFIED_EXPRESSION_FIELD(name, right) \
+    END \
+    EXPRESSION(null_conditional_indexer) \
+        EXPRESSION_FIELD(left) \
+        EXPRESSION_FIELD(right) \
     END \
     EXPRESSION(assignment) \
-        SPECIFIED_EXPRESSION_FIELD(path, left)\
+        EXPRESSION_FIELD(left)\
         EXPRESSION_FIELD(right) \
         BOOL_FIELD(used_in_closure) \
     END \
@@ -40,8 +59,8 @@ bool ast_allocations_zero();
         SPECIFIED_EXPRESSION_FIELD(table_literal, arguments) \
     END \
     EXPRESSION(binary) \
-        EXPRESSION_FIELD(left)\
         STRING_FIELD(op) \
+        EXPRESSION_FIELD(left)\
         EXPRESSION_FIELD(right) \
     END \
     EXPRESSION(prefix) \
@@ -64,7 +83,7 @@ bool ast_allocations_zero();
     EXPRESSION(parentheses) \
         EXPRESSION_FIELD(value) \
     END \
-    EXPRESSION(question_mark) \
+    EXPRESSION(return_if_error) \
         EXPRESSION_FIELD(value) \
     END \
     EXPRESSION(message) \
@@ -73,7 +92,7 @@ bool ast_allocations_zero();
         SPECIFIED_EXPRESSION_FIELD(table_literal, arguments) \
     END \
     EXPRESSION(macro) \
-        SPECIFIED_EXPRESSION_FIELD(path, pth) \
+        SPECIFIED_EXPRESSION_FIELD(name, identifier) \
     END \
     EXPRESSION(macro_declaration) \
         SPECIFIED_EXPRESSION_FIELD(macro, left) \

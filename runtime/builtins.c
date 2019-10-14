@@ -247,6 +247,10 @@ Object builtin_cast(Executor* E, Object scope, Object* arguments, int arguments_
     RETURN_ERROR("INCORRECT_ARGUMENT", arguments[1], "Incorrect type name");
 }
 
+Object builtin_is_error(Executor* E, Object scope, Object* arguments, int arguments_count){
+    return to_int(is_error(E, arguments[0]));
+}
+
 Object builtin_iterator(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object o=arguments[0];
     return get_iterator(E, o);
@@ -562,6 +566,7 @@ Object builtins_table(Executor* E){
     REGISTER(create_variant, 1)
     REGISTER(serialize, 1)
     REGISTER(symbol, 1)
+    REGISTER(is_error, 1)
     #undef REGISTER
 
     Object yield;
