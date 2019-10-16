@@ -1,5 +1,6 @@
 #include "import_dll.h"
 
+#ifdef WINDOWS
 char* get_windows_error_message() {
     LPVOID buffer;
     DWORD dw = GetLastError(); 
@@ -14,6 +15,7 @@ char* get_windows_error_message() {
     0, NULL );
     return (char*)buffer;
 }
+#endif
 
 void* get_dll_handle(char* library_name, char** error){
     #ifdef WINDOWS
@@ -46,7 +48,7 @@ void* find_symbol(void* dll_handle, char* name, char** error){
         return address;
     }
     #else
-    void* address=dlsym(lib_handle, name);
+    void* address=dlsym(dll_handle, name);
     if ((*error = dlerror()) != NULL) {
         *error=strdup(*error);
         return NULL;
@@ -60,7 +62,7 @@ void close_dll(void* dll_handle){
     #ifdef WINDOWS
     FreeLibrary(dll_handle);
     #else
-    dlclose(lib_handle);
+    dlclose(dll_handle);
     #endif
 }
 
@@ -110,7 +112,7 @@ Object import_dll(Executor* E, const char* library_name){
 	    RETURN_ERROR("DLL_IMPORT_ERROR", null_const, error)
 	}
     if(init_function!=NULL){
-        result=init_function();
+        result=init_function(E);
     } else {
         result=null_const;
     }

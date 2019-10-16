@@ -1,7 +1,7 @@
 #ifndef IMPORT_DLL_H
 #define IMPORT_DLL_H
 
-#define WINDOWS
+// #define WINDOWS
 
 #ifdef WINDOWS
 #include <windows.h>
