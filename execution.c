@@ -1,6 +1,6 @@
 #include "execution.h"
 
-Object evaluate(Executor* E, expression* ast, Object scope, const char* file_name, bool delete_ast){
+Object evaluate(Executor* E, Expression* ast, Object scope, const char* file_name, bool delete_ast){
     if(ast==NULL){
         return null_const;// there was an error while parsing
     }
@@ -46,13 +46,13 @@ Object evaluate(Executor* E, expression* ast, Object scope, const char* file_nam
 }
 
 Object evaluate_string(Executor* E, const char* s, Object scope){
-    expression* parsing_result=parse_string(s);
+    Expression* parsing_result=parse_string(s);
     E->file="string";
     return evaluate(E, parsing_result, scope, "string", true);
 }
 
 Object evaluate_file(Executor* E, const char* file_name, Object scope){
-    expression* parsing_result=parse_file(file_name);
+    Expression* parsing_result=parse_file(file_name);
     E->file=file_name;
     return evaluate(E, parsing_result, scope, file_name, true);
 }

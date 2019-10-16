@@ -7,7 +7,7 @@
 
 typedef struct {
     ManagedPointer mp;
-    expression* body;
+    Expression* body;
 } ASTSourcePointer;
 
 typedef struct ASTExecutionState ASTExecutionState;
@@ -18,7 +18,7 @@ struct ASTExecutionState {
 
 void ast_execution_state_init(ASTExecutionState* state);
 void ast_execution_state_deinit(ASTExecutionState* state);
-Object execute_ast(Executor* E, expression* exp, bool keep_scope);
+Object execute_ast(Executor* E, Expression* expression, bool keep_scope);
 
 #include "error/error.h"
 #include "runtime/builtins.h"

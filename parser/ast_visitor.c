@@ -1,10 +1,10 @@
 #include "ast_visitor.h"
 
-ASTVisitorRequest call_for_replacements(expression** exp, visitor_function f, void* data){
-    ASTVisitorRequest request=f(*exp, data);
+ASTVisitorRequest call_for_replacements(Expression** expression, visitor_function f, void* data){
+    ASTVisitorRequest request=f(*expression, data);
 
     // we want to pass the last replacement that isn't NULL
-    expression* replacement=request.replacement;
+    Expression* replacement=request.replacement;
     while(request.replacement){
         // call visitor function on replacing expression
         request=visit_ast(&request.replacement, f, data);
@@ -16,11 +16,11 @@ ASTVisitorRequest call_for_replacements(expression** exp, visitor_function f, vo
     return request;
 }
 
-ASTVisitorRequest visit_ast(expression** exp, visitor_function f, void* data){
-    ASTVisitorRequest request=call_for_replacements(exp, f, data);
+ASTVisitorRequest visit_ast(Expression** expression, visitor_function f, void* data){
+    ASTVisitorRequest request=call_for_replacements(expression, f, data);
     if(request.replacement!=NULL){
-        delete_expression(*exp);
-        *exp=request.replacement;
+        delete_expression(*expression);
+        *expression=request.replacement;
         return request;
     }
 
@@ -28,33 +28,33 @@ ASTVisitorRequest visit_ast(expression** exp, visitor_function f, void* data){
         return request;
     }
     // visit subexpressions:
-    switch((*exp)->type){
-        #define EXPRESSION(type) \
-            case e_##type: {\
-            type* casted=(type*)*exp; \
+    switch((*expression)->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: {\
+            struct_name* casted=(struct_name*)*expression; \
             allow_unused_variable(casted);
         #define SUBEXPRESSION(type, e) {\
-            ASTVisitorRequest subexpression_request=visit_ast((expression**)&(e), f, data); \
+            ASTVisitorRequest subexpression_request=visit_ast((Expression**)&(e), f, data); \
             if(subexpression_request.move==up){ \
                 break; \
             } \
         }
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) SUBEXPRESSION(type, casted->field_name);
-        #define EXPRESSION_FIELD(field_name)                 SUBEXPRESSION(expression, casted->field_name);
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) SUBEXPRESSION(type, casted->field_name);
+        #define EXPRESSION_FIELD(field_name)                                  SUBEXPRESSION(expression, casted->field_name);
         #define BOOL_FIELD(field_name)
         #define STRING_FIELD(field_name)
         #define FLOAT_FIELD(field_name)
         #define INT_FIELD(field_name)
         #define VECTOR_FIELD(field_name) \
             for (int i = 0; i < vector_count(&casted->field_name); i++){ \
-                expression** line=vector_index(&casted->field_name, i); \
+                Expression** line=vector_index(&casted->field_name, i); \
                 ASTVisitorRequest subexpression_request=visit_ast(line, f, data); \
                 if(subexpression_request.move==up){ \
                     break; \
                 } \
             }
         #define END break; }
-        default: THROW_ERROR(AST_ERROR, "Incorrect expression type in vsit_ast function, type is %i", (*exp)->type);
+        default: THROW_ERROR(AST_ERROR, "Incorrect expression type in visit_ast function, type is %i", (*expression)->type);
 
         AST_EXPRESSIONS
 
@@ -70,8 +70,8 @@ ASTVisitorRequest visit_ast(expression** exp, visitor_function f, void* data){
         #undef END
     }
     // functions are visited two times to allow finding closures
-    if((*exp)->type==e_function_declaration){
-        request=call_for_replacements(exp, f, data);
+    if((*expression)->type==e_function_declaration){
+        request=call_for_replacements(expression, f, data);
     }
     return request;
 }

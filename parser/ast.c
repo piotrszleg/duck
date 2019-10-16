@@ -15,20 +15,20 @@ bool ast_allocations_zero(){
 #define AST_DEALLOCATION
 #endif
 
-#define EXPRESSION(t) \
-t* new_ ## t(){  \
-    t* instance=malloc(sizeof(t)); \
+#define EXPRESSION(struct_name, type_tag) \
+struct_name* new_ ## type_tag(){  \
+    struct_name* instance=malloc(sizeof(struct_name)); \
     CHECK_ALLOCATION(instance); \
     AST_ALLOCATION \
-	instance->type=e_ ## t; \
+	instance->type=e_ ## type_tag; \
 
-#define SPECIFIED_EXPRESSION_FIELD(type, field_name) instance->field_name=(type*)NULL;
+#define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) instance->field_name=(struct_name*)NULL;
 #define EXPRESSION_FIELD(field_name) instance->field_name=NULL;
 #define BOOL_FIELD(field_name) instance->field_name=false;
 #define STRING_FIELD(field_name) instance->field_name=NULL;
 #define INT_FIELD(field_name) instance->field_name=0;
 #define FLOAT_FIELD(field_name) instance->field_name=0;
-#define VECTOR_FIELD(field_name) vector_init(&instance->field_name, sizeof(expression*), 8);
+#define VECTOR_FIELD(field_name) vector_init(&instance->field_name, sizeof(Expression*), 8);
 #define END \
         return instance; \
     }
@@ -49,8 +49,8 @@ AST_EXPRESSIONS
 
 void allow_unused_variable(void* variable){}
 
-char* stringify_expression(expression* exp, int indentation){
-    if(exp==NULL){
+char* stringify_expression(Expression* expression, int indentation){
+    if(expression==NULL){
         return strdup("NULL");
     }
 
@@ -70,20 +70,20 @@ char* stringify_expression(expression* exp, int indentation){
     #define WRITE_CONST(message) stream_push(&s, message, sizeof(message));
     #define WRITE_FORMATTED(message, ...) snprintf(buffer, STRINGIFY_BUFFER_SIZE, message, ##__VA_ARGS__); WRITE(buffer)// TODO: upscale the buffer
 
-    switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: { \
-                type* casted=(type*)exp; \
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: { \
+                struct_name* casted=(struct_name*)expression; \
                 allow_unused_variable((void*)casted); \
-                WRITE_FORMATTED("\n%s"#type": ", indentation_string)
+                WRITE_FORMATTED("\n%s"#struct_name": ", indentation_string)
 
         #define WRITE_FIELD(field_name, field_stringified) WRITE_FORMATTED("\n%s->" #field_name ": ", indentation_string) WRITE(field_stringified)
         #define WRITE_EXPRESSION_FIELD(field_name) \
-            { char* str=stringify_expression((expression*)casted->field_name, indentation+1); \
+            { char* str=stringify_expression((Expression*)casted->field_name, indentation+1); \
             WRITE_FIELD(field_name, str) \
             free(str); }
         
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) WRITE_EXPRESSION_FIELD(field_name)
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) WRITE_EXPRESSION_FIELD(field_name)
         #define EXPRESSION_FIELD(field_name)                 WRITE_EXPRESSION_FIELD(field_name)
         #define BOOL_FIELD(field_name)                       WRITE_FIELD(field_name, casted->field_name ? "true" : "false")
         #define STRING_FIELD(field_name)                     if(casted->field_name!=NULL) { WRITE_FORMATTED("\"%s\"", casted->field_name) }
@@ -98,7 +98,7 @@ char* stringify_expression(expression* exp, int indentation){
                 break; \
             }
         AST_EXPRESSIONS
-        default: THROW_ERROR(AST_ERROR, "Can't stringify expression of type %i", exp->type);
+        default: THROW_ERROR(AST_ERROR, "Can't stringify expression of type %i", expression->type);
 
         #undef EXPRESSION
         #undef SPECIFIED_EXPRESSION_FIELD
@@ -123,23 +123,23 @@ char* stringify_expression(expression* exp, int indentation){
     return stream_get_data(&s); 
 }
 
-void delete_expression_keep_children(expression* exp){
-    switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: {\
-                type* casted=(type*)exp;
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
+void delete_expression_keep_children(Expression* expression){
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: {\
+                struct_name* casted=(struct_name*)expression;
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name)
         #define EXPRESSION_FIELD(field_name)
         #define BOOL_FIELD(field_name)
-        #define STRING_FIELD(field_name)                     free(casted->field_name);
+        #define STRING_FIELD(field_name) free(casted->field_name);
         #define FLOAT_FIELD(field_name)
         #define INT_FIELD(field_name)
-        #define VECTOR_FIELD(field_name)                     vector_deinit(&casted->field_name);
+        #define VECTOR_FIELD(field_name) vector_deinit(&casted->field_name);
         #define END \
                 free(casted); \
                 break; \
             }
-        default: THROW_ERROR(AST_ERROR, "Can't delete expression of type %i", exp->type);
+        default: THROW_ERROR(AST_ERROR, "Can't delete expression of type %i", expression->type);
 
         AST_EXPRESSIONS
 
@@ -155,17 +155,17 @@ void delete_expression_keep_children(expression* exp){
     }
 }
 
-void delete_expression(expression* exp){
-    if(exp==NULL){
+void delete_expression(Expression* expression){
+    if(expression==NULL){
         return;
     }
     AST_DEALLOCATION
-    switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: {\
-            type* casted=(type*)exp;
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) delete_expression((expression*)casted->field_name);
-        #define EXPRESSION_FIELD(field_name)                 delete_expression(casted->field_name);
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: {\
+            struct_name* casted=(struct_name*)expression;
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) delete_expression((Expression*)casted->field_name);
+        #define EXPRESSION_FIELD(field_name)                                  delete_expression(casted->field_name);
         #define BOOL_FIELD(field_name)
         #define STRING_FIELD(field_name)                     free(casted->field_name);
         #define FLOAT_FIELD(field_name)
@@ -179,7 +179,7 @@ void delete_expression(expression* exp){
                 free(casted); \
                 break; \
             }
-        default: THROW_ERROR(AST_ERROR, "Can't delete expression of type %i", exp->type);
+        default: THROW_ERROR(AST_ERROR, "Can't delete expression of type %i", expression->type);
 
         AST_EXPRESSIONS
 
@@ -195,20 +195,21 @@ void delete_expression(expression* exp){
     }
 }
 
-expression* copy_expression(expression* exp){
-    if(exp==NULL){
+Expression* copy_expression(Expression* expression){
+    if(expression==NULL){
         return NULL;
     }
-    switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: { \
-            type* casted=(type*)exp; \
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: { \
+            struct_name* casted=(struct_name*)expression; \
             allow_unused_variable(casted); \
-            type* copy=new_##type(); \
-            copy->line_number=exp->line_number; \
-            copy->column_number=exp->column_number;
+            struct_name* copy=new_##type_tag(); \
+            copy->line_number=expression->line_number; \
+            copy->column_number=expression->column_number;
         
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) copy->field_name=(type*)copy_expression((expression*)casted->field_name);
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) \
+                                                             copy->field_name=(struct_name*)copy_expression((Expression*)casted->field_name);
         #define EXPRESSION_FIELD(field_name)                 copy->field_name=copy_expression(casted->field_name);
         #define BOOL_FIELD(field_name)                       copy->field_name=casted->field_name;
         #define INT_FIELD(field_name)                        copy->field_name=casted->field_name;
@@ -216,13 +217,13 @@ expression* copy_expression(expression* exp){
         #define STRING_FIELD(field_name)                     copy->field_name=strdup(casted->field_name);
         #define VECTOR_FIELD(field_name) \
             for (int i = 0; i < vector_count(&casted->field_name); i++){ \
-                pointers_vector_push(&copy->field_name, copy_expression((expression*)pointers_vector_get(&casted->field_name, i))); \
+                pointers_vector_push(&copy->field_name, copy_expression((Expression*)pointers_vector_get(&casted->field_name, i))); \
             }
         #define END \
-                return (expression*)copy; \
+                return (Expression*)copy; \
             }
         
-        default: THROW_ERROR(AST_ERROR, "Can't copy expression of type %i", exp->type);
+        default: THROW_ERROR(AST_ERROR, "Can't copy expression of type %i", expression->type);
 
         AST_EXPRESSIONS
 
@@ -248,23 +249,24 @@ bool compare_strings(char* a, char* b){
     }
 }
 
-bool expressions_equal(expression* expression_a, expression* expression_b){
+bool expressions_equal(Expression* expression_a, Expression* expression_b){
     if(expression_a==NULL && expression_b==NULL){
         return true;
     } else if(expression_a==NULL || expression_b==NULL || expression_a->type!=expression_b->type){
         return false;
     }
     switch(expression_a->type){
-        #define EXPRESSION(type) \
-            case e_##type: { \
-            type* a=(type*)expression_a; \
-            type* b=(type*)expression_b; \
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: { \
+            struct_name* a=(struct_name*)expression_a; \
+            struct_name* b=(struct_name*)expression_b; \
             allow_unused_variable(a); \
             allow_unused_variable(b);
 
         #define COMPARISON(c) if(!(c)) { return false; }
         
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) COMPARISON(expressions_equal((expression*)a->field_name, (expression*)b->field_name))
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) \
+                                                             COMPARISON(expressions_equal((Expression*)a->field_name, (Expression*)b->field_name))
         #define EXPRESSION_FIELD(field_name)                 COMPARISON(expressions_equal(a->field_name, b->field_name))
         #define BOOL_FIELD(field_name)                       COMPARISON(a->field_name==b->field_name)
         #define FLOAT_FIELD(field_name)                      COMPARISON(a->field_name==b->field_name)

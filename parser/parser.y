@@ -11,7 +11,7 @@ extern int column_number;
 const char* file_name;
 bool is_repl;
 
-expression* parsing_result;
+Expression* parsing_result;
  
 void yyerror(const char *s);
 
@@ -22,14 +22,14 @@ void pointers_vector_push_ignore_duplicate(vector *v, void *item){
     }
 }
 
-#define ADD_DEBUG_INFO(exp) exp->line_number=line_number; exp->column_number=column_number;
+#define ADD_DEBUG_INFO(expression) expression->line_number=line_number; expression->column_number=column_number;
 
-argument* name_to_argument(name* n) {
-	argument* a=new_argument();
+Argument* name_to_argument(Name* n) {
+	Argument* a=new_argument();
 	ADD_DEBUG_INFO(a)
 	a->name=strdup(n->value);
 	a->used_in_closure=false;
-	delete_expression((expression*)n);
+	delete_expression((Expression*)n);
 	return a;
 }
 
@@ -46,7 +46,7 @@ argument* name_to_argument(name* n) {
 	float fval;
 	char *sval;
 	struct vector* args;
-	struct expression* exp;
+	struct Expression* expression;
 }
 
 // define the constant-string tokens:
@@ -71,36 +71,36 @@ argument* name_to_argument(name* n) {
 %token <sval> BINARY_OPERATOR
 %token <sval> PREFIX_OPERATOR
 
-%type <exp> block;
-%type <exp> table;
-%type <exp> table_contents;
-%type <exp> identifier;
-%type <exp> member_access;
-%type <exp> self_member_access;
-%type <exp> null_conditional_member_access;
-%type <exp> indexer;
-%type <exp> null_conditional_indexer;
-%type <exp> self_indexer;
-%type <exp> lines;
-%type <exp> expression;
-%type <exp> literal;
-%type <exp> null;
-%type <exp> name;
-%type <exp> assignment;
-%type <exp> binary;
-%type <exp> prefix;
-%type <exp> call;
+%type <expression> block;
+%type <expression> table;
+%type <expression> table_contents;
+%type <expression> identifier;
+%type <expression> member_access;
+%type <expression> self_member_access;
+%type <expression> null_conditional_member_access;
+%type <expression> indexer;
+%type <expression> null_conditional_indexer;
+%type <expression> self_indexer;
+%type <expression> lines;
+%type <expression> expression;
+%type <expression> literal;
+%type <expression> null_literal;
+%type <expression> name;
+%type <expression> assignment;
+%type <expression> binary;
+%type <expression> prefix;
+%type <expression> call;
 %type <args> arguments;
-%type <exp> function;
-%type <exp> conditional;
-%type <exp> conditional_else;
-%type <exp> message;
-%type <exp> parentheses;
-%type <exp> macro;
-%type <exp> macro_declaration;
-%type <exp> argument;
-%type <exp> return;
-%type <exp> return_if_error;
+%type <expression> function;
+%type <expression> conditional;
+%type <expression> conditional_else;
+%type <expression> message;
+%type <expression> parentheses;
+%type <expression> macro;
+%type <expression> macro_declaration;
+%type <expression> argument;
+%type <expression> return;
+%type <expression> return_if_error;
 
 %%
 program:
@@ -108,9 +108,9 @@ program:
 		parsing_result = $1;
 	}
 	| {
-		empty* e=new_empty();
+		Empty* e=new_empty();
 		ADD_DEBUG_INFO(e)
-		parsing_result=(expression*)e;
+		parsing_result=(Expression*)e;
 	}
 	;
 lines_separator:
@@ -120,7 +120,7 @@ lines_separators:
 	| lines_separators lines_separator;
 lines:
 	lines lines_separators expression {
-		pointers_vector_push_ignore_duplicate(&((block*)$1)->lines, $3);
+		pointers_vector_push_ignore_duplicate(&((Block*)$1)->lines, $3);
 		$$=$1;
 	}
 	| lines_separators lines {
@@ -130,10 +130,10 @@ lines:
 		$$=$1;
 	}
 	| expression {
-		block* b=new_block();
+		Block* b=new_block();
 		ADD_DEBUG_INFO(b)
 		pointers_vector_push_ignore_duplicate(&b->lines, $1);
-		$$=(expression*)b;
+		$$=(Expression*)b;
 	}
 	;
 block:
@@ -150,10 +150,10 @@ table:
 		$$=$3;
 	}
 	| '[' ']' {
-		block* b=new_block();
+		Block* b=new_block();
 		ADD_DEBUG_INFO(b)
 		b->type=e_table_literal;
-		$$=(expression*)b;
+		$$=(Expression*)b;
 	}
 	;
 expression:
@@ -168,7 +168,7 @@ expression:
 	| conditional
 	| binary
 	| prefix
-	| null
+	| null_literal
 	| message
 	| macro
 	| macro_declaration
@@ -177,10 +177,10 @@ expression:
 	;
 parentheses:
 	'(' expression ')' {
-		parentheses* p=new_parentheses();
+		Parentheses* p=new_parentheses();
 		ADD_DEBUG_INFO(p)
 		p->value=$2;
-		$$=(expression*)p;
+		$$=(Expression*)p;
 	}
 	;
 identifier:
@@ -194,88 +194,88 @@ identifier:
 	;
 self_member_access:
 	DOT name {
-		self_member_access* ma=new_self_member_access();
+		SelfMemberAccess* ma=new_self_member_access();
 		ADD_DEBUG_INFO(ma)
-		ma->right=(name*)$2;
-		$$=(expression*)ma;
+		ma->right=(Name*)$2;
+		$$=(Expression*)ma;
 	}
 	;
 member_access:
 	identifier DOT name {
-		member_access* ma=new_member_access();
+		MemberAccess* ma=new_member_access();
 		ADD_DEBUG_INFO(ma)
 		ma->left=$1;
-		ma->right=(name*)$3;
-		$$=(expression*)ma;
+		ma->right=(Name*)$3;
+		$$=(Expression*)ma;
 	}
 	;
 null_conditional_member_access:
 	identifier QUESTION_MARK DOT name {
-		null_conditional_member_access* ma=new_null_conditional_member_access();
+		NullConditionalMemberAccess* ma=new_null_conditional_member_access();
 		ADD_DEBUG_INFO(ma)
 		ma->left=$1;
-		ma->right=(name*)$4;
-		$$=(expression*)ma;
+		ma->right=(Name*)$4;
+		$$=(Expression*)ma;
 	}
 	;
 indexer:
 	identifier '[' expression ']' {
-		indexer* i=new_indexer();
+		Indexer* i=new_indexer();
 		ADD_DEBUG_INFO(i)
 		i->left=$1;
 		i->right=$3;
-		$$=(expression*)i;
+		$$=(Expression*)i;
 	}
 	;
 null_conditional_indexer:
 	identifier QUESTION_MARK '[' expression ']' {
-		null_conditional_indexer* i=new_null_conditional_indexer();
+		NullConditionalIndexer* i=new_null_conditional_indexer();
 		ADD_DEBUG_INFO(i)
 		i->left=$1;
 		i->right=$4;
-		$$=(expression*)i;
+		$$=(Expression*)i;
 	}
 	;
 self_indexer:
 	DOT '[' expression ']' {
-		self_indexer* i=new_self_indexer();
+		SelfIndexer* i=new_self_indexer();
 		ADD_DEBUG_INFO(i)
 		i->right=$3;
-		$$=(expression*)i;
+		$$=(Expression*)i;
 	}
 	;
 return:
 	expression '!' {
-		function_return* r=new_function_return();
+		FunctionReturn* r=new_function_return();
 		ADD_DEBUG_INFO(r)
 		r->value=$1;
-		$$=(expression*)r;
+		$$=(Expression*)r;
 	}
 	;
 macro:
 	AT name {
-		macro* m=new_macro();
+		Macro* m=new_macro();
 		ADD_DEBUG_INFO(m)
-		m->identifier=(name*)$2;
-		$$=(expression*)m;
+		m->identifier=(Name*)$2;
+		$$=(Expression*)m;
 	}
 	;
 conditional:
 	IF '(' expression ')' expression  {	
-		conditional* c=new_conditional();
+		Conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
 		c->ontrue=$5;
-		c->onfalse=(expression*)new_empty();
-		$$=(expression*)c;
+		c->onfalse=(Expression*)new_empty();
+		$$=(Expression*)c;
 	}
 	| IF '(' expression ')' expression conditional_else {
-		conditional* c=new_conditional();
+		Conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
 		c->ontrue=$5;
 		c->onfalse=$6;
-		$$=(expression*)c;
+		$$=(Expression*)c;
 	}
 	;
 conditional_else:
@@ -283,20 +283,20 @@ conditional_else:
 		$$=$2
 	}
 	| ELIF '(' expression ')' expression conditional_else {
-		conditional* c=new_conditional();
+		Conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
 		c->ontrue=$5;
 		c->onfalse=$6;
-		$$=(expression*)c;
+		$$=(Expression*)c;
 	}
 	| ELIF '(' expression ')' expression {
-		conditional* c=new_conditional();
+		Conditional* c=new_conditional();
 		ADD_DEBUG_INFO(c)
 		c->condition=$3;
 		c->ontrue=$5;
-		c->onfalse=(expression*)new_empty();
-		$$=(expression*)c;
+		c->onfalse=(Expression*)new_empty();
+		$$=(Expression*)c;
 	} 
 	;
 arguments:
@@ -307,216 +307,216 @@ arguments:
 	| argument {
 		vector* args=malloc(sizeof(vector));
 		CHECK_ALLOCATION(args);
-		vector_init(args, sizeof(expression*), 4);
+		vector_init(args, sizeof(Expression*), 4);
 		pointers_vector_push(args, $1);
 		$$=args;
 	}
 	;
 argument:
 	NAME {
-		argument* a=new_argument();
+		Argument* a=new_argument();
 		ADD_DEBUG_INFO(a)
 		a->name=$1;
 		a->used_in_closure=false;
-		$$=(expression*)a;
+		$$=(Expression*)a;
 	}
 	;
 function:
 	'(' arguments ')' ARROW expression {
-		function_declaration* f=new_function_declaration();
+		FunctionDeclaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		vector_copy($2, &f->arguments);
 		vector_deinit($2);
 		free($2);
 		f->variadic=false;
 		f->body=$5;
-		$$=(expression*)f;
+		$$=(Expression*)f;
 	}
 	| '(' arguments ELLIPSIS ')' ARROW expression {
-		function_declaration* f=new_function_declaration();
+		FunctionDeclaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		vector_copy($2, &f->arguments);
 		vector_deinit($2);
 		free($2);
 		f->variadic=true;
 		f->body=$6;
-		$$=(expression*)f;
+		$$=(Expression*)f;
 	}
 	| name ELLIPSIS ARROW expression {
-		function_declaration* f=new_function_declaration();
+		FunctionDeclaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, name_to_argument((name*)$1));
+		pointers_vector_push(&f->arguments, name_to_argument((Name*)$1));
 		f->variadic=true;
 		f->body=$4;
-		$$=(expression*)f;
+		$$=(Expression*)f;
 	}
 	| name ARROW expression {
-		function_declaration* f=new_function_declaration();
+		FunctionDeclaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, name_to_argument((name*)$1));
+		pointers_vector_push(&f->arguments, name_to_argument((Name*)$1));
 		f->variadic=false;
 		f->body=$3;
-		$$=(expression*)f;
+		$$=(Expression*)f;
 	}
 	| ARROW expression {
-		function_declaration* f=new_function_declaration();
+		FunctionDeclaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
 		f->variadic=false;
 		f->body=$2;
-		$$=(expression*)f;
+		$$=(Expression*)f;
 	}
 	;
 literal: 
 	INT {
-		int_literal* l=new_int_literal();
+		IntLiteral* l=new_int_literal();
 		ADD_DEBUG_INFO(l)
 		l->value=$1;
-		$$=(expression*)l;
+		$$=(Expression*)l;
 	}
 	| FLOAT { 
-		float_literal* l=new_float_literal();
+		FloatLiteral* l=new_float_literal();
 		ADD_DEBUG_INFO(l)
 		l->value=$1;
-		$$=(expression*)l;
+		$$=(Expression*)l;
 	}
 	| STRING { 
-		string_literal* l=new_string_literal();
+		StringLiteral* l=new_string_literal();
 		ADD_DEBUG_INFO(l)
 		l->value=$1;
-		$$=(expression*)l;
+		$$=(Expression*)l;
 	}
 	;
-null:
+null_literal:
 	NULL_LITERAL {
-		empty* e=new_empty();
-		ADD_DEBUG_INFO(e)
-		$$=(expression*)e;
+		NullLiteral* n=new_null_literal();
+		ADD_DEBUG_INFO(n)
+		$$=(Expression*)n;
 	}
 	;
 name:
 	NAME {
-		name* n=new_name();
+		Name* n=new_name();
 		ADD_DEBUG_INFO(n)
 		n->value=$1;
-		$$=(expression*)n;
+		$$=(Expression*)n;
 	  }
 	  ;
 assignment:
 	identifier ASSIGN_BINARY_OPERATOR expression 
 	{
-		assignment* a=new_assignment();
+		Assignment* a=new_assignment();
 		ADD_DEBUG_INFO(a)
-		a->left=(expression*)$1;
-		binary* u=new_binary();
+		a->left=(Expression*)$1;
+		Binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
 		u->left=copy_expression($1);
 		u->op=$2;
 		u->right=$3;
-		a->right=(expression*)u;
+		a->right=(Expression*)u;
 		a->used_in_closure=false;
-		$$=(expression*)a;
+		$$=(Expression*)a;
 	}
 	| identifier '=' expression 
 	{
-		assignment* a=new_assignment();
+		Assignment* a=new_assignment();
 		ADD_DEBUG_INFO(a)
-		a->left=(expression*)$1;
+		a->left=(Expression*)$1;
 		a->right=$3;
 		a->used_in_closure=false;
-		$$=(expression*)a;
+		$$=(Expression*)a;
 	}
 	;
 macro_declaration:
 	macro '=' expression 
 	{
-		macro_declaration* md=new_macro_declaration();
+		MacroDeclaration* md=new_macro_declaration();
 		ADD_DEBUG_INFO(md)
-		md->left=(macro*)$1;
+		md->left=(Macro*)$1;
 		md->right=$3;
-		$$=(expression*)md;
+		$$=(Expression*)md;
 	}
 	;
 call:
 	expression '(' lines ')' {
-		function_call* c=new_function_call();
+		FunctionCall* c=new_function_call();
 		ADD_DEBUG_INFO(c)
 		c->called=$1;
-		c->arguments=(table_literal*)$3;
+		c->arguments=(TableLiteral*)$3;
 		c->arguments->type=e_table_literal;
-		$$=(expression*)c;
+		$$=(Expression*)c;
 	}
 	| expression '(' ')' {
-		function_call* c=new_function_call();
+		FunctionCall* c=new_function_call();
 		ADD_DEBUG_INFO(c)
 		c->called=$1;
-		c->arguments=(table_literal*)new_block();
-		$$=(expression*)c;
+		c->arguments=(TableLiteral*)new_block();
+		$$=(Expression*)c;
 	}
 	;
 message:
 	expression FOUR_DOTS name '(' lines ')' {
-		message* m=new_message();
+		Message* m=new_message();
 		ADD_DEBUG_INFO(m)
 		m->messaged_object=$1;
-		m->message_name=(name*)$3;
-		m->arguments=(table_literal*)$5;
+		m->message_name=(Name*)$3;
+		m->arguments=(TableLiteral*)$5;
 		m->arguments->type=e_table_literal;
-		$$=(expression*)m;
+		$$=(Expression*)m;
 	}
 	| expression FOUR_DOTS name '(' ')' {
-		message* m=new_message();
+		Message* m=new_message();
 		ADD_DEBUG_INFO(m)
 		m->messaged_object=$1;
-		m->message_name=(name*)$3;
-		m->arguments=(table_literal*)new_block();
-		$$=(expression*)m;
+		m->message_name=(Name*)$3;
+		m->arguments=(TableLiteral*)new_block();
+		$$=(Expression*)m;
 	}
 	;
 binary:
 	expression BINARY_OPERATOR expression 
 	{
-		binary* u=new_binary();
+		Binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=$2;
 		u->right=$3;
-		$$=(expression*)u;
+		$$=(Expression*)u;
 	}
 	| expression '-' expression 
 	{
-		binary* u=new_binary();
+		Binary* u=new_binary();
 		ADD_DEBUG_INFO(u)
 		u->left=$1;
 		u->op=strdup("-");
 		u->right=$3;
-		$$=(expression*)u;
+		$$=(Expression*)u;
 	}
 	;
 prefix:
 	'!' expression 
 	{
-		prefix* p=new_prefix();
+		Prefix* p=new_prefix();
 		ADD_DEBUG_INFO(p)
 		p->op=strdup("!");
 		p->right=$2;
-		$$=(expression*)p;
+		$$=(Expression*)p;
 	}
 	| '-' expression 
 	{
-		prefix* p=new_prefix();
+		Prefix* p=new_prefix();
 		ADD_DEBUG_INFO(p)
 		p->op=strdup("-");
 		p->right=$2;
-		$$=(expression*)p;
+		$$=(Expression*)p;
 	}
 	;
 return_if_error:
 	expression '!' QUESTION_MARK
 	{
-		return_if_error* r=new_return_if_error();
+		ReturnIfError* r=new_return_if_error();
 		ADD_DEBUG_INFO(r)
 		r->value=$1;
-		$$=(expression*)r;
+		$$=(Expression*)r;
 	}
 	;
 OPT_ENDLS:
@@ -527,7 +527,7 @@ ENDLS:
 	| ENDL ;
 %%
 
-void print_and_delete(expression* result){
+void print_and_delete(Expression* result){
 	printf(stringify_expression(result, 0)); 
 	delete_expression(result);
 }
@@ -538,7 +538,7 @@ extern YY_BUFFER_STATE yy_scan_string(const char * str);
 extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
 extern void reset_lexer(void);
 
-expression* parse_string(const char* s) {
+Expression* parse_string(const char* s) {
 	line_number=1;
 	column_number=0;
 	file_name="repl";
@@ -557,7 +557,7 @@ expression* parse_string(const char* s) {
 	return parsing_result;
 }
 
-expression* parse_file(const char* file) {
+Expression* parse_file(const char* file) {
 	line_number=1;
 	column_number=0;
 	file_name=file;

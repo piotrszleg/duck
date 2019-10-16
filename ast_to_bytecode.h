@@ -8,8 +8,8 @@
 #include "datatypes/stream.h"
 #include <stdbool.h>
 
-BytecodeProgram* ast_function_to_bytecode(function_declaration* d);
-BytecodeProgram* ast_to_bytecode(expression* exp, bool keep_scope);
+BytecodeProgram* ast_function_to_bytecode(FunctionDeclaration* d);
+BytecodeProgram* ast_to_bytecode(Expression* expression, bool keep_scope);
 
 typedef struct {
     stream code;

@@ -9,9 +9,10 @@
         free(after_string); \
     }
 
-bool expression_is_literal(expression* exp){
-    switch(exp->type){
+bool expression_is_literal(Expression* expression){
+    switch(expression->type){
         case e_empty:
+        case e_null_literal:
         case e_int_literal:
         case e_float_literal:
         case e_string_literal:
@@ -23,9 +24,11 @@ bool expression_is_literal(expression* exp){
     }
 }
 
-ObjectTypeOrUnknown expression_object_type(expression* exp){
-    switch(exp->type){
-        case e_empty: return tu_null;
+ObjectTypeOrUnknown expression_object_type(Expression* expression){
+    switch(expression->type){
+        case e_empty:
+        case e_null_literal: 
+            return tu_null;
         case e_int_literal: return tu_int;
         case e_float_literal: return tu_float;
         case e_string_literal: return tu_string;
@@ -35,19 +38,19 @@ ObjectTypeOrUnknown expression_object_type(expression* exp){
     }
 }
 
-bool expression_is_constant(expression* exp){
-    if(expression_is_literal(exp)){
+bool expression_is_constant(Expression* expression){
+    if(expression_is_literal(expression)){
         return true;
     }
-    switch(exp->type){
+    switch(expression->type){
         case e_binary:
         {
-            binary* b=(binary*)exp;
+            Binary* b=(Binary*)expression;
             return operator_predict_result(expression_object_type(b->left), expression_object_type(b->right), b->op)!=tu_unknown;
         }
         case e_prefix:
         {
-            prefix* p=(prefix*)exp;
+            Prefix* p=(Prefix*)expression;
             return operator_predict_result(tu_null, expression_object_type(p->right), p->op)!=tu_unknown;
         }
         default:
@@ -55,28 +58,28 @@ bool expression_is_constant(expression* exp){
     }
 }
 
-expression* to_literal(Executor* E, Object o){
+Expression* to_literal(Executor* E, Object o){
     switch(o.type){
         case t_string:
         {
-            string_literal* l=new_string_literal();
+            StringLiteral* l=new_string_literal();
             l->value=strdup(o.text);
-            return (expression*)l;
+            return (Expression*)l;
         }
         case t_int:
         {
-            int_literal* l=new_int_literal();
+            IntLiteral* l=new_int_literal();
             l->value=o.int_value;
-            return (expression*)l;
+            return (Expression*)l;
         }
         case t_float:
         {
-            float_literal* l=new_float_literal();
+            FloatLiteral* l=new_float_literal();
             l->value=o.float_value;
-            return (expression*)l;
+            return (Expression*)l;
         }
         case t_null:
-            return (expression*)new_empty();
+            return (Expression*)new_empty();
         case t_table:
             handle_if_error(E, o);
             return NULL;
@@ -85,26 +88,26 @@ expression* to_literal(Executor* E, Object o){
     }
 }
 
-Object evaluate_expression(Executor* E, expression* exp){
-    return execute_ast(E, exp, false);
+Object evaluate_expression(Executor* E, Expression* expression){
+    return execute_ast(E, expression, false);
 }
 
-ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
+ASTVisitorRequest optimise_ast_visitor (Expression* expression, void* data){
     Executor* E=(Executor*)data;
 
     // remove statements that have no side effects and whose result isn't used anywhere
-    if(exp->type==e_block){
-        block* b=(block*)exp;
+    if(expression->type==e_block){
+        Block* b=(Block*)expression;
         if(vector_count(&b->lines)==1){
-            expression* line=pointers_vector_get(&b->lines, 0);
+            Expression* line=pointers_vector_get(&b->lines, 0);
             if(line->type!=e_assignment){
                 ASTVisitorRequest request={next, copy_expression(line)};
-                LOG_CHANGE("replacing one line block with this one line", exp, request.replacement);
+                LOG_CHANGE("replacing one line block with this one line", expression, request.replacement);
                 return request;
             }
         }
         for (int i = 0; i < vector_count(&b->lines)-1; i++){// last line isn't optimised because it is a result of the block
-            expression* line=pointers_vector_get(&b->lines, i);
+            Expression* line=pointers_vector_get(&b->lines, i);
             if(expression_is_constant(line)){
                 USING_STRING(stringify_expression(line, 0),
                     printf("\ndeleting useless statement:%s\n", str));
@@ -116,8 +119,8 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
         }
     }
     // if conditional condition is constant replace it with corresponding branch
-    else if(exp->type==e_conditional){
-        conditional* c=(conditional*)exp;
+    else if(expression->type==e_conditional){
+        Conditional* c=(Conditional*)expression;
         if(expression_is_constant(c->condition)){
             Object evaluated=evaluate_expression(E, c->condition);
             handle_if_error(E, evaluated);
@@ -127,24 +130,24 @@ ASTVisitorRequest optimise_ast_visitor (expression* exp, void* data){
             } else {
                 request.replacement=copy_expression(c->ontrue);
             }
-            LOG_CHANGE("constant conditional", exp, request.replacement);
+            LOG_CHANGE("constant conditional", expression, request.replacement);
             return request;
         }
     }
     // constants folding
-    else if(!expression_is_literal(exp) && expression_is_constant(exp)){
+    else if(!expression_is_literal(expression) && expression_is_constant(expression)){
         ASTVisitorRequest request={next};
-        Object evaluated=evaluate_expression(E, exp);
+        Object evaluated=evaluate_expression(E, expression);
         request.replacement=to_literal(E, evaluated);
         //replace current expression with the literal
-        LOG_CHANGE("constants folding", exp, request.replacement);
+        LOG_CHANGE("constants folding", expression, request.replacement);
         return request;
     }
     ASTVisitorRequest request={down};
     return request;
 }
 
-void optimise_ast(Executor* E, expression** ast){
+void optimise_ast(Executor* E, Expression** ast){
     visit_ast(ast, optimise_ast_visitor, E);
 }
 

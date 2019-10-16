@@ -5,6 +5,6 @@
 #include "../datatypes/map.h"
 #include "../datatypes/vector.h"
 
-void postprocess_ast(expression** ast);
+void postprocess_ast(Expression** ast);
 
 #endif

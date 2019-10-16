@@ -5,8 +5,8 @@ Declarations map maps variable names in the current scope to their first assignm
 If a variable reference is found in a function that isn't it's owning_function then it's first_assignment used in closure.
 */
 typedef struct {
-    function_declaration* owning_function;
-    expression* first_assignment;
+    FunctionDeclaration* owning_function;
+    Expression* first_assignment;
 } VariableDeclaration;
 
 typedef map_t(VariableDeclaration) DeclarationsMap;
@@ -16,47 +16,49 @@ typedef struct {
     vector functions;
 } PostprocessingState;
 
-char* get_root_variable_name(expression* exp){
-    switch(exp->type){
+char* get_root_variable_name(Expression* expression){
+    switch(expression->type){
         case e_name:
-            return ((name*)exp)->value;
+            return ((Name*)expression)->value;
         case e_member_access:
-            return get_root_variable_name(((member_access*)exp)->left);
+            return get_root_variable_name(((MemberAccess*)expression)->left);
         case e_null_conditional_member_access:
-            return get_root_variable_name(((null_conditional_member_access*)exp)->left);
+            return get_root_variable_name(((NullConditionalMemberAccess*)expression)->left);
         case e_indexer:
-            return get_root_variable_name(((indexer*)exp)->left);
+            return get_root_variable_name(((Indexer*)expression)->left);
         case e_null_conditional_indexer:
-            return get_root_variable_name(((null_conditional_indexer*)exp)->left);
+            return get_root_variable_name(((NullConditionalIndexer*)expression)->left);
         default: 
             return NULL;
     }
 }
 
-bool is_null_conditional(expression* exp){
-    return exp->type==e_null_conditional_indexer || exp->type==e_null_conditional_member_access;
+bool is_null_conditional(Expression* expression){
+    return expression->type==e_null_conditional_indexer || expression->type==e_null_conditional_member_access;
 }
 
-expression* process_null_conditional(expression* dependency, expression* body){
-    conditional* c=new_conditional();
-    binary* b=new_binary();
-    b->left=dependency;
-    b->op=strdup("!=");
-    b->right=(expression*)new_empty();
-    c->condition=(expression*)b;
-    c->ontrue=body;
-    c->onfalse=(expression*)new_empty();
-    return (expression*)c;
+// creates conditional that evaluates body only if null_checked is not null
+Expression* create_null_conditional(Expression* null_checked, Expression* body){
+    Conditional* conditional=new_conditional();
+    Binary* binary=new_binary();
+    binary->left=null_checked;
+    binary->op=strdup("!=");
+    binary->right=(Expression*)new_null_literal();
+    conditional->condition=(Expression*)binary;
+    conditional->ontrue=body;
+    conditional->onfalse=(Expression*)new_empty();
+    return (Expression*)conditional;
 }
 
-void replace_null_conditional(expression* exp) {
-    switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: { \
-                type* casted=(type*)exp; \
+// replaces null conditional fields in expression with their not null conditional variants
+void replace_null_conditional(Expression* expression) {
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: { \
+                struct_name* casted=(struct_name*)expression; \
                 allow_unused_variable((void*)casted);
 
-        // null conditional expressions have same memory layout as their normal variants
+        // for now null conditional expressions have same memory layout as their normal variants
         #define EXPRESSION_FIELD(field_name) \
             if(casted->field_name->type==e_null_conditional_member_access) { \
                 casted->field_name->type=e_member_access; \
@@ -64,7 +66,7 @@ void replace_null_conditional(expression* exp) {
             if(casted->field_name->type==e_null_conditional_indexer) { \
                 casted->field_name->type=e_indexer; \
             }
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) EXPRESSION_FIELD(field_name)
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) EXPRESSION_FIELD(field_name)
         #define BOOL_FIELD(field_name)
         #define STRING_FIELD(field_name)
         #define FLOAT_FIELD(field_name)
@@ -88,30 +90,30 @@ void replace_null_conditional(expression* exp) {
     }
 }
 
-ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
+ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
     ASTVisitorRequest request={down, NULL};
     PostprocessingState* state=data;
 
-    if(is_null_conditional(exp)) {
-        expression* copy=copy_expression((expression*)exp);
+    if(is_null_conditional(expression)) {
+        Expression* copy=copy_expression((Expression*)expression);
         replace_null_conditional(copy);
-        request.replacement=process_null_conditional(copy_expression((expression*)((null_conditional_member_access*)exp)->left), copy);
+        request.replacement=create_null_conditional(copy_expression((Expression*)((NullConditionalMemberAccess*)expression)->left), copy);
         return request;
     }
-    switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: { \
-                type* casted=(type*)exp; \
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: { \
+                struct_name* casted=(struct_name*)expression; \
                 allow_unused_variable((void*)casted);
 
         #define EXPRESSION_FIELD(field_name) \
-            if(is_null_conditional((expression*)casted->field_name)) { \
-                expression* copy=copy_expression((expression*)exp); \
+            if(is_null_conditional((Expression*)casted->field_name)) { \
+                Expression* copy=copy_expression((Expression*)expression); \
                 replace_null_conditional(copy); \
-                request.replacement=process_null_conditional(copy_expression((expression*)((null_conditional_member_access*)casted->field_name)->left), copy); \
+                request.replacement=create_null_conditional(copy_expression((Expression*)((NullConditionalMemberAccess*)casted->field_name)->left), copy); \
                 return request; \
             }
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) EXPRESSION_FIELD(field_name)
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) EXPRESSION_FIELD(field_name)
         #define BOOL_FIELD(field_name)
         #define STRING_FIELD(field_name)
         #define FLOAT_FIELD(field_name)
@@ -134,29 +136,29 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         #undef END
     }
 
-    #define CURRENT_FUNCTION (*(function_declaration**)vector_top(&state->functions))
-    switch(exp->type){
+    #define CURRENT_FUNCTION (*(FunctionDeclaration**)vector_top(&state->functions))
+    switch(expression->type){
     // changing order of operations from right to left to left to right
     case e_binary: {
-        binary* b=(binary*)exp;
+        Binary* b=(Binary*)expression;
         if(b->right->type==e_binary){
-            binary* b2=(binary*)b->right;
+            Binary* b2=(Binary*)b->right;
 
-            binary* replacement=new_binary();
+            Binary* replacement=new_binary();
             replacement->left=copy_expression(b->left);
             replacement->right=copy_expression(b2->left);
             replacement->op=strdup(b->op);
             replacement->line_number=b->line_number;
             replacement->column_number=b->column_number;
 
-            binary* replacement_2=new_binary();
-            replacement_2->left=(expression*)replacement;
+            Binary* replacement_2=new_binary();
+            replacement_2->left=(Expression*)replacement;
             replacement_2->right=copy_expression(b2->right);
             replacement_2->op=strdup(b2->op);
             replacement_2->line_number=b2->line_number;
             replacement_2->column_number=b2->column_number;
 
-            request.replacement=(expression*)replacement_2;
+            request.replacement=(Expression*)replacement_2;
             return request;
         }
         break;
@@ -172,42 +174,42 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
                 messaged.message_name(messaged, arguments...)
             }
         */
-        message* m=(message*)exp;
+        Message* m=(Message*)expression;
         
-        name* messaged=new_name();
+        Name* messaged=new_name();
         messaged->value=strdup("messaged");
 
         // messaged=messaged
-        assignment* messaged_assignment=new_assignment();
-        messaged_assignment->left=(expression*)messaged;
+        Assignment* messaged_assignment=new_assignment();
+        messaged_assignment->left=(Expression*)messaged;
         messaged_assignment->right=copy_expression(m->messaged_object);
         
         // messaged.message_name
-        member_access* message_function=new_member_access();
-        message_function->left=copy_expression((expression*)messaged);
-        message_function->right=(name*)copy_expression((expression*)m->message_name);
+        MemberAccess* message_function=new_member_access();
+        message_function->left=copy_expression((Expression*)messaged);
+        message_function->right=(Name*)copy_expression((Expression*)m->message_name);
 
-        function_call* call=new_function_call();
-        call->called=(expression*)message_function;
+        FunctionCall* call=new_function_call();
+        call->called=(Expression*)message_function;
         // (messaged, arguments...)
-        table_literal* call_arguments=new_table_literal();
-        pointers_vector_push(&call_arguments->lines, copy_expression((expression*)messaged));
+        TableLiteral* call_arguments=new_table_literal();
+        pointers_vector_push(&call_arguments->lines, copy_expression((Expression*)messaged));
         for(int i=0; i<vector_count(&m->arguments->lines); i++) {
-            pointers_vector_push(&call_arguments->lines, copy_expression((expression*)pointers_vector_get(&m->arguments->lines, i)));
+            pointers_vector_push(&call_arguments->lines, copy_expression((Expression*)pointers_vector_get(&m->arguments->lines, i)));
         }
         call->arguments=call_arguments;
 
         // { }
-        block* sub_scope=new_block();
+        Block* sub_scope=new_block();
         pointers_vector_push(&sub_scope->lines, messaged_assignment);
         pointers_vector_push(&sub_scope->lines, call);
-        request.replacement=(expression*)sub_scope;
+        request.replacement=(Expression*)sub_scope;
         break;
     }
     case e_function_declaration: {
         // if the function is already on the stack then ast_visitor is escaping it
-        if(*(expression**)(vector_top(&state->functions))==exp) {
-            function_declaration* f=vector_pop(&state->functions);
+        if(*(Expression**)(vector_top(&state->functions))==expression) {
+            FunctionDeclaration* f=vector_pop(&state->functions);
             // remove all variable declarations belonging to this function
             DeclarationsMap new_declarations;
             map_init(&new_declarations);
@@ -223,57 +225,57 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
             state->declarations=new_declarations;
         } else {
             // ast_visitor entered this function
-            vector_push(&state->functions, (const void*)&exp);
+            vector_push(&state->functions, (const void*)&expression);
         }
         break;
     }
     case e_argument: {
-        argument* a=(argument*)exp;
-        char* variable=a->name;
+        Argument* argument=(Argument*)expression;
+        char* variable=argument->name;
         if(map_get(&state->declarations, variable)==NULL){
-            VariableDeclaration decl={CURRENT_FUNCTION, (expression*)a};
+            VariableDeclaration decl={CURRENT_FUNCTION, (Expression*)argument};
             map_set(&state->declarations, variable, decl);
         }
         break;
     }
     case e_assignment: {
-        assignment* a=(assignment*)exp;
-        if(a->left->type==e_name) {
-            char* variable_name=((name*)a->left)->value;
+        Assignment* assignment=(Assignment*)expression;
+        if(assignment->left->type==e_name) {
+            char* variable_name=((Name*)assignment->left)->value;
             // first assignment to variable is it's declaration
             if(map_get(&state->declarations, variable_name)==NULL){
-                VariableDeclaration decl={CURRENT_FUNCTION, (expression*)a};
+                VariableDeclaration decl={CURRENT_FUNCTION, (Expression*)assignment};
                 map_set(&state->declarations, variable_name, decl);
             }
         }
         break;
     }
     case e_self_member_access: {
-        self_member_access* sma=(self_member_access*)exp;
-        member_access* ma=new_member_access();
+        SelfMemberAccess* self_member_access=(SelfMemberAccess*)expression;
+        MemberAccess* member_access=new_member_access();
         if(CURRENT_FUNCTION!=NULL && CURRENT_FUNCTION->type==e_function_declaration && vector_count(&CURRENT_FUNCTION->arguments)>0){
-            name* argument_name=new_name();
-            argument_name->value=strdup(((argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
-            ma->left=(expression*)argument_name;
+            Name* argument_name=new_name();
+            argument_name->value=strdup(((Argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
+            member_access->left=(Expression*)argument_name;
         } else {
-            ma->left=(expression*)new_empty();// in case it is used outside of a function
+            member_access->left=(Expression*)new_empty();// in case it is used outside of a function
         }
-        ma->right=(name*)copy_expression((expression*)sma->right);
-        request.replacement=(expression*)ma;
+        member_access->right=(Name*)copy_expression((Expression*)self_member_access->right);
+        request.replacement=(Expression*)member_access;
         break;
     }
     case e_self_indexer: {
-        self_indexer* si=(self_indexer*)exp;
-        indexer* i=new_indexer();
+        SelfIndexer* self_indexer=(SelfIndexer*)expression;
+        Indexer* indexer=new_indexer();
         if(CURRENT_FUNCTION!=NULL && CURRENT_FUNCTION->type==e_function_declaration && vector_count(&CURRENT_FUNCTION->arguments)>0){
-            name* argument_name=new_name();
-            argument_name->value=strdup(((argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
-            i->left=(expression*)argument_name;
+            Name* argument_name=new_name();
+            argument_name->value=strdup(((Argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
+            indexer->left=(Expression*)argument_name;
         } else {
-            i->left=(expression*)new_empty();
+            indexer->left=(Expression*)new_empty();
         }
-        i->right=copy_expression(si->right);
-        request.replacement=(expression*)i;
+        indexer->right=copy_expression(self_indexer->right);
+        request.replacement=(Expression*)indexer;
         break;
     }
     case e_name:
@@ -285,14 +287,14 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
         // check if it's declaration is in the same function
         // if not set it's used_in_closure to true
         // to make sure that it won't be optimised out
-        char* variable=get_root_variable_name(exp);
+        char* variable=get_root_variable_name(expression);
         if(variable!=NULL) {
             VariableDeclaration* declaration=map_get(&state->declarations, variable);
             if(declaration!=NULL && declaration->owning_function!=CURRENT_FUNCTION){
                 if(declaration->first_assignment->type==e_assignment){
-                    ((assignment*)declaration->first_assignment)->used_in_closure=true;
+                    ((Assignment*)declaration->first_assignment)->used_in_closure=true;
                 } else if(declaration->first_assignment->type==e_argument) {
-                    ((argument*)declaration->first_assignment)->used_in_closure=true;
+                    ((Argument*)declaration->first_assignment)->used_in_closure=true;
                 }
             }
         }
@@ -304,9 +306,9 @@ ASTVisitorRequest postprocess_ast_visitor(expression* exp, void* data){
     #undef CURRENT_FUNCTION
 }
 
-void postprocess_ast(expression** ast){
+void postprocess_ast(Expression** ast){
     PostprocessingState state;
-    vector_init(&state.functions, sizeof(function_declaration*), 16);
+    vector_init(&state.functions, sizeof(FunctionDeclaration*), 16);
     vector_push(&state.functions, ast);
     map_init(&state.declarations);
     

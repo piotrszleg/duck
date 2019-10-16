@@ -6,6 +6,6 @@
 #include "execution.h"
 #include "runtime/struct_descriptor.h"
 
-void execute_macros(Executor* E, expression** ast);
+void execute_macros(Executor* E, Expression** ast);
 
 #endif

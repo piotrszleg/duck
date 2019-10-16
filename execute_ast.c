@@ -9,28 +9,28 @@ void ast_execution_state_deinit(ASTExecutionState* state) {
     vector_deinit(&state->used_objects);
 }
 
-Object ast_set(Executor* E, Object scope, expression* exp, Object value){
-    switch(exp->type){
+Object ast_set(Executor* E, Object scope, Expression* expression, Object value){
+    switch(expression->type){
         case e_name:
         {
-            name* n=(name*)exp;
+            Name* n=(Name*)expression;
             return set(E, scope, to_string(n->value), value);
         }
         case e_member_access:
         {
-            member_access* m=(member_access*)exp;
+            MemberAccess* m=(MemberAccess*)expression;
             Object indexed=execute_ast(E, m->left, false);
             return set(E, indexed, to_string(m->right->value), value);
         }
         case e_indexer:
         {
-            indexer* i=(indexer*)exp;
+            Indexer* i=(Indexer*)expression;
             Object indexed=execute_ast(E, i->left, false);
             Object key=execute_ast(E, i->right, false);
             return set(E, indexed, key, value);
         }
         default:
-            USING_STRING(stringify_expression(exp, 0),
+            USING_STRING(stringify_expression(expression, 0),
                 THROW_ERROR(AST_ERROR, "Incorrect expression on left hand of assignment: \n%s", str);)
             return null_const;
     }
@@ -55,12 +55,12 @@ void ast_source_pointer_init(Executor* E, ASTSourcePointer* source_pointer){
     source_pointer->mp.copy=(ManagedPointerCopyFunction)ast_source_pointer_copy;
 }
 
-Object execute_ast(Executor* E, expression* exp, bool keep_scope){
-    if(exp==NULL){
+Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
+    if(expression==NULL){
         return null_const;
     }
-    E->line=exp->line_number;
-    E->column=exp->column_number;
+    E->line=expression->line_number;
+    E->column=expression->column_number;
     #define USE(object) \
         vector_push(&E->ast_execution_state.used_objects, &object); \
         reference(&object);
@@ -71,39 +71,40 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         vector_delete_item(&E->ast_execution_state.used_objects, &object); \
         return object;
     
-    switch(exp->type){
+    switch(expression->type){
         case e_expression:
         case e_macro:
         case e_macro_declaration:
         case e_empty:
+        case e_null_literal:
             return null_const;
         case e_float_literal:
-            return to_float(((float_literal*)exp)->value);
+            return to_float(((FloatLiteral*)expression)->value);
         case e_int_literal:
-            return to_int(((int_literal*)exp)->value);
+            return to_int(((IntLiteral*)expression)->value);
         case e_string_literal:
-            return to_string(strdup(((string_literal*)exp)->value));
+            return to_string(strdup(((StringLiteral*)expression)->value));
         case e_table_literal:
         {
-            block* b=(block*)exp;
+            Block* b=(Block*)expression;
             Object table;
             table_init(E, &table);
             USE(table)
             reference(&table);
             int array_counter=0;
             for (int i = 0; i < vector_count(&b->lines); i++){
-                expression* line=(expression*)pointers_vector_get(&b->lines, i);
+                Expression* line=(Expression*)pointers_vector_get(&b->lines, i);
                 Object set_result;
                 if(line->type==e_assignment){
-                    assignment* a=(assignment*)line;
+                    Assignment* a=(Assignment*)line;
                     switch(a->left->type){
                         case e_self_indexer: {
-                            self_indexer* si=(self_indexer*)a->left;
+                            SelfIndexer* si=(SelfIndexer*)a->left;
                             set(E, table, execute_ast(E, si->right, false), 
                                           execute_ast(E, a->right, false));
                         }
                         case e_name: {
-                            name* n=(name*)a->left;
+                            Name* n=(Name*)a->left;
                             set(E, table, to_string(n->value), execute_ast(E, a->right, false));
                         }
                         default: 
@@ -118,7 +119,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_block:
         {
-            block* b=(block*)exp;
+            Block* b=(Block*)expression;
             Object previous_scope=E->scope;
             if(!keep_scope) {
                 Object block_scope;
@@ -146,7 +147,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_assignment:
         {
-            assignment* a=(assignment*)exp;
+            Assignment* a=(Assignment*)expression;
             Object value=execute_ast(E, a->right, false);
             USE(value)
             Object result=ast_set(E, E->scope, a->left, value);
@@ -155,7 +156,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_binary:
         {
-            binary* u=(binary*)exp;
+            Binary* u=(Binary*)expression;
             Object left=execute_ast(E, u->left, false);
             USE(left)
             Object right=execute_ast(E, u->right, false);
@@ -168,7 +169,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_prefix:
         {
-            prefix* p=(prefix*)exp;
+            Prefix* p=(Prefix*)expression;
             Object left=null_const;
             Object right=execute_ast(E, p->right, false);
             USE(right)
@@ -179,14 +180,14 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_conditional:
         {
-            conditional* c=(conditional*)exp;
+            Conditional* c=(Conditional*)expression;
             Object condition=execute_ast(E, c->condition, false);
             USE(condition)
             Object result;
             if(is_falsy(condition)){
-                result=execute_ast(E, (expression*)c->onfalse, false);
+                result=execute_ast(E, (Expression*)c->onfalse, false);
             } else{
-                result=execute_ast(E, (expression*)c->ontrue, false);
+                result=execute_ast(E, (Expression*)c->ontrue, false);
             }
             USE(result)
             STOP_USING(condition)
@@ -194,7 +195,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_function_declaration:
         {
-            function_declaration* d=(function_declaration*)exp;
+            FunctionDeclaration* d=(FunctionDeclaration*)expression;
             int arguments_count=vector_count(&d->arguments);
             Object f;
             function_init(E, &f);
@@ -202,7 +203,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
             f.fp->arguments_count=arguments_count;
             f.fp->variadic=d->variadic;
             for (int i = 0; i < arguments_count; i++){
-                f.fp->argument_names[i]=strdup(((argument*)pointers_vector_get(&d->arguments, i))->name);
+                f.fp->argument_names[i]=strdup(((Argument*)pointers_vector_get(&d->arguments, i))->name);
             }
             f.fp->enclosing_scope=E->scope;
             reference(&E->scope);
@@ -220,7 +221,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
                 if(E->options.print_bytecode){
                     print_bytecode_program(bytecode_program);
                 }
-                if(E->options.compile_bytecode_immediately){
+                if(E->options.compile_bytecode){
                     compile_bytecode_program(E, bytecode_program);
                 }
                 f.fp->source_pointer=(HeapObject*)bytecode_program;
@@ -236,9 +237,9 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_function_call:
         {
-            function_call* c=(function_call*)exp;
+            FunctionCall* c=(FunctionCall*)expression;
             
-            TracebackPoint traceback_point={strdup("input"), exp->line_number};
+            TracebackPoint traceback_point={strdup("input"), expression->line_number};
             vector_push(&E->traceback, &traceback_point);
 
             Object f=execute_ast(E, c->called, false);
@@ -272,17 +273,17 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_parentheses:
         {
-            return execute_ast(E, ((parentheses*)exp)->value, false);
+            return execute_ast(E, ((Parentheses*)expression)->value, false);
         }
         case e_name:
         {
-            name* n=(name*)exp;
+            Name* n=(Name*)expression;
             Object result=get(E, E->scope, to_string(n->value));
             RETURN_USED(result);
         }
         case e_member_access:
         {
-            member_access* m=(member_access*)exp;
+            MemberAccess* m=(MemberAccess*)expression;
             Object indexed=execute_ast(E, m->left, false);
             USE(indexed)
             Object result=get(E, indexed, to_string(m->right->value));
@@ -292,7 +293,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_indexer:
         {
-            indexer* i=(indexer*)exp;
+            Indexer* i=(Indexer*)expression;
             Object indexed=execute_ast(E, i->left, false);
             USE(indexed)
             Object key=execute_ast(E, i->right, false);
@@ -305,7 +306,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_function_return:
         {
-            function_return* r=(function_return*)exp;
+            FunctionReturn* r=(FunctionReturn*)expression;
             Object result=execute_ast(E, r->value, false);
             USE(result)
             E->ast_execution_state.returning=true;
@@ -313,7 +314,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         case e_return_if_error:
         {
-            return_if_error* re=(return_if_error*)exp;
+            ReturnIfError* re=(ReturnIfError*)expression;
             Object result=execute_ast(E, re->value, false);
             USE(result)
             if(is_error(E, result)){
@@ -323,7 +324,7 @@ Object execute_ast(Executor* E, expression* exp, bool keep_scope){
         }
         default:
         {
-            RETURN_ERROR("AST_EXECUTION_ERROR", null_const, "Uncatched expression type: %i\n", exp->type)
+            RETURN_ERROR("AST_EXECUTION_ERROR", null_const, "Uncatched expression type: %i\n", expression->type)
         }
     }
 }

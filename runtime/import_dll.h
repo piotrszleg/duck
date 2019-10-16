@@ -1,7 +1,9 @@
 #ifndef IMPORT_DLL_H
 #define IMPORT_DLL_H
 
-// #define WINDOWS
+#if defined(_WIN32) || defined(_WIN64)
+#define WINDOWS
+#endif
 
 #ifdef WINDOWS
 #include <windows.h>

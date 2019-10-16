@@ -27,7 +27,7 @@
     BOOL(fold_constants, true) \
     BOOL(remove_useless_operations, true) \
     BOOL(use_typed_instructions, true) \
-    BOOL(compile_bytecode_immediately, true) \
+    BOOL(compile_bytecode, true) \
     UINT(calls_before_optimisation, 5) \
     UINT(collected_calls, 10) \
     UINT(constant_threshold, 3)

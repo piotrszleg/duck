@@ -16,7 +16,7 @@ int main(){
             if(strcmp(input, "quit")==0){
                 break;
             }
-            expression* parsing_result=parse_string(input);
+            Expression* parsing_result=parse_string(input);
             if(parsing_result!=NULL){
                 printf("%s\n",stringify_expression(parsing_result, 0));
             }

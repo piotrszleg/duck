@@ -16,11 +16,11 @@ struct ASTVisitorRequest{
     MoveRequest move;
     // if replacement is not null it will be visited and then appended
     // instead of the visited expression
-    expression* replacement;
+    Expression* replacement;
 };
 
-typedef ASTVisitorRequest (*visitor_function)(expression*, void*);
+typedef ASTVisitorRequest (*visitor_function)(Expression*, void*);
 
-ASTVisitorRequest visit_ast(expression**, visitor_function f, void*);
+ASTVisitorRequest visit_ast(Expression**, visitor_function f, void*);
 
 #endif

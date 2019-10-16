@@ -9,8 +9,8 @@
 #include "../error/error.h"
 #include "ast.h"
 
-expression* parse_string(const char* s);
-expression* parse_file(const char* file);
+Expression* parse_string(const char* s);
+Expression* parse_file(const char* file);
 char* get_source_line(const char* file, int line);
 
 #endif

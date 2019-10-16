@@ -26,7 +26,10 @@ source-files := \
 	bytecode_to_myjit.c\
 
 host-tests-path := tests.exe
-options := -g -Wall -Wl,--out-implib,libhost.a -IE:\Libraries\libffi-3.2.1/i686-pc-mingw32/include/ -ldl
+options := -g -Wall -Wl,--out-implib,libhost.a -IE:\Libraries\libffi-3.2.1/i686-pc-mingw32/include/
+ifneq ($(OS),Windows_NT)
+	options:=$(options) -ldl
+endif
 executable-path := duck.exe
 sandbox-path := sandbox.exe
 

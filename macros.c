@@ -1,13 +1,13 @@
 #include "macros.h"
 
-typedef expression* (*ExpressionInitializer)(void);
+typedef Expression* (*ExpressionInitializer)(void);
 
 // TODO: Remove these globals
 static map_t(Object) expression_fields_map;
 static Object expression_fields_array[EXPRESSION_TYPES_COUNT];
 
 Object expression_descriptor_get(Executor* E, Object scope, Object* arguments, int arguments_count);
-Object expression_fields(Executor* E, expression* exp);
+Object expression_fields(Executor* E, Expression* expression);
 
 void downcast_expression_descriptor(Executor* E, Table* sd){
     Object fields=table_get(E, sd, to_string("fields"));
@@ -18,13 +18,13 @@ void downcast_expression_descriptor(Executor* E, Table* sd){
     if(fields_expression_type.type!=t_int){
         return;
     }
-    expression* exp=(expression*)struct_descriptor_get_pointer(E, sd);
-    if(exp->type!=(int)fields_expression_type.int_value){
-        table_set(E, sd, to_string("fields"), copy(E, expression_fields(E, exp)));
+    Expression* expression=(Expression*)struct_descriptor_get_pointer(E, sd);
+    if(expression->type!=(int)fields_expression_type.int_value){
+        table_set(E, sd, to_string("fields"), copy(E, expression_fields(E, expression)));
     }
 }
 
-Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, expression* expression_pointer){
+Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, Expression* expression_pointer){
     downcast_expression_descriptor(E, sd);
     //printf("<%s>", stringify_expression(expression_pointer, 0));
     Object fields=table_get(E, sd, to_string("fields"));
@@ -43,8 +43,8 @@ Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, express
             if(is_truthy(has_ownership)){
                 Object offset=table_get(E, i.value.tp, to_string("offset"));
                 REQUIRE_TYPE(offset, t_int);
-                expression** expression_position=(expression**)((int)expression_pointer+(int)offset.int_value);
-                //expression** expression_position=(expression**)position.p;
+                Expression** expression_position=(Expression**)((int)expression_pointer+(int)offset.int_value);
+                //Expression** expression_position=(Expression**)position.p;
                 expression_descriptor_destroy_recursively(E, pointed.tp, *expression_position);
             }
             destroy_unreferenced(E, &has_ownership);
@@ -63,7 +63,7 @@ Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, express
 Object expression_descriptor_destroy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
-    return expression_descriptor_destroy_recursively(E, self.tp, (expression*)struct_descriptor_get_pointer(E, self.tp));
+    return expression_descriptor_destroy_recursively(E, self.tp, (Expression*)struct_descriptor_get_pointer(E, self.tp));
 }
 
 void postprocess_expression_descriptor(Executor* E, Table* descriptor){
@@ -79,7 +79,7 @@ void postprocess_expression_descriptor(Executor* E, Table* descriptor){
 Object expression_descriptor_copy(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_TYPE(self, t_table);
-    expression* copy=copy_expression(struct_descriptor_get_pointer(E, self.tp));
+    Expression* copy=copy_expression(struct_descriptor_get_pointer(E, self.tp));
     Object sd=new_struct_descriptor(E, (void*)copy, expression_fields(E, copy));
     postprocess_expression_descriptor(E, sd.tp);
     return sd;
@@ -102,30 +102,30 @@ Object expression_descriptor_get(Executor* E, Object scope, Object* arguments, i
     return get_result;
 }
 
-Object expression_fields(Executor* E, expression* exp) {
-    if(exp==NULL){
+Object expression_fields(Executor* E, Expression* expression) {
+    if(expression==NULL){
         return null_const;
-    } else if(expression_fields_array[exp->type].type!=t_null){
-        return expression_fields_array[exp->type];
+    } else if(expression_fields_array[expression->type].type!=t_null){
+        return expression_fields_array[expression->type];
     }
-    switch(exp->type){
-        #define EXPRESSION(etype) \
-            case e_##etype: { \
-            etype* casted=new_##etype(); \
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+        case e_##type_tag: { \
+            struct_name* casted=new_##type_tag(); \
             allow_unused_variable(&casted); \
             Object fields; \
             table_init(E, &fields);\
-            map_set(&expression_fields_map, #etype, fields); \
-            expression_fields_array[e_##etype]=fields; \
+            map_set(&expression_fields_map, #type_tag, fields); \
+            expression_fields_array[e_##type_tag]=fields; \
             reference(&fields); \
             set(E, fields, to_string("expression_type"), to_field(E, OFFSET(*casted, type), n_int)); \
-            set(E, fields, to_string("fields_expression_type"), to_int(exp->type));
+            set(E, fields, to_string("fields_expression_type"), to_int(expression->type));
         #define FIELD(field_name, field_descriptor) \
             { Object field_temp=field_descriptor; \
             set(E, fields, to_string(#field_name), field_temp); }
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name) \
-            casted->field_name=new_##type(); \
-            FIELD(field_name, to_struct_pointer_field(E, OFFSET(*casted, field_name), expression_fields(E, (expression*)casted->field_name)));
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) \
+            casted->field_name=new_##type_tag(); \
+            FIELD(field_name, to_struct_pointer_field(E, OFFSET(*casted, field_name), expression_fields(E, (Expression*)casted->field_name)));
         #define EXPRESSION_FIELD(field_name) \
             casted->field_name=new_expression(); \
             FIELD(field_name, to_struct_pointer_field(E, OFFSET(*casted, field_name), expression_fields(E, casted->field_name)));
@@ -134,7 +134,9 @@ Object expression_fields(Executor* E, expression* exp) {
         #define INT_FIELD(field_name)                        set(E, fields, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_int));
         #define STRING_FIELD(field_name)                     set(E, fields, to_string(#field_name), to_field(E, OFFSET(*casted, field_name), n_string));
         #define VECTOR_FIELD(field_name)                     // TODO
-        #define END delete_expression((expression*)casted); return fields; }
+        #define END \
+            delete_expression((Expression*)casted); \
+            return fields; }
         default: return null_const;
 
         AST_EXPRESSIONS
@@ -156,10 +158,10 @@ Object new_expression_descriptor(Executor* E, Object scope, Object* arguments, i
     REQUIRE_TYPE(scope, t_pointer)
     ExpressionInitializer initializer=(ExpressionInitializer)scope.p;
     if(initializer!=NULL){
-        expression* exp=initializer();
-        exp->line_number=E->line;
-        exp->column_number=0;
-        Object sd=new_struct_descriptor(E, (void*)exp, expression_fields(E, exp));
+        Expression* expression=initializer();
+        expression->line_number=E->line;
+        expression->column_number=0;
+        Object sd=new_struct_descriptor(E, (void*)expression, expression_fields(E, expression));
         postprocess_expression_descriptor(E, sd.tp);
         return sd;
     } else {
@@ -168,10 +170,11 @@ Object new_expression_descriptor(Executor* E, Object scope, Object* arguments, i
 }
 
 void register_ast_types(Executor* E, Object scope){
-    #define EXPRESSION(type){ Object function=to_native_function(E, new_expression_descriptor, NULL, 0, false); \
-                              function.fp->enclosing_scope=to_pointer(new_##type); \
-                              set(E, scope, to_string("new_"#type), function); }
-    #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
+    #define EXPRESSION(struct_name, type_tag) \
+    {   Object function=to_native_function(E, new_expression_descriptor, NULL, 0, false); \
+        function.fp->enclosing_scope=to_pointer(new_##type_tag); \
+        set(E, scope, to_string("new_"#type_tag), function); }
+    #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name)
     #define EXPRESSION_FIELD(field_name)
     #define BOOL_FIELD(field_name)                     
     #define FLOAT_FIELD(field_name)                    
@@ -195,8 +198,8 @@ void register_ast_types(Executor* E, Object scope){
     set_function(E, scope, "copy_expression", 1, false, expression_descriptor_copy);
 }
 
-Object wrap_expression(Executor* E, expression* exp){
-    Object wrapped=new_struct_descriptor(E, (void*)exp, expression_fields(E, exp));
+Object wrap_expression(Executor* E, Expression* expression){
+    Object wrapped=new_struct_descriptor(E, (void*)expression, expression_fields(E, expression));
     REQUIRE_TYPE(wrapped, t_table)
     postprocess_expression_descriptor(E, wrapped.tp);
     return wrapped;
@@ -207,18 +210,18 @@ typedef struct {
     map_t(Object) macro_definitions;
 } MacroVisitorState;
 
-ASTVisitorRequest remove_nulls_from_expression_visitor(expression* exp, void* data){
-    if(exp==NULL) {
-        ASTVisitorRequest request={down, (expression*)new_empty()};
+ASTVisitorRequest remove_nulls_from_expression_visitor(Expression* expression, void* data){
+    if(expression==NULL) {
+        ASTVisitorRequest request={down, (Expression*)new_empty()};
         return request;
     }
-    switch(exp->type){
-        #define EXPRESSION(type) \
-            case e_##type: { \
-            type* casted=(type*)exp; \
+    switch(expression->type){
+        #define EXPRESSION(struct_name, type_tag) \
+            case e_##type_tag: { \
+            struct_name* casted=(struct_name*)expression; \
             allow_unused_variable(casted);
         
-        #define SPECIFIED_EXPRESSION_FIELD(type, field_name)
+        #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name)
         #define EXPRESSION_FIELD(field_name)
         #define BOOL_FIELD(field_name)
         #define FLOAT_FIELD(field_name)
@@ -243,22 +246,22 @@ ASTVisitorRequest remove_nulls_from_expression_visitor(expression* exp, void* da
     return request;
 }
 
-void remove_nulls_from_expression(expression** exp){
-    visit_ast(exp, remove_nulls_from_expression_visitor, NULL);
+void remove_nulls_from_expression(Expression** expression){
+    visit_ast(expression, remove_nulls_from_expression_visitor, NULL);
 }
 
-expression* to_literal(Object o);
-expression* to_expression(Executor* E, Object o){
+Expression* to_literal(Object o);
+Expression* to_expression(Executor* E, Object o){
     if(is_struct_descriptor(E, o)) {
         Object is_expression=table_get(E, o.tp, to_string("is_expression"));
         if(is_truthy(is_expression)) {
             dereference(E, &is_expression);
-            expression* exp=(expression*)struct_descriptor_get_pointer(E, o.tp);
+            Expression* expression=(Expression*)struct_descriptor_get_pointer(E, o.tp);
             table_set(E, o.tp, OVERRIDE(E, destroy), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression
-            if(exp!=NULL){
-                remove_nulls_from_expression(&exp);
+            if(expression!=NULL){
+                remove_nulls_from_expression(&expression);
             }
-            return exp;
+            return expression;
         }
         dereference(E, &is_expression);
     }
@@ -281,7 +284,7 @@ int macro_arguments_count(Object macro_value){
     }
 }
 
-void proccess_macro_declaration(macro_declaration* md, MacroVisitorState* state){
+void proccess_macro_declaration(MacroDeclaration* md, MacroVisitorState* state){
     Executor* E= state->executor;
     Object scope;
     table_init(E, &scope);
@@ -292,20 +295,20 @@ void proccess_macro_declaration(macro_declaration* md, MacroVisitorState* state)
     map_set(&state->macro_definitions, md->left->identifier->value, evaluate(E, md->right, scope, "macro", false));
 }
 
-ASTVisitorRequest macro_visitor(expression* exp, void* data){
+ASTVisitorRequest macro_visitor(Expression* expression, void* data){
     MacroVisitorState* state=(MacroVisitorState*)data;
-    if(exp->type==e_macro_declaration){
-        proccess_macro_declaration((macro_declaration*)exp, state);
+    if(expression->type==e_macro_declaration){
+        proccess_macro_declaration((MacroDeclaration*)expression, state);
         ASTVisitorRequest request={next, NULL};
         return request;
-    } else if(exp->type==e_block){
-        block* b=(block*)exp;
+    } else if(expression->type==e_block){
+        Block* b=(Block*)expression;
         for(int i=0; i<vector_count(&b->lines); i++){
-            expression* line=pointers_vector_get(&b->lines, i);
+            Expression* line=pointers_vector_get(&b->lines, i);
             if(line->type==e_macro_declaration){
-                proccess_macro_declaration((macro_declaration*)line, state);
+                proccess_macro_declaration((MacroDeclaration*)line, state);
             } else if(line->type==e_macro){
-                macro* m=(macro*)line;
+                Macro* m=(Macro*)line;
                 char* key=m->identifier->value;
 
                 Object* map_get_result=map_get(&state->macro_definitions, key);
@@ -316,7 +319,7 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
                 
                 int expected_arguments=macro_arguments_count(macro_value);
                 if(expected_arguments>vector_count(&b->lines)-i-1){
-                    USING_STRING(stringify_expression(exp, 0),
+                    USING_STRING(stringify_expression(expression, 0),
                         THROW_ERROR(AST_ERROR, "There is not enough lines in block: %s for %s macro to work.", str, key))
                 }
                 Object* arguments=malloc(sizeof(Object)*expected_arguments);
@@ -325,11 +328,11 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
                     reference(&arguments[j]);
                 }
                 Object evaluation_result=evaluate_macro(state->executor, macro_value, arguments, expected_arguments);
-                expression* converted=to_expression(state->executor, evaluation_result);
+                Expression* converted=to_expression(state->executor, evaluation_result);
                 if(converted!=NULL) {
                     // replace macro with it's evaluation result
                     pointers_vector_set(&b->lines, i, converted);
-                    delete_expression((expression*)m);
+                    delete_expression((Expression*)m);
                     // remove arguments
                     for(int j=0; j<expected_arguments; j++){
                         //delete_expression(pointers_vector_get(&b->lines, i+1));
@@ -346,15 +349,15 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
                 }
             }
         }
-    } else if(exp->type==e_macro){
-        macro* m=(macro*)exp;
+    } else if(expression->type==e_macro){
+        Macro* m=(Macro*)expression;
         char* key=m->identifier->value;
         Object* map_get_result=map_get(&state->macro_definitions, key);
         if(map_get_result==NULL){
             THROW_ERROR(AST_ERROR, "Unknown macro %s.", key)
         }
         Object evaluation_result=evaluate_macro(state->executor, *map_get_result, NULL, 0);
-        expression* converted=to_expression(state->executor, evaluation_result);
+        Expression* converted=to_expression(state->executor, evaluation_result);
         if(converted!=NULL) {
             ASTVisitorRequest request={next, converted};
             free(key);
@@ -369,7 +372,7 @@ ASTVisitorRequest macro_visitor(expression* exp, void* data){
     return request;
 }
 
-void execute_macros(Executor* E, expression** ast){
+void execute_macros(Executor* E, Expression** ast){
     MacroVisitorState state;
     state.executor=E;
     map_init(&state.macro_definitions);
