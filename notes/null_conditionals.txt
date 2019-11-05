@@ -1,0 +1,121 @@
+player?.attack()
+if(player!=null){
+    player.attack()
+}
+
+game.player?.attack()
+if(game.player!=null){
+    game.player.attack()
+}
+
+game?.player?.attack()
+if(game!=null){
+    if(game.player!=null){
+        game.player.attack()
+    }
+}
+
+in which situations should it work
+- function call player?.update()
+- alone player?.score
+- assignments database.score=player?.score
+but not in
+- operators player?.score+1 looks strange
+
+or after finding a null_conditional operator go one block up and wrap it in the if(<left>!=null){}
+
+if(<left>!=null){
+    <expression changed to member access expression>
+}
+
+Should only calling and indexing expressions affected by ?. syntax
+a?.a()
+but not a?.a+10
+or f(a?.a)
+some chaining method?
+
+a??b
+a?() syntax?
+
+special treatment of self_indexer and self_member_access inside of table literals
+implementing `##` and `#` directly in bytecode
+short circuit evaluation of 'and' and 'or'
+
+call {
+    called=
+        double_dot {
+            left 
+        }
+    arguments=
+        block { }
+}
+
+alternative syntax:
+
+for null propagation:
+left?[right]
+left?.right()
+
+for error handling:
+left?!
+left?
+
+for self member access
+.right=10
+left ?? right
+
+counted_function=[
+    calls_count=0
+    call=(self, arguments...)->{
+        .call_override(arguments)
+        .calls_count++
+    }
+]
+
+[
+    $[overrides.get]=->1
+]
+
+[
+    |overrides.get|=->1
+]
+
+[
+    .[overrides.get]=->10
+]
+
+match syntax to replace if
+
+if(boolean1) {
+    body1
+} elif(boolean2){
+    body2
+} else {
+    body3
+}
+
+select{
+    boolean1: body1
+    boolean2: { 
+        body2
+    }
+    default: body3
+}
+
+select(int_value){
+    >10: body1
+    10: body2
+    default: body3
+}
+
+select(table){
+    [is_function(a), b]->a()
+    [a, b]: a
+    coroutine:
+}
+
+fibonacci=number->select(number){
+    0: 1
+    1: 1
+    default: fibonacci(number-1)+fibonacci(number-2)
+}

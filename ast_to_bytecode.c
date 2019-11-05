@@ -119,6 +119,9 @@ void table_literal_key(BytecodeTranslation* translation, Expression* expression)
         case e_self_indexer:
             ast_to_bytecode_recursive(((SelfIndexer*)expression)->right, translation, 0);
             break;
+        case e_self_member_access:
+            push_string_load(translation, ((SelfMemberAccess*)expression)->right->value);
+            break;
         default: 
             // TODO: More informative message
             THROW_ERROR(WRONG_ARGUMENT_TYPE, "Incorrect expression in table literal key.\n");

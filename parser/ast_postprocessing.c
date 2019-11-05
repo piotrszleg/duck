@@ -14,6 +14,8 @@ typedef map_t(VariableDeclaration) DeclarationsMap;
 typedef struct {
     DeclarationsMap declarations;
     vector functions;
+    vector contexts;
+    
 } PostprocessingState;
 
 char* get_root_variable_name(Expression* expression){
@@ -208,7 +210,7 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
     }
     case e_function_declaration: {
         // if the function is already on the stack then ast_visitor is escaping it
-        if(*(Expression**)(vector_top(&state->functions))==expression) {
+        if(!vector_empty(&state->functions) && *(Expression**)(vector_top(&state->functions))==expression) {
             FunctionDeclaration* f=vector_pop(&state->functions);
             // remove all variable declarations belonging to this function
             DeclarationsMap new_declarations;
@@ -226,6 +228,16 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
         } else {
             // ast_visitor entered this function
             vector_push(&state->functions, (const void*)&expression);
+        }
+        // intentional fallthrough
+    }
+    case e_table_literal: {
+        // if the table literal is already on the stack then ast_visitor is escaping it
+        if(!vector_empty(&state->contexts) && *(Expression**)(vector_top(&state->contexts))==expression) {
+            vector_pop(&state->contexts);
+        } else {
+            // ast_visitor entered this function
+            vector_push(&state->contexts, (const void*)&expression);
         }
         break;
     }
@@ -251,31 +263,36 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
         break;
     }
     case e_self_member_access: {
-        SelfMemberAccess* self_member_access=(SelfMemberAccess*)expression;
-        MemberAccess* member_access=new_member_access();
-        if(CURRENT_FUNCTION!=NULL && CURRENT_FUNCTION->type==e_function_declaration && vector_count(&CURRENT_FUNCTION->arguments)>0){
-            Name* argument_name=new_name();
-            argument_name->value=strdup(((Argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
-            member_access->left=(Expression*)argument_name;
-        } else {
-            member_access->left=(Expression*)new_empty();// in case it is used outside of a function
+        // if SelfMemberAccess expression is directly inside of TableLiteral it shouldn't be transpiled into MemberAccess
+        if(vector_empty(&state->contexts) || (*(Expression**)vector_top(&state->contexts))->type!=e_table_literal) {
+            SelfMemberAccess* self_member_access=(SelfMemberAccess*)expression;
+            MemberAccess* member_access=new_member_access();
+            if(CURRENT_FUNCTION!=NULL && CURRENT_FUNCTION->type==e_function_declaration && vector_count(&CURRENT_FUNCTION->arguments)>0){
+                Name* argument_name=new_name();
+                argument_name->value=strdup(((Argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
+                member_access->left=(Expression*)argument_name;
+            } else {
+                member_access->left=(Expression*)new_empty();// in case it is used outside of a function
+            }
+            member_access->right=(Name*)copy_expression((Expression*)self_member_access->right);
+            request.replacement=(Expression*)member_access;
         }
-        member_access->right=(Name*)copy_expression((Expression*)self_member_access->right);
-        request.replacement=(Expression*)member_access;
         break;
     }
     case e_self_indexer: {
-        SelfIndexer* self_indexer=(SelfIndexer*)expression;
-        Indexer* indexer=new_indexer();
-        if(CURRENT_FUNCTION!=NULL && CURRENT_FUNCTION->type==e_function_declaration && vector_count(&CURRENT_FUNCTION->arguments)>0){
-            Name* argument_name=new_name();
-            argument_name->value=strdup(((Argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
-            indexer->left=(Expression*)argument_name;
-        } else {
-            indexer->left=(Expression*)new_empty();
+        if(vector_empty(&state->contexts) || (*(Expression**)vector_top(&state->contexts))->type!=e_table_literal) {
+            SelfIndexer* self_indexer=(SelfIndexer*)expression;
+            Indexer* indexer=new_indexer();
+            if(CURRENT_FUNCTION!=NULL && CURRENT_FUNCTION->type==e_function_declaration && vector_count(&CURRENT_FUNCTION->arguments)>0){
+                Name* argument_name=new_name();
+                argument_name->value=strdup(((Argument*)pointers_vector_get(&CURRENT_FUNCTION->arguments, 0))->name);
+                indexer->left=(Expression*)argument_name;
+            } else {
+                indexer->left=(Expression*)new_empty();
+            }
+            indexer->right=copy_expression(self_indexer->right);
+            request.replacement=(Expression*)indexer;
         }
-        indexer->right=copy_expression(self_indexer->right);
-        request.replacement=(Expression*)indexer;
         break;
     }
     case e_name:
@@ -310,6 +327,7 @@ void postprocess_ast(Expression** ast){
     PostprocessingState state;
     vector_init(&state.functions, sizeof(FunctionDeclaration*), 16);
     vector_push(&state.functions, ast);
+    vector_init(&state.contexts, sizeof(Expression*), 16);
     map_init(&state.declarations);
     
     visit_ast(ast, postprocess_ast_visitor, &state);

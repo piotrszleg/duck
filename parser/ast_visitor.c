@@ -69,8 +69,8 @@ ASTVisitorRequest visit_ast(Expression** expression, visitor_function f, void* d
         #undef INT_FIELD
         #undef END
     }
-    // functions are visited two times to allow finding closures
-    if((*expression)->type==e_function_declaration){
+    // expressions changing the scope are called two times to allow detecting this change
+    if((*expression)->type==e_function_declaration || (*expression)->type==e_block || (*expression)->type==e_table_literal){
         request=call_for_replacements(expression, f, data);
     }
     return request;
