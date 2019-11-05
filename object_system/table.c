@@ -175,6 +175,7 @@ static char* table_to_text(Executor* E, Table* t, bool serialize) {
         if(i.inside_array && !array_part_holey && i.key.type==t_int){
             float indexes_difference=i.key.int_value-last_array_index;
             if(indexes_difference!=1){
+                // fill in the hole inside of array with nulls if the hole is small enough
                 if(indexes_difference-1<=max_hole_size){
                     for(int i=0; i<indexes_difference-1; i++){
                         stream_push_string_indented(&s, "null");
@@ -185,6 +186,7 @@ static char* table_to_text(Executor* E, Table* t, bool serialize) {
                         }
                     }
                 } else {
+                    // if the hole is too big display following elements with .[key]=value syntax instead
                     array_part_holey=true;
                 }
             }
@@ -199,7 +201,7 @@ static char* table_to_text(Executor* E, Table* t, bool serialize) {
             stream_push_string_indented(&s, stringified_value);
         } else {
             char* stringified_key=stringify(E, i.key);
-            stream_push_const_string(&s, "$[");
+            stream_push_const_string(&s, ".[");
             stream_push_string_indented(&s, stringified_key);
             stream_push_const_string(&s, "]=");
             stream_push_string_indented(&s, stringified_value);
