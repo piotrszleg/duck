@@ -102,10 +102,17 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
                             SelfIndexer* si=(SelfIndexer*)a->left;
                             set(E, table, execute_ast(E, si->right, false), 
                                           execute_ast(E, a->right, false));
+                            break;
                         }
                         case e_name: {
                             Name* n=(Name*)a->left;
                             set(E, table, to_string(n->value), execute_ast(E, a->right, false));
+                            break;
+                        }
+                        case e_self_member_access: {
+                            SelfMemberAccess* sma=(SelfMemberAccess*)a->left;
+                            set(E, table, to_string(sma->right->value), execute_ast(E, a->right, false));
+                            break;
                         }
                         default: 
                             THROW_ERROR(AST_ERROR, "Incorrect expression inside of table literal.");

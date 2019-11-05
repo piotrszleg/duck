@@ -162,6 +162,66 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
 
             request.replacement=(Expression*)replacement_2;
             return request;
+        } else {
+            if(strcmp(b->op, "||")==0){
+                /*
+                left || right
+                =>
+                if(left){
+                    left
+                } elif(right) {
+                    right
+                } else {
+                    null
+                }
+                */
+                Conditional* c1=new_conditional();
+                c1->condition=copy_expression(b->left);
+                c1->ontrue=copy_expression(b->left);
+
+                Conditional* c2=new_conditional();
+                c2->condition=copy_expression(b->right);
+                c2->ontrue=copy_expression(b->right);
+
+                c1->onfalse=(Expression*)c2;
+                c2->onfalse=(Expression*)new_null_literal();
+
+                request.replacement=(Expression*)c1;
+                return request;
+            } else if(strcmp(b->op, "&&")==0){
+                /*
+                left && right
+                =>
+                if(!left){
+                    left
+                } elif(!right) {
+                    right
+                } else {
+                    1
+                }
+                */
+                Conditional* c1=new_conditional();
+                Prefix* p1=new_prefix();
+                p1->op=strdup("!");
+                p1->right=copy_expression(b->left);
+                c1->condition=(Expression*)p1;
+                c1->ontrue=copy_expression(b->left);
+
+                Conditional* c2=new_conditional();
+                Prefix* p2=new_prefix();
+                p2->op=strdup("!");
+                p2->right=copy_expression(b->right);
+                c2->condition=(Expression*)p2;
+                c2->ontrue=copy_expression(b->right);
+
+                c1->onfalse=(Expression*)c2;
+                IntLiteral* one=new_int_literal();
+                one->value=1;
+                c2->onfalse=(Expression*)one;
+
+                request.replacement=(Expression*)c1;
+                return request;
+            }
         }
         break;
     }

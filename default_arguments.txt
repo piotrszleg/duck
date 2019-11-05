@@ -1,1 +1,1 @@
--disable_ast_execution -dont_compile_bytecode input.dk
+input.dk

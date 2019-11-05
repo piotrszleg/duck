@@ -23,7 +23,7 @@ source-files := \
 	macros.c \
 	coroutine.c \
 	myjit/jitlib-core.c \
-	bytecode_to_myjit.c\
+	bytecode_to_myjit.c \
 
 host-tests-path := tests.exe
 options := -g -Wall -Wl,--out-implib,libhost.a -IE:\Libraries\libffi-3.2.1/i686-pc-mingw32/include/
