@@ -3,7 +3,7 @@
 
 #define OBJECT_STACK_REGISTER R(0)
 #ifndef FIELD_OFFSET
-#define FIELD_OFFSET(type, field_name) (unsigned)&((type*)0)->field_name
+#define FIELD_OFFSET(type, field_name) (long long)&((type*)0)->field_name
 #endif
 
 void operator_myjit_wrapper(Executor* E, Object* a, Object* b, const char* op, Object* result){

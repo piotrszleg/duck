@@ -688,13 +688,19 @@ char* suprintf (const char * format, ...){
     CHECK_ALLOCATION(buffer);
     int buffer_size=INITIAL_BUFFER_SIZE;
     va_list args;
-    va_start (args, format);
-    while(vsnprintf (buffer, buffer_size, format, args)>=buffer_size){
-        buffer_size*=2;
-        buffer=realloc(buffer, buffer_size*sizeof(char));
-        CHECK_ALLOCATION(buffer);
+
+    while(true){
+        va_start (args, format);
+        int vsprintf_result=vsnprintf (buffer, buffer_size, format, args);
+        va_end (args);
+        if(vsprintf_result>=buffer_size){
+            buffer_size*=2;
+            buffer=realloc(buffer, buffer_size*sizeof(char));
+            CHECK_ALLOCATION(buffer);
+        } else {
+            break;
+        }
     }
-    va_end (args);
     return buffer;
 }
 

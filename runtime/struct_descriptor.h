@@ -40,6 +40,6 @@ Object to_struct_pointer_field(Executor* E, int offset, Object fields);
 void* struct_descriptor_get_pointer(Executor* E, Table* sd);
 bool is_struct_descriptor(Executor* E, Object o);
 
-#define OFFSET(structure, field) (int)&(structure).field-(int)&(structure)
+#define OFFSET(structure, field) (long long)&(structure).field-(long long)&(structure)
 
 #endif

@@ -616,12 +616,14 @@ void inline_functions(
         }
     }
     for(int i=0; i<vector_count(instructions); i++){
-        if((vector_index_instruction(instructions, i)->type==b_call || vector_index_instruction(instructions, i)->type==b_tail_call)
-         && vector_index_transformation(transformations, i)->inputs[0]->type==d_constant) {
-            Function* function=vector_index_transformation(transformations, i)->inputs[0]->constant_value.fp;
-            if(function->ftype!=f_bytecode){
+        if((vector_index_instruction(instructions, i)->type==b_call || vector_index_instruction(instructions, i)->type==b_tail_call)) {
+            Dummy* input=vector_index_transformation(transformations, i)->inputs[0];
+            if(input->type!=d_constant
+                || input->constant_value.type!=t_function 
+                || input->constant_value.fp->ftype!=f_bytecode){
                 continue;// skip function if it isn't a bytecode function
             }
+            Function* function=input->constant_value.fp;
             BytecodeProgram* function_program=(BytecodeProgram*)function->source_pointer;
             int provided_arguments=vector_index_transformation(transformations, i)->inputs_count-1;// -1 to skip the function object
             bool arguments_count_matches= provided_arguments==function->arguments_count
@@ -768,9 +770,9 @@ bool inline_native_calls(BytecodeManipulation* manipulation, vector* instruction
             bool is_tail_call=vector_index_instruction(instructions, pointer)->type==b_tail_call;
             uint arguments_count=vector_index_instruction(instructions, pointer)->uint_argument;
             Transformation* call_transformation=vector_index_transformation(transformations, pointer);
-            Function* function=call_transformation->inputs[0]->constant_value.fp;
-            if(function->ftype==f_native){
-                Instruction call_1_instruction={is_tail_call?b_native_tail_call_1:b_native_call_1, .uint_argument=(uint)function->native_pointer};
+            Object function=call_transformation->inputs[0]->constant_value;
+            if(function.type==t_function && function.fp->ftype==f_native){
+                Instruction call_1_instruction={is_tail_call?b_native_tail_call_1:b_native_call_1, .uint_argument=(uint)function.fp->native_pointer};
                 Transformation call_1_transformation;
                 transformation_init(&call_1_transformation, call_transformation->inputs_count-1, is_tail_call?0:1);
                 for(int i=0; i<call_1_transformation.inputs_count; i++){

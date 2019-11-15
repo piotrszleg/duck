@@ -201,7 +201,7 @@ self_member_access:
 	}
 	;
 member_access:
-	identifier DOT name {
+	expression DOT name {
 		MemberAccess* ma=new_member_access();
 		ADD_DEBUG_INFO(ma)
 		ma->left=$1;
@@ -210,7 +210,7 @@ member_access:
 	}
 	;
 null_conditional_member_access:
-	identifier QUESTION_MARK DOT name {
+	expression QUESTION_MARK DOT name {
 		NullConditionalMemberAccess* ma=new_null_conditional_member_access();
 		ADD_DEBUG_INFO(ma)
 		ma->left=$1;
@@ -219,7 +219,7 @@ null_conditional_member_access:
 	}
 	;
 indexer:
-	identifier '[' expression ']' {
+	expression '[' expression ']' {
 		Indexer* i=new_indexer();
 		ADD_DEBUG_INFO(i)
 		i->left=$1;
@@ -228,7 +228,7 @@ indexer:
 	}
 	;
 null_conditional_indexer:
-	identifier QUESTION_MARK '[' expression ']' {
+	expression QUESTION_MARK '[' expression ']' {
 		NullConditionalIndexer* i=new_null_conditional_indexer();
 		ADD_DEBUG_INFO(i)
 		i->left=$1;
@@ -280,7 +280,7 @@ conditional:
 	;
 conditional_else:
 	ELSE expression {
-		$$=$2
+		$$=$2;
 	}
 	| ELIF '(' expression ')' expression conditional_else {
 		Conditional* c=new_conditional();
