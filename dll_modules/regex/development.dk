@@ -1,0 +1,7 @@
+regex=import_dll("../dllsregex/duck_regex.dll")
+email=regex::compile("(\w+)@(\w+)\.(\w+)", 'ignore_case)
+assert(email("abc@abc.abc"))
+assert(!email("abc"))
+# email::split("abc@abc.abc")
+email::replace("john@website.com", "User $1 registered on $2 dot $3.")
+#email::process("john@website.com", (match, p1, p2, offset, entire)->match)

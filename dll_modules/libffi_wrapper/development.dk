@@ -1,0 +1,9 @@
+ffi=import_dll("../dll_modules/libffi_wrapper/libffi_wrapper.dll")
+test_lib=ffi.open("../dll_modules/libffi_wrapper/test_lib/test_lib.dll")
+
+point_type=test_lib::struct(['x, 'int], ['y, 'int])
+point_sd=point_type::new_struct_descriptor()
+point_sd.x=10
+point_sd.y=5
+sum_struct_pointers_in_place=test_lib::function('sum_struct_pointers_in_place, ['pointer, point_type], ['pointer, point_type], ['pointer, point_type])
+sum_struct_pointers_in_place

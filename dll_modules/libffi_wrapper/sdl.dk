@@ -1,0 +1,140 @@
+ffi=import_dll("../dll_modules/libffi_wrapper/libffi_wrapper.dll")
+sdl=ffi.open("../dll_modules/libffi_wrapper/SDL2.dll")
+
+sdl::function('SDL_Init, 'uint32_t, 'uint32_t)
+
+opaque_pointer=sdl::struct(['p, 'int])
+double_pointer=['pointer, opaque_pointer]
+
+sdl::function('SDL_CreateWindow, 'string, 'int, 'int, 'int, 'int, 'uint32_t, 'pointer)
+sdl::function('SDL_CreateRenderer, 'pointer, 'int, 'uint32_t, 'pointer)
+sdl::function('SDL_DestroyWindow, 'pointer, 'void)
+sdl::function('SDL_DestroyRenderer, 'pointer, 'void)
+sdl::function('SDL_GetError, 'string)
+
+event_struct=sdl::struct(['tp, 'uint32_t], ['timestamp, 'uint32_t], ['window_id, 'uint32_t], ['state, 'uint8_t], ['repeat, 'uint8_t], ['scancode, 'int], ['sym, 'int], ['mod, 'uint16_t], ['unused, 'uint32_t])
+sdl::function('SDL_PollEvent, ['pointer, 'void], 'int)
+sdl::function('SDL_GetTicks, 'uint32_t)
+
+rect_struct=sdl::struct(['x, 'int], ['y, 'int], ['w, 'int], ['h, 'int])
+sdl::function('SDL_RenderFillRect, 'pointer, ['pointer, rect_struct], 'int)
+sdl::function('SDL_SetRenderDrawColor, 'pointer, 'uint8_t, 'uint8_t, 'uint8_t, 'uint8_t, 'int)
+sdl::function('SDL_RenderClear, 'pointer, 'int)
+sdl::function('SDL_RenderPresent, 'pointer, 'void)
+
+while=f->if(f()) while(f) else null
+range=(start, end, step)->[
+    iterator=self->{
+        [i=start, call=self->{
+            fin=self.i>end
+            result=[key=self.i, value=self.i, finished=fin]
+            self.i+=step
+            result
+        }]
+    }
+]
+sdl.handle_error=call_result->if(call_result<0) exit(sdl.SDL_GetError())
+
+SDL_QUIT=256
+SDL_KEYDOWN=768
+SDLK_LEFT=5242880
+SDLK_RIGHT=5177344
+SDLK_UP=5373952
+SDLK_DOWN=5308416
+SDLK_ESCAPE=1769472
+CELL_SIZE=20
+MAP_WIDTH=21
+MAP_HEIGHT=21
+WIDTH=MAP_WIDTH*CELL_SIZE
+HEIGHT=MAP_HEIGHT*CELL_SIZE
+FRAME_RATE=5
+true=1
+false=0
+player=[x=1, y=1]
+apple=[x=MAP_WIDTH//2, y=MAP_HEIGHT//2]
+tail=[[x=0, y=0], [x=1, y=1], [x=2, y=2]]
+tail_length=3
+direction_key=SDLK_RIGHT
+
+sdl.handle_error(sdl.SDL_Init(32))
+window=sdl.SDL_CreateWindow('SDL, 100, 100, WIDTH, HEIGHT, 0)
+renderer=sdl.SDL_CreateRenderer(window, -1, 0)
+event=event_struct::new_struct_descriptor()
+
+draw_cell=position->{
+    sdl.handle_error(sdl.SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255))
+    rect=rect_struct::new_struct_descriptor()
+    rect.x=position.x*CELL_SIZE
+    rect.y=position.y*CELL_SIZE
+    rect.w=CELL_SIZE
+    rect.h=CELL_SIZE
+    sdl.handle_error(sdl.SDL_RenderFillRect(renderer, rect))
+}
+
+update_tail=->{
+    new_tail=[]
+    new_tail[0]=copy(player)
+    tail `##` (index, element)->{
+        insert_index=index+1
+        if(insert_index<tail_length){
+            insert_index=index+1
+            new_tail[insert_index]=copy(element)
+        }
+    }
+    tail=new_tail
+}
+
+update=->{
+    if((player.x>=MAP_WIDTH)||(player.x<0)||(player.y>=MAP_HEIGHT)||(player.y<0)){
+        false!
+    }
+    if((player.x==apple.x)&&(player.y==apple.y)){
+        tail_length+=1
+        apple.x=random_int(0, MAP_WIDTH)
+        apple.y=random_int(0, MAP_HEIGHT)
+    }
+    #update_tail()
+    if(direction_key==SDLK_RIGHT) player.x+=1
+    if(direction_key==SDLK_LEFT)  player.x-=1
+    if(direction_key==SDLK_UP)    player.y-=1
+    if(direction_key==SDLK_DOWN)  player.y+=1
+    true
+}
+
+is_direction_key=key->(key==SDLK_RIGHT)||(key==SDLK_LEFT)||(key==SDLK_UP)||(key==SDLK_DOWN)
+
+draw=->{
+    sdl.handle_error(sdl.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255))
+    sdl.handle_error(sdl.SDL_RenderClear(renderer))
+    draw_cell(player)
+    draw_cell(apple)
+    # tail `#` draw_cell
+    sdl.SDL_RenderPresent(renderer)
+}
+
+timer=sdl.SDL_GetTicks()
+quit=false
+while(->{
+    if(sdl.SDL_PollEvent(event)){
+        if(event.tp==SDL_QUIT){
+            quit="user requested exit"
+        } elif(event.tp==SDL_KEYDOWN){
+            if(event.sym==SDLK_ESCAPE){
+                quit="user requested exit"
+            } elif(is_direction_key(event.sym)){
+                direction_key=event.sym
+            }
+        }
+    }
+    if((sdl.SDL_GetTicks()-timer)>(1000/FRAME_RATE)){
+        if(!update()){
+            quit="game over"
+        }
+        draw()
+        timer=sdl.SDL_GetTicks()
+    }
+    !quit
+})
+sdl.SDL_DestroyWindow(window)
+sdl.SDL_DestroyRenderer(renderer)
+quit

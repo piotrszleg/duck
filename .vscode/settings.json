@@ -21,7 +21,7 @@
         "error.h\u0000error.h": "c",
         "error_object.h": "c",
         "assert.h": "c",
-        "bytecode.h": "c",
+        "bytecode/bytecode.h": "c",
         "vector.h": "c",
         "vector.h\u0000ector.h": "c",
         "vector.h\u0000vector.h": "c",
@@ -60,7 +60,8 @@
         "thread": "c",
         "list": "c",
         "unordered_map": "c",
-        "xhash": "c"
+        "xhash": "c",
+        "execute_bytecode.h": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
 }

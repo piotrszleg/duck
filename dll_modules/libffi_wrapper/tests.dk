@@ -1,0 +1,34 @@
+ffi=import_dll("../dll_modules/libffi_wrapper/libffi_wrapper.dll")
+test_lib=ffi.open("../dll_modules/libffi_wrapper/test_lib/test_lib.dll")
+
+sum_int=test_lib::function('sum_int, 'int, 'int, 'int)
+assert_equal(sum_int(3, 2), 5)
+
+abs=n->if(n<0) -n else n
+float_equals=(a, b)->abs(b-a)<0.01
+sum_float=test_lib::function('sum_float, 'float, 'float, 'float)
+assert_equal(sum_float(3.5, 2.5), 6)
+
+point_type=test_lib::struct(['x, 'int], ['y, 'int])
+sum_struct=test_lib::function('sum_struct, point_type, point_type, point_type)
+assert_points_equal=(a, b)->{
+    if((a.x!=b.x)||(a.y!=b.y)){
+        error('ASSERTION_FAILED, multiple_causes(a, b), "Assertion failed, provided objects are not equal.")
+    }
+}
+assert_points_equal(sum_struct([x=1, y=4], [x=6, y=2]), [x=7, y=6])
+
+sum_string=test_lib::function('sum_string, 'string, 'string, 'string)
+assert_equal(sum_string('ab, 'cd), 'abcd)
+
+sum_struct_pointers=test_lib::function('sum_struct_pointers, ['pointer, point_type], ['pointer, point_type], ['pointer, point_type])
+assert_points_equal(sum_struct_pointers([x=1, y=4], [x=6, y=2]), [x=7, y=6])
+
+point_sd=point_type::new_struct_descriptor()
+point_sd.x=10
+point_sd.y=5
+sum_struct_pointers_in_place=test_lib::function('sum_struct_pointers_in_place, ['pointer, point_type], ['pointer, point_type], ['pointer, point_type])
+sum_struct_pointers_in_place(point_sd, [x=6, y=2])
+assert_points_equal(point_sd, [x=16, y=7])
+
+print("Tests passed.")
