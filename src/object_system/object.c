@@ -343,6 +343,13 @@ void dereference(Executor* E, Object* o){
     }
 }
 
+void free_strings(Executor* E, Object* o){
+    if(o->type==t_string){
+        free(o->text);
+        o->text=gc_text;
+    }
+}
+
 void destroy_unreferenced(Executor* E, Object* o){
     if(is_heap_object(*o) && o->hp->ref_count<=0 && o->hp->ref_count!=ALREADY_DESTROYED){
         GarbageCollector* gc=executor_get_garbage_collector(E);
@@ -371,6 +378,7 @@ void destroy_unreferenced(Executor* E, Object* o){
                             free(o->fp->argument_names[i]);
                         }
                     }
+                    free(o->fp->argument_names);
                     free(o->fp);
                     o->fp=NULL;
                 }
@@ -383,6 +391,9 @@ void destroy_unreferenced(Executor* E, Object* o){
                     table_foreach_children(E, o->tp, dereference);
                 }
                 if(freeing_memory){
+                    if(gc_state==gcs_freeing_memory){
+                        table_foreach_children(E, o->tp, free_strings);
+                    }
                     heap_object_unchain(E, o->hp);
                     table_free(o->tp);
                     o->tp=NULL;
@@ -395,6 +406,9 @@ void destroy_unreferenced(Executor* E, Object* o){
                     o->mp->foreach_children(E, o->mp, dereference);
                 }
                 if(freeing_memory){
+                    if(gc_state==gcs_freeing_memory){
+                        o->mp->foreach_children(E, o->mp, free_strings);
+                    }
                     heap_object_unchain(E, o->hp);
                     o->mp->free(o->mp);
                     o->mp=NULL;
@@ -407,6 +421,9 @@ void destroy_unreferenced(Executor* E, Object* o){
                     coroutine_foreach_children(E, o->co, dereference);
                 }
                 if(freeing_memory){
+                    if(gc_state==gcs_freeing_memory){
+                        coroutine_foreach_children(E, o->co, free_strings);
+                    }
                     heap_object_unchain(E, o->hp);
                     coroutine_free(o->co);
                     o->co=NULL;
@@ -418,6 +435,7 @@ void destroy_unreferenced(Executor* E, Object* o){
                 if(freeing_memory){
                     heap_object_unchain(E, o->hp);
                     free(o->sp->comment);
+                    free(o->sp);
                     o->sp=NULL;
                 }
                 break;

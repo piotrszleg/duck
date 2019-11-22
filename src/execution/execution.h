@@ -20,11 +20,6 @@ Object evaluate_string(Executor* E, const char* s, Object scope);
 Object evaluate_file(Executor* E, const char* file_name, Object scope);
 void execute_file(Executor* E, const char* file_name);
 
-typedef struct {
-    const char* file_name;
-    unsigned line_number; 
-} TracebackPoint;
-
 #include "../runtime/builtins.h"
 
 #endif

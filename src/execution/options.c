@@ -79,6 +79,9 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
                 return;
             }
         } else {
+            if(options->file_path!=NULL){
+                free(options->file_path);
+            }
             options->file_path=strdup(arguments[i]);
             i++;
             break;// arguments after filename are script arguments
@@ -92,7 +95,7 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
             if(scripts_arguments_count>0){
                 options->script_arguments=realloc(options->script_arguments, sizeof(char*)*(scripts_arguments_count+additional_arguments_count+1));// +1 for NULL teminator
                 for(int j=0; j<additional_arguments_count; j++){
-                    options->script_arguments[scripts_arguments_count+j]=arguments[i+j];
+                    options->script_arguments[scripts_arguments_count+j]=strdup(arguments[i+j]);
                 }
                 options->script_arguments[scripts_arguments_count+additional_arguments_count]=NULL;
             } else {
@@ -102,7 +105,7 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
     } else {
         options->script_arguments=malloc(sizeof(char*)*(additional_arguments_count+1));// +1 for NULL teminator
         for(int j=0; j<additional_arguments_count; j++){
-            options->script_arguments[j]=arguments[i+j];
+            options->script_arguments[j]=strdup(arguments[i+j]);
         }
         options->script_arguments[additional_arguments_count]=NULL;
     }
@@ -138,7 +141,7 @@ void read_arguments_from_file(Options* options){
             }
             if(content[i]==' ' || content[i]=='\n' || content[i]=='\0') {
                 content[i]='\0';
-                arguments[arguments_count]=strdup(&content[start]);
+                arguments[arguments_count]=&content[start];
                 arguments_count++;
                 if(arguments_count>=arguments_size){
                     arguments_size*=2;
@@ -149,6 +152,7 @@ void read_arguments_from_file(Options* options){
             i++;
         }
         read_arguments(options, arguments_count, arguments);
+        free(arguments);
         free(content);
         fclose(fp);
     }

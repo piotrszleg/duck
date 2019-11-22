@@ -391,5 +391,8 @@ void postprocess_ast(Expression** ast){
     map_init(&state.declarations);
     
     visit_ast(ast, postprocess_ast_visitor, &state);
+
+    vector_deinit(&state.functions);
+    vector_deinit(&state.contexts);
     map_deinit(&state.declarations);
 }

@@ -416,6 +416,7 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
         if(compare(E, e->key, key)==0){
             // there is a MapElement with this key
             dereference(E, &e->value);
+            dereference(E, &e->key);
             if(value.type==t_null){
                 // assigning value to null removes the MapElement from the table
                 t->elements_count--;
@@ -424,9 +425,9 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
                 } else {
                     t->map[hashed]=NULL;
                 }
-                dereference(E, &e->key);
                 free(e);
             } else {
+                e->key=key;
                 e->value=value;
             }
             return;

@@ -220,11 +220,11 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
                 f.fp->ftype=f_bytecode;
                 BytecodeProgram* bytecode_program=ast_function_to_bytecode(d);
                 bytecode_program->source_file_name=strdup(E->file);
-                heap_object_reference((HeapObject*)bytecode_program);
                 if(E->options.optimise_bytecode){
                     optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);
                 }
                 bytecode_program_init(E, bytecode_program);
+                heap_object_reference((HeapObject*)bytecode_program);
                 if(E->options.print_bytecode){
                     print_bytecode_program(bytecode_program);
                 }
@@ -246,7 +246,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
         {
             FunctionCall* c=(FunctionCall*)expression;
             
-            TracebackPoint traceback_point={strdup("input"), expression->line_number};
+            TracebackPoint traceback_point={"input", expression->line_number};
             vector_push(&E->traceback, &traceback_point);
 
             Object f=execute_ast(E, c->called, false);

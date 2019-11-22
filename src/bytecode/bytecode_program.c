@@ -224,8 +224,9 @@ void bytecode_program_free(BytecodeProgram* program) {
     free(program->code);
     free(program->information);
     free(program->constants);
-    free(program);
+    free(program->upvalues);
     vector_deinit(&program->variants);
+    free(program);
 }
 
 void bytecode_program_init(Executor* E, BytecodeProgram* program){

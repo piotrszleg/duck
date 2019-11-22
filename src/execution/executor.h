@@ -5,6 +5,11 @@
 #include "../ast/execute_ast.h"
 #include "options.h"
 
+typedef struct {
+    char* file_name;
+    unsigned line_number; 
+} TracebackPoint;
+
 struct Executor {
     ObjectSystem object_system;
     unsigned line;

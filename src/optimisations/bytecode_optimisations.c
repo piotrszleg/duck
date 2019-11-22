@@ -411,7 +411,7 @@ bool insert_instruction(BytecodeManipulation* manipulation, unsigned index, Inst
         vector_insert(manipulation->instructions, index, instruction);
         vector_insert(manipulation->transformations, index, transformation);
         // copy information from previous instruction
-        vector_insert(manipulation->informations, index, vector_index(manipulation->informations, index));
+        vector_insert(manipulation->informations, index, vector_index(manipulation->informations, index-1));
         return true;
     }
     if(manipulation->print_optimisations){
@@ -1141,7 +1141,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
                         *STACK(swap_instruction.swap_argument.right)=temp;
                         vector_insert(&instructions, p, &swap_instruction);
                         vector_insert(&transformations, p, &swap_transformation);
-                        vector_insert(&informations, p, vector_index(&informations, p));
+                        vector_insert(&informations, p, vector_index(&informations, p-1));
                         p=bytecode_iterator_next(&progress_state, vector_get_data(&instructions));
                         break;
                     }

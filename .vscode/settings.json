@@ -61,7 +61,8 @@
         "list": "c",
         "unordered_map": "c",
         "xhash": "c",
-        "execute_bytecode.h": "c"
+        "execute_bytecode.h": "c",
+        "sstream": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
 }
