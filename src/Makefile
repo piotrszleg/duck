@@ -12,7 +12,7 @@ source-files := \
 
 build-folder := ../build
 
-options := -g -Wall -Wl,--out-implib,$(build-folder)/libhost.a -IE:\Libraries\libffi-3.2.1/i686-pc-mingw32/include/
+options := -g -Wall -Wl,--out-implib,$(build-folder)/libhost.a
 ifneq ($(OS),Windows_NT)
 	options:=$(options) -ldl
 endif

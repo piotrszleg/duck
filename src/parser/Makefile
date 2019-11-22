@@ -29,7 +29,6 @@ $(object-files): $(source-files) $(headers)
 # pack object files into archive
 $(archive-path): $(object-files)
 	ar cr $(archive-path) $(object-files)
-	rm $(object-files)
 
 # compile c files into exe
 $(tests-path): tests.c $(source-files) $(headers)

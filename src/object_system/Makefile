@@ -15,8 +15,7 @@ compile-objects: $(source-files)
 
 # pack object files into archive that can be added to main executable
 $(archive-path): compile-objects
-	ar cr $(archive-path) $(object-files) ;
-	find . -name "*.o" -delete
+	ar cr $(archive-path) $(object-files)
 
 # compile c files into exe with testing functions
 $(tests-path): tests.c $(source-files) $(executable-only-source-files)
