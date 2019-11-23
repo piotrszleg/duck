@@ -9,6 +9,7 @@ enum MoveRequest{
     down,// default visitng order
     next,// don't visit the inner hierarchy
     up,// go up from nested expression
+    stop,
 };
 
 typedef struct ASTVisitorRequest ASTVisitorRequest;

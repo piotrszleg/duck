@@ -208,6 +208,7 @@ Object wrap_expression(Executor* E, Expression* expression){
 typedef struct {
     Executor* executor;
     map_t(Object) macro_definitions;
+    Object error;
 } MacroVisitorState;
 
 ASTVisitorRequest remove_nulls_from_expression_visitor(Expression* expression, void* data){
@@ -297,6 +298,12 @@ void proccess_macro_declaration(MacroDeclaration* md, MacroVisitorState* state){
 
 ASTVisitorRequest macro_visitor(Expression* expression, void* data){
     MacroVisitorState* state=(MacroVisitorState*)data;
+    Executor* E=state->executor;
+    #define MACRO_ERROR(cause, message, ...) \
+    {   NEW_ERROR(state->error, "MACRO_ERROR", cause, message, ##__VA_ARGS__) \
+        ASTVisitorRequest request={down, NULL}; \
+        return request; }
+    
     if(expression->type==e_macro_declaration){
         proccess_macro_declaration((MacroDeclaration*)expression, state);
         ASTVisitorRequest request={next, NULL};
@@ -309,73 +316,74 @@ ASTVisitorRequest macro_visitor(Expression* expression, void* data){
                 proccess_macro_declaration((MacroDeclaration*)line, state);
             } else if(line->type==e_macro){
                 Macro* m=(Macro*)line;
-                char* key=m->identifier->value;
+                char* macro_name=m->identifier->value;
 
-                Object* map_get_result=map_get(&state->macro_definitions, key);
+                Object* map_get_result=map_get(&state->macro_definitions, macro_name);
                 if(map_get_result==NULL){
-                    THROW_ERROR(AST_ERROR, "Unknown macro %s.", key)
+                    MACRO_ERROR(null_const, "Undefined macro \"%s\".", macro_name)
                 }
+                
                 Object macro_value=*map_get_result;
                 
                 int expected_arguments=macro_arguments_count(macro_value);
                 if(expected_arguments>vector_count(&b->lines)-i-1){
-                    USING_STRING(stringify_expression(expression, 0),
-                        THROW_ERROR(AST_ERROR, "There is not enough lines in block: %s for %s macro to work.", str, key))
+                    MACRO_ERROR(null_const, 
+                        "There is not enough lines in block to fill \"%s\" macro's required arguments.", macro_name);
                 }
                 Object* arguments=malloc(sizeof(Object)*expected_arguments);
                 for(int j=0; j<expected_arguments; j++){
-                    arguments[j]=wrap_expression(state->executor, copy_expression(pointers_vector_get(&b->lines, i+1+j)));\
+                    arguments[j]=wrap_expression(E, copy_expression(pointers_vector_get(&b->lines, i+1+j)));\
                     reference(&arguments[j]);
                 }
-                Object evaluation_result=evaluate_macro(state->executor, macro_value, arguments, expected_arguments);
-                Expression* converted=to_expression(state->executor, evaluation_result);
+                Object evaluation_result=evaluate_macro(E, macro_value, arguments, expected_arguments);
+                Expression* converted=to_expression(E, evaluation_result);
                 if(converted!=NULL) {
                     // replace macro with it's evaluation result
                     pointers_vector_set(&b->lines, i, converted);
                     delete_expression((Expression*)m);
                     // remove arguments
                     for(int j=0; j<expected_arguments; j++){
-                        //delete_expression(pointers_vector_get(&b->lines, i+1));
-                        dereference(state->executor, &arguments[j]);
+                        delete_expression(pointers_vector_get(&b->lines, i+1));
+                        dereference(E, &arguments[j]);
                         vector_delete(&b->lines, i+1);
                     }
-                    dereference(state->executor, &evaluation_result);
+                    dereference(E, &evaluation_result);
                     ASTVisitorRequest request={down};
                     return request;
                 } else {
-                    dereference(state->executor, &evaluation_result);
-                    USING_STRING(stringify(state->executor, evaluation_result),
-                        THROW_ERROR(AST_ERROR, "Can't put back the result of evaluating macro \"%s\", the result is: \n%s", key, str))
+                    MACRO_ERROR(evaluation_result, 
+                        "Can't turn the result of evaluating macro \"%s\" back to expression.", macro_name)
                 }
             }
         }
     } else if(expression->type==e_macro){
         Macro* m=(Macro*)expression;
-        char* key=m->identifier->value;
-        Object* map_get_result=map_get(&state->macro_definitions, key);
+        char* macro_name=m->identifier->value;
+        Object* map_get_result=map_get(&state->macro_definitions, macro_name);
         if(map_get_result==NULL){
-            THROW_ERROR(AST_ERROR, "Unknown macro %s.", key)
+            MACRO_ERROR(null_const, "Undefined macro \"%s\".", macro_name)
         }
-        Object evaluation_result=evaluate_macro(state->executor, *map_get_result, NULL, 0);
-        Expression* converted=to_expression(state->executor, evaluation_result);
+        Object evaluation_result=evaluate_macro(E, *map_get_result, NULL, 0);
+        Expression* converted=to_expression(E, evaluation_result);
         if(converted!=NULL) {
             ASTVisitorRequest request={next, converted};
-            free(key);
             return request;
         } else {
-            USING_STRING(stringify(state->executor, evaluation_result),
-                THROW_ERROR(AST_ERROR, "Can't put back the result of evaluating macro \"%s\", the result is \n%s", key, str))
-            free(key);
+            MACRO_ERROR(evaluation_result, 
+                "Can't turn the result of evaluating macro \"%s\" back to expression.", macro_name)
         }
     }
+    #undef MACRO_ERROR
     ASTVisitorRequest request={down, NULL};
     return request;
 }
 
-void execute_macros(Executor* E, Expression** ast){
+Object execute_macros(Executor* E, Expression** ast){
     MacroVisitorState state;
+    state.error=null_const;
     state.executor=E;
     map_init(&state.macro_definitions);
     visit_ast(ast, macro_visitor, &state);
     map_deinit(&state.macro_definitions);
+    return state.error;
 }

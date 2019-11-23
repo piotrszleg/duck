@@ -215,10 +215,10 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
             f.fp->enclosing_scope=E->scope;
             reference(&E->scope);
             USE(f)
-
-            if(!E->options.disable_bytecode){
+            BytecodeProgram* bytecode_program;
+            if(!E->options.disable_bytecode 
+                && (bytecode_program=ast_function_to_bytecode(d))!=NULL){
                 f.fp->ftype=f_bytecode;
-                BytecodeProgram* bytecode_program=ast_function_to_bytecode(d);
                 bytecode_program->source_file_name=strdup(E->file);
                 if(E->options.optimise_bytecode){
                     optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);

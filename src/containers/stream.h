@@ -13,6 +13,7 @@ struct stream {
 };
 
 void stream_init(stream* s, size_t size);
+void stream_deinit(stream* s);
 int stream_push(stream* s, const void* data_pointer, size_t size);
 int stream_push_string(stream* s, const char* string);
 int stream_push_string_indented(stream* s, const char* string);

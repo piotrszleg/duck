@@ -7,6 +7,10 @@ void stream_init(stream* s, size_t size){
     s->size=size;
 }
 
+void stream_deinit(stream* s){
+    free(s->data);
+}
+
 void stream_fit(stream* s, int minimal_size){
     if(s->size<minimal_size){
         s->size=nearest_power_of_two(minimal_size);

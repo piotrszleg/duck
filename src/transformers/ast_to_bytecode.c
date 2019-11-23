@@ -390,11 +390,11 @@ void ast_to_bytecode_recursive(Expression* expression, BytecodeTranslation* tran
             bytecode_get(translation, expression);
             break;
         default:
-            THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched expression Instruction type: %i\n", expression->type);
+            THROW_ERROR(WRONG_ARGUMENT_TYPE, "Can't compile expression of type: %i\n.", expression->type);
     }
 }
 
-void bytecode_translation_init(BytecodeTranslation* translation){
+static void bytecode_translation_init(BytecodeTranslation* translation){
     stream_init(&translation->constants, CONSTANTS_SIZE);
     stream_init(&translation->code, CODE_SIZE);
     stream_init(&translation->information, CODE_SIZE);
@@ -402,7 +402,15 @@ void bytecode_translation_init(BytecodeTranslation* translation){
     stream_init(&translation->upvalues, UPVALUES_SIZE);
 }
 
-BytecodeProgram* translation_to_bytecode(BytecodeTranslation* translation, int expected_arguments){
+static void bytecode_translation_deinit(BytecodeTranslation* translation){
+    stream_deinit(&translation->constants);
+    stream_deinit(&translation->code);
+    stream_deinit(&translation->information);
+    stream_deinit(&translation->sub_programs);
+    stream_deinit(&translation->upvalues);
+}
+
+static BytecodeProgram* translation_to_bytecode(BytecodeTranslation* translation, int expected_arguments){
     BytecodeProgram* program=malloc(sizeof(BytecodeProgram));
     program->source_file_name=NULL;
     stream_truncate(&translation->code);
@@ -422,36 +430,48 @@ BytecodeProgram* translation_to_bytecode(BytecodeTranslation* translation, int e
     return program;
 }
 
-void finish_translation(BytecodeTranslation* translation) {
+static void finish_translation(BytecodeTranslation* translation) {
     push_uint_instruction(translation, b_end, 0);
     repeat_information(translation);
+}
+
+void add_function_arguments(BytecodeTranslation* translation, FunctionDeclaration* d){
+    translation->last_information=information_from_ast(translation, (Expression*)d);
+    
+    int arguments_count=vector_count(&d->arguments);
+    for (int i = 0; i < arguments_count; i++){
+        Argument* arg=pointers_vector_get(&d->arguments, arguments_count-1-i);
+        push_string_load(translation, arg->name);
+        push_bool_instruction(translation, b_set, arg->used_in_closure);
+        push_instruction(translation, b_discard);
+    }
 }
 
 BytecodeProgram* ast_function_to_bytecode(FunctionDeclaration* d){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
-    translation.last_information=information_from_ast(&translation, (Expression*)d);
-    
-    int arguments_count=vector_count(&d->arguments);
-    for (int i = 0; i < arguments_count; i++){
-        Argument* arg=pointers_vector_get(&d->arguments, arguments_count-1-i);
-        push_string_load(&translation, arg->name);
-        push_bool_instruction(&translation, b_set, arg->used_in_closure);
-        push_instruction(&translation, b_discard);
-    }
-
-    ast_to_bytecode_recursive(d->body, &translation, true);
-    finish_translation(&translation);
-
-    return translation_to_bytecode(&translation, arguments_count);
+    TRY_CATCH(
+        add_function_arguments(&translation, d);
+        ast_to_bytecode_recursive(d->body, &translation, true);
+        finish_translation(&translation);
+        return translation_to_bytecode(&translation, vector_count(&d->arguments));
+    ,
+        printf("Bytecode generation failed due to error:\n %s\n", err_message);
+        bytecode_translation_deinit(&translation);
+        return NULL;
+    )
 }
 
 BytecodeProgram* ast_to_bytecode(Expression* expression, bool keep_scope){
     BytecodeTranslation translation;
     bytecode_translation_init(&translation);
-    
-    ast_to_bytecode_recursive(expression, &translation, keep_scope);
-    finish_translation(&translation);
-
-    return translation_to_bytecode(&translation, 0);
+    TRY_CATCH(
+        ast_to_bytecode_recursive(expression, &translation, keep_scope);
+        finish_translation(&translation);
+        return translation_to_bytecode(&translation, 0);
+        ,
+        printf("Bytecode generation failed due to error:\n %s\n", err_message);
+        bytecode_translation_deinit(&translation);
+        return NULL;
+    )
 }

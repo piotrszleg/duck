@@ -142,9 +142,6 @@ enum ExpressionType{
     #undef END
 };
 
-typedef enum LiteralType LiteralType;
-enum LiteralType{ l_int, l_float, l_string };
-
 // struct declarations and new_<expression> functions
 #define EXPRESSION(struct_name, type_tag) \
     typedef struct struct_name struct_name; \

@@ -28,5 +28,6 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
 bool is_error(Executor* E, Object o);
 bool is_unhandled_error(Executor* E, Object o);
 void handle_if_error(Executor* E, Object o);
+void error_handle(Executor* E, Object o);
 
 #endif

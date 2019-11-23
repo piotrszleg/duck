@@ -6,6 +6,7 @@
 #include "../execution/execution.h"
 #include "../runtime/struct_descriptor.h"
 
-void execute_macros(Executor* E, Expression** ast);
+// returns error or null if it hasn't occurred
+Object execute_macros(Executor* E, Expression** ast);
 
 #endif

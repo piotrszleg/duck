@@ -88,10 +88,14 @@ bool is_unhandled_error(Executor* E, Object o){
     return result;
 }
 
+void error_handle(Executor* E, Object o){
+    Object set_result=set(E, o, to_string("handled"), to_int(1));
+    destroy_unreferenced(E, &set_result);
+}
+
 void handle_if_error(Executor* E, Object o){
     if(is_error(E, o)){
-        Object set_result=set(E, o, to_string("handled"), to_int(1));
-        destroy_unreferenced(E, &set_result);
+        error_handle(E, o);
     }
 }
 

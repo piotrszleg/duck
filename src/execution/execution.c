@@ -7,7 +7,11 @@ Object evaluate(Executor* E, Expression* ast, Object scope, const char* file_nam
     create_return_point(E, true);
     reference(&scope);
     E->scope=scope;
-    execute_macros(E, &ast);
+    Object macro_evaluation_error=execute_macros(E, &ast);
+    if(macro_evaluation_error.type!=t_null){
+        delete_expression(ast);
+        return macro_evaluation_error;
+    }
     if(E->options.optimise_ast){
         optimise_ast(E, &ast);
     }
@@ -15,34 +19,40 @@ Object evaluate(Executor* E, Expression* ast, Object scope, const char* file_nam
         USING_STRING(stringify_expression(ast, 0),
             printf("Abstract Syntax Tree:\n%s\n", str));
     }
-    Object execution_result;
+
     if(!E->options.disable_ast_execution){
-        execution_result=execute_ast(E, ast, true);
+        Object execution_result=execute_ast(E, ast, true);
         if(delete_ast){
             delete_expression(ast);
         }
+        return execution_result;
     } else if(!E->options.disable_bytecode) {
         BytecodeProgram* bytecode_program=ast_to_bytecode(ast, true);
-        bytecode_program->source_file_name=strdup(file_name);
-        if(delete_ast){
-            delete_expression(ast);// at this point ast is useless and only wastes memory
+        if(bytecode_program!=NULL){
+            bytecode_program->source_file_name=strdup(file_name);
+            if(delete_ast){
+                delete_expression(ast);// at this point ast is useless and only wastes memory
+            }
+            if(E->options.optimise_bytecode){
+                optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);
+            }
+            bytecode_program_init(E, bytecode_program);
+            if(E->options.print_bytecode){
+                print_bytecode_program(bytecode_program);
+            }
+            E->bytecode_environment.pointer=0;
+            E->bytecode_environment.executed_program=bytecode_program;
+            // the end instruction will dereference these later
+            heap_object_reference((HeapObject*)E->bytecode_environment.executed_program);
+            return execute_bytecode(E);
+        } else {
+            RETURN_ERROR("EVALUATION_ERROR", null_const, 
+                "Bytecode generation failed and ast execution is disabled.")
         }
-        if(E->options.optimise_bytecode){
-            optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);
-        }
-        bytecode_program_init(E, bytecode_program);
-        if(E->options.print_bytecode){
-            print_bytecode_program(bytecode_program);
-        }
-        E->bytecode_environment.pointer=0;
-        E->bytecode_environment.executed_program=bytecode_program;
-        // the end instruction will dereference these later
-        heap_object_reference((HeapObject*)E->bytecode_environment.executed_program);
-        execution_result=execute_bytecode(E);
     } else {
-        NEW_ERROR(execution_result, "EVALUATION_ERROR", null_const, "Both bytecode and ast execution are disabled.")
+        RETURN_ERROR("EVALUATION_ERROR", null_const, 
+            "Both bytecode and ast execution are disabled.")
     }
-    return execution_result;
 }
 
 Object evaluate_string(Executor* E, const char* s, Object scope){

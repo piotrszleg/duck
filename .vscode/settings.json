@@ -66,7 +66,8 @@
         "*.tcc": "c",
         "optional": "c",
         "ostream": "c",
-        "array": "c"
+        "array": "c",
+        "stream.h": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
 }

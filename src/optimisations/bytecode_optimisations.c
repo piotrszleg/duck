@@ -196,7 +196,7 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                     if(inputs[0]->type==d_constant && inputs[1]->type==d_constant && inputs[2]->type==d_constant){
                         Object operator_result=operator(E, inputs[1]->constant_value, inputs[2]->constant_value, inputs[0]->constant_value.text);
                         if(is_unhandled_error(E, operator_result)){
-                            set(E, operator_result, to_string("handled"), to_int(1));
+                            error_handle(E, operator_result);
                             dereference(E, &operator_result);
                             outputs[0]=new_any_type_dummy(E, dummy_objects_counter);
                         } else {
