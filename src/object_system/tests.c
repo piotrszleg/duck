@@ -23,7 +23,7 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
     if(f->ftype==f_native){
         return f->native_pointer(E, f->enclosing_scope, arguments, arguments_count);
     } else {
-        THROW_ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
+        CRITICAL_ERROR(NOT_IMPLEMENTED, "Calling functions other than native is not implemented.");
         return null_const;
     }
 }

@@ -123,8 +123,7 @@ void table_literal_key(BytecodeTranslation* translation, Expression* expression)
             push_string_load(translation, ((SelfMemberAccess*)expression)->right->value);
             break;
         default: 
-            // TODO: More informative message
-            THROW_ERROR(WRONG_ARGUMENT_TYPE, "Incorrect expression in table literal key.\n");
+            INCORRECT_ENUM_VALUE(ExpressionType, expression, expression->type);
             break;
     }
 }
@@ -391,9 +390,7 @@ void ast_to_bytecode_recursive(Expression* expression, BytecodeTranslation* tran
             bytecode_get(translation, expression);
             break;
         default:
-        {
             THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched expression Instruction type: %i\n", expression->type);
-        }
     }
 }
 

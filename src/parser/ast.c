@@ -98,7 +98,7 @@ char* stringify_expression(Expression* expression, int indentation){
                 break; \
             }
         AST_EXPRESSIONS
-        default: THROW_ERROR(AST_ERROR, "Can't stringify expression of type %i", expression->type);
+        default: INCORRECT_ENUM_VALUE(ExpressionType, expression, expression->type)
 
         #undef EXPRESSION
         #undef SPECIFIED_EXPRESSION_FIELD
@@ -139,8 +139,7 @@ void delete_expression_keep_children(Expression* expression){
                 free(casted); \
                 break; \
             }
-        default: THROW_ERROR(AST_ERROR, "Can't delete expression of type %i", expression->type);
-
+        default: INCORRECT_ENUM_VALUE(ExpressionType, expression, expression->type)
         AST_EXPRESSIONS
 
         #undef EXPRESSION
@@ -179,8 +178,7 @@ void delete_expression(Expression* expression){
                 free(casted); \
                 break; \
             }
-        default: THROW_ERROR(AST_ERROR, "Can't delete expression of type %i", expression->type);
-
+        default: INCORRECT_ENUM_VALUE(ExpressionType, expression, expression->type)
         AST_EXPRESSIONS
 
         #undef EXPRESSION
@@ -223,7 +221,7 @@ Expression* copy_expression(Expression* expression){
                 return (Expression*)copy; \
             }
         
-        default: THROW_ERROR(AST_ERROR, "Can't copy expression of type %i", expression->type);
+        default: INCORRECT_ENUM_VALUE(ExpressionType, expression, expression->type)
 
         AST_EXPRESSIONS
 
@@ -281,7 +279,7 @@ bool expressions_equal(Expression* expression_a, Expression* expression_b){
                 return true; \
             }
         
-        default: THROW_ERROR(AST_ERROR, "Can't compare expressions of type %i", expression_a->type);
+        default: INCORRECT_ENUM_VALUE(ExpressionType, expression_a, expression_a->type);
 
         AST_EXPRESSIONS
 

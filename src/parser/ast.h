@@ -117,8 +117,8 @@ bool ast_allocations_zero();
 #define EXPRESSION_TYPES_COUNT (int)e_argument
 
 // generate enum of expression types, each value is prepended with "e_"
-typedef enum expression_type expression_type;
-enum expression_type{
+typedef enum ExpressionType ExpressionType;
+enum ExpressionType{
     #define EXPRESSION(struct_name, type_tag) e_##type_tag,
     #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name)
     #define EXPRESSION_FIELD(field_name)
@@ -142,18 +142,17 @@ enum expression_type{
     #undef END
 };
 
-typedef enum literal_type literal_type;
-enum literal_type{ l_int, l_float, l_string };
+typedef enum LiteralType LiteralType;
+enum LiteralType{ l_int, l_float, l_string };
 
 // struct declarations and new_<expression> functions
 #define EXPRESSION(struct_name, type_tag) \
     typedef struct struct_name struct_name; \
     struct_name* new_ ## type_tag(); \
     struct struct_name { \
-        expression_type type; \
+        ExpressionType type; \
         int line_number; \
-        int column_number; \
-
+        int column_number;
 #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) \
                                                     struct_name* field_name;
 #define EXPRESSION_FIELD(field_name)                Expression* field_name;

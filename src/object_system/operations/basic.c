@@ -22,7 +22,8 @@ bool is_falsy(Object o){
         case t_pointer:
             return false;
         default:
-            THROW_ERROR(INCORRECT_OBJECT_POINTER, "Incorrect object pointer passed to is_falsy function.");
+            INCORRECT_ENUM_VALUE(ObjectType, o, o.type);
+            return false;
     }
 }
 

@@ -145,7 +145,7 @@ void dummy_print(const Dummy* dummy){
             printf(")");
             break;
         default:
-            THROW_ERROR(BYTECODE_ERROR, "Incorrect dummy type %i.", dummy->type);
+            INCORRECT_ENUM_VALUE(DummyType, dummy, dummy->type);
     }
     //printf("<%i>", dummy->mp.hp.ref_count);
 }

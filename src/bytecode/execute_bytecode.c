@@ -978,7 +978,7 @@ Object execute_bytecode(Executor* E){
             case b_label:
                 break;
             default:
-                THROW_ERROR(WRONG_ARGUMENT_TYPE, "Uncatched bytecode instruction type: %i, number of instruction is: %i\n", instruction.type, *pointer);
+                INCORRECT_ENUM_VALUE(InstructionType, instruction, instruction.type);
         }
         (*pointer)++;
     }

@@ -287,7 +287,7 @@ void* struct_descriptor_get_pointer(Executor* E, Table* sd){
     Object pointer=table_get(E, sd, to_string("position"));
     if(pointer.type!=t_pointer){
         USING_STRING(stringify(E, pointer),
-            THROW_ERROR(WRONG_ARGUMENT_TYPE, "Position field of struct descriptor should be of type pointer, it is %s", str))
+            CRITICAL_ERROR(WRONG_ARGUMENT_TYPE, "Position field of struct descriptor should be of type pointer, it is %s", str))
     }
     return pointer.p;
 }

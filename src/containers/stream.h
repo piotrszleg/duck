@@ -28,14 +28,14 @@ void stream_fit(stream* s, int minimal_size);
     int available_space=(s)->size-(s)->position; \
     int needed_characters=snprintf(((char*)(s)->data)+(s)->position, available_space, (format), __VA_ARGS__); \
     if(needed_characters<0) { \
-        THROW_ERROR(PRINTF_ERROR, "Snprintf function failed."); \
+        CRITICAL_ERROR(PRINTF_ERROR, "Snprintf function failed."); \
     } \
     if(needed_characters>=available_space) { \
         stream_fit(s, (s)->position+needed_characters+1); \
         available_space=(s)->size-(s)->position; \
         int second_write_result=snprintf(((char*)(s)->data)+(s)->position, available_space, (format), __VA_ARGS__); \
         if(second_write_result<0 || second_write_result>=available_space) { \
-            THROW_ERROR(PRINTF_ERROR, "Snprintf function failed."); \
+            CRITICAL_ERROR(PRINTF_ERROR, "Snprintf function failed."); \
         } \
     } \
     (s)->position+=needed_characters;

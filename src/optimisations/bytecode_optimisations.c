@@ -56,7 +56,7 @@ Dummy* assumption_to_dummy(Executor* E, Assumption* assumption, unsigned* dummy_
         case a_type:
             return new_known_type_dummy(E, assumption->type, dummy_objects_counter); 
         default:
-            THROW_ERROR(BYTECODE_ERROR, "Incorrect assumption type.");
+            INCORRECT_ENUM_VALUE(Assumption.Type, assumption, assumption->type);
             return NULL;
     }
 }

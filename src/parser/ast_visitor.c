@@ -54,7 +54,7 @@ ASTVisitorRequest visit_ast(Expression** expression, visitor_function f, void* d
                 } \
             }
         #define END break; }
-        default: THROW_ERROR(AST_ERROR, "Incorrect expression type in visit_ast function, type is %i", (*expression)->type);
+        default: INCORRECT_ENUM_VALUE(ExpressionType, expression, (*expression)->type);
 
         AST_EXPRESSIONS
 

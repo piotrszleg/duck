@@ -528,7 +528,7 @@ ENDLS:
 %%
 
 void print_and_delete(Expression* result){
-	printf(stringify_expression(result, 0)); 
+	printf("%s", stringify_expression(result, 0)); 
 	delete_expression(result);
 }
 

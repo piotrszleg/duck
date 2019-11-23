@@ -128,7 +128,7 @@ void paths(){
     printf("TEST: %s\n", __FUNCTION__);
 
     Block* as_block=parse_block("base.call, options[\"volume\"], options[user.name], base.graphics[\"effects\"]", 4);
-    expression_type line_types[]={
+    ExpressionType line_types[]={
         e_member_access,
         e_indexer,
         e_indexer,

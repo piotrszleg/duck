@@ -1,10 +1,11 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <setjmp.h>
 
-enum error_type{
+typedef enum{
     MEMORY_ALLOCATION_FAILURE,
     WRONG_ARGUMENT_TYPE,
     TYPE_CONVERSION_FAILURE,
@@ -17,8 +18,9 @@ enum error_type{
     BYTECODE_ERROR,
     AST_ERROR,
     STACK_OVERFLOW,
-    PRINTF_ERROR
-};
+    PRINTF_ERROR,
+    ENUM_VALUE_OUT_OF_BOUNDS
+} ErrorType;
 
 extern jmp_buf error_buf;
 extern char err_type;
@@ -41,15 +43,20 @@ extern char err_message[1024];
     err_type=type; \
     if(error_buf!=NULL){ longjmp(error_buf,1); }
 
-#define CHECK_ALLOCATION(value) \
-    if(value==NULL) { \
-        THROW_ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
-    }
+void critical_error_handler(ErrorType type);
 
 #define CRITICAL_ERROR(type, message, ...) \
-    char message_formatted[ERROR_BUFFER_SIZE]; \
-    snprintf(message_formatted, ERROR_BUFFER_SIZE, message, ##__VA_ARGS) \
-    printf("Critical error: %s \n%s", type, message_formatted); \
-    exit(-1);
+    sprintf("CRITICAL ERROR: %s:%d\n", err_message, message, __FILE__, __LINE__, ##__VA_ARGS__); \
+    critical_error_handler(type);
+
+#define INCORRECT_ENUM_VALUE(type, variable, value) \
+    CRITICAL_ERROR(ENUM_VALUE_OUT_OF_BOUNDS, \
+        "Variable %s of type %s in function %s has incorrect enum value of %i" \
+        #variable, #type, __FUNCTION__, (int)value)
+
+#define CHECK_ALLOCATION(value) \
+    if(value==NULL) { \
+        CRITICAL_ERROR(MEMORY_ALLOCATION_FAILURE, "Memory allocation failure in function %s", __FUNCTION__); \
+    }
 
 #endif
