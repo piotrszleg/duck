@@ -66,7 +66,18 @@ static bool is_float_literal(const char *s) {
 
 Object cast(Executor* E, Object o, ObjectType type){
     if(o.type==type){
+        reference(&o);
         return o;
+    }
+    if(o.type==t_table){
+        Object cast_override=get(E, o, OVERRIDE(E, cast));
+        if(cast_override.type!=t_null){
+            // call get_function a and b as arguments
+            Object result=call(E, cast_override, (Object[]){o, to_string(get_type_name(type))}, 2);
+            dereference(E, &cast_override);
+            return result;
+        }
+        dereference(E, &cast_override);
     }
     switch(type){
         case t_string:
@@ -93,17 +104,6 @@ Object cast(Executor* E, Object o, ObjectType type){
             } else if(o.type==t_string && is_float_literal(o.text)){
                 return to_float(strtof(o.text, NULL));// convert string to float if it contains number
             }
-            break;
-        }
-        case t_table: {
-            Object cast_override=get(E, o, OVERRIDE(E, cast));
-            if(cast_override.type!=t_null){
-                // call get_function a and b as arguments
-                Object result=call(E, cast_override, (Object[]){o, to_string(get_type_name(type))}, 2);
-                destroy_unreferenced(E, &cast_override);
-                return result;
-            }
-            destroy_unreferenced(E, &cast_override);
             break;
         }
         default:;
@@ -134,7 +134,7 @@ unsigned hash(Executor* E, Object o, Object* error) {
             Object hash_override=get(E, o, OVERRIDE(E, hash));
             if(hash_override.type!=t_null){
                 Object call_result=call(E, hash_override, &o, 1);
-                destroy_unreferenced(E, &hash_override);
+                dereference(E, &hash_override);
                 if(call_result.type!=t_int){
                     NEW_ERROR(*error, "HASH_ERROR", multiple_causes(E, (Object[]){o, call_result}, 2), "Function at field hash didn't return an int value.");
                     return 0;
@@ -145,7 +145,7 @@ unsigned hash(Executor* E, Object o, Object* error) {
                     return call_result.int_value;
                 }
             } else {
-                destroy_unreferenced(E, &hash_override);
+                dereference(E, &hash_override);
                 return table_hash(E, o.tp, error);
             }
         }
@@ -181,18 +181,21 @@ Object get(Executor* E, Object o, Object key){
             if(get_override.type!=t_null){
                 Object arguments[]={o, key};
                 result=call(E, get_override, arguments, 2);
-                destroy_unreferenced(E, &get_override);
+                dereference(E, &get_override);
                 return result;
             } else {
-                destroy_unreferenced(E, &get_override);
+                dereference(E, &get_override);
                 result=table_get(E, o.tp, key);
                 if(result.type!=t_null) {
+                    reference(&result);
                     return result;
                 } else {
-                    Object prototype=get_override=table_get(E, o.tp, OVERRIDE(E, prototype));
+                    Object prototype=table_get(E, o.tp, OVERRIDE(E, prototype));
+                    reference(&prototype);
                     if(prototype.type!=t_null){
                         result=get(E, prototype, key);
-                        destroy_unreferenced(E, &prototype);
+                        dereference(E, &prototype);
+                        reference(&result);
                         return result;
                     } else {
                         return result;
@@ -220,9 +223,9 @@ Object get(Executor* E, Object o, Object key){
         case t_coroutine:
             FIELD("state"){
                 switch(o.co->state){
-                    case co_uninitialized: return to_string("uninitialized");
-                    case co_running: return to_string("running");
-                    case co_finished: return to_string("finished");
+                    case co_uninitialized: return to_string(strdup("uninitialized"));
+                    case co_running: return to_string(strdup("running"));
+                    case co_finished: return to_string(strdup("finished"));
                 }
             }
             FIELD("finished"){
@@ -239,7 +242,7 @@ Object get(Executor* E, Object o, Object key){
             break;
         case t_symbol:
             FIELD("comment"){
-                return to_string(o.sp->comment);
+                return to_string(strdup(o.sp->comment));
             }
             break;
         default:;
@@ -259,6 +262,7 @@ Object set(Executor* E, Object o, Object key, Object value){
                          "Attempted to set a field in a protected table.");
         } else {
             table_set(E, o.tp, key, value);
+            reference(&value);
             return value;
         }
     } else {
@@ -299,6 +303,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
                 memcpy(arguments_with_self+1, arguments, arguments_count*sizeof(Object));
                 Object result=call(E, patch, arguments_with_self, arguments_count+1);
                 free(arguments_with_self);
+                dereference(E, &patch);
                 return result;
             } else {
                 RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", get_type_name(o.type));
@@ -425,7 +430,8 @@ void call_destroy(Executor* E, Object o){
     Object destroy_override=get(E, o, OVERRIDE(E, destroy));
     if(destroy_override.type!=t_null){
         Object destroy_result=call(E, destroy_override, &o, 1);
-        destroy_unreferenced(E, &destroy_result);
+        dereference(E, &destroy_override);
+        dereference(E, &destroy_result);
     }
 }
 

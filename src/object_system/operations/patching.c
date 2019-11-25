@@ -13,10 +13,3 @@ Object get_patch(Executor* E, ObjectType object_type, Object patch_symbol) {
     REQUIRE_TYPE(type_patching_table, t_table)
     return table_get(E, type_patching_table.tp, patch_symbol);
 }
-
-#define PATCH(patch_name, object_type, ...) \
-    Object patch=get_patch(E, object_type, OVERRIDE(E, patch_name)); \
-    if(patch.type!=t_null){ \
-        Object arguments[]={__VA_ARGS__}; \
-        return call(E, patch, arguments, sizeof(arguments)/sizeof(Object)); \
-    }

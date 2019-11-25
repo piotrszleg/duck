@@ -48,9 +48,9 @@ Object multiple_causes(Executor* E, Object* causes, int causes_count){
     stringify_f.fp->arguments_count=1;
     stringify_f.fp->native_pointer=multiple_causes_stringify;
     set(E, result, OVERRIDE(E, stringify), stringify_f);
+    dereference(E, &stringify_f);
 
     return result;
-    return null_const;
 }
 
 Object error_stringify(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -112,18 +112,17 @@ Object new_error(Executor* E, char* type, Object cause, char* message, char* loc
     Object err;
     table_init(E, &err);
 
-    set(E, err, to_string("type"), to_string(type));
-    set(E, err, to_string("message"), to_string(message));
-    set(E, err, to_string("location"), to_string(location));
+    table_set(E, err.tp, to_string("type"), to_string(type));
+    table_set(E, err.tp, to_string("message"), to_string(message));
+    table_set(E, err.tp, to_string("location"), to_string(location));
 
-    set(E, err, OVERRIDE(E, is_error), to_int(1));
-    set(E, err, to_string("handled"), to_int(0));
+    table_set(E, err.tp, OVERRIDE(E, is_error), to_int(1));
+    table_set(E, err.tp, to_string("handled"), to_int(0));
 
-    set(E, err, OVERRIDE(E, stringify), to_native_function(E, error_stringify, NULL, 1, false));
-    set(E, err, OVERRIDE(E, destroy), to_native_function(E, error_destroy, NULL, 1, false));
+    table_set(E, err.tp, OVERRIDE(E, stringify), to_native_function(E, error_stringify, NULL, 1, false));
+    table_set(E, err.tp, OVERRIDE(E, destroy), to_native_function(E, error_destroy, NULL, 1, false));
 
-    set(E, err, to_string("cause"), cause);
+    table_set(E, err.tp, to_string("cause"), cause);
 
     return err;
-    return null_const;
 }

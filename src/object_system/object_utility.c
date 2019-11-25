@@ -1,6 +1,6 @@
 #include "object_utility.h"
 
-Object set_function(Executor* E, Object o, const char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function){
+void set_function(Executor* E, Object o, const char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function){
     Object function;
     function_init(E, &function);
     function.fp->arguments_count=minimal_arguments;
@@ -10,7 +10,8 @@ Object set_function(Executor* E, Object o, const char* name, int minimal_argumen
     function.fp->variadic=variadic;
     function.fp->native_pointer=native_function;
     function.fp->ftype=f_native;
-    return set(E, o, to_string(name), function);
+    table_set(E, o.tp, to_string(name), function);
+    dereference(E, &function);
 }
 
 Object to_bound_function(Executor* E, Object o, int minimal_arguments, bool variadic, ObjectSystemFunction native_function){
@@ -29,6 +30,8 @@ Object to_bound_function(Executor* E, Object o, int minimal_arguments, bool vari
     return function;
 }
 
-Object set_function_bound(Executor* E, Object o, char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function){
-    return set(E, o, to_string(name), to_bound_function(E, o, minimal_arguments, variadic, native_function));
+void set_function_bound(Executor* E, Object o, char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function){
+    Object function=to_bound_function(E, o, minimal_arguments, variadic, native_function);
+    table_set(E, o.tp, to_string(name), function);
+    dereference(E, &function);
 }

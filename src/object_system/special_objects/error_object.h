@@ -14,6 +14,8 @@
     char* message_formatted=malloc(ERROR_BUFFER_SIZE *sizeof(char)); \
     snprintf(message_formatted, ERROR_BUFFER_SIZE, message, ##__VA_ARGS__); \
     result=new_error(E, type, cause, message_formatted, location); \
+    free(location); \
+    free(message_formatted); \
     }
 #define RETURN_ERROR(type, cause, message, ...) \
     { Object err; \

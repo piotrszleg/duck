@@ -20,14 +20,19 @@ Object ast_set(Executor* E, Object scope, Expression* expression, Object value){
         {
             MemberAccess* m=(MemberAccess*)expression;
             Object indexed=execute_ast(E, m->left, false);
-            return set(E, indexed, to_string(m->right->value), value);
+            Object result=set(E, indexed, to_string(m->right->value), value);
+            dereference(E, &indexed);
+            return result;
         }
         case e_indexer:
         {
             Indexer* i=(Indexer*)expression;
             Object indexed=execute_ast(E, i->left, false);
             Object key=execute_ast(E, i->right, false);
-            return set(E, indexed, key, value);
+            Object result=set(E, indexed, key, value);
+            dereference(E, &key);
+            dereference(E, &indexed);
+            return result;
         }
         default:
             USING_STRING(stringify_expression(expression, 0),
@@ -55,6 +60,15 @@ void ast_source_pointer_init(Executor* E, ASTSourcePointer* source_pointer){
     source_pointer->mp.copy=(ManagedPointerCopyFunction)ast_source_pointer_copy;
 }
 
+void vector_delete_object(Executor* E, vector* v, Object o){
+    for(int i=0; i<vector_count(v); i++){
+        if(compare(E, *(Object*)vector_index(v, i), o)==0){
+            vector_delete(v, i);
+            break;
+        }
+    }
+}
+
 Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
     if(expression==NULL){
         return null_const;
@@ -62,13 +76,12 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
     E->line=expression->line_number;
     E->column=expression->column_number;
     #define USE(object) \
-        vector_push(&E->ast_execution_state.used_objects, &object); \
-        reference(&object);
+        vector_push(&E->ast_execution_state.used_objects, &object);
     #define STOP_USING(object) \
-        vector_delete_item(&E->ast_execution_state.used_objects, &object); \
+        vector_delete_object(E, &E->ast_execution_state.used_objects, object); \
         dereference(E, &object);
     #define RETURN_USED(object) \
-        vector_delete_item(&E->ast_execution_state.used_objects, &object); \
+        vector_delete_object(E, &E->ast_execution_state.used_objects, object); \
         return object;
     
     switch(expression->type){
@@ -137,7 +150,6 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
             Object result;
             for (int i = 0; i < vector_count(&b->lines); i++){
                 Object line_result=execute_ast(E, pointers_vector_get(&b->lines, i), false);
-                reference(&line_result);
                 if(E->ast_execution_state.returning || i == vector_count(&b->lines)-1){
                     result=line_result;
                     USE(result)
@@ -158,6 +170,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
             Object value=execute_ast(E, a->right, false);
             USE(value)
             Object result=ast_set(E, E->scope, a->left, value);
+            USE(result)
             STOP_USING(value)
             RETURN_USED(result)
         }
@@ -169,7 +182,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
             Object right=execute_ast(E, u->right, false);
             USE(right)
             Object result=operator(E, left, right, u->op);
-            USE(result)
+            // USE(result)
             STOP_USING(left)
             STOP_USING(right)
             RETURN_USED(result)
@@ -237,7 +250,6 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
                 ASTSourcePointer* source_pointer=malloc(sizeof(ASTSourcePointer));
                 source_pointer->body=copy_expression(d->body);
                 ast_source_pointer_init(E, source_pointer);
-                heap_object_reference((HeapObject*)source_pointer);
                 f.fp->source_pointer=(HeapObject*)source_pointer;
             }
             RETURN_USED(f)
@@ -266,13 +278,16 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
             } else {
                 int arguments_count=vector_count(&c->arguments->lines);
                 Object* arguments=malloc(arguments_count*sizeof(Object));
-                for (int i = 0; i < vector_count(&c->arguments->lines); i++){
-                    Object argument_value=execute_ast(E, pointers_vector_get(&c->arguments->lines, i), false);
-                    arguments[i]=argument_value;
+                for (int i = 0; i < arguments_count; i++){
+                    arguments[i]=execute_ast(E, pointers_vector_get(&c->arguments->lines, i), false);
+                    USE(arguments[i])
                 }
                 Object result=call(E, f, arguments, arguments_count);
                 USE(result)
                 E->ast_execution_state.returning=false;
+                for (int i = 0; i < arguments_count; i++){
+                    STOP_USING(arguments[i])
+                }
                 free(arguments);
                 STOP_USING(f)
                 RETURN_USED(result)

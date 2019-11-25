@@ -515,17 +515,18 @@ Object builtins_table(Executor* E){
     Object scope;
     table_init(E, &scope);
 
-    set(E, scope, to_int(0), to_string("builtins_table"));
-    set(E, scope, to_string("builtins"), scope);
-    set(E, scope, to_string("overrides"), E->object_system.overrides_table);
-    set(E, scope, to_string("types"), E->object_system.types_table);
+    table_set(E, scope.tp, to_int(0), to_string("builtins_table"));
+    table_set(E, scope.tp, to_string("builtins"), scope);
+    table_set(E, scope.tp, to_string("overrides"), E->object_system.overrides_table);
+    table_set(E, scope.tp, to_string("types"), E->object_system.types_table);
 
     #define REGISTER(f, args_count) \
         Object f##_function; \
         function_init(E, &f##_function); \
         f##_function.fp->arguments_count=args_count; \
         f##_function.fp->native_pointer=&builtin_##f; \
-        set(E, scope, to_string(#f), f##_function);
+        table_set(E, scope.tp, to_string(#f), f##_function); \
+        dereference(E, &f##_function);
     REGISTER(print, 1)
     REGISTER(output, 1)
     REGISTER(input, 0)
@@ -569,24 +570,18 @@ Object builtins_table(Executor* E){
     REGISTER(is_error, 1)
     #undef REGISTER
 
-    Object yield;
-    function_init(E, &yield);
-    yield.fp->ftype=f_special;
-    yield.fp->special_index=0;
-    yield.fp->variadic=true;
-    set(E, scope, to_string("yield"), yield);
-
-    Object debug;
-    function_init(E, &debug);
-    debug.fp->ftype=f_special;
-    debug.fp->special_index=1;
-    set(E, scope, to_string("debug"), debug);
-
-    Object collect_garbage;
-    function_init(E, &collect_garbage);
-    collect_garbage.fp->ftype=f_special;
-    collect_garbage.fp->special_index=2;
-    set(E, scope, to_string("collect_garbage"), collect_garbage);
+    #define REGISTER_SPECIAL(name, index, variadic) \
+    { \
+        Object function; \
+        function_init(E, &function); \
+        function.fp->ftype=f_special; \
+        function.fp->special_index=index; \
+        table_set(E, scope.tp, to_string(#name), function); \
+        dereference(E, &function); \
+    }
+    REGISTER_SPECIAL(yield, 0, true)
+    REGISTER_SPECIAL(debug, 1, false)
+    REGISTER_SPECIAL(collect_garbage, 1, false)
 
     set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
 
@@ -616,6 +611,7 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
 
             // destroy_unreferenced(E, &checked);
             destroy_unreferenced(E, &checked_zero_index);
+            reference(&value);
             return value;
         } else {
             // destroy_unreferenced(E, &checked);
@@ -632,6 +628,7 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
     
     // destroy_unreferenced(E, &checked);
     destroy_unreferenced(E, &checked_zero_index);
+    reference(&value);
     return value;
 }
 

@@ -444,9 +444,6 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
     t->elements_count++;
 }
 
-Object get(Executor* E, Object o, Object key);
-Object set(Executor* E, Object o, Object key, Object value);
-
 Object table_iterator_object_next(Executor* E, Object scope, Object* arguments, int arguments_count){
     BOUND_FUNCTION_CHECK
     Object self=arguments[0];
@@ -458,10 +455,10 @@ Object table_iterator_object_next(Executor* E, Object scope, Object* arguments, 
     REQUIRE_TYPE(iterator_address, t_pointer);
     TableIterator* it=(TableIterator*)iterator_address.p;
     IterationResult iterator_result=table_iterator_next(it);
-    set(E, result, to_string("key"), iterator_result.key);
-    set(E, result, to_string("value"), iterator_result.value);
-    set(E, result, to_string("finished"), to_int(iterator_result.finished));
-    set(E, result, to_string("inside_array"), to_int(iterator_result.inside_array));
+    table_set(E, result.tp, to_string("key"), iterator_result.key);
+    table_set(E, result.tp, to_string("value"), iterator_result.value);
+    table_set(E, result.tp, to_string("finished"), to_int(iterator_result.finished));
+    table_set(E, result.tp, to_string("inside_array"), to_int(iterator_result.inside_array));
     return result;
 }
 
@@ -482,8 +479,8 @@ Object table_get_iterator_object(Executor* E, Object scope, Object* arguments, i
     REQUIRE_TYPE(self, t_table);
     TableIterator* it=malloc(sizeof(TableIterator));
     *it=table_get_iterator(self.tp);
-    set(E, iterator, to_int(0), to_pointer(it));
-    set(E, iterator, to_string("table"), self);// ensures that table won't be destroyed before the iterator
+    table_set(E, iterator.tp, to_int(0), to_pointer(it));
+    table_set(E, iterator.tp, to_string("table"), self);// ensures that table won't be destroyed before the iterator
     set_function_bound(E, iterator, "next", 1, false, table_iterator_object_next);
     set_function_bound(E, iterator, "destroy", 1, false, table_iterator_object_destroy);
     table_protect(iterator.tp);

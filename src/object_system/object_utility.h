@@ -4,8 +4,8 @@
 #include "object.h"
 #include "object_operations.h"
 
-Object set_function(Executor* E, Object o, const char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
-Object set_function_bound(Executor* E, Object o, char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
+void set_function(Executor* E, Object o, const char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
+void set_function_bound(Executor* E, Object o, char* name, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
 Object to_bound_function(Executor* E, Object o, int minimal_arguments, bool variadic, ObjectSystemFunction native_function);
 
 #define BOUND_FUNCTION_CHECK \

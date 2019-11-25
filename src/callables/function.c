@@ -27,7 +27,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
                 inherit_scope(E, function_scope, f->enclosing_scope);
             }
             for(int i=0; i<arguments_count; i++){
-                set(E, function_scope, to_string(f->argument_names[i]), arguments[i]);
+                table_set(E, function_scope.tp, to_string(f->argument_names[i]), arguments[i]);
             }
             E->scope=function_scope;
             return execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, true);

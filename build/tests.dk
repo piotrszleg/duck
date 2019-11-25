@@ -127,7 +127,7 @@ test("coroutines", ->{
 test("question mark", ->{
     f=x->{
         if(x){
-            format("{}")?
+            format("{}")!?
         }
         10
     }

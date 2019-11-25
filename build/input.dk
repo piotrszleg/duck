@@ -1,1 +1,21 @@
-@any()
+test=(name, assertion)->{
+    print("TEST: "+name)
+    assertion()
+    print("test successful")}
+test("test helper function", ->assert(1))
+
+test("stack optimisations", ->{
+    a=1
+    b=5
+    c=8
+    assert_equal(a+a+b+b+a+c+b, 26)
+})
+
+test("type casting", ->{
+    five=5
+    text="5"
+    assert_equal(to_int(text), five)
+    assert_equal(to_string(five), text)
+    assert_equal(cast(text, types.int), five)
+    assert_equal(cast(five, types.string), text)
+})

@@ -95,7 +95,7 @@ void detach(Executor* E, Object* o){
 
 void heap_object_init(Executor* E, HeapObject* ho){
     ho->marked=false;
-    ho->ref_count=0;
+    ho->ref_count=1;
     heap_object_chain(E, ho);
 }
 
@@ -406,7 +406,7 @@ void destroy_unreferenced(Executor* E, Object* o){
                     o->mp->foreach_children(E, o->mp, dereference);
                 }
                 if(freeing_memory){
-                    if(gc_state==gcs_freeing_memory){
+                    if(gc_state==gcs_freeing_memory && o->mp->foreach_children!=NULL){
                         o->mp->foreach_children(E, o->mp, free_strings);
                     }
                     heap_object_unchain(E, o->hp);

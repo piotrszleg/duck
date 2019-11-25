@@ -111,33 +111,11 @@ void vector_delete(vector* v, int index){
 }
 
 void vector_delete_item(vector* v, void* item){
-    bool temporaries_allocated=false;
-    void* temporaries;// memory used by previous and current variables
-    if(v->size-v->count>2){
-        // use unused part of the vector if possible
-        temporaries=((char*)v->items) + (v->count)*v->item_size;
-    } else {
-        temporaries_allocated=true;
-        temporaries=malloc(v->item_size*2);
-        CHECK_ALLOCATION(temporaries)
-    }
-    void* previous=(void*)temporaries;
-    memcpy(previous, vector_top(v), v->item_size);
-    void* current=(char*)temporaries+v->item_size;
-    
     for(int i=v->count-1; i>=0; i--){
-        bool found=memcmp(vector_index(v, i), item, v->item_size)==0;
-        memcpy(current, vector_index(v, i), v->item_size);
-        memcpy(vector_index(v, i), previous, v->item_size);
-        memcpy(previous, current, v->item_size);
-        if(found){
+        if(memcmp(vector_index(v, i), item, v->item_size)==0){
+            vector_delete(v, i);
             break;
         }
-    }
-    v->count-=1;
-    vector_check_downsize(v);
-    if(temporaries_allocated){
-        free(temporaries);
     }
 }
 
@@ -295,7 +273,7 @@ void vector_tests(){
     RESET_VECTOR
 
     vector_clear(&v);
-    const int tested_count=20;
+    const int tested_count=100;
     for(int i=0; i<tested_count; i++){
         vector_push(&v, &i);
     }
