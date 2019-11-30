@@ -29,8 +29,14 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
             for(int i=0; i<arguments_count; i++){
                 table_set(E, function_scope.tp, to_string(f->argument_names[i]), arguments[i]);
             }
+            vector_push(&E->stack, &E->scope);
+            Object previous_scope=E->scope;
+            reference(&E->scope);
             E->scope=function_scope;
-            return execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, true);
+            Object result=execute_ast(E, ((ASTSourcePointer*)f->source_pointer)->body, true);
+            E->scope=previous_scope;
+            dereference(E, &function_scope);
+            return result;
         }
         default:
             RETURN_ERROR("CALL_ERROR", wrap_heap_object((HeapObject*)f), "Function type has incorrect type value of %i", f->ftype)

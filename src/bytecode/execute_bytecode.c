@@ -941,11 +941,6 @@ Object execute_bytecode(Executor* E){
                             }
                             RETURN(null_const)
                         }
-                        case 2://  collect garbage
-                        {
-                            executor_collect_garbage(E);
-                            RETURN(null_const)
-                        }
                         default:
                             CALL_ERROR("Unknown special function of special_index %i.", o.fp->special_index)
                     }

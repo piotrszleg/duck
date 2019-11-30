@@ -20,7 +20,9 @@ struct Executor {
 
     Coroutine* coroutine;
     
-    ASTExecutionState ast_execution_state;
+    bool returning;
+    vector stack;
+
     BytecodeEnvironment bytecode_environment;
     Options options;
 };

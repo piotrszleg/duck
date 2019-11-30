@@ -15,7 +15,6 @@ Object executor_on_unhandled_error(Executor* E, Object error) {
 void executor_foreach_children(Executor* E, Executor* iterated_executor, ManagedPointerForeachChildrenCallback callback){
     vector* object_stack=&E->bytecode_environment.object_stack;
     vector* return_stack=&E->bytecode_environment.return_stack;
-    vector* used_objects=&E->ast_execution_state.used_objects;
     for(int i=0; i<vector_count(return_stack); i++){
         ReturnPoint* return_point=vector_index(return_stack, i);
         callback(E, &return_point->scope);
@@ -27,8 +26,8 @@ void executor_foreach_children(Executor* E, Executor* iterated_executor, Managed
     for(int i=0; i<vector_count(object_stack); i++){
         callback(E, (Object*)vector_index(object_stack, i));
     }
-    for(int i=0; i<vector_count(used_objects); i++){
-        callback(E, (Object*)vector_index(used_objects, i));
+    for(int i=0; i<vector_count(&E->stack); i++){
+        callback(E, (Object*)vector_index(&E->stack, i));
     }
     callback(E, &E->scope);
     if(E->bytecode_environment.executed_program!=NULL){
@@ -59,10 +58,11 @@ void executor_init(Executor* E){
     E->line=0;
     E->column=0;
     E->coroutine=NULL;
+    E->returning=false;
     vector_init(&E->traceback, sizeof(TracebackPoint), 16);
     object_system_init(E);
     bytecode_environment_init(&E->bytecode_environment);
-    ast_execution_state_init(&E->ast_execution_state);
+    vector_init(&E->stack, sizeof(Object), 8);
 }
 
 void executor_deinit(Executor* E){
@@ -70,5 +70,5 @@ void executor_deinit(Executor* E){
     object_system_deinit(E);
     vector_deinit(&E->traceback);
     bytecode_environment_deinit(&E->bytecode_environment);
-    ast_execution_state_deinit(&E->ast_execution_state);
+    vector_deinit(&E->stack);
 }

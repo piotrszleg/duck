@@ -12,14 +12,6 @@ typedef struct {
     Expression* body;
 } ASTSourcePointer;
 
-typedef struct ASTExecutionState ASTExecutionState;
-struct ASTExecutionState {
-    bool returning;
-    vector used_objects;
-};
-
-void ast_execution_state_init(ASTExecutionState* state);
-void ast_execution_state_deinit(ASTExecutionState* state);
 Object execute_ast(Executor* E, Expression* expression, bool keep_scope);
 
 #include "../error/error.h"

@@ -282,16 +282,6 @@ Object operator(Executor* E, Object a, Object b, const char* op){
     } else {
         COMPARISON_OPERATOR_CASE("compare", comparison_result)
     }
-    Object b_casted;
-    #define CAST_B \
-        if(b.type!=a.type){/* checking it here avoids unecessary function call */ \
-            b_casted=cast(E, b, a.type); \
-            if(b_casted.type!=a.type){ \
-                return b_casted;/* b_casted is conversion error */ \
-            } \
-        } else { \
-            b_casted=b; \
-        }
     switch(a.type){
         case t_string:
             if(op_length!=1){
@@ -315,51 +305,50 @@ Object operator(Executor* E, Object a, Object b, const char* op){
                     break;
             }
             break;
+
+        #define NUMERICAL_OPERATOR(result) \
+            { \
+                bool b_was_casted=false; \
+                if(b.type!=a.type){/* checking it here avoids unecessary function call */ \
+                    b=cast(E, b, a.type); \
+                    b_was_casted=true; \
+                    if(b.type!=a.type){ \
+                        return b;/* b is conversion error */ \
+                    } \
+                } \
+                Object _result=result; \
+                if(b_was_casted){ \
+                    dereference(E, &b); \
+                } \
+                return _result; \
+            }
+        #define NUMERICAL_OPERATOR_CASE(character, result) \
+            case character: \
+                NUMERICAL_OPERATOR(result)
         case t_int:{
             if(op_length==2){
                 if(op[0]=='/' && op[1]=='/'){
-                    CAST_B
-                    return to_int(a.int_value/b_casted.int_value);
+                    NUMERICAL_OPERATOR(to_int(a.int_value/b.int_value))
                 }
             } else if(op_length==1){
                 switch(op[0]){
-                    case '+':
-                        CAST_B
-                        return to_int(a.int_value+b_casted.int_value);
-                    case '-':
-                        CAST_B
-                        return to_int(a.int_value-b_casted.int_value);
-                    case '*':
-                        CAST_B
-                        return to_int(a.int_value*b_casted.int_value);
-                    case '%':
-                        CAST_B
-                        return to_int(a.int_value%b_casted.int_value);
-                    case '/':
-                        CAST_B
-                        return to_float((float)a.int_value/b_casted.int_value);
+                    NUMERICAL_OPERATOR_CASE('+', to_int(a.int_value+b.int_value))
+                    NUMERICAL_OPERATOR_CASE('-', to_int(a.int_value-b.int_value))
+                    NUMERICAL_OPERATOR_CASE('*', to_int(a.int_value*b.int_value))
+                    NUMERICAL_OPERATOR_CASE('%', to_int(a.int_value%b.int_value))
+                    NUMERICAL_OPERATOR_CASE('/', to_float((float)a.int_value/b.int_value))
                 }
             }
-            destroy_unreferenced(E, &b_casted);
             break;
         }
         case t_float: {
             if(op_length==1){
                 switch(op[0]){
-                    case '+':
-                        CAST_B
-                        return to_float(a.float_value+b_casted.float_value);
-                    case '-':
-                        CAST_B
-                        return to_float(a.float_value-b_casted.float_value);
-                    case '*':
-                        CAST_B
-                        return to_float(a.float_value*b_casted.float_value);
-                    case '/':
-                        CAST_B
-                        return to_float((float)a.int_value/b_casted.int_value);
+                    NUMERICAL_OPERATOR_CASE('+', to_float(a.float_value+b.float_value))
+                    NUMERICAL_OPERATOR_CASE('-', to_float(a.float_value-b.float_value))
+                    NUMERICAL_OPERATOR_CASE('*', to_float(a.float_value*b.float_value))
+                    NUMERICAL_OPERATOR_CASE('/', to_float(a.float_value/b.float_value))
                 }
-                destroy_unreferenced(E, &b_casted);
             }
             break;
         }

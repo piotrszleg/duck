@@ -13,7 +13,7 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
     // copy bytecode program
     coroutine_executor->options=E->options;
     bytecode_environment_init(&coroutine_executor->bytecode_environment);
-    ast_execution_state_init(&coroutine_executor->ast_execution_state);
+    vector_init(&E->scope, sizeof(Object), 8);
     vector_init(&coroutine_executor->traceback, sizeof(TracebackPoint), 16);
     // coroutine executor shares garbage collector and symbols with main executor
     *OBJECT_SYSTEM(coroutine_executor)=*OBJECT_SYSTEM(E);

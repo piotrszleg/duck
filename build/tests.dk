@@ -37,7 +37,7 @@ test("stack optimisations", ->{
 })
 
 assert_error=o->{
-    assert(o.error)
+    assert(o[overrides.is_error])
     o.handled=1
 }
 

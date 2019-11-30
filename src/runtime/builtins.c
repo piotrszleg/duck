@@ -106,6 +106,7 @@ Object builtin_format(Executor* E, Object scope, Object* arguments, int argument
     #define NEXT_OBJECT \
         variadic_counter++; \
         if(variadic_counter>=arguments_count){ \
+            stream_deinit(&s); \
             RETURN_ERROR("FORMATTING_ERROR", multiple_causes(E, arguments, arguments_count), "Not enough arguments provided to format function."); \
         }
 
@@ -114,7 +115,7 @@ Object builtin_format(Executor* E, Object scope, Object* arguments, int argument
         #define MATCH(s) (i+str_length>=COUNT_STR(s) && string_compare_parts(str.text+i, s, COUNT_STR(s)))
         if(MATCH("{}")){
             NEXT_OBJECT
-            USING_STRING(cast(E, arguments[variadic_counter], t_string).text,
+            USING_STRING(stringify(E, arguments[variadic_counter]),
                 stream_push(&s, str, strlen(str)*sizeof(char)))
             i++;
         } else if(MATCH("\\{}")) {
@@ -182,6 +183,11 @@ Object builtin_table_get(Executor* E, Object scope, Object* arguments, int argum
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object key=arguments[1];
     return table_get(E, self.tp, key);
+}
+
+Object builtin_collect_garbage(Executor* E, Object scope, Object* arguments, int arguments_count){
+    executor_collect_garbage(E);
+    return null_const;
 }
 
 Object builtin_table_set(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -568,6 +574,7 @@ Object builtins_table(Executor* E){
     REGISTER(serialize, 1)
     REGISTER(symbol, 1)
     REGISTER(is_error, 1)
+    REGISTER(collect_garbage, 0)
     #undef REGISTER
 
     #define REGISTER_SPECIAL(name, index, variadic) \
@@ -581,7 +588,6 @@ Object builtins_table(Executor* E){
     }
     REGISTER_SPECIAL(yield, 0, true)
     REGISTER_SPECIAL(debug, 1, false)
-    REGISTER_SPECIAL(collect_garbage, 1, false)
 
     set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
 
