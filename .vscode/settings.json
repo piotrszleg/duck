@@ -67,7 +67,11 @@
         "optional": "c",
         "ostream": "c",
         "array": "c",
-        "stream.h": "c"
+        "stream.h": "c",
+        "atomic": "c",
+        "memory_resource": "c",
+        "string_view": "c",
+        "typeinfo": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
 }

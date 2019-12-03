@@ -13,7 +13,6 @@ Object executor_on_unhandled_error(Executor* E, Object error) {
 }
 
 void executor_foreach_children(Executor* E, Executor* iterated_executor, ManagedPointerForeachChildrenCallback callback){
-    vector* object_stack=&E->bytecode_environment.object_stack;
     vector* return_stack=&E->bytecode_environment.return_stack;
     for(int i=0; i<vector_count(return_stack); i++){
         ReturnPoint* return_point=vector_index(return_stack, i);
@@ -22,9 +21,6 @@ void executor_foreach_children(Executor* E, Executor* iterated_executor, Managed
             Object wrapped_program=wrap_heap_object((HeapObject*)return_point->program);
             callback(E, &wrapped_program);
         }
-    }
-    for(int i=0; i<vector_count(object_stack); i++){
-        callback(E, (Object*)vector_index(object_stack, i));
     }
     for(int i=0; i<vector_count(&E->stack); i++){
         callback(E, (Object*)vector_index(&E->stack, i));

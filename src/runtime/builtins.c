@@ -190,6 +190,14 @@ Object builtin_collect_garbage(Executor* E, Object scope, Object* arguments, int
     return null_const;
 }
 
+Object builtin_debug(Executor* E, Object scope, Object* arguments, int arguments_count){
+    if(E->options.debug){
+        E->debugger.running=false;
+        debugger_update(E, &E->debugger);
+    }
+    return null_const;
+}
+
 Object builtin_table_set(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
@@ -575,6 +583,7 @@ Object builtins_table(Executor* E){
     REGISTER(symbol, 1)
     REGISTER(is_error, 1)
     REGISTER(collect_garbage, 0)
+    REGISTER(debug, 0)
     #undef REGISTER
 
     #define REGISTER_SPECIAL(name, index, variadic) \
@@ -587,7 +596,6 @@ Object builtins_table(Executor* E){
         dereference(E, &function); \
     }
     REGISTER_SPECIAL(yield, 0, true)
-    REGISTER_SPECIAL(debug, 1, false)
 
     set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
 

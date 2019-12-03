@@ -8,32 +8,32 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
     Object coroutine;
     coroutine_init(E, &coroutine);
     
-    Executor* coroutine_executor=malloc(sizeof(Executor));
+    Executor* CE=malloc(sizeof(Executor));
 
     // copy bytecode program
-    coroutine_executor->options=E->options;
-    bytecode_environment_init(&coroutine_executor->bytecode_environment);
-    vector_init(&E->scope, sizeof(Object), 8);
-    vector_init(&coroutine_executor->traceback, sizeof(TracebackPoint), 16);
+    CE->options=E->options;
+    bytecode_environment_init(&CE->bytecode_environment);
+    vector_init(&CE->stack, sizeof(Object), 8);
+    vector_init(&CE->traceback, sizeof(TracebackPoint), 16);
     // coroutine executor shares garbage collector and symbols with main executor
-    *OBJECT_SYSTEM(coroutine_executor)=*OBJECT_SYSTEM(E);
+    *OBJECT_SYSTEM(CE)=*OBJECT_SYSTEM(E);
 
     // create a coroutine scope inheriting from global scope
-    table_init(coroutine_executor, &coroutine_executor->scope);
-    inherit_scope(coroutine_executor, coroutine_executor->scope, get(E, E->scope, to_string("global")));
+    table_init(CE, &CE->scope);
+    inherit_scope(CE, CE->scope, get(E, E->scope, to_string("global")));
 
-    coroutine_executor->coroutine=coroutine.co;
+    CE->coroutine=coroutine.co;
     coroutine.co->state=co_uninitialized;
 
     // pass arguments and move to given function but don't call it yet
-    coroutine_executor->bytecode_environment.executed_program=(BytecodeProgram*)function.fp->source_pointer;
+    CE->bytecode_environment.executed_program=(BytecodeProgram*)function.fp->source_pointer;
     heap_object_reference((HeapObject*)function.fp->source_pointer);
     
     for(int i=1; i<arguments_count; i++) {
-        push(&coroutine_executor->bytecode_environment.object_stack, arguments[i]);
+        objects_vector_push(&CE->stack, arguments[i]);
     }
 
-    coroutine.co->executor=coroutine_executor;
+    coroutine.co->executor=CE;
     return coroutine;
 }
 
@@ -58,9 +58,9 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
         case co_running:
             // coroutine expects one value to be emitted from yield call
             if(arguments_count==1){
-                push(&coroutine->executor->bytecode_environment.object_stack, arguments[0]);
+                objects_vector_push(&coroutine->executor->stack, arguments[0]);
             } else if(arguments_count==0){
-                push(&coroutine->executor->bytecode_environment.object_stack, null_const);
+                objects_vector_push(&coroutine->executor->stack, null_const);
             } else {
                 RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "Coroutines can accept either zero or one argument, %i given", arguments_count)
             }

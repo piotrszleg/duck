@@ -525,7 +525,7 @@ void compile_bytecode_program(Executor* E, BytecodeProgram* program){
     int temporary_offset=jit_allocai(C, sizeof(Object));
 
     jit_getarg(C, R(1), 0);// get executor to R1
-    jit_addi(C, OBJECT_STACK_REGISTER, R(1), (long unsigned)&E->bytecode_environment.object_stack-(long unsigned)E);// get object_stack to OBJECT_STACK_REGISTER
+    jit_addi(C, OBJECT_STACK_REGISTER, R(1), (long unsigned)&E->stack-(long unsigned)E);// get object_stack to OBJECT_STACK_REGISTER
     
     jit_prepare(C);
     jit_putargi(C, "<Executing MyJIT function>\n");

@@ -51,22 +51,13 @@ void ast_source_pointer_init(Executor* E, ASTSourcePointer* source_pointer){
     source_pointer->mp.copy=(ManagedPointerCopyFunction)ast_source_pointer_copy;
 }
 
-void vector_delete_object(Executor* E, vector* v, Object o){
-    for(int i=0; i<vector_count(v); i++){
-        if(compare(E, *(Object*)vector_index(v, i), o)==0){
-            vector_delete(v, i);
-            break;
-        }
-    }
-}
-
 #define USE(object) \
     vector_push(&E->stack, &object);
 #define STOP_USING(object) \
-    vector_delete_object(E, &E->stack, object); \
+    objects_vector_delete(E, &E->stack, object); \
     dereference(E, &object);
 #define RETURN_USED(object) \
-    vector_delete_object(E, &E->stack, object); \
+    objects_vector_delete(E, &E->stack, object); \
     return object;
 
 Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
@@ -75,6 +66,10 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
     }
     E->line=expression->line_number;
     E->column=expression->column_number;
+
+    if(E->options.debug){
+        debugger_update(E, &E->debugger);
+    }
     
     switch(expression->type){
         case e_expression:
@@ -233,7 +228,6 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
                     optimise_bytecode(E, bytecode_program, E->options.print_bytecode_optimisations);
                 }
                 bytecode_program_init(E, bytecode_program);
-                heap_object_reference((HeapObject*)bytecode_program);
                 if(E->options.print_bytecode){
                     print_bytecode_program(bytecode_program);
                 }

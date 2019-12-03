@@ -2,8 +2,10 @@
 #define EXECUTOR_H
 
 #include "../object_system/object.h"
+#include "../bytecode/execute_bytecode.h"
 #include "../ast/execute_ast.h"
 #include "options.h"
+#include "debugger.h"
 
 typedef struct {
     char* file_name;
@@ -23,6 +25,7 @@ struct Executor {
     bool returning;
     vector stack;
 
+    Debugger debugger;
     BytecodeEnvironment bytecode_environment;
     Options options;
 };

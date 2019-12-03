@@ -12,21 +12,9 @@
 #include "../c_fixes.h"
 
 typedef struct {
-    char* file;
-    int line;
-} Breakpoint;
-
-typedef struct {
-    vector breakpoints;
-    bool running;
-} Debugger;
-
-typedef struct {
     int pointer;
     BytecodeProgram* executed_program;
-    vector object_stack;
     vector return_stack;
-    Debugger debugger;
 } BytecodeEnvironment;
 
 typedef struct {

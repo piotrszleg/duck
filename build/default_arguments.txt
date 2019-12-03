@@ -1,1 +1,1 @@
--dont_compile_bytecode -disable_bytecode input.dk
+-dont_compile_bytecode -dont_optimise_bytecode input.dk

@@ -5,6 +5,7 @@
 #include "../utility.h"
 #include "../parser/ast.h"
 #include "../object_system/object.h"
+#include "../containers/objects_vector.h"
 #include "../transformers/bytecode_to_myjit.h"
 
 typedef struct {

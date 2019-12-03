@@ -8,7 +8,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
         case f_bytecode:
             create_return_point(E, true);
             for(int i=0; i<arguments_count; i++){
-                push(&E->bytecode_environment.object_stack, arguments[i]);
+                objects_vector_push(&E->stack, arguments[i]);
             }
             move_to_function(E, f);
             BytecodeProgram* bytecode_program=(BytecodeProgram*)f->source_pointer;
