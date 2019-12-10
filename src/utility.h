@@ -42,5 +42,6 @@ char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs
 char* string_add(const char* a, const char* b);
 char* string_repeat(const char* str, int times);
 bool strings_counted_equal(char* a, char* b, size_t count);
+void* copy_memory(void* source, size_t size);
 
 #endif

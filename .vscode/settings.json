@@ -71,7 +71,9 @@
         "atomic": "c",
         "memory_resource": "c",
         "string_view": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "predict_instruction_output.h": "c",
+        "bytecode_optimisation_utility.h": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
 }

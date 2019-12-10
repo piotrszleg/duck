@@ -108,3 +108,10 @@ char* string_repeat(const char* str, int times){
     buffer[buffer_size-1]='\0';
     return buffer;
 }
+
+void* copy_memory(void* source, size_t size){
+    void* result=malloc(size);
+    CHECK_ALLOCATION(result)
+    memcpy(result, source, size);
+    return result;
+}

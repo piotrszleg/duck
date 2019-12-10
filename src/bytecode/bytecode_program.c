@@ -138,14 +138,13 @@ BytecodeProgram* bytecode_program_copy(Executor* E, const BytecodeProgram* sourc
     for(; source->code[c].type!=b_end; c++);
     c++;
 
-    copy->code=malloc(sizeof(Instruction)*c);
-    memcpy(copy->code, source->code, sizeof(Instruction)*c);
-    copy->information=malloc(sizeof(InstructionInformation)*c);
-    memcpy(copy->information, source->information, sizeof(InstructionInformation)*c);
-    copy->constants=malloc(source->constants_size);
-    memcpy(copy->constants, source->constants, source->constants_size);
+    copy->code=copy_memory(source->code, c*sizeof(Instruction));
+    copy->information=copy_memory(source->information, c*sizeof(InstructionInformation));
+
+    copy->constants=copy_memory(source->constants, source->constants_size);
     copy->constants_size=source->constants_size;
-    memcpy(copy->upvalues, source->upvalues, source->upvalues_count*sizeof(unsigned));
+
+    copy->upvalues=copy_memory(source->upvalues, source->upvalues_count*sizeof(unsigned));
     copy->upvalues_count=source->upvalues_count;
     copy->expected_arguments=source->expected_arguments;
 
@@ -181,7 +180,7 @@ void bytecode_program_list_labels(BytecodeProgram* program){
     int pointer=0;
     while(program->code[pointer].type!=b_end){
         if(program->code[pointer].type==b_label){
-            while(program->code[pointer].uint_argument>labels_count){
+            while(program->code[pointer].uint_argument>=labels_count){
                 labels_count*=2;
                 labels=realloc(labels, labels_count*sizeof(uint));
             }

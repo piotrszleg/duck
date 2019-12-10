@@ -8,6 +8,9 @@
 #include "../c_fixes.h"
 #include "dummy.h"
 #include "transformation.h"
+#include "predict_instruction_output.h"
+#include "bytecode_optimisation_utility.h"
+#include "bytecode_manipulation.h"
 
 void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisations);
 

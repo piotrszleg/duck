@@ -177,7 +177,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
         }
         if(statistics->constant_streaks[i]>=E->options.constant_threshold) {
             current_call[i].assumption_type=a_constant;
-            current_call[i].constant=copy(E, argument);
+            current_call[i].constant=argument;
             reference(&current_call[i].constant);
         } else {
             current_call[i].assumption_type=a_type;

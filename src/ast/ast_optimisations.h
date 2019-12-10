@@ -2,7 +2,7 @@
 #define AST_OPTIMISATIONS_H
 
 #include "../parser/ast_visitor.h"
-#include "../ast/execute_ast.h"
+#include "execute_ast.h"
 #include "../execution/options.h"
 #include "stdbool.h"
 
