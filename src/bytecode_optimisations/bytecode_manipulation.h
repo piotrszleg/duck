@@ -25,7 +25,7 @@ void replace_dummies_in_transformations(BytecodeManipulation* manipulation, Dumm
 void fill_with_no_op(BytecodeManipulation* manipulation, unsigned start, unsigned end);
 // returns true if the result is inserting the instrcution and not changing b_no_op to it
 bool insert_instruction(BytecodeManipulation* manipulation, unsigned index, Instruction* instruction, Transformation* transformation);
-
 bool insert_discard(BytecodeManipulation* manipulation, Dummy* discard_input, uint index);
+uint discard_transformation_inputs(BytecodeManipulation* manipulation, uint transformation_index);
 
 #endif

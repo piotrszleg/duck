@@ -163,3 +163,11 @@ bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replace
         return false;
     }
 }
+
+void dummy_reference(Dummy* dummy){
+    heap_object_reference((HeapObject*)dummy);
+}
+
+void dummy_dereference(Executor* E, Dummy* dummy){
+    heap_object_dereference(E, (HeapObject*)dummy);
+}

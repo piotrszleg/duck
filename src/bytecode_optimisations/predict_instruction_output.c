@@ -4,6 +4,11 @@
 void predict_instruction_output(Executor* E, BytecodeProgram* program, Instruction* instruction, char* constants, unsigned* dummy_objects_counter, Transformation* transformation){
     Dummy** outputs=transformation->outputs;
     Dummy** inputs=transformation->inputs;
+
+    #define OUTPUT_IS_INPUT(output_index, input_index) \
+        outputs[output_index]=inputs[input_index]; \
+        dummy_reference(outputs[output_index]);
+
     if(carries_stack(instruction->type)){
         int i=0;
         // jump_not takes one item from the stack as a predicate
@@ -12,7 +17,7 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
             i++;
         }
         for(; i<transformation->inputs_count; i++){
-            outputs[transformation->inputs_count-1-i]=inputs[i];
+            OUTPUT_IS_INPUT(transformation->inputs_count-1-i, i)
         }
         return;
     }
@@ -43,6 +48,7 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                 f.fp->arguments_count=instruction->function_argument.arguments_count;
                 f.fp->variadic=instruction->function_argument.is_variadic;
                 outputs[0]=new_constant_dummy(E, f, dummy_objects_counter);
+                dereference(E, &f);
             #else
                 outputs[0]=new_known_type_dummy(E, t_function, dummy_objects_counter);
             #endif
@@ -56,15 +62,15 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                     heap_object_reference(program);
                 }
             #endif
-            outputs[0]=inputs[0];
+            OUTPUT_IS_INPUT(0, 0)
             return;
         case b_double:
-            outputs[0]=inputs[0];
-            outputs[1]=inputs[0];
+            OUTPUT_IS_INPUT(0, 0)
+            OUTPUT_IS_INPUT(1, 0)
             return;
         case b_push_to_top:
-            outputs[instruction->uint_argument]=inputs[0];
-            outputs[0]=inputs[instruction->uint_argument];
+            OUTPUT_IS_INPUT(instruction->uint_argument, 0)
+            OUTPUT_IS_INPUT(0, instruction->uint_argument)
             for(int i=1; i<instruction->uint_argument-1; i++){
                 outputs[i]=outputs[instruction->uint_argument-2-i];
             }
@@ -72,13 +78,14 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
         case b_swap:
         {
             for(int i=0; i<transformation->outputs_count; i++){
-                outputs[transformation->outputs_count-1-i]=inputs[i];
+                OUTPUT_IS_INPUT(transformation->outputs_count-1-i, i)
             }
             int left=transformation->outputs_count-1-instruction->swap_argument.left;
             int right=transformation->outputs_count-1-instruction->swap_argument.right;
             Dummy* temp=outputs[left];
-            outputs[left]=outputs[right];
+            OUTPUT_IS_INPUT(left, right)
             outputs[right]=temp;
+            dummy_reference(outputs[right]);
             return;
         }
         case b_get:
@@ -88,10 +95,10 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
             }
             break;
         case b_set:
-            outputs[0]=inputs[1];
+            OUTPUT_IS_INPUT(0, 1)
             return;
         case b_table_set_keep:
-            outputs[0]=inputs[2];
+            OUTPUT_IS_INPUT(0, 2)
             return;
         case b_binary:
         {

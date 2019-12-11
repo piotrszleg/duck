@@ -42,5 +42,7 @@ bool dummy_contains(const Dummy* a, const Dummy* b);
 void dummy_print(const Dummy* dummy);
 // returns true if replacement happened
 bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replacement);
+void dummy_reference(Dummy* dummy);
+void dummy_dereference(Executor* E, Dummy* dummy);
 
 #endif

@@ -148,6 +148,18 @@ bool constant_dummy_to_bytecode(Executor* E, Dummy* constant_dummy, unsigned pos
     return true;
 }
 
+bool find_dummy_producer(vector* transformations, Dummy* dummy, int from, int* result){
+    for(int search=from; search>=0; search--){
+        for(int o=0; o<vector_index_transformation(transformations, search)->outputs_count; o++){
+            if(dummies_equal(vector_index_transformation(transformations, search)->outputs[o], dummy)) {
+                *result=search;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 #define VECTOR_INDEX_FUNCTION(type, postfix) \
     type* vector_index_##postfix(vector* v, int index) { \
         return (type*)vector_index(v, index); \

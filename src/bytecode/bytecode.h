@@ -144,9 +144,10 @@ typedef struct {
 
 int bytecode_iterator_start(BytecodeIterator* iterator, Instruction* code, unsigned start);
 int bytecode_iterator_next(BytecodeIterator* iterator, Instruction* code);
+int bytecode_iterator_next_path(BytecodeIterator* iterator, Instruction* code);
 
-#define BYTECODE_FOR(iterator_state, index, instructions) \
-    for(index=bytecode_iterator_start(&progress_state, (instructions), 0); index!=-1; \
-        index=bytecode_iterator_next(&progress_state, (instructions)))
+#define BYTECODE_FOREACH_PATH(iterator, index, instructions) \
+    for(index=bytecode_iterator_start(&iterator, (instructions), 0); index!=-1; \
+        index=bytecode_iterator_next(&iterator, (instructions)))
 
 #endif

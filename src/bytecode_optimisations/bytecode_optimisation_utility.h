@@ -21,6 +21,10 @@ bool constant_dummy_to_bytecode(Executor* E,
                                 vector* transformations, 
                                 vector* constants);
 
+
+
+bool find_dummy_producer(vector* transformations, Dummy* dummy, int from, int* result);
+
 #define VECTOR_INDEX_FUNCTION(type, postfix) \
     type* vector_index_##postfix(vector* v, int index);
 

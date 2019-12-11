@@ -37,18 +37,20 @@ void replace_dummies_in_transformations(BytecodeManipulation* manipulation, Dumm
             for(int o=0; o<transformation->outputs_count; o++){
                 previous_outputs[o]=transformation->outputs[o];
             }
-            predict_instruction_output(manipulation->executor, manipulation->program, vector_index_instruction(manipulation->instructions, p), 
-                vector_get_data(manipulation->constants), manipulation->dummy_objects_counter, transformation);
+            predict_instruction_output(manipulation->executor, 
+                manipulation->program, 
+                vector_index_instruction(manipulation->instructions, p), 
+                vector_get_data(manipulation->constants), 
+                manipulation->dummy_objects_counter, 
+                transformation);
             for(int o=0; o<transformation->outputs_count; o++){
                 if(previous_outputs[o]->type!=transformation->outputs[o]->type){
-                    heap_object_reference((HeapObject*)transformation->outputs[o]);
                     replace_dummies_in_transformations(manipulation, previous_outputs[o], transformation->outputs[o]);
                     heap_object_dereference(manipulation->executor, (HeapObject*)previous_outputs[o]);
                 } else {
                     heap_object_dereference(manipulation->executor, (HeapObject*)transformation->outputs[o]);
                     transformation->outputs[o]=previous_outputs[o];
-                    heap_object_reference((HeapObject*)transformation->outputs[o]);
-                } 
+                }
             }
             free(previous_outputs);
         }
@@ -93,4 +95,22 @@ bool insert_discard(BytecodeManipulation* manipulation, Dummy* discard_input, ui
     discard_transformation.inputs[0]=discard_input;
     heap_object_reference((HeapObject*)discard_transformation.inputs[0]);
     return insert_instruction(manipulation, index, &discard_instruction, &discard_transformation);
+}
+
+uint discard_transformation_inputs(BytecodeManipulation* manipulation, uint transformation_index){
+    Transformation* producer=vector_index_transformation(manipulation->transformations, transformation_index);
+    int to_discard=producer->inputs_count;
+    uint instructions_written=0;
+    for(int i=0; i<to_discard; i++){
+        Instruction discard_instruction={b_discard};
+        Transformation discard_transformation;
+        transformation_from_instruction(&discard_transformation, &discard_instruction);
+        discard_transformation.inputs[0]=producer->inputs[i];
+        heap_object_reference((HeapObject*)discard_transformation.inputs[0]);
+        if(insert_instruction(manipulation, transformation_index, &discard_instruction, &discard_transformation)) {
+            instructions_written++;
+            transformation_index++;
+        }
+    }
+    return instructions_written;
 }

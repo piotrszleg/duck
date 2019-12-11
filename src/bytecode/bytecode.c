@@ -114,7 +114,7 @@ int find_label(Instruction* code, int index){
     return -1;
 }
 
-int bytecode_iterator_start(BytecodeIterator* iterator, Instruction* code, unsigned start){
+int bytecode_iterator_start(BytecodeIterator* iterator, Instruction* code, uint start){
     iterator->start=start;
     iterator->last=start;
     vector_init(&iterator->branches, sizeof(int), 8);
@@ -122,25 +122,30 @@ int bytecode_iterator_start(BytecodeIterator* iterator, Instruction* code, unsig
     return 0;
 }
 
+// skip to the next known path or finish iteration
+int bytecode_iterator_next_path(BytecodeIterator* iterator, Instruction* code){
+    if(iterator->revisit){
+        iterator->revisit=false;
+        return iterator->last=iterator->start;
+    } else {
+        vector_deinit(&iterator->branches);
+        return -1;
+    }
+}
+
+// iterate over each path of the bytecode program
 int bytecode_iterator_next(BytecodeIterator* iterator, Instruction* code){
-    vector* branches=&iterator->branches;
-    unsigned index=iterator->last;
+    uint index=iterator->last;
     if(finishes_program(code[index].type)){
-        if(iterator->revisit){
-            iterator->revisit=false;
-            index=iterator->start;
-            iterator->last=index;
-            return index;
-        } else {
-            vector_deinit(branches);
-            return -1;
-        }
+        return bytecode_iterator_next_path(iterator, code);
     }
     if(code[index].type==b_jump_not){
-        if(vector_search(branches, &index)>0){
+        if(vector_search(&iterator->branches, &index)>0){
+            // last time this jump was skipped so now it is followed through
             index=find_label(code, code[index].uint_argument);
         } else {
-            vector_push(branches, &index);
+            // next iteration will jump on this branch
+            vector_push(&iterator->branches, &index);
             iterator->revisit=true;
             index++;
         }
