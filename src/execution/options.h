@@ -21,7 +21,7 @@
     BOOL(print_bytecode_optimisations, false) \
     BOOL(optimise_tail_calls, true) \
     BOOL(optimise_jump_to_return, true) \
-    BOOL(optimise_stack_operations, true) \
+    BOOL(optimise_variable_lookup, true) \
     BOOL(inline_functions, true) \
     BOOL(inline_native_calls, true) \
     BOOL(fold_constants, true) \

@@ -105,7 +105,7 @@ void optimise_get_instructions(Executor* E,
 }
     
 // replace variable lookup with stack operations if possible
-void stack_usage_optimisations(
+void variable_lookup_optimisation(
     Executor* E, 
     BytecodeProgram* program, 
     BytecodeManipulation* manipulation,
@@ -120,9 +120,9 @@ void stack_usage_optimisations(
             // the variable isn't used in it's own scope and in any closure, so the set instruction can be removed
             LOG_IF_ENABLED("Removing set Instruction:\n");
             Dummy* to_replace=vector_index_transformation(transformations, set_search)->outputs[0];
-            heap_object_reference((HeapObject*)to_replace);
+            dummy_reference(to_replace);
             Dummy* replacing=vector_index_transformation(transformations, set_search)->inputs[1];
-            heap_object_reference((HeapObject*)replacing);
+            dummy_reference(replacing);
             fill_with_no_op(manipulation, set_search-1, set_search);
             // replace output of set instruction with it's input
             replace_dummies_in_transformations(manipulation, to_replace, replacing);
@@ -248,9 +248,7 @@ bool remove_useless_operations(BytecodeManipulation* manipulation, vector* instr
                 && instruction_is_constant(vector_index_instruction(instructions, producer_index), 
                                            vector_index_transformation(transformations, producer_index))
                 ) {
-                LOG_IF_ENABLED("Removing operation which result is immediately discarded:\n")
-                highlight_instructions(vector_get_data(instructions), vector_get_data(manipulation->constants), 
-                    '>', producer_index, producer_index);
+                log_finding(manipulation, "Found an operation which result is immediately discarded.", producer_index);
                 // discard inputs to the producer if it's not a double instruction
                 if(!is_instruction_of_type(instructions, producer_index, b_double)){
                     uint instructions_written=discard_transformation_inputs(manipulation, producer_index);
@@ -279,13 +277,15 @@ bool fold_constants(
     int* pointer, 
     bool print_optimisations
 ){
-    if(vector_index_transformation(transformations, *pointer)->outputs_count==1 
-    && vector_index_transformation(transformations, *pointer)->outputs[0]->type==d_constant
-    && !instruction_is_literal(vector_index_instruction(instructions, *pointer)->type)
-    && instruction_is_constant(vector_index_instruction(instructions, *pointer), vector_index_transformation(transformations, *pointer))){
-        Transformation producer=*vector_index_transformation(transformations, *pointer);
-        if(constant_dummy_to_bytecode(manipulation->executor, producer.outputs[0], *pointer+1, instructions, transformations, constants)){
-            LOG_IF_ENABLED("Replacing operation with it's result:\n")
+    Instruction* instruction=vector_index_instruction(instructions, *pointer);
+    Transformation* transformation=vector_index_transformation(transformations, *pointer);
+    if(transformation->outputs_count==1 
+    && transformation->outputs[0]->type==d_constant
+    && !instruction_is_literal(instruction->type)
+    && instruction_is_constant(instruction, transformation)
+    ){
+        if(constant_dummy_to_bytecode(manipulation->executor, transformation->outputs[0], *pointer+1, instructions, transformations, constants)){
+            LOG_IF_ENABLED("Replacing operation %s with it's result:\n", INSTRUCTION_NAMES[instruction->type])
             (*pointer)+=discard_transformation_inputs(manipulation, *pointer);
             fill_with_no_op(manipulation, *pointer, *pointer);
             return true;
@@ -353,15 +353,15 @@ void revisit_transformation(
         Dummy* expected=(Dummy*)transformation->inputs[i];
         if(!dummies_equal(expected, from_stack)){
             if(dummy_contains(from_stack, expected)){
-                heap_object_dereference(E, (HeapObject*)expected);
-                heap_object_reference((HeapObject*)from_stack);
+                // change previous input to the one found on the stack
+                dummy_dereference(E, expected);
+                dummy_reference(from_stack);
                 transformation->inputs[i]=from_stack;
                 inputs_changed=true;
             } else if(!dummy_contains(expected, from_stack)){
                 Dummy* or_dummy=new_or_dummy(E, expected, from_stack, dummy_objects_counter);
-                // expected is already referenced by the instruction
-                // or_dummy is referenced by transformation
-                heap_object_dereference(E, (HeapObject*)expected);// expected is no longer referenced by transformation itself
+                // or_dummy references both inputs
+                dummy_dereference(E, expected);// expected is no longer referenced by transformation itself
                 transformation->inputs[i]=or_dummy;
                 inputs_changed=true;
             }
@@ -370,7 +370,7 @@ void revisit_transformation(
     if(inputs_changed){
         // discard all outputs from previous iteration
         for(int i=0; i<transformation->outputs_count; i++){
-            heap_object_dereference(E, (HeapObject*)transformation->outputs[i]);
+            dummy_dereference(E, transformation->outputs[i]);
         }
         predict_instruction_output(E, program, instruction, 
             (char*)program->constants, dummy_objects_counter, transformation);
@@ -385,6 +385,7 @@ void revisit_transformation(
     }
 }
 
+// Important note: stack doesn't own dummies (it doesn't affect their ref_count)
 void visit_transformation(
     Executor* E,
     vector* stack,
@@ -409,21 +410,22 @@ void visit_transformation(
     for(int i=0; i<transformation.inputs_count; i++){
         if(!vector_empty(stack)){
             transformation.inputs[i]=*(Dummy**)vector_pop(stack);
-            // input is referenced by the transformation
-            heap_object_reference((HeapObject*)transformation.inputs[i]);
+            // dummy is referenced by the transformation
+            dummy_reference(transformation.inputs[i]);
         } else {
             Dummy* dummy=assumption_to_dummy(E, get_argument_assumption(program, vector_count(provided)), dummy_objects_counter);
             vector_push(provided, &dummy);
+            // dummy returned from assumption_to_dummy already has ref_count of 1
+            // so this reference goes to the transformation
             transformation.inputs[i]=dummy;
-            // in this case dummy is also referenced by provided
-            heap_object_reference((HeapObject*)transformation.inputs[i]);
+            // dummy is also referenced by provided
+            dummy_reference(transformation.inputs[i]);
         }
     }
     predict_instruction_output(E, program, instruction, (char*)program->constants, dummy_objects_counter, &transformation);
     for(int i=0; i<transformation.outputs_count; i++){
         vector_push(stack, &transformation.outputs[i]);
-        // output is referenced by the transformation and stack
-        heap_object_reference((HeapObject*)transformation.outputs[i]);
+        // output is only referenced by the transformation
     }
     *previous_transformation=transformation;
     previous_transformation->visited=true;
@@ -473,6 +475,7 @@ bool insert_swap(BytecodeManipulation* manipulation, int index, int left, int ri
         }
         dummy_reference(swap_transformation.inputs[k]);
     }
+    dummy_dereference(manipulation->executor, any);
     predict_instruction_output(manipulation->executor, 
                                manipulation->program, 
                                &swap_instruction, 
@@ -635,8 +638,8 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
 
         This is the best I could do to make this entire file readable for a human.
     */
-    if(E->options.optimise_stack_operations) {
-        stack_usage_optimisations(E, program, &manipulation, &instructions, &transformations, &constants, print_optimisations);
+    if(E->options.optimise_variable_lookup) {
+        variable_lookup_optimisation(E, program, &manipulation, &instructions, &transformations, &constants, print_optimisations);
     }
     CHECK
     if(E->options.inline_functions) {

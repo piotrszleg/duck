@@ -72,9 +72,9 @@ Dummy* new_constant_dummy(Executor* E, Object constant_value, unsigned* id_count
 
 Dummy* new_or_dummy(Executor* E, Dummy* left, Dummy* right, unsigned* id_counter){
     Dummy* result=new_dummy(E, d_or);
-    heap_object_reference((HeapObject*)left);
+    dummy_reference(left);
     result->or.left=left;
-    heap_object_reference((HeapObject*)right);
+    dummy_reference(right);
     result->or.right=right;
     result->id=*id_counter;
     (*id_counter)++;
@@ -149,7 +149,6 @@ void dummy_print(const Dummy* dummy){
         default:
             INCORRECT_ENUM_VALUE(DummyType, dummy, dummy->type);
     }
-    //printf("<%i>", dummy->mp.hp.ref_count);
 }
 
 bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replacement){
@@ -157,8 +156,8 @@ bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replace
         return dummy_replace(E, &(*dummy)->or.left, to_replace, replacement)
         ||     dummy_replace(E, &(*dummy)->or.right, to_replace, replacement);
     } else if(dummies_equal(*dummy, to_replace)) {
-        heap_object_reference((HeapObject*)replacement);
-        heap_object_dereference(E, (HeapObject*)*dummy);
+        dummy_reference(replacement);
+        dummy_dereference(E, *dummy);
         *dummy=replacement;
         return true;
     } else {
@@ -173,8 +172,6 @@ void dummy_reference(Dummy* dummy){
 void dummy_dereference(Executor* E, Dummy* dummy){
     heap_object_dereference(E, (HeapObject*)dummy);
 }
-
-
 
 /* 
 This function might seem nonsensical in terms of correct program logic,

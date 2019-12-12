@@ -90,25 +90,25 @@ bool instruction_is_constant(Instruction* instruction, Transformation* transform
     }
 }
 
+static void print_dummies(Dummy** dummies, uint dummies_count){
+    for(int i=0; i<dummies_count; i++){
+        if(i!=0){
+            printf(", ");
+        }
+        dummy_print(dummies[i]);
+        IF_DEBUGGING(printf("#%i", dummies[i]->mp.hp.ref_count))
+    }
+}
+
 void print_transformations(Instruction* instructions, Transformation* transformations){
     printf("Instructions transformations:\n");
     unsigned instructions_count=count_instructions(instructions)+1;
     for(int p=0; p<instructions_count; p++){
         printf("%s (", INSTRUCTION_NAMES[instructions[p].type]);
-        for(int i=0; i<transformations[p].inputs_count; i++){
-            if(i!=0){
-                printf(", ");
-            }
-            dummy_print(transformations[p].inputs[i]);
-        }
+        print_dummies(transformations[p].inputs, transformations[p].inputs_count);
         printf(")");
         printf("->(");
-        for(int i=0; i<transformations[p].outputs_count; i++){
-            if(i!=0){
-                printf(", ");
-            }
-            dummy_print(transformations[p].outputs[i]);
-        }
+        print_dummies(transformations[p].outputs, transformations[p].outputs_count);
         printf(")\n");
     }
 }
@@ -143,7 +143,7 @@ bool constant_dummy_to_bytecode(Executor* E, Dummy* constant_dummy, unsigned pos
     Transformation transformation;
     transformation_init(&transformation, 0, 1);
     transformation.outputs[0]=constant_dummy;
-    heap_object_reference((HeapObject*)transformation.outputs[0]);
+    dummy_reference(transformation.outputs[0]);
     vector_insert(transformations, position, &transformation);
     return true;
 }

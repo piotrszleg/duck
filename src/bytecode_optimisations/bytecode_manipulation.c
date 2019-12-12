@@ -30,7 +30,8 @@ void replace_dummies_in_transformations(BytecodeManipulation* manipulation, Dumm
         bool input_modified=false;
         Transformation* transformation=vector_index_transformation(manipulation->transformations, p);
         for(int i=0; i<transformation->inputs_count; i++){
-            input_modified=input_modified||dummy_replace(manipulation->executor, &transformation->inputs[i], to_replace, replacement);
+            input_modified=input_modified
+                ||dummy_replace(manipulation->executor, &transformation->inputs[i], to_replace, replacement);
         }
         if(input_modified){
             Dummy** previous_outputs=malloc(sizeof(Dummy*)*transformation->outputs_count);
@@ -46,9 +47,9 @@ void replace_dummies_in_transformations(BytecodeManipulation* manipulation, Dumm
             for(int o=0; o<transformation->outputs_count; o++){
                 if(previous_outputs[o]->type!=transformation->outputs[o]->type){
                     replace_dummies_in_transformations(manipulation, previous_outputs[o], transformation->outputs[o]);
-                    heap_object_dereference(manipulation->executor, (HeapObject*)previous_outputs[o]);
+                    dummy_dereference(manipulation->executor, previous_outputs[o]);
                 } else {
-                    heap_object_dereference(manipulation->executor, (HeapObject*)transformation->outputs[o]);
+                    dummy_dereference(manipulation->executor, transformation->outputs[o]);
                     transformation->outputs[o]=previous_outputs[o];
                 }
             }
@@ -98,14 +99,15 @@ bool insert_discard(BytecodeManipulation* manipulation, Dummy* discard_input, ui
 }
 
 uint discard_transformation_inputs(BytecodeManipulation* manipulation, uint transformation_index){
-    Transformation* producer=vector_index_transformation(manipulation->transformations, transformation_index);
-    int to_discard=producer->inputs_count;
+    // It is important to actually copy the transformation struct here
+    // because it will move inside of the vector after adding discard transformations
+    Transformation transformation=*vector_index_transformation(manipulation->transformations, transformation_index);
     uint instructions_written=0;
-    for(int i=0; i<to_discard; i++){
+    for(int i=0; i<transformation.inputs_count; i++){
         Instruction discard_instruction={b_discard};
         Transformation discard_transformation;
         transformation_from_instruction(&discard_transformation, &discard_instruction);
-        discard_transformation.inputs[0]=producer->inputs[i];
+        discard_transformation.inputs[0]=transformation.inputs[i];
         heap_object_reference((HeapObject*)discard_transformation.inputs[0]);
         if(insert_instruction(manipulation, transformation_index, &discard_instruction, &discard_transformation)) {
             instructions_written++;

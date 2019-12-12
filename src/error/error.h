@@ -39,19 +39,19 @@ extern char err_message[1024];
     }
 
 #define THROW_ERROR(type, message, ...) \
-    sprintf(err_message, "ERROR: %s:%d\n" message, __FILE__, __LINE__, ##__VA_ARGS__); \
+    sprintf(err_message, "ERROR: %s:%i\n" message, __FILE__, __LINE__, ##__VA_ARGS__); \
     err_type=type; \
     if(error_buf!=NULL){ longjmp(error_buf,1); }
 
 void critical_error_handler(ErrorType type);
 
 #define CRITICAL_ERROR(type, message, ...) \
-    sprintf("CRITICAL ERROR: %s:%d\n", err_message, message, __FILE__, __LINE__, ##__VA_ARGS__); \
+    sprintf(err_message, "CRITICAL ERROR: %s:%i\n" message, __FILE__, __LINE__, ##__VA_ARGS__); \
     critical_error_handler(type);
 
 #define INCORRECT_ENUM_VALUE(type, variable, value) \
     CRITICAL_ERROR(ENUM_VALUE_OUT_OF_BOUNDS, \
-        "Variable %s of type %s in function %s has incorrect enum value of %i" \
+        "Variable %s of type %s in function %s has incorrect enum value of %i", \
         #variable, #type, __FUNCTION__, (int)value)
 
 #define CHECK_ALLOCATION(value) \
