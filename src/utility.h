@@ -18,6 +18,14 @@
 
 #define DEBUG_PRINT printf("<%i>\n", __COUNTER__);
 
+#ifdef DEBUGGING
+#define IF_DEBUGGING(body) body;
+#define DEBUG_MODE_ASSERTION(assertion) assert(assertion);
+#else
+#define IF_DEBUGGING(body)
+#define DEBUG_MODE_ASSERTION(assertion)
+#endif
+
 char* fgets_no_newline(char *buffer, size_t buflen, FILE* fp);
 char* read_entire_file(FILE* fp);
 int nearest_power_of_two(int number);

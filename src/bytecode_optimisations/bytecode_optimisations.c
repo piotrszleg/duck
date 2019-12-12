@@ -491,8 +491,8 @@ void add_swaps(
 ){
     // add swap instructions to ensure that objects
     // are in right order according to the flow chart made in the first step
-
-    #define STACK(nth) ((Dummy**)vector_index(stack, vector_count(stack)-1-(nth)))
+    
+    #define STACK(nth) (vector_index_dummy(stack, vector_count(stack)-1-(nth)))
     BytecodeIterator bytecode_iterator;
     int p=0;
     BYTECODE_FOREACH_PATH(bytecode_iterator, p, vector_get_data(instructions)) {
@@ -533,6 +533,7 @@ void add_swaps(
             vector_push(stack, &vector_index_transformation(transformations, p)->outputs[i]);
         }
     }
+    #undef STACK
 }
 
 void remove_swaps(BytecodeManipulation* manipulation){
@@ -551,6 +552,28 @@ void discard_excess_objects(BytecodeManipulation* manipulation, vector* stack){
         transformation.inputs[0]=*(Dummy**)vector_pop(stack);
         heap_object_reference((HeapObject*)transformation.inputs[0]);
         insert_instruction(manipulation, vector_count(manipulation->instructions)-1, &instruction, &transformation);
+    }
+}
+
+void assert_flow_chart_correctness(
+    vector* provided,
+    vector* stack,
+    vector* transformations
+){
+    #define CHECK_DUMMY_VECTOR(vector) \
+        for(int i=0; i<vector_count(vector); i++){ \
+            dummy_assert_correctness(*vector_index_dummy(vector, i)); \
+        }
+    CHECK_DUMMY_VECTOR(provided)
+    CHECK_DUMMY_VECTOR(stack)
+    #undef CHECK_DUMMY_VECTOR
+
+    for(int t=0; t<vector_count(transformations); t++){
+        Transformation* transformation=vector_index_transformation(transformations, t);
+        // assert(transformation->visited);
+        for(int i=0; i<transformation->inputs_count; i++){
+            dummy_assert_correctness(transformation->inputs[i]);
+        }
     }
 }
 
@@ -575,8 +598,10 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     vector_from(&informations, sizeof(InstructionInformation), program->information, instructions_count);
     vector_from(&constants, sizeof(char), program->constants, program->constants_size);
     unsigned int dummy_objects_counter=0;
-
+    #define CHECK \
+        IF_DEBUGGING(assert_flow_chart_correctness(&provided, &stack, &transformations))
     generate_flow_chart(E, &provided, &stack, program, &transformations, &dummy_objects_counter);
+    CHECK
     if(print_optimisations){
         printf("Deduced flow chart:\n");
         print_transformations(vector_get_data(&instructions), vector_get_data(&transformations));
@@ -598,7 +623,7 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     // remove swap instructions because they are only making code more confusing and prevent some optimisations
     // they will be readded later in the most optimal way
     remove_swaps(&manipulation);
-
+    CHECK
     /*
         As you probably noticed some variables are passed two times, in manipulation struct
         and as function arguments. The general rule is if function uses some variable directly 
@@ -613,12 +638,15 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     if(E->options.optimise_stack_operations) {
         stack_usage_optimisations(E, program, &manipulation, &instructions, &transformations, &constants, print_optimisations);
     }
+    CHECK
     if(E->options.inline_functions) {
         inline_functions(E, program, &manipulation, &instructions, &informations, &transformations, &constants, print_optimisations);
     }
+    CHECK
     if(E->options.optimise_jump_to_return){
         jump_to_return(&manipulation, &instructions, &transformations);
     }
+    CHECK
     for(int pointer=vector_count(&instructions)-2; pointer>=1; pointer--){
         // here short circuit evaluation is used so that if one of optimisations succeeds the rest is not performed on the same instruction
         allow_unused_variable((void*)(long)(// prevent emitting "value computed is not used" warning
@@ -634,6 +662,9 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
                 && typed_instructions(&instructions, &transformations, pointer))
         ));
     }
+    CHECK
+    discard_excess_objects(&manipulation, &stack);
+    CHECK
 
     if(print_optimisations){
         printf("Disconnected flow chart:\n");
@@ -641,11 +672,13 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
         printf("\n");
     }
 
-    discard_excess_objects(&manipulation, &stack);
-
     add_swaps(&manipulation, &provided, &stack, &instructions, &transformations);
     
+    CHECK
+
     remove_no_ops(E, &instructions, &informations, &transformations);
+
+    CHECK
 
     if(print_optimisations){
         printf("\nFinal flow chart:\n");
@@ -653,9 +686,13 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     }
 
     // cleanup and moving data back from vectors to BytecodeProgram
-    while(!vector_empty(&provided)){
-        heap_object_dereference(E, (HeapObject*)*(Dummy**)vector_pop(&provided));
-    }
+    #define CLEAR_DUMMY_VECTOR(vector) \
+        while(!vector_empty(&vector)){ \
+            dummy_dereference(E, *(Dummy**)vector_pop(&vector)); \
+        }
+    CLEAR_DUMMY_VECTOR(provided)
+    CLEAR_DUMMY_VECTOR(stack)
+    CHECK
     vector_deinit(&provided);
     vector_deinit(&stack);// dummy stack doesn't own any of it's objects
     for(int i=0; i<vector_count(&transformations); i++){

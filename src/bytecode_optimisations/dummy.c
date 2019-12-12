@@ -92,12 +92,14 @@ bool dummies_equal(const Dummy* a, const Dummy* b){
 bool dummies_compatible(const Dummy* a, const Dummy* b){
     if(a->type==d_any || b->type==d_any){
         return true;
+    } else if(a->id==b->id) {
+        return true;
     } else if(a->type==d_or){
         return dummies_compatible(a->or.left, b) || dummies_compatible(a->or.right, b);
     } else if(b->type==d_or){
         return dummies_compatible(a, b->or.left) || dummies_compatible(a, b->or.right);
     } else {
-        return a->id==b->id;
+        return false;
     }
 }
 
@@ -170,4 +172,37 @@ void dummy_reference(Dummy* dummy){
 
 void dummy_dereference(Executor* E, Dummy* dummy){
     heap_object_dereference(E, (HeapObject*)dummy);
+}
+
+
+
+/* 
+This function might seem nonsensical in terms of correct program logic,
+because if ref_count of an object is lesser then zero it should be deallocated
+and the pointer to it should be invalid. Also if dummy type has incorrect value
+then probably either its memory was corrupted or it wasn't initialized correctly.
+However the real purpose behind it is to find memory corruption errors early on 
+in the debugger.
+*/
+void dummy_assert_correctness(Dummy* dummy){
+    assert(dummy->mp.hp.ref_count>=1);
+    switch (dummy->type)
+    {
+        case d_any:
+        case d_any_type:
+        case d_known_type:
+            break;
+        case d_constant:
+            if(is_heap_object(dummy->constant_value)){
+                assert(dummy->constant_value.hp->ref_count>=1);
+            }
+            break;
+        case d_or:
+            dummy_assert_correctness(dummy->or.left);
+            dummy_assert_correctness(dummy->or.left);
+            break;
+        default:
+            // dummy type has incorrect value
+            assert(false);
+    }
 }

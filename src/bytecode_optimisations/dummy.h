@@ -2,6 +2,7 @@
 #define DUMMY_H
 
 #include <stdbool.h>
+#include <assert.h>
 #include "../object_system/object.h"
 
 typedef enum {
@@ -44,5 +45,6 @@ void dummy_print(const Dummy* dummy);
 bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replacement);
 void dummy_reference(Dummy* dummy);
 void dummy_dereference(Executor* E, Dummy* dummy);
+void dummy_assert_correctness(Dummy* dummy);
 
 #endif

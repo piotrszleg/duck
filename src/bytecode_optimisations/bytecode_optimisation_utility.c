@@ -168,5 +168,6 @@ bool find_dummy_producer(vector* transformations, Dummy* dummy, int from, int* r
 VECTOR_INDEX_FUNCTION(Instruction, instruction)
 VECTOR_INDEX_FUNCTION(Transformation, transformation)
 VECTOR_INDEX_FUNCTION(InstructionInformation, information)
+VECTOR_INDEX_FUNCTION(Dummy*, dummy)
 
 #undef VECTOR_INDEX_FUNCTION
