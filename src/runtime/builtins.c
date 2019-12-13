@@ -113,19 +113,23 @@ Object builtin_format(Executor* E, Object scope, Object* arguments, int argument
     for(int i=0; i<str_length; i++){
         #define COUNT_STR(s) (sizeof(s)/sizeof(char)-1)
         #define MATCH(s) (i+str_length>=COUNT_STR(s) && string_compare_parts(str.text+i, s, COUNT_STR(s)))
+        #define WRITE_NEXT_VARIADIC_ARGUMENT \
+            NEXT_OBJECT \
+            if(arguments[variadic_counter].type==t_string){ \
+                stream_push_string(&s, arguments[variadic_counter].text); \
+            } else { \
+                USING_STRING(stringify(E, arguments[variadic_counter]), \
+                    stream_push_string(&s, str)) \
+            }
         if(MATCH("{}")){
-            NEXT_OBJECT
-            USING_STRING(stringify(E, arguments[variadic_counter]),
-                stream_push(&s, str, strlen(str)*sizeof(char)))
+            WRITE_NEXT_VARIADIC_ARGUMENT
             i++;
         } else if(MATCH("\\{}")) {
             stream_push(&s, &str.text[i+1], sizeof(char)*2);
             i+=2;
         } else if(MATCH("\\\\{}")){
             stream_push(&s, "\\", sizeof(char));
-            NEXT_OBJECT
-            USING_STRING(stringify(E, arguments[variadic_counter]),
-                stream_push(&s, str, strlen(str)*sizeof(char)))
+            WRITE_NEXT_VARIADIC_ARGUMENT
             i+=3;
         } else {
             stream_push(&s, &str.text[i], sizeof(char));
