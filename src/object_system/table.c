@@ -41,9 +41,9 @@ unsigned table_hash(Executor* E, Table* t, Object* error) {
                 "Hashing table failed because of error in hashing one of it's fields."); \
                 return result; \
             }
-        unsigned key_hash=hash(E, i.key, &field_error);
+        unsigned key_hash=hash_and_get_error(E, i.key, &field_error);
         ERROR_CHECK(i.key)
-        unsigned value_hash=hash(E, i.value, &field_error);
+        unsigned value_hash=hash_and_get_error(E, i.value, &field_error);
         ERROR_CHECK(i.value)
         // integer overflow is expected here
         result+=key_hash+value_hash;
@@ -58,7 +58,7 @@ Object table_get(Executor* E, Table* t, Object key) {
         }
     }
     Object error=null_const;
-    int hashed=hash(E, key, &error)%t->map_size;
+    uint hashed=hash_and_get_error(E, key, &error)%t->map_size;
     if(error.type!=t_null){
         RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){wrap_heap_object((HeapObject*)t), key, error}, 3), 
                      "Getting a field from table failed because of hashing error.")
@@ -100,6 +100,7 @@ IterationResult table_iterator_next(TableIterator* it){
             // switch from iterating array part to iterating map part
             it->inside_array=false;
             it->index=0;
+            it->map_element=iterated->map[it->index];
         }
     }
     result.inside_array=it->inside_array;
@@ -111,20 +112,21 @@ IterationResult table_iterator_next(TableIterator* it){
         result.value=it->iterated->array[it->index++];
     } else {
         // skip empty map_elements
-        while(it->element==NULL){
+        while(it->map_element==NULL){
             it->index++;
-            it->element=iterated->map[it->index];
             if(it->index>=iterated->map_size){
                 // map iteration finished
                 result.key=null_const;
                 result.value=null_const;
                 result.finished=true;
                 return result;
+            } else {
+                it->map_element=iterated->map[it->index];
             }
         }
-        result.key=it->element->key;
-        result.value=it->element->value;
-        it->element=it->element->next;// traverse linked list
+        result.key=it->map_element->key;
+        result.value=it->map_element->value;
+        it->map_element=it->map_element->next;// traverse linked list
     }
     return result;
 }
@@ -137,7 +139,7 @@ static char* table_to_text(Executor* E, Table* t, bool serialize) {
     bool first=true;
     float last_array_index=-1;
     bool array_part_holey=false;
-    int max_hole_size=3;
+    uint max_hole_size=3;
     
     bool add_whitespace=t->elements_count>3||t->protected;
     if(serialize && t->protected){
@@ -323,7 +325,7 @@ int table_compare(Executor* E, Table* a, Table* b, Object* error){
 }
 
 static bool array_upsize_allowed(Table* t, int new_size){
-    return new_size<t->array_size*8;
+    return new_size<t->array_size*4;
 }
 
 static bool array_downsize_allowed(Table* t, int new_size){
@@ -331,25 +333,25 @@ static bool array_downsize_allowed(Table* t, int new_size){
 }
 
 static void move_from_map_to_array(Table* t){
-  for(int i=0; i<MIN(t->array_size, t->map_size); i++) {
-    MapElement* previous=NULL;
-    MapElement* e=t->map[i];
-    while(e) {
-        if(e->key.type==t_int){
-            t->array[i]=e->value;
-            if(previous!=NULL){
-                previous->next=e->next;
-                free(e);
-            } else {
-                t->map[i]=e->next;
-                free(e);
+    for(int i=0; i<MIN(t->array_size, t->map_size); i++) {
+        MapElement* previous=NULL;
+        MapElement* e=t->map[i];
+        while(e) {
+            if(e->key.type==t_int){
+                t->array[i]=e->value;
+                if(previous!=NULL){
+                    previous->next=e->next;
+                    free(e);
+                } else {
+                    t->map[i]=e->next;
+                    free(e);
+                }
+                break;
             }
-            break;
+            previous=e;
+            e=e->next;
         }
-        previous=e;
-        e=e->next;
     }
-  }
 }
 
 // does array part contain elements after the index
@@ -362,54 +364,107 @@ static bool elements_after(Table* t, int index){
     return false;
 }
 
-void table_set(Executor* E, Table* t, Object key, Object value) {
-    reference(&value);
-    // try to insert value into array
+// tru if elements still lies within the array
+void try_downsizing_array(Table* t, int index){
+    uint proposed_new_size=nearest_power_of_two(index);
+    if(proposed_new_size!=t->array_size 
+        && array_downsize_allowed(t, proposed_new_size) && !elements_after(t, index)
+    ){
+        t->array_size=proposed_new_size;
+        t->array=realloc(t->array, sizeof(Object)*t->array_size);
+    }
+}
+
+static bool remove_element_from_array_part(Executor* E, Table* t, Object key){
+    if(key.type==t_int && key.int_value>=0) {
+        int index=(int)key.int_value;
+        if(index<t->array_size){
+            t->elements_count--;
+            dereference(E, &t->array[index]);
+            t->array[index]=null_const;
+            if(index>t->array_size/2){
+                // this might be the last element of the array part
+                try_downsizing_array(t, index);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+static void remove_element_from_map_part(Executor* E, Table* t, Object key){
+    int hashed=hash(E, key)%t->map_size;
+    MapElement* previous=NULL;
+    MapElement* e=t->map[hashed];
+    // traverse linked list
+    while(e){
+        if(compare(E, e->key, key)==0){
+            dereference(E, &e->key);
+            dereference(E, &e->value);
+            if(previous!=NULL){
+                previous->next=e->next;
+            } else {
+                t->map[hashed]=e->next;
+            }
+            free(e);
+            t->elements_count--;
+            return;
+        }
+        previous=e;
+        e=e->next;
+    }
+}
+
+static void remove_element(Executor* E, Table* t, Object key){
+    if(!remove_element_from_array_part(E, t, key)){
+        remove_element_from_map_part(E, t, key);
+    }
+}
+
+bool try_upsizing_array_part(Table* t, int index){
+    return false;
+    uint proposed_new_size=nearest_power_of_two(index);
+    if(array_upsize_allowed(t, proposed_new_size)){
+        t->array=realloc_zero(t->array, t->array_size*sizeof(Object), proposed_new_size*sizeof(Object));
+        t->array_size=proposed_new_size;
+        move_from_map_to_array(t);
+        return true;
+    }
+    return false;
+}
+
+static bool try_changing_element_in_array_part(Executor* E, Table* t, Object key, Object value){
     if(key.type==t_int && key.int_value>=0) {
         int index=(int)key.int_value;
         if(index<t->array_size){
             // key lies within array part
-            dereference(E, &t->array[index]);
-            if(value.type!=t_null){
-                if(t->array[index].type==t_null){
-                    t->elements_count++;
-                }
-                t->array[index]=value;
-            } else if (t->array[index].type!=t_null){
-                t->elements_count--;
-                // reduce the array part size if possible
-                int proposed_new_size=nearest_power_of_two(index);
-                if(proposed_new_size!=t->array_size && array_downsize_allowed(t, proposed_new_size) && !elements_after(t, index)){
-                    t->array_size=proposed_new_size;
-                    t->array=realloc(t->array, sizeof(Object)*t->array_size);
-                    if(index<t->array_size){// if key still lies inside of the array part set it to null
-                        t->array[index]=null_const;
-                    }
-                    return;
-                } else {
-                    // simply set array field to null
-                    t->array[index]=null_const;
-                }
+            if(t->array[index].type!=t_null){
+                dereference(E, &t->array[index]);
+            } else {
+                t->elements_count++;
             }
-            return;
-        } else {
-            int proposed_new_size=nearest_power_of_two(index);
-            if(array_upsize_allowed(t, proposed_new_size)){
-                t->array_size=proposed_new_size;
-                t->array=realloc(t->array, sizeof(Object)*t->array_size);
-                move_from_map_to_array(t);
-                t->array[index]=value;
-                return;
-            }
+            t->array[index]=value;
+            return true;
+        }  else if(try_upsizing_array_part(t, index)){
+            t->elements_count++;
+            t->array[index]=value;
+            return true;
         }
     }
-    Object error=null_const;
-    int hashed=hash(E, key, &error)%t->map_size;
-    if(error.type!=t_null){
-        destroy_unreferenced(E, &error);
-    }
+    return false;
+}
+
+static MapElement* new_map_element(Object key, Object value, MapElement* next){
+    MapElement* new_element=malloc(sizeof(MapElement));
+    new_element->key=key;
+    new_element->value=value;
+    new_element->next=next;
+    return new_element;
+}
+
+static void change_element_in_map_part(Executor* E, Table* t, Object key, Object value){
     reference(&key);
-    MapElement* previous=NULL;
+    uint hashed=hash(E, key)%t->map_size;
     MapElement* e=t->map[hashed];
     // traverse linked list
     while(e){
@@ -417,31 +472,30 @@ void table_set(Executor* E, Table* t, Object key, Object value) {
             // there is a MapElement with this key
             dereference(E, &e->value);
             dereference(E, &e->key);
-            if(value.type==t_null){
-                // assigning value to null removes the MapElement from the table
-                t->elements_count--;
-                if(previous!=NULL){
-                    previous->next=e->next;
-                } else {
-                    t->map[hashed]=NULL;
-                }
-                free(e);
-            } else {
-                e->key=key;
-                e->value=value;
-            }
+            e->key=key;
+            e->value=value;
             return;
         }
-        previous=e;
         e=e->next;
     }
     // searching for a MapElement with given key failed, create new and insert it
-    MapElement* new_element=malloc(sizeof(MapElement));
-    new_element->key=key;
-    new_element->value=value;
-    new_element->next=t->map[hashed];
-    t->map[hashed]=new_element;
+    t->map[hashed]=new_map_element(key, value, t->map[hashed]);
     t->elements_count++;
+}
+
+static void change_element(Executor* E, Table* t, Object key, Object value){
+    if(!try_changing_element_in_array_part(E, t, key, value)){
+        change_element_in_map_part(E, t, key, value);
+    }
+}
+
+void table_set(Executor* E, Table* t, Object key, Object value) {
+    if(value.type==t_null){
+        remove_element(E, t, key);
+    } else {
+        reference(&value);
+        change_element(E, t, key, value);
+    }
 }
 
 Object table_iterator_object_next(Executor* E, Object scope, Object* arguments, int arguments_count){

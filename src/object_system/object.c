@@ -270,10 +270,8 @@ void gc_mark(Executor* E, Object* o){
 
 void gc_unmark_all(GarbageCollector* gc){
     HeapObject* o=gc->root;
-    HeapObject* previous=o;
     while(o){
         o->marked=false;
-        previous=o;
         o=o->next;
     }
 }

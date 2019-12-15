@@ -23,18 +23,18 @@ struct Table {
     HeapObject hp;
 
     Object* array;
-    unsigned elements_count;
-    unsigned array_size;
+    int elements_count;
+    uint array_size;
     MapElement** map;
-    unsigned map_size;
+    uint map_size;
     bool protected;
 };
 
 typedef struct {
     Table* iterated;
     bool inside_array;
-    int index;
-    MapElement* element;
+    uint index;
+    MapElement* map_element;
 } TableIterator;
 
 typedef struct {

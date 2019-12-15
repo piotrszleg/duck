@@ -120,7 +120,7 @@ static unsigned hash_string(const char *str) {
     return hashed;
 }
 
-unsigned hash(Executor* E, Object o, Object* error) {
+unsigned hash_and_get_error(Executor* E, Object o, Object* error) {
     switch(o.type){
         case t_string:
             return hash_string(o.text);
@@ -169,6 +169,15 @@ unsigned hash(Executor* E, Object o, Object* error) {
             NEW_ERROR(*error, "HASH_ERROR", o, "Can't hash object of type <%s>", get_type_name(o.type));
             return 0;
     }
+}
+
+uint hash(Executor* E, Object key){
+    Object error=null_const;
+    uint hashed=hash_and_get_error(E, key, &error);
+    if(error.type!=t_null){
+        dereference(E, &error);
+    }
+    return hashed;
 }
 
 Object get(Executor* E, Object o, Object key){

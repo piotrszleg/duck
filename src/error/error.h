@@ -19,7 +19,8 @@ typedef enum{
     AST_ERROR,
     STACK_OVERFLOW,
     PRINTF_ERROR,
-    ENUM_VALUE_OUT_OF_BOUNDS
+    ENUM_VALUE_OUT_OF_BOUNDS,
+    OUT_OF_RANGE_INTEGER
 } ErrorType;
 
 extern jmp_buf error_buf;

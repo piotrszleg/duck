@@ -6,12 +6,14 @@
 #include "../table.h"
 #include "../../utility.h"
 #include "../../containers/map.h"
+#include "../../c_fixes.h"
 #include <stdbool.h>
 
 bool is_falsy(Object o);
 bool is_truthy(Object o);
 
-unsigned hash(Executor* E, Object o, Object* error);
+uint hash_and_get_error(Executor* E, Object o, Object* error);
+uint hash(Executor* E, Object o);
 
 #define OPERATOR_OVERRIDE_FAILURE \
     RETURN_ERROR("OPERATOR_ERROR", multiple_causes(E, OBJECTS_ARRAY(arguments[0], arguments[1]), 2), \

@@ -27,10 +27,17 @@ char* read_entire_file(FILE* fp) {
     }
 }
 
-int nearest_power_of_two(int number){
-    int i;
-    for(i=1; i<=number;i*=2);
-    return i;
+uint nearest_power_of_two(uint number){
+    unsigned long result=number;
+    result--;
+    result |= result >> 1;
+    result |= result >> 2;
+    result |= result >> 4;
+    result |= result >> 8;
+    result |= result >> 16;
+    result |= result >> 32;
+    result++;
+    return result;
 }
 
 bool strings_counted_equal(char* a, char* b, size_t count){
@@ -114,4 +121,13 @@ void* copy_memory(void* source, size_t size){
     CHECK_ALLOCATION(result)
     memcpy(result, source, size);
     return result;
+}
+
+void* realloc_zero(void* previous, size_t previous_size, size_t new_size) {
+    void* reallocated = realloc(previous, new_size);
+    if(reallocated!=NULL){
+        size_t difference = new_size - previous_size;
+        memset(reallocated, 0, difference);
+    }
+    return reallocated;
 }
