@@ -257,12 +257,12 @@ Object builtin_to_int(Executor* E, Object scope, Object* arguments, int argument
 
 Object builtin_cast(Executor* E, Object scope, Object* arguments, int arguments_count){
     REQUIRE_TYPE(arguments[1], t_symbol);
-    for(int i=0; i<LAST_OBJECT_TYPE; i++){
+    for(int i=0; i<=LAST_OBJECT_TYPE; i++){
         if(compare(E, get_type_symbol(E, i), arguments[1])==0){
             return cast(E, arguments[0], i);
         }
     }
-    RETURN_ERROR("INCORRECT_ARGUMENT", arguments[1], "Incorrect type name");
+    RETURN_ERROR("INCORRECT_ARGUMENT", arguments[1], "Incorrect type symbol.");
 }
 
 Object builtin_is_error(Executor* E, Object scope, Object* arguments, int arguments_count){

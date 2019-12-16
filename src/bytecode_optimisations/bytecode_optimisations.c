@@ -297,8 +297,8 @@ bool fold_constants(
 bool typed_instructions(vector* instructions, vector* transformations, int pointer){
     #define OPERATOR_VARIANT(base_instruction, type_name) \
     if(vector_index_instruction(instructions, pointer)->type==base_instruction \
-        && dummy_type(vector_index_transformation(transformations, pointer)->inputs[0])==(ObjectTypeOrUnknown)t_##type_name \
-        && dummy_type(vector_index_transformation(transformations, pointer)->inputs[1])==(ObjectTypeOrUnknown)t_##type_name){ \
+        && dummy_type(vector_index_transformation(transformations, pointer)->inputs[0])==t_##type_name \
+        && dummy_type(vector_index_transformation(transformations, pointer)->inputs[1])==t_##type_name){ \
             vector_index_instruction(instructions, pointer)->type=base_instruction##_##type_name; \
             return true; \
         }
@@ -315,7 +315,7 @@ bool typed_instructions(vector* instructions, vector* transformations, int point
     OPERATOR_VARIANT(b_modulo, int)
     #define PREFIX_VARIANT(base_instruction, type_name) \
         if(vector_index_instruction(instructions, pointer)->type==base_instruction \
-        && dummy_type(vector_index_transformation(transformations, pointer)->inputs[0])==(ObjectTypeOrUnknown)t_##type_name){ \
+        && dummy_type(vector_index_transformation(transformations, pointer)->inputs[0])==t_##type_name){ \
             vector_index_instruction(instructions, pointer)->type==base_instruction##_##type_name; \
             return true; \
         }

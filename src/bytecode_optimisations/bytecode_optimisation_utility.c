@@ -71,21 +71,21 @@ bool instruction_is_constant(Instruction* instruction, Transformation* transform
             return true;
         #define BINARY(instruction, op) \
             case instruction: \
-                return operator_predict_result(dummy_type(transformation->inputs[0]), dummy_type(transformation->inputs[1]), op)!=tu_unknown;
+                return operator_predict_result(dummy_type(transformation->inputs[0]), dummy_type(transformation->inputs[1]), op)!=t_any;
         #define PREFIX(instruction, op) \
             case instruction: \
-                return operator_predict_result(t_null, dummy_type(transformation->inputs[0]), op)!=tu_unknown;
+                return operator_predict_result(t_null, dummy_type(transformation->inputs[0]), op)!=t_any;
         OPERATOR_INSTRUCTIONS
         #undef BINARY
         #undef PREFIX
         case b_binary:
             return transformation->inputs[0]->type==d_constant 
             && transformation->inputs[0]->constant_value.type==t_string
-            && operator_predict_result(dummy_type(transformation->inputs[1]), dummy_type(transformation->inputs[2]), transformation->inputs[0]->constant_value.text)!=tu_unknown;
+            && operator_predict_result(dummy_type(transformation->inputs[1]), dummy_type(transformation->inputs[2]), transformation->inputs[0]->constant_value.text)!=t_any;
         case b_prefix:
             return transformation->inputs[0]->type==d_constant 
             && transformation->inputs[0]->constant_value.type==t_string
-            && operator_predict_result(tu_null, dummy_type(transformation->inputs[1]), transformation->inputs[0]->constant_value.text)!=tu_unknown;
+            && operator_predict_result(t_null, dummy_type(transformation->inputs[1]), transformation->inputs[0]->constant_value.text)!=t_any;
         default: return false;
     }
 }

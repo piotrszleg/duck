@@ -4,13 +4,13 @@ bool dummy_is_typed(const Dummy* dummy){
     return dummy->type==d_known_type || dummy->type==d_constant;
 }
 
-ObjectTypeOrUnknown dummy_type(const Dummy* dummy){
+ObjectType dummy_type(const Dummy* dummy){
     if(dummy->type==d_known_type){
         return dummy->known_type;
     } else if(dummy->type==d_constant){
         return dummy->constant_value.type;
     } else {
-        return tu_unknown;
+        return t_any;
     }
 }
 

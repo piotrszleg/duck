@@ -100,24 +100,24 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
     }
 }
 
-ObjectTypeOrUnknown operator_predict_result(ObjectTypeOrUnknown a, ObjectTypeOrUnknown b, const char* op) {
-    if(a==tu_table || a==tu_unknown || b==tu_unknown){
-        return tu_unknown;
+ObjectType operator_predict_result(ObjectType a, ObjectType b, const char* op) {
+    if(a==t_table || a==t_any || b==t_any){
+        return t_any;
     }
     size_t op_length=strlen(op);
     if(op_length==1) {
         switch(op[0]){
-            case '!': return tu_int;
-            case '#': return tu_unknown;
+            case '!': return t_int;
+            case '#': return t_any;
         }
         #define CASE(character) \
             case character: \
                 if(cast_is_constant(b, a)){ \
-                    return (ObjectTypeOrUnknown)a; \
+                    return a; \
                 } else { \
-                    return tu_unknown; \
+                    return t_any; \
                 }
-        if(a==tu_int) {
+        if(a==t_int) {
             switch(op[0]){
                 CASE('+')
                 CASE('-')
@@ -127,10 +127,10 @@ ObjectTypeOrUnknown operator_predict_result(ObjectTypeOrUnknown a, ObjectTypeOrU
             }
         }
         // '-' prefix
-        if(a==tu_null && op[0]=='-'&&(b==tu_int||b==tu_float)) {
-            return (ObjectTypeOrUnknown)b;
+        if(a==t_null && op[0]=='-'&&(b==t_int||b==t_float)) {
+            return b;
         }
-        if(a==tu_float) {
+        if(a==t_float) {
             switch(op[0]){
                 CASE('+')
                 CASE('-')
@@ -140,24 +140,24 @@ ObjectTypeOrUnknown operator_predict_result(ObjectTypeOrUnknown a, ObjectTypeOrU
         }
         #undef CASE
     } else {  
-        if(strcmp(op, "--")==0) return tu_unknown;
-        if(strcmp(op, "><")==0) return tu_unknown;
-        if(strcmp(op, "##")==0) return tu_unknown;
-        if(strcmp(op, "&&")==0) return tu_int;
-        if(strcmp(op, "||")==0) return tu_int;
+        if(strcmp(op, "--")==0) return t_any;
+        if(strcmp(op, "><")==0) return t_any;
+        if(strcmp(op, "##")==0) return t_any;
+        if(strcmp(op, "&&")==0) return t_int;
+        if(strcmp(op, "||")==0) return t_int;
         if(strcmp(op, "//")==0) { 
-            if(a==tu_int && cast_is_constant(b, a)) {
-                return tu_int;
+            if(a==t_int && cast_is_constant(b, a)) {
+                return t_int;
             } else{
-                return tu_unknown;
+                return t_any;
             }
         }
         #define COMPARISSON(operator_name) \
             if(strcmp(op, operator_name)==0) { \
                 if(compare_is_constant(a, b)) { \
-                    return tu_int; \
+                    return t_int; \
                 } else { \
-                    return tu_unknown; \
+                    return t_any; \
                 } \
             }
         COMPARISSON("==") 
@@ -170,7 +170,7 @@ ObjectTypeOrUnknown operator_predict_result(ObjectTypeOrUnknown a, ObjectTypeOrU
         COMPARISSON("compare")
         #undef COMPARISSON
     }
-    return tu_unknown;
+    return t_any;
 }
 
 bool is(Executor* E, Object a, Object b){
@@ -228,7 +228,7 @@ Object operator(Executor* E, Object a, Object b, const char* op){
                 if(a.type==t_null && b.type==t_int){
                     return to_int(-b.int_value);
                 } else if(a.type==t_null && b.type==t_float){
-                    return to_int(-b.float_value);
+                    return to_float(-b.float_value);
                 } else {
                     break;
                 }

@@ -103,8 +103,8 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
         case b_binary:
         {
             if(inputs[0]->type==d_constant && inputs[0]->constant_value.type==t_string) {
-                ObjectTypeOrUnknown prediction=operator_predict_result(dummy_type(inputs[1]), dummy_type(inputs[2]), inputs[0]->constant_value.text);
-                if(prediction!=tu_unknown){
+                ObjectType prediction=operator_predict_result(dummy_type(inputs[1]), dummy_type(inputs[2]), inputs[0]->constant_value.text);
+                if(prediction!=t_any){
                     if(inputs[0]->type==d_constant && inputs[1]->type==d_constant && inputs[2]->type==d_constant){
                         Object operator_result=operator(E, inputs[1]->constant_value, inputs[2]->constant_value, inputs[0]->constant_value.text);
                         if(is_unhandled_error(E, operator_result)){
@@ -115,7 +115,7 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                             outputs[0]=new_constant_dummy(E, operator_result, dummy_objects_counter);
                         }
                     } else {
-                        outputs[0]=new_known_type_dummy(E, (ObjectType)prediction, dummy_objects_counter);
+                        outputs[0]=new_known_type_dummy(E, prediction, dummy_objects_counter);
                     }
                     return;
                 }
@@ -125,8 +125,8 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
         #define BINARY(instruction, op) \
             case instruction: \
             { \
-                ObjectTypeOrUnknown prediction=operator_predict_result(dummy_type(inputs[0]), dummy_type(inputs[1]), op); \
-                if(prediction!=tu_unknown){ \
+                ObjectType prediction=operator_predict_result(dummy_type(inputs[0]), dummy_type(inputs[1]), op); \
+                if(prediction!=t_any){ \
                     if(inputs[0]->type==d_constant && inputs[1]->type==d_constant){ \
                         Object operator_result=operator(E, inputs[0]->constant_value, inputs[1]->constant_value, op); \
                         if(is_unhandled_error(E, operator_result)){ \
@@ -137,7 +137,7 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
                             outputs[0]=new_constant_dummy(E, operator_result, dummy_objects_counter); \
                         } \
                     } else { \
-                        outputs[0]=new_known_type_dummy(E, (ObjectType)prediction, dummy_objects_counter); \
+                        outputs[0]=new_known_type_dummy(E, prediction, dummy_objects_counter); \
                     } \
                     return; \
                 } \
@@ -146,12 +146,12 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
         #define PREFIX(instruction, op) \
             case instruction: \
             { \
-                ObjectTypeOrUnknown prediction=operator_predict_result(tu_null, dummy_type(inputs[0]), op); \
-                if(prediction!=tu_unknown){ \
+                ObjectType prediction=operator_predict_result(t_null, dummy_type(inputs[0]), op); \
+                if(prediction!=t_any){ \
                     if(inputs[0]->type==d_constant) { \
                         outputs[0]=new_constant_dummy(E, operator(E, inputs[0]->constant_value, null_const, op), dummy_objects_counter); \
                     } else { \
-                        outputs[0]=new_known_type_dummy(E, (ObjectType)prediction, dummy_objects_counter); \
+                        outputs[0]=new_known_type_dummy(E, prediction, dummy_objects_counter); \
                     } \
                     return; \
                 } \

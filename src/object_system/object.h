@@ -39,7 +39,8 @@ typedef struct Executor Executor;
     X(pointer) \
     X(managed_pointer) \
     X(coroutine) \
-    X(symbol)
+    X(symbol) \
+    X(any)
 
 typedef enum {
     #define X(type) t_##type,
@@ -47,7 +48,7 @@ typedef enum {
     #undef X
 } ObjectType;
 
-#define LAST_OBJECT_TYPE t_symbol
+#define LAST_OBJECT_TYPE t_any
 
 typedef struct HeapObject HeapObject;
 struct HeapObject {

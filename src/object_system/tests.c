@@ -41,27 +41,77 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
     return null_const;
 }
 
-void assert_stringification(Executor* E, Object o, char* expected){
-    USING_STRING(stringify(E, o), 
-        assert(strcmp(str, expected)==0));
-}
-
 #define assert_equal(E, a, b) \
     assert(compare(E, a, b)==0)
 
-void adding_numbers(Executor* E){// tests whether 1+2=3
-    Object num1=to_int(1);
-    Object num2=to_int(2);
-    Object result=operator(E, num1, num2, "+");
-    assert_equal(E, result, to_int(3));
-}
+void operators(Executor* E){
+    #define OPERATOR_TEST(a, b, op, expected_result) { \
+        Object result=operator(E, (a), (b), op); \
+        assert_equal(E, result, expected_result); \
+        dereference(E, &result); \
+    }
+    #define TYPED_OPERATOR_TEST(converting_function, a, b, op, expected_result) \
+        OPERATOR_TEST(to_int(a), to_int(b), op, to_int(expected_result))
+    #define INT_OPERATOR_TEST(a, b, op, expected_result) \
+        OPERATOR_TEST(to_int(a), to_int(b), op, to_int(expected_result))
+    #define STRING_OPERATOR_TEST(a, b, op, expected_result) \
+        OPERATOR_TEST(to_string(a), to_string(b), op, to_string(expected_result))
+    #define FLOAT_OPERATOR_TEST(a, b, op, expected_result) \
+        OPERATOR_TEST(to_float(a), to_float(b), op, to_float(expected_result))
 
-void adding_strings(Executor* E){// tests whether "Hello "+"Cruel World"="Hello Cruel World"
-    Object str1=to_string("Hello ");
-    Object str2=to_string("Cruel World");
-    Object result=operator(E, str1, str2, "+");
-    assert_equal(E, result, to_string("Hello Cruel World"));
-    dereference(E, &result);
+    #define OPERATOR_ERROR_TEST(a, b, op) { \
+        Object result=operator(E, (a), (b), op); \
+        assert(is_error(E, result)); \
+        error_handle(E, result); \
+        dereference(E, &result); \
+    }
+
+    INT_OPERATOR_TEST(2, 3, "+", 5)
+    INT_OPERATOR_TEST(2, 3, "-", -1)
+    OPERATOR_TEST(null_const, to_int(1), "-", to_int(-1))
+    INT_OPERATOR_TEST(2, 3, "*", 6)
+    OPERATOR_TEST(to_int(2), to_int(3), "/", to_float((float)2/3))
+    INT_OPERATOR_TEST(2, 3, "//", 0)
+    INT_OPERATOR_TEST(2, 3, "%", 2)
+
+    FLOAT_OPERATOR_TEST(2, 3, "+", 5)
+    FLOAT_OPERATOR_TEST(2, 3, "-", -1)
+    FLOAT_OPERATOR_TEST(2, 3, "*", 6)
+    FLOAT_OPERATOR_TEST(2, 3, "/", (float)2/3)
+    OPERATOR_TEST(null_const, to_float(1.5), "-", to_float(-1.5))
+    OPERATOR_ERROR_TEST(to_float(2), to_float(3), "%")
+    OPERATOR_ERROR_TEST(to_float(2), to_float(3), "//")
+
+    STRING_OPERATOR_TEST("foo", "bar", "+", "foobar")
+    OPERATOR_TEST(to_string("foo"), to_int(3), "*", to_string("foofoofoo"))
+    OPERATOR_TEST(to_string("foo"), to_int(3), "+", to_string("foo3"))
+    OPERATOR_ERROR_TEST(to_int(3), to_string("foo"), "+")
+
+    
+    #define TRUE to_int(1)
+    #define FALSE null_const
+    #define BOOLEAN_OPERATOR(a, b, op, expected_result) { \
+        Object result=operator(E, (a), (b), op); \
+        assert(is_truthy(result)==expected_result); \
+        dereference(E, &result); \
+    }
+    BOOLEAN_OPERATOR(TRUE, FALSE, "||", true)
+    BOOLEAN_OPERATOR(TRUE, FALSE, "&&", false)
+    BOOLEAN_OPERATOR(FALSE, TRUE, "!", false)
+
+    #define OPERATOR_TEST(a, b, op, expected_result) { \
+        Object result=operator(E, (a), (b), op); \
+        assert_equal(E, result, expected_result); \
+        dereference(E, &result); \
+    }
+    #undef TYPED_OPERATOR_TEST
+    #undef INT_OPERATOR_TEST
+    #undef STRING_OPERATOR_TEST
+    #undef FLOAT_OPERATOR_TEST
+    #undef OPERATOR_ERROR_TEST
+    #undef TRUE
+    #undef FALSE
+    #undef BOOLEAN_OPERATOR
 }
 
 Object add_three(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -104,19 +154,6 @@ void table_indexing(Executor* E){// t["name"]="John" => t["name"]=="John"
     TEST_SET(to_int(1), to_int(2))
 
     dereference(E, &t);
-}
-
-void adding_number_string(Executor* E){// tests whether "count: "+5="count: 5"
-    printf("TEST: %s\n", __FUNCTION__);
-
-    Object str=to_string("count: ");
-    Object num=to_int(5);
-    Object result=operator(E, str, num, "+");
-
-    assert_equal(E, result, to_string("count: 5"));
-
-    dereference(E, &result);
-
 }
 
 typedef Object (*ObjectGenerator)(Executor*, int);
@@ -256,11 +293,9 @@ int main(){
     
     TRY_CATCH(
         // TODO test error objects
-        TEST(adding_numbers)
-        TEST(adding_strings)
+        TEST(operators)
         TEST(function_calling)
         TEST(table_indexing)
-        TEST(adding_number_string)
         TEST(table_resizing)
         TEST(sparse_array)
         TEST(table_iteration)

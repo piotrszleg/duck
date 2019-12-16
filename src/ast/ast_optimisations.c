@@ -24,17 +24,17 @@ bool expression_is_literal(Expression* expression){
     }
 }
 
-ObjectTypeOrUnknown expression_object_type(Expression* expression){
+ObjectType expression_object_type(Expression* expression){
     switch(expression->type){
         case e_empty:
         case e_null_literal: 
-            return tu_null;
-        case e_int_literal: return tu_int;
-        case e_float_literal: return tu_float;
-        case e_string_literal: return tu_string;
-        case e_table_literal: return tu_table;
-        case e_function_declaration: return tu_function;
-        default: return tu_unknown;
+            return t_null;
+        case e_int_literal: return t_int;
+        case e_float_literal: return t_float;
+        case e_string_literal: return t_string;
+        case e_table_literal: return t_table;
+        case e_function_declaration: return t_function;
+        default: return t_any;
     }
 }
 
@@ -46,12 +46,12 @@ bool expression_is_constant(Expression* expression){
         case e_binary:
         {
             Binary* b=(Binary*)expression;
-            return operator_predict_result(expression_object_type(b->left), expression_object_type(b->right), b->op)!=tu_unknown;
+            return operator_predict_result(expression_object_type(b->left), expression_object_type(b->right), b->op)!=t_any;
         }
         case e_prefix:
         {
             Prefix* p=(Prefix*)expression;
-            return operator_predict_result(tu_null, expression_object_type(p->right), p->op)!=tu_unknown;
+            return operator_predict_result(t_null, expression_object_type(p->right), p->op)!=t_any;
         }
         default:
             return false;
