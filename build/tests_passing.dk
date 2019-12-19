@@ -95,3 +95,18 @@ test("operators", ->{
     assert_error(2.5%2)
     assert_error(2.5%2)
 })
+
+test("type matching", ->{
+    assert(match(1, 1))
+    assert(!match(0, 1))
+    assert(match(1, types.int))
+    assert(!match(1, types.string))
+    assert(match([a=10, b=10], [a=types.int, b=types.int]))
+    assert(!match([a=10, b=10], [a=types.int, b=types.string]))
+    assert(match([a=10, b=10, c=10], [a=types.int, b=types.int]))
+    assert(!match([a=10, b=10], [a=types.int, b=types.int, c=types.int]))
+    match_or=(a, b)->(checked->(match(checked, a) || match(checked, b)))
+    int_or_string=match_or(types.int, types.string)
+    assert(match(1, int_or_string))
+    assert(!match([], int_or_string))
+})

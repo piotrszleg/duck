@@ -2,11 +2,14 @@
 
 char* get_and_stringify(Executor* E, Object t, const char* key){
     Object at_key=get(E, t, to_string(key));
+    char* result;
     if(at_key.type!=t_string){
-        return stringify(E, at_key);
+        result=stringify(E, at_key);
     } else {
-        return at_key.text;
+        result=strdup(at_key.text);
     }
+    dereference(E, &at_key);
+    return result;
 }
 
 Object multiple_causes_stringify(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -21,15 +24,15 @@ Object multiple_causes_stringify(Executor* E, Object scope, Object* arguments, i
 
     for(int i=0; i<count; i++){
         Object value=get(E, self, to_int(i));
-        char* stringified_value=stringify(E, value);
-
-        char* formatted=suprintf("(%i/%i) %s\n", i+1, count, stringified_value);
-        stream_push(&s, formatted, strlen(formatted));
-
-        free(formatted);
-        free(stringified_value);
+        char* stringified=stringify(E, value);
+        char* indented=string_add("\t", stringified);
+        stream_push_string_indented(&s, indented);
+        free(stringified);
+        free(indented);
+        dereference(E, &value);
+        stream_push_const_string(&s, "\n");
     }
-    stream_push(&s, "\0", 1);
+    stream_push_const_string(&s, "\0");
 
     return to_string((char*)stream_get_data(&s));
 }

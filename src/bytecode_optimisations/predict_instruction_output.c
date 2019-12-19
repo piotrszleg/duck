@@ -8,22 +8,21 @@ void predict_instruction_output(Executor* E, BytecodeProgram* program, Instructi
     #define OUTPUT_IS_INPUT(output_index, input_index) \
         outputs[output_index]=inputs[input_index]; \
         dummy_reference(outputs[output_index]);
-
-    if(carries_stack(instruction->type)){
-        int i=0;
-        // jump_not takes one item from the stack as a predicate
-        // so it needs to be skipped
-        if(instruction->type==b_jump_not){
-            i++;
-        }
-        for(; i<transformation->inputs_count; i++){
-            OUTPUT_IS_INPUT(transformation->inputs_count-1-i, i)
-        }
-        return;
-    }
+        
     switch (instruction->type){
         case b_null:
             outputs[0]=new_constant_dummy(E, null_const, dummy_objects_counter);
+            return;
+        case b_jump:
+        case b_label:
+            for(int i=0; i<transformation->outputs_count; i++){
+                OUTPUT_IS_INPUT(transformation->outputs_count-1-i, i)
+            }
+            return;
+        case b_jump_not:
+            for(int i=0; i<transformation->outputs_count; i++){
+                OUTPUT_IS_INPUT(transformation->outputs_count-1-i, i+1)
+            }
             return;
         case b_load_int:
             outputs[0]=new_constant_dummy(E, to_int(instruction->int_argument), dummy_objects_counter);

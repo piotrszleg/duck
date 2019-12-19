@@ -363,6 +363,7 @@ void revisit_transformation(
                 // or_dummy references both inputs
                 dummy_dereference(E, expected);// expected is no longer referenced by transformation itself
                 transformation->inputs[i]=or_dummy;
+                // replace_dummies_in_transformations(manipulation, expected, or_dummy);
                 inputs_changed=true;
             }
         }
@@ -393,42 +394,40 @@ void visit_transformation(
     BytecodeProgram* program,
     uint* dummy_objects_counter,
     Instruction* instruction,
-    Transformation* previous_transformation
+    Transformation* transformation
 ){
-    Transformation transformation;
     if(carries_stack(instruction->type)){
         // jump_not takes one item from the stack as a predicate
         if(instruction->type==b_jump_not){
-            transformation_init(&transformation, vector_count(stack), vector_count(stack)-1);
+            transformation_init(transformation, vector_count(stack), vector_count(stack)-1);
         } else {
-            transformation_init(&transformation, vector_count(stack), vector_count(stack));
+            transformation_init(transformation, vector_count(stack), vector_count(stack));
         }
     } else {
-        transformation_from_instruction(&transformation, instruction);
+        transformation_from_instruction(transformation, instruction);
     }
     
-    for(int i=0; i<transformation.inputs_count; i++){
+    for(int i=0; i<transformation->inputs_count; i++){
         if(!vector_empty(stack)){
-            transformation.inputs[i]=*(Dummy**)vector_pop(stack);
+            transformation->inputs[i]=*(Dummy**)vector_pop(stack);
             // dummy is referenced by the transformation
-            dummy_reference(transformation.inputs[i]);
+            dummy_reference(transformation->inputs[i]);
         } else {
             Dummy* dummy=assumption_to_dummy(E, get_argument_assumption(program, vector_count(provided)), dummy_objects_counter);
             vector_push(provided, &dummy);
             // dummy returned from assumption_to_dummy already has ref_count of 1
             // so this reference goes to the transformation
-            transformation.inputs[i]=dummy;
+            transformation->inputs[i]=dummy;
             // dummy is also referenced by provided
-            dummy_reference(transformation.inputs[i]);
+            dummy_reference(transformation->inputs[i]);
         }
     }
-    predict_instruction_output(E, program, instruction, (char*)program->constants, dummy_objects_counter, &transformation);
-    for(int i=0; i<transformation.outputs_count; i++){
-        vector_push(stack, &transformation.outputs[i]);
+    predict_instruction_output(E, program, instruction, (char*)program->constants, dummy_objects_counter, transformation);
+    for(int i=0; i<transformation->outputs_count; i++){
+        vector_push(stack, &transformation->outputs[i]);
         // output is only referenced by the transformation
     }
-    *previous_transformation=transformation;
-    previous_transformation->visited=true;
+    transformation->visited=true;
 }
 
 void generate_flow_chart(
@@ -577,6 +576,9 @@ void assert_flow_chart_correctness(
         for(int i=0; i<transformation->inputs_count; i++){
             dummy_assert_correctness(transformation->inputs[i]);
         }
+        for(int i=0; i<transformation->outputs_count; i++){
+            dummy_assert_correctness(transformation->outputs[i]);
+        }
     }
 }
 
@@ -689,12 +691,9 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     }
 
     // cleanup and moving data back from vectors to BytecodeProgram
-    #define CLEAR_DUMMY_VECTOR(vector) \
-        while(!vector_empty(&vector)){ \
-            dummy_dereference(E, *(Dummy**)vector_pop(&vector)); \
-        }
-    CLEAR_DUMMY_VECTOR(provided)
-    CLEAR_DUMMY_VECTOR(stack)
+    while(!vector_empty(&provided)){
+        dummy_dereference(E, *(Dummy**)vector_pop(&provided));
+    }
     CHECK
     vector_deinit(&provided);
     vector_deinit(&stack);// dummy stack doesn't own any of it's objects

@@ -8,7 +8,7 @@
             "name": "(gdb) duck",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/src/object_system/tests.exe",
+            "program": "${workspaceFolder}/build/duck.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",

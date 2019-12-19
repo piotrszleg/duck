@@ -27,10 +27,6 @@ void dummy_foreach_children(Executor* E, Dummy* dummy, ManagedPointerForeachChil
 }
 
 void dummy_free(Dummy* dummy){
-    if(dummy->type==d_or){
-        dummy_free(dummy->or.left);
-        dummy_free(dummy->or.right);
-    }
     free(dummy);
 }
 
@@ -106,12 +102,12 @@ bool dummies_compatible(const Dummy* a, const Dummy* b){
 bool dummy_contains(const Dummy* a, const Dummy* b){
     if(a->type==d_any || b->type==d_any){
         return true;
+    } else if(a->id==b->id){
+        return true;
     } else if(a->type==d_or){
         return dummy_contains(a->or.left, b) || dummy_contains(a->or.right, b);
-    } else if(b->type==d_or){
-        return dummy_contains(a, b->or.left) || dummy_contains(a, b->or.right);
     } else {
-        return a->id==b->id;
+        return false;
     }
 }
 

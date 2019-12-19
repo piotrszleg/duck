@@ -1,11 +1,1 @@
-test=(name, assertion)->{
-    print("TEST: "+name)
-    assertion()
-    print("test successful")}
-
-test("stack optimisations", ->{
-    a=1
-    b=5
-    c=8
-    assert_equal(a+a+b+b+a+c+b, 26)
-})
+new_error("TYPE", multiple_causes(1, 10, multiple_causes(2, 3)), "message")

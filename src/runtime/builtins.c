@@ -472,7 +472,7 @@ Object builtin_traceback(Executor* E, Object scope, Object* arguments, int argum
     return null_const;
 }
 
-Object builtin_error(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object builtin_new_error(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object type=arguments[0];
     REQUIRE_ARGUMENT_TYPE(type, t_string)
     Object cause=arguments[1];
@@ -523,10 +523,39 @@ Object builtin_multiple_causes(Executor* E, Object scope, Object* arguments, int
     return multiple_causes(E, arguments, arguments_count);
 }
 
-Object builtin_symbol(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object builtin_new_symbol(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object comment=arguments[0];
     REQUIRE_ARGUMENT_TYPE(comment, t_string)
     return new_symbol(E, comment.text);
+}
+
+Object match(Executor* E, Object tested, Object signature){
+    switch(signature.type){
+        case t_symbol:
+            return to_int(get_type_symbol(E, tested.type).sp->index==signature.sp->index);
+        case t_function:
+            return call(E, signature, &tested, 1);
+        case t_table: {
+            Object it;
+            FOREACH(signature, it, 
+                Object key=get(E, it, to_string("key"));
+                Object value=get(E, it, to_string("value"));
+                Object at_key=get(E, tested, key);
+                Object match_result=match(E, at_key, value);
+                if(is_falsy(match_result)) {
+                    return match_result;
+                }
+            )
+            return to_int(1);
+        }
+        default: return to_int(compare(E, tested, signature)==0);
+    }
+}
+
+Object builtin_match(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object tested=arguments[0];
+    Object signature=arguments[1];
+    return match(E, tested, signature);
 }
 
 Object builtins_table(Executor* E){
@@ -576,7 +605,7 @@ Object builtins_table(Executor* E){
     REGISTER(exit, 1)
     REGISTER(terminate, 1)
     REGISTER(traceback, 0)
-    REGISTER(error, 3)
+    REGISTER(new_error, 3)
     REGISTER(copy, 1)
     REGISTER(set_random_seed, 1)
     REGISTER(random_int, 2)
@@ -584,10 +613,11 @@ Object builtins_table(Executor* E){
     REGISTER(call, 2)
     REGISTER(create_variant, 1)
     REGISTER(serialize, 1)
-    REGISTER(symbol, 1)
+    REGISTER(new_symbol, 1)
     REGISTER(is_error, 1)
     REGISTER(collect_garbage, 0)
     REGISTER(debug, 0)
+    REGISTER(match, 2)
     #undef REGISTER
 
     #define REGISTER_SPECIAL(name, index, variadic) \
