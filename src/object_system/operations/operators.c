@@ -4,7 +4,7 @@ int compare(Executor* E, Object a, Object b){
     Object error=null_const;
     int comparison_result=compare_and_get_error(E, a, b, &error); \
     if(error.type!=t_null) {
-        destroy_unreferenced(E, &error);
+        dereference(E, &error);
     }
     return comparison_result;
 }
@@ -63,7 +63,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
             Object compare_override=get(E, a, OVERRIDE(E, compare));
             if(compare_override.type!=t_null){
                 Object call_result=call(E, compare_override, (Object[]){a, b}, 2);
-                destroy_unreferenced(E, &compare_override);
+                dereference(E, &compare_override);
                 if(call_result.type==t_int){
                     return call_result.int_value;
                 } else {
@@ -71,7 +71,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
                     return 1;
                 }
             } else {
-                destroy_unreferenced(E, &compare_override);
+                dereference(E, &compare_override);
                 return table_compare(E, a.tp, b.tp, error);
             }
         }
@@ -192,10 +192,10 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         if(operator_override.type!=t_null){
             // call get_function a and b as arguments
             Object result=call(E, operator_override, OBJECTS_ARRAY(a, b, to_string(op)), 3);
-            destroy_unreferenced(E, &operator_override);
+            dereference(E, &operator_override);
             return result;
         }
-        destroy_unreferenced(E, &operator_override);
+        dereference(E, &operator_override);
     }
     #define OP_CASE(operator_name) if(strcmp(op, operator_name)==0)
     #define COMPARISON_OPERATOR(check) { \

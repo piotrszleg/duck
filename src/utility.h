@@ -48,6 +48,11 @@ typedef struct {
     int pair_index;
 } Occurrence;
 
+#define S(x) #x
+#define S_(x) S(x)
+#define S__LINE__ S_(__LINE__)
+#define LOCATION __FILE__ ":" S__LINE__
+
 char* string_replace_multiple(char* original, ReplacementPair* replacement_pairs, int replacement_pairs_count);
 char* string_add(const char* a, const char* b);
 char* string_repeat(const char* str, int times);

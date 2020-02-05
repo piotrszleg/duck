@@ -304,7 +304,7 @@ void instruction_to_myjit(Executor* E, struct jit * C, Instruction* instruction,
             jit_prepare(C);
             jit_putargr(C, R(1));
             jit_putargr(C, R(5));
-            jit_call(C, destroy_unreferenced);
+            jit_call(C, dereference);
             PUSH(R(4))// push table back on stack
             break;
         CASE(b_table_set)

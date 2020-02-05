@@ -224,10 +224,11 @@ Object to_native_function(Executor* E, ObjectSystemFunction f, char** argument_n
 Object new_symbol(Executor* E, char* comment);
 
 void reference(Object* o);
-void object_init(Object* o, ObjectType type);
+void dereference(Executor* E, Object* o);
 void heap_object_dereference(Executor* E, HeapObject* o);
 void heap_object_reference(HeapObject* o);
-void dereference(Executor* E, Object* o);
+
+void object_init(Object* o, ObjectType type);
 void destroy_unreferenced(Executor* E, Object* o);
 
 char* stringify_object(Executor* E, Object o);

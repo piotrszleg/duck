@@ -31,7 +31,7 @@ bool is_struct_descriptor(Executor* E, Object o){
     }
     Object is_struct_descriptor=table_get(E, o.tp, to_string("is_struct_descriptor"));
     bool result=is_truthy(is_struct_descriptor);
-    destroy_unreferenced(E, &is_struct_descriptor);
+    dereference(E, &is_struct_descriptor);
     return result;
 }
 
@@ -130,7 +130,7 @@ Object struct_descriptor_get(Executor* E, Object scope, Object* arguments, int a
 
     REQUIRE_TYPE(self, t_table)
 
-    if(key.type==t_string && (strcmp(key.text, "destroy")==0||strcmp(key.text, "stringify")==0)){
+    if(!(key.type==t_string || key.type==t_int)){
         return table_get(E, self.tp, key);
     }
 

@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
-#include "optimisations/bytecode_optimisations.h"
+#include "bytecode_optimisations/bytecode_optimisations.h"
 #include "runtime/struct_descriptor.h"
 #include "execution/execution.h"
 #include "utility.h"
@@ -20,7 +20,7 @@ typedef struct {
 } ExampleStruct;
 
 
-#define OFFSET(structure, field) (int)&(structure).field-(int)&(structure)
+#define OFFSET(structure, field) (long long)&(structure).field-(long long)&(structure)
 #define FIELD(class, structure, field, type) set(E, class, to_string(#field), to_field(E, OFFSET(structure, field), type));
 
 Object example_struct_class(Executor* E) {
@@ -44,7 +44,7 @@ void struct_descriptor_tests(Executor* E){
     ExampleStruct st;
     st.a=12;
     st.b=0.5;
-    st.c="hello struct";
+    st.c=strdup("hello struct");
     Object sd=new_struct_descriptor(E, &st, example_struct_class(E));
 
     assert(get(E, sd, to_string("a")).type==t_int);
@@ -64,6 +64,10 @@ void struct_descriptor_tests(Executor* E){
     set(E, sd, to_string("c"), to_string("test"));
     assert(strcmp(st.c, "test")==0);
     assert(strcmp(get(E, sd, to_string("c")).text, "test")==0);
+
+    dereference(E, &sd);
+    // struct descriptors by deafult don't contain destructors
+    free(st.c);
 
     printf("test successful\n");
 }
@@ -90,7 +94,7 @@ Object example_struct_nested_class(Executor* E){
 }
 
 void test_substructure(Executor* E, ExampleStructNested* st, Object substructure_pointer){
-    assert(st->a.a=32);
+    assert(st->a.a==32);
     Object substructure_a=get(E, substructure_pointer, to_string("a"));
     assert(substructure_a.type==t_int);
     assert(substructure_a.int_value==32);
@@ -104,26 +108,22 @@ void test_substructure(Executor* E, ExampleStructNested* st, Object substructure
     assert(strcmp(substructure_c.text, "test test")==0);
 }
 
-#define ASSERT_EVAL(expression, scope) \
-    {Object evaluation_result=evaluate_string(expression, scope); \
-    assert(is_truthy(evaluation_result));}
-
 #define ASSERT_OBJECTS_EQUAL(a, b) \
     {Object temp_a=a; \
      Object temp_b=b; \
      assert(compare(E, temp_a, temp_b)==0); \
-     destroy_unreferenced(E, &temp_a); \
-     destroy_unreferenced(E, &temp_b);}
+     dereference(E, &temp_a); \
+     dereference(E, &temp_b);}
 
 void struct_descriptor_nested_tests(Executor* E){
     printf("TEST: %s\n", __FUNCTION__);
-    ExampleStructNested* st=malloc(sizeof(ExampleStructNested));
-    ExampleStruct contained={10, 0.75, "test"};
+    ExampleStructNested st;
+    ExampleStruct contained={10, 0.75, strdup("test")};
     
-    st->a=contained;
-    st->b=&contained;
-    st->c=&contained.a;
-    Object sd=new_struct_descriptor(E, st, example_struct_nested_class(E));
+    st.a=contained;
+    st.b=&contained;
+    st.c=&contained.a;
+    Object sd=new_struct_descriptor(E, &st, example_struct_nested_class(E));
 
     Object contained_replacement;
     table_init(E, &contained_replacement);
@@ -136,11 +136,11 @@ void struct_descriptor_nested_tests(Executor* E){
     reference(&contained_replacement);
     set(E, sd, to_string("a"), contained_replacement);
     substructure_pointer=get(E, sd, to_string("a"));
-    test_substructure(E, st, substructure_pointer);
+    test_substructure(E, &st, substructure_pointer);
 
     set(E, sd, to_string("b"), contained_replacement);
     substructure_pointer=get(E, sd, to_string("b"));
-    test_substructure(E, st, substructure_pointer);
+    test_substructure(E, &st, substructure_pointer);
     dereference(E, &substructure_pointer);
     dereference(E, &contained_replacement);
 
@@ -148,33 +148,37 @@ void struct_descriptor_nested_tests(Executor* E){
     ASSERT_OBJECTS_EQUAL(get(E, c_pointer, to_int(0)), to_int(32));
     set(E, c_pointer, to_int(0), to_int(16));
     ASSERT_OBJECTS_EQUAL(get(E, c_pointer, to_int(0)), to_int(16));
-
-    /*
-    // TODO reimplement it in the language
+    
     Object scope;
     table_init(E, &scope);
     set(E, scope, to_string("sd"), sd);
     set(E, scope, to_string("replacement"), sd);
 
-    evaluate_string("global.float_eq=(a, b)->{diff=a-b, (diff<0.1 && diff>-0.1)}", scope);
+    evaluate_string(E, "global.float_close=(a, b)->{diff=a-b, (diff<0.1 && diff>-0.1)}", scope);
 
-    ASSERT_EVAL("sd.a.a==10", scope);
-    ASSERT_EVAL("global.float_eq(sd.a.b, 0.75)", scope);
-    printf("<%s>", stringify(evaluate_string("sd.a", scope)));
-    ASSERT_EVAL("sd.a.c==\"test\"", scope);
+    #define ASSERT_EVAL(expression, ...) \
+        {char* formatted=suprintf(expression, ##__VA_ARGS__); \
+        Object evaluation_result=evaluate_string(E, formatted, scope); \
+        free(formatted); \
+        assert(is_truthy(evaluation_result));}
+    
+    ASSERT_EVAL("sd.a.a==%i", st.a.a);
+    ASSERT_EVAL("float_close(sd.a.b, %f)", st.a.b);
+    ASSERT_EVAL("sd.a.c==\"%s\"", st.a.c);
     set(E, sd, to_string("a"), contained_replacement);
-    ASSERT_EVAL("sd.a.a==replacement.a", scope);
-    ASSERT_EVAL("global.float_eq(sd.a.b, replacement.b)", scope);
-    ASSERT_EVAL("sd.a.c==replacement.c", scope);
+    ASSERT_EVAL("sd.a.a==replacement.a");
+    ASSERT_EVAL("global.float_eq(sd.a.b, replacement.b)");
+    ASSERT_EVAL("sd.a.c==replacement.c");
 
-    ASSERT_EVAL("sd.b.a==10", scope);
-    ASSERT_EVAL("sd.b.b==0.75", scope);
-    ASSERT_EVAL("st.b.c==\"test\"", scope);
+    ASSERT_EVAL("sd.b.a==%i", st.b->a);
+    ASSERT_EVAL("float_close(sd.b.b, %f)", st.b->b);
+    ASSERT_EVAL("st.b.c==\"%s\"", st.b->c);
     set(E, sd, to_string("b"), contained_replacement);
-    ASSERT_EVAL("sd.b.a==replacement.a", scope);
-    ASSERT_EVAL("sd.b.b==replacement.b", scope);
-    ASSERT_EVAL("sd.b.c==replacement.c", scope);
-    */
+    ASSERT_EVAL("sd.b.a==replacement.a");
+    ASSERT_EVAL("float_close(sd.b.b, replacement.b)");
+    ASSERT_EVAL("sd.b.c==replacement.c");
+
+    free(contained.c);
 
     printf("test successful\n");
 }
@@ -203,11 +207,11 @@ int main(){
     TRY_CATCH(
         vector_tests();
         evaluation_tests(&E);
-        // struct_descriptor_tests(&E);
-        // struct_descriptor_nested_tests(&E);
+        struct_descriptor_tests(&E);
+        struct_descriptor_nested_tests(&E);
         string_replace_multiple_test();
     ,
-        printf(err_message);
+        printf("%s", err_message);
         exit(-1);
     )
     executor_deinit(&E);

@@ -47,7 +47,7 @@ Object expression_descriptor_destroy_recursively(Executor* E, Table* sd, Express
                 //Expression** expression_position=(Expression**)position.p;
                 expression_descriptor_destroy_recursively(E, pointed.tp, *expression_position);
             }
-            destroy_unreferenced(E, &has_ownership);
+            dereference(E, &has_ownership);
         }
         /* 
         if i.value is a expression pointer

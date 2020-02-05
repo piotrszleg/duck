@@ -248,7 +248,7 @@ void vector_tests(){
     ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7, 8)
     RESET_VECTOR
     vector_delete_item(&v, &not_in_array);
-    ASSERT_CONTENT(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    ASSERT_CONTENT(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
     RESET_VECTOR
 
     vector_insert(&v, 0, &array[2]);

@@ -67,7 +67,7 @@ ffi_type* get_ffi_type_identifier(Executor* E, Object type_object, Object basic_
             // treat argument as a Table returned by ffi_struct function
             result=get(E, type_object, to_string("type"));
         }
-        destroy_unreferenced(E, &first_field);
+        dereference(E, &first_field);
     }
     if(result.type!=t_pointer){
         return NULL;
@@ -81,10 +81,10 @@ int count_array_part(Executor* E, Object o){
     Object get_result=null_const;
     do{
         i++;
-        destroy_unreferenced(E, &get_result);
+        dereference(E, &get_result);
         get_result=get(E, o, to_int(i));
     } while(get_result.type!=t_null);
-    destroy_unreferenced(E, &get_result);
+    dereference(E, &get_result);
     return i;
 }
 

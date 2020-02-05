@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <setjmp.h>
+#include "../utility.h"
 
 typedef enum{
     MEMORY_ALLOCATION_FAILURE,
@@ -40,14 +41,14 @@ extern char err_message[1024];
     }
 
 #define THROW_ERROR(type, message, ...) \
-    sprintf(err_message, "ERROR: %s:%i\n" message, __FILE__, __LINE__, ##__VA_ARGS__); \
+    sprintf(err_message, "ERROR: " LOCATION "\n" message, ##__VA_ARGS__); \
     err_type=type; \
     if(error_buf!=NULL){ longjmp(error_buf,1); }
 
 void critical_error_handler(ErrorType type);
 
 #define CRITICAL_ERROR(type, message, ...) \
-    sprintf(err_message, "CRITICAL ERROR: %s:%i\n" message, __FILE__, __LINE__, ##__VA_ARGS__); \
+    sprintf(err_message, "CRITICAL ERROR: " LOCATION "\n" message, ##__VA_ARGS__); \
     critical_error_handler(type);
 
 #define INCORRECT_ENUM_VALUE(type, variable, value) \

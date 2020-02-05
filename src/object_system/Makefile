@@ -1,7 +1,7 @@
 archive-path := object_system.a
 tests-path := tests.exe
 source-files := ../error/error.c $(shell find . ! -name "tests.c" -name "*.c")
-executable-only-source-files := ../containers/stream.c ../utility.c
+executable-only-source-files := ../containers/stream.c  ../containers/vector.c ../utility.c
 object-files := $(shell find . -name "*.o")
 
 all: $(archive-path)

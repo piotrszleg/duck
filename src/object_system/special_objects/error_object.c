@@ -76,7 +76,7 @@ bool is_error(Executor* E, Object o){
     if(o.type==t_table){
         Object is_error=get(E, o, OVERRIDE(E, is_error));
         result=is_truthy(is_error);
-        destroy_unreferenced(E, &is_error);
+        dereference(E, &is_error);
     }
     return result;
 }
@@ -86,14 +86,14 @@ bool is_unhandled_error(Executor* E, Object o){
     if(o.type==t_table && is_error(E, o)){
         Object is_handled=get(E, o, to_string("handled"));
         result=is_falsy(is_handled);
-        destroy_unreferenced(E, &is_handled);
+        dereference(E, &is_handled);
     }
     return result;
 }
 
 void error_handle(Executor* E, Object o){
     Object set_result=set(E, o, to_string("handled"), to_int(1));
-    destroy_unreferenced(E, &set_result);
+    dereference(E, &set_result);
 }
 
 void handle_if_error(Executor* E, Object o){

@@ -657,13 +657,13 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
             // key was found in outer scope
             table_set(E, checked.tp, key, value);
 
-            // destroy_unreferenced(E, &checked);
-            destroy_unreferenced(E, &checked_zero_index);
+            // dereference(E, &checked);
+            dereference(E, &checked_zero_index);
             reference(&value);
             return value;
         } else {
-            // destroy_unreferenced(E, &checked);
-            destroy_unreferenced(E, &checked_zero_index);
+            // dereference(E, &checked);
+            dereference(E, &checked_zero_index);
             checked=table_get(E, checked.tp, OVERRIDE(E, prototype));
             if(checked.type==t_table){
                 checked_zero_index=table_get(E, checked.tp, to_int(0));
@@ -674,8 +674,8 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
     // key wasn't found in any outer scope
     table_set(E, self.tp, key, value);
     
-    // destroy_unreferenced(E, &checked);
-    destroy_unreferenced(E, &checked_zero_index);
+    // dereference(E, &checked);
+    dereference(E, &checked_zero_index);
     reference(&value);
     return value;
 }
@@ -694,7 +694,7 @@ void inherit_scope(Executor* E, Object scope, Object base){
         } else {
             table_set(E, scope.tp, to_string("global"), base);
         }
-        destroy_unreferenced(E, &base_zero_index);
+        dereference(E, &base_zero_index);
     } */
     table_set(E, scope.tp, OVERRIDE(E, prototype), base);
     table_set(E, scope.tp, OVERRIDE(E, set), to_native_function(E, scope_set_override, NULL, 3, false));

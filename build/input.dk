@@ -1,1 +1,0 @@
-new_error("TYPE", multiple_causes(1, 10, multiple_causes(2, 3)), "message")

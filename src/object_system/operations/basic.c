@@ -185,7 +185,7 @@ Object get(Executor* E, Object o, Object key){
         case t_table:
         {
             // try to get "get" field overriding function from the table and use it
-            Object get_override=get_override=table_get(E, o.tp, OVERRIDE(E, get));
+            Object get_override=table_get(E, o.tp, OVERRIDE(E, get));
             Object result;
             if(get_override.type!=t_null){
                 Object arguments[]={o, key};
