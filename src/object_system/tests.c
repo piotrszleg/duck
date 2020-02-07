@@ -282,6 +282,32 @@ void table_iteration(Executor* E){
     dereference(E, &table);
 }
 
+void structure_verifying_destructor(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object verified=arguments[0];
+    Object verified_name=get(E, verified, to_string("name"));
+    assert(EQUALS_STRING(verified_name, "cycle"));
+    Object verified_reference=get(E, verified, to_string("reference"));
+    Object verified_reference_name=get(E, verified_reference, to_string("name"));
+    assert(EQUALS_STRING(verified_reference_name, "cycle"));
+}
+
+void destructors(Executor* E){
+    Object a;
+    table_init(E, &a);
+    set(E, a, to_string("name"), to_string("cycle"));
+    Object b;
+    table_init(E, &b);
+    set(E, b, to_string("name"), to_string("cycle"));
+    set(E, a, to_string("reference"), b);
+    set(E, b, to_string("reference"), a);
+    Object destructor_function=to_native_function(E, (ObjectSystemFunction)structure_verifying_destructor, NULL, 1, false);
+    table_set(E, a.tp, OVERRIDE(E, destroy), destructor_function);
+    table_set(E, b.tp, OVERRIDE(E, destroy), destructor_function);
+    dereference(E, &destructor_function);
+    gc_unmark_all(E->beggining.gc);
+    gc_sweep(E);
+}
+
 int main(){
     Executor E;
     object_system_init(&E);
@@ -300,6 +326,7 @@ int main(){
         TEST(sparse_array)
         TEST(table_iteration)
         TEST(test_table_overrides)
+        TEST(destructors)
     ,
         printf("%s", err_message);
         exit(-1);

@@ -51,17 +51,18 @@ unsigned table_hash(Executor* E, Table* t, Object* error) {
     return result;
 }
 
-Object table_get(Executor* E, Table* t, Object key) {
+Object table_get_with_hashing_error(Executor* E, Table* t, Object key, Object* error){
     if(key.type==t_int) {
         if(key.int_value<t->array_size && key.int_value>=0){
             return t->array[(int)key.int_value];
         }
     }
-    Object error=null_const;
-    uint hashed=hash_and_get_error(E, key, &error)%t->map_size;
-    if(error.type!=t_null){
-        RETURN_ERROR("GET_ERROR", multiple_causes(E, (Object[]){wrap_heap_object((HeapObject*)t), key, error}, 3), 
+    Object hashing_error=null_const;
+    uint hashed=hash_and_get_error(E, key, &hashing_error)%t->map_size;
+    if(hashing_error.type!=t_null){
+        NEW_ERROR(*error, "GET_ERROR", multiple_causes(E, (Object[]){wrap_heap_object((HeapObject*)t), key, hashing_error}, 3), 
                      "Getting a field from table failed because of hashing error.")
+        return null_const;
     }
     MapElement* e=t->map[hashed];
     while(e){
@@ -71,6 +72,18 @@ Object table_get(Executor* E, Table* t, Object key) {
         e=e->next;
     }
     return null_const;
+}
+
+/* Returns value in table with unchanged reference count or null constant.
+   If you want to do anything with it other than reading it's memory you need to reference it. 
+   Dismisses eventual hashing error, it'll be passed to executor_on_unhandled_error function. */
+Object table_get(Executor* E, Table* t, Object key) {
+    Object error=null_const;
+    Object result=table_get_with_hashing_error(E, t, key, &error);
+    if(error.type!=t_null){
+        dereference(E, &error);
+    }
+    return result;
 }
 
 void table_protect(Table* t){

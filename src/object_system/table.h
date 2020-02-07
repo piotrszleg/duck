@@ -48,6 +48,7 @@ bool is_valid_name(char* s);
 
 unsigned table_hash(Executor* E, Table* t, Object* error);
 Object table_get(Executor* E, Table* t, Object key);
+Object table_get_with_hashing_error(Executor* E, Table* t, Object key, Object* error);
 void table_set(Executor* E, Table* t, Object key, Object value);
 void table_protect(Table* t);
 bool table_is_protected(Table* t);

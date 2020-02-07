@@ -256,7 +256,6 @@ Expression* to_expression(Executor* E, Object o){
     if(is_struct_descriptor(E, o)) {
         Object is_expression=table_get(E, o.tp, to_string("is_expression"));
         if(is_truthy(is_expression)) {
-            dereference(E, &is_expression);
             Expression* expression=(Expression*)struct_descriptor_get_pointer(E, o.tp);
             table_set(E, o.tp, OVERRIDE(E, destroy), null_const);// make sure that dereferencing the struct descriptor won't destroy the expression
             if(expression!=NULL){

@@ -179,14 +179,16 @@ Object builtin_get_type(Executor* E, Object scope, Object* arguments, int argume
 }
 
 Object builtin_get_type_name(Executor* E, Object scope, Object* arguments, int arguments_count){
-    return to_string(get_type_name(arguments[0].type));
+    return to_string(strdup(get_type_name(arguments[0].type)));
 }
 
 Object builtin_table_get(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object key=arguments[1];
-    return table_get(E, self.tp, key);
+    Object result=table_get(E, self.tp, key);
+    reference(&result);
+    return result;
 }
 
 Object builtin_collect_garbage(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -209,6 +211,7 @@ Object builtin_table_set(Executor* E, Object scope, Object* arguments, int argum
     Object value=arguments[2];
     if(table_is_protected(self.tp)){
         table_set(E, self.tp, key, value);
+        reference(&value);
         return value;
     } else {
         RETURN_ERROR("SET_ERROR", multiple_causes(E, (Object[]){self, key, value}, 3), "Function table_set was called on protected table.")
@@ -647,35 +650,29 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
     Object key=arguments[1];
     Object value=arguments[2];
 
-    Object checked=self;
-    Object checked_zero_index=null_const;
+    Object indexed=self;
+    Object indexed_zero_index=null_const;
     Object map_get_result=null_const;
 
     do{
-        map_get_result=table_get(E, checked.tp, key);
+        map_get_result=table_get(E, indexed.tp, key);
         if(map_get_result.type!=t_null){
             // key was found in outer scope
-            table_set(E, checked.tp, key, value);
+            table_set(E, indexed.tp, key, value);
 
-            // dereference(E, &checked);
-            dereference(E, &checked_zero_index);
             reference(&value);
             return value;
         } else {
-            // dereference(E, &checked);
-            dereference(E, &checked_zero_index);
-            checked=table_get(E, checked.tp, OVERRIDE(E, prototype));
-            if(checked.type==t_table){
-                checked_zero_index=table_get(E, checked.tp, to_int(0));
+            indexed=table_get(E, indexed.tp, OVERRIDE(E, prototype));
+            if(indexed.type==t_table){
+                indexed_zero_index=table_get(E, indexed.tp, to_int(0));
             }
         }
-    } while(checked.type==t_table 
-         && !EQUALS_STRING(checked_zero_index, "builtins_table"));// builtins table can't be changed
+    } while(indexed.type==t_table 
+         && !EQUALS_STRING(indexed_zero_index, "builtins_table"));// builtins table can't be changed
     // key wasn't found in any outer scope
     table_set(E, self.tp, key, value);
-    
-    // dereference(E, &checked);
-    dereference(E, &checked_zero_index);
+
     reference(&value);
     return value;
 }
@@ -694,7 +691,6 @@ void inherit_scope(Executor* E, Object scope, Object base){
         } else {
             table_set(E, scope.tp, to_string("global"), base);
         }
-        dereference(E, &base_zero_index);
     } */
     table_set(E, scope.tp, OVERRIDE(E, prototype), base);
     table_set(E, scope.tp, OVERRIDE(E, set), to_native_function(E, scope_set_override, NULL, 3, false));

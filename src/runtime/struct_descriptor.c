@@ -130,8 +130,11 @@ Object struct_descriptor_get(Executor* E, Object scope, Object* arguments, int a
 
     REQUIRE_TYPE(self, t_table)
 
+    // let symbol overrides through
     if(!(key.type==t_string || key.type==t_int)){
-        return table_get(E, self.tp, key);
+        Object result=table_get(E, self.tp, key);
+        reference(&result);
+        return result;
     }
 
     int type;

@@ -185,7 +185,15 @@ Object get(Executor* E, Object o, Object key){
         case t_table:
         {
             // try to get "get" field overriding function from the table and use it
-            Object get_override=table_get(E, o.tp, OVERRIDE(E, get));
+            Object error=null_const;
+            #define GET_OR_RETURN_ERROR(result, key) \
+                result=table_get_with_hashing_error(E, o.tp, key, &error); \
+                if(error.type!=t_null){ \
+                    return error; \
+                }
+
+            Object get_override;
+            GET_OR_RETURN_ERROR(get_override, OVERRIDE(E, get))
             Object result;
             if(get_override.type!=t_null){
                 Object arguments[]={o, key};
@@ -193,18 +201,15 @@ Object get(Executor* E, Object o, Object key){
                 dereference(E, &get_override);
                 return result;
             } else {
-                dereference(E, &get_override);
-                result=table_get(E, o.tp, key);
+                GET_OR_RETURN_ERROR(result, key)
                 if(result.type!=t_null) {
                     reference(&result);
                     return result;
                 } else {
-                    Object prototype=table_get(E, o.tp, OVERRIDE(E, prototype));
-                    reference(&prototype);
+                    Object prototype;
+                    GET_OR_RETURN_ERROR(prototype, OVERRIDE(E, prototype))
                     if(prototype.type!=t_null){
                         result=get(E, prototype, key);
-                        dereference(E, &prototype);
-                        reference(&result);
                         return result;
                     } else {
                         return result;
