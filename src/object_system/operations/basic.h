@@ -2,8 +2,8 @@
 #define BASIC_H
 
 #include "../object.h"
+#include "copying_state.h"
 #include "patching.h"
-#include "../table.h"
 #include "../../utility.h"
 #include "../../containers/map.h"
 #include "../../c_fixes.h"
@@ -26,9 +26,6 @@ Object get(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);
 
 void get_execution_info(Executor* E, char* buffer, int buffer_count);
-
-Object copy_recursive(Executor* E, Object o, Table* copies);
-Object copy(Executor* E, Object o);
 
 #include "../special_objects/error_object.h"
 #include "../special_objects/binding_object.h"

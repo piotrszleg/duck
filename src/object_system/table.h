@@ -8,6 +8,7 @@
 #include "../containers/stream.h"
 #include "../utility.h"
 #include "special_objects/error_object.h"
+#include "operations/copying_state.h"
 
 #define INITIAL_MAP_SIZE 32
 #define INITIAL_ARRAY_SIZE 16
@@ -53,11 +54,11 @@ void table_set(Executor* E, Table* t, Object key, Object value);
 void table_protect(Table* t);
 bool table_is_protected(Table* t);
 void table_free(Table* t);
-void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback);
+void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback, void* data);
 int table_compare(Executor* E, Table* a, Table* b, Object* error);
 char* table_serialize(Executor* E, Table* t);
 char* table_stringify(Executor* E, Table* t);
-Object table_copy(Executor* E, Table* t, Table* copies);
+Object table_copy(Executor* E, Table* t, CopyingState* state);
 void table_component_init(Table* t);
 Object table_get_iterator_object(Executor* E, Object scope, Object* arguments, int arguments_count);
 TableIterator table_get_iterator(Table* iterated);

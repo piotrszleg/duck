@@ -246,25 +246,26 @@ char* table_stringify(Executor* E, Table* t){
     return table_to_text(E, t, false);
 }
 
-Object table_copy(Executor* E, Table* t, Table* copies) {
+Object table_copy(Executor* E, Table* t, CopyingState* state){
     Object copied;
     table_init(E, &copied);
     TableIterator it=table_get_iterator(t);
 
     #define CHECK_COPIES(before_return) \
     { \
-        Object copies_field=table_get(E, copies, to_pointer(t)); \
+        /*Object copies_field=table_get(E, state->copies, to_pointer(t)); \
         if(copies_field.type==t_pointer){ \
+            Object existing_copy=wrap_heap_object((HeapObject*)copies_field.p); \
             dereference(E, &copied); \
             before_return \
-            return wrap_heap_object((HeapObject*)copies_field.p); \
-        } \
+            return existing_copy; \
+        }*/ \
     }
 
     CHECK_COPIES()
 
     for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
-        Object copied_key=copy_recursive(E, i.key, copies);
+        Object copied_key=copy_recursive(E, i.key, state);
         if(is_error(E, copied_key)){
             dereference(E, &copied);
             RETURN_ERROR("COPY_ERROR", MULTIPLE_CAUSES(wrap_heap_object((HeapObject*)t), copied_key), "Copying table failed, because copying one of it's keys failed.");
@@ -272,13 +273,14 @@ Object table_copy(Executor* E, Table* t, Table* copies) {
         CHECK_COPIES(
             dereference(E, &copied_key);
         )
-        Object copied_value=copy_recursive(E, i.value, copies);
+        Object copied_value=copy_recursive(E, i.value, state);
         if(is_error(E, copied_value)){
             dereference(E, &copied_key);
             dereference(E, &copied);
             RETURN_ERROR("COPY_ERROR", MULTIPLE_CAUSES(wrap_heap_object((HeapObject*)t), copied_value), "Copying table failed, because copying one of it's values failed.");
         }
         CHECK_COPIES(
+            table_set(E, existing_copy.tp, copied_key, copied_value);
             dereference(E, &copied_key); 
             dereference(E, &copied_value);
         )
@@ -287,15 +289,15 @@ Object table_copy(Executor* E, Table* t, Table* copies) {
     return copied;
 }
 
-void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback){
+void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback, void* data){
     for(int i=0; i<t->array_size; i++){
-        callback(E, &t->array[i]);
+        callback(E, &t->array[i], data);
     }
     for(int i=0; i<t->map_size; i++){
         MapElement* e=t->map[i];
         while(e){
-            callback(E, &e->key);
-            callback(E, &e->value);
+            callback(E, &e->key, data);
+            callback(E, &e->value, data);
             e=e->next;
         }
     }

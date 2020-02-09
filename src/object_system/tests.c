@@ -31,8 +31,10 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
 }
 
 void coroutine_free(Coroutine* co) {}
-void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeachChildrenCallback callback) {}
-
+void coroutine_foreach_children(Executor* E, 
+                                Coroutine* co, 
+                                ManagedPointerForeachChildrenCallback callback, 
+                                void* data) {}
 void get_execution_info(Executor* E, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");
 }
@@ -308,6 +310,27 @@ void destructors(Executor* E){
     gc_sweep(E);
 }
 
+void copying(Executor* E){
+    Object a;
+    table_init(E, &a);
+    set(E, a, to_string("name"), to_string("cycle"));
+    Object b;
+    table_init(E, &b);
+    table_set(E, b.tp, to_string("name"), to_string("cycle"));
+    table_set(E, a.tp, to_string("reference"), b);
+    table_set(E, b.tp, to_string("reference"), a);
+    Object copied=copy(E, a);
+    assert(copied.type==t_table);
+    Object copied_reference=table_get(E, copied.tp, to_string("reference"));
+    assert(copied_reference.type==t_table);
+    Object copied_reference_name=table_get(E, copied_reference.tp, to_string("name"));
+    assert(copied_reference_name.type==t_string);
+    assert(strcmp(copied_reference_name.text, "cycle")==0);
+    dereference(E, &a);
+    dereference(E, &b);
+    dereference(E, &copied);
+}
+
 int main(){
     Executor E;
     object_system_init(&E);
@@ -327,6 +350,7 @@ int main(){
         TEST(table_iteration)
         TEST(test_table_overrides)
         TEST(destructors)
+        TEST(copying)
     ,
         printf("%s", err_message);
         exit(-1);

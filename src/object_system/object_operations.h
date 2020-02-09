@@ -2,6 +2,7 @@
 #define OBJECT_OPERATIONS_H
 
 #include "operations/basic.h"
+#include "operations/copying.h"
 #include "operations/iteration.h"
 #include "operations/operators.h"
 #include "operations/stringification.h"

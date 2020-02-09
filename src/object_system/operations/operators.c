@@ -56,6 +56,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         case t_string:
             return strcmp(a.text, b.text);
         case t_int:
+        case t_copy_replace_promise:
             return sign(a.int_value-b.int_value);
         case t_float:
             return sign(a.float_value-b.float_value);

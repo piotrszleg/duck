@@ -125,6 +125,7 @@ unsigned hash_and_get_error(Executor* E, Object o, Object* error) {
         case t_string:
             return hash_string(o.text);
         case t_int:
+        case t_copy_replace_promise:
             return o.int_value;
         case t_float:
             return o.float_value;
@@ -323,120 +324,6 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
                 RETURN_ERROR("WRONG_ARGUMENT_TYPE", o, "Can't call object of type <%s>", get_type_name(o.type));
             }
         }
-    }
-}
-
-Object copy(Executor* E, Object o){
-    Object copies;
-    table_init(E, &copies);
-    Object result=copy_recursive(E, o, copies.tp);
-    dereference(E, &copies);
-    return result;
-}
-
-// copies table maps pointers to heap objects to their copies
-// this allows copying cyclical objects without going into infinite loop
-Object copy_recursive(Executor* E, Object o, Table* copies){
-    if(is_heap_object(o)){
-        Object copies_field=table_get(E, copies, to_pointer(o.hp));
-        if(copies_field.type==t_pointer){
-            return wrap_heap_object((HeapObject*)copies_field.p);
-        } else if(copies_field.type!=t_null) {
-            return null_const;
-        } else {
-            // in proccessing
-            table_set(E, copies, to_pointer(o.hp), to_int(1));
-        }
-    }
-    #define RETURN_HEAP_OBJECT(to_return) \
-    { \
-        Object to_return_temporary=to_return; \
-        table_set(E, copies, to_pointer(o.hp), to_pointer(to_return_temporary.hp)); \
-        return to_return_temporary; \
-    }
-    
-    switch(o.type){
-        case t_float:
-        case t_int:
-        case t_null:
-        case t_pointer:
-            return o;
-        case t_string:
-        {
-            return to_string(strdup(o.text));
-        }
-        case t_table:
-        {
-            Object copy_override=get(E, o, OVERRIDE(E, copy));
-            if(copy_override.type!=t_null){
-                RETURN_HEAP_OBJECT(call(E, copy_override, &o, 1));
-            } else {
-                RETURN_HEAP_OBJECT(table_copy(E, o.tp, copies));
-            }
-        }
-        case t_symbol:
-        {
-            Object copied;
-            symbol_init(E, &copied);
-            copied.sp->index=o.sp->index;
-            copied.sp->comment=strdup(o.sp->comment);
-            return copied;
-        }
-        case t_function:
-        {
-            Object copied;
-            function_init(E, &copied);
-            copied.fp->arguments_count=o.fp->arguments_count;
-            if(o.fp->argument_names==NULL){
-                copied.fp->argument_names=NULL;
-            } else {
-                copied.fp->argument_names=malloc(sizeof(char*)*copied.fp->arguments_count);
-                for(int i=0; i<copied.fp->arguments_count; i++){
-                    copied.fp->argument_names[i]=o.fp->argument_names[i];
-                }
-            }
-            copied.fp->ftype=o.fp->ftype;
-            switch(o.fp->ftype){
-                case f_ast:
-                case f_bytecode:{
-                    Object copied_source_pointer=copy_recursive(E, wrap_heap_object((HeapObject*)o.fp->source_pointer), copies);
-                    if(is_error(E, copied_source_pointer)){
-                        copied.fp->ftype=f_special;// to avoid deallocating source_pointer
-                        dereference(E, &copied);
-                        RETURN_ERROR("COPY_ERROR", MULTIPLE_CAUSES(o, copied_source_pointer), "Copying function's source pointer caused an error.");
-                    } else if(!is_heap_object(copied_source_pointer)) {
-                        copied.fp->ftype=f_special;
-                        dereference(E, &copied);
-                        RETURN_ERROR("COPY_ERROR", MULTIPLE_CAUSES(o, copied_source_pointer), "Result of copying function's source pointer isn't a heap object.");
-                    } else {
-                        copied.fp->source_pointer=copied_source_pointer.hp;
-                        heap_object_reference(copied.fp->source_pointer);
-                    }
-                    break;
-                }
-                case f_native:
-                    copied.fp->native_pointer=o.fp->native_pointer;
-                    break;
-                case f_special:
-                    copied.fp->special_index=o.fp->special_index;
-                    break;
-            }
-            copied.fp->enclosing_scope=copy_recursive(E, o.fp->enclosing_scope, copies);
-            if(is_error(E, copied.fp->enclosing_scope)){
-                dereference(E, &copied);
-                RETURN_ERROR("COPY_ERROR", MULTIPLE_CAUSES(o, copied.fp->enclosing_scope), "Copying function's scope pointer caused an error.");
-            }
-            reference(&copied.fp->enclosing_scope);
-            RETURN_HEAP_OBJECT(copied);
-        }
-        case t_managed_pointer:
-            if(o.mp->copy!=NULL) {
-                return wrap_heap_object((HeapObject*)o.mp->copy(E, o.mp));
-            } else {
-                RETURN_ERROR("COPY_ERROR", null_const, "This managed pointer doesn't implement copying.");
-            }
-        default:
-            RETURN_ERROR("COPY_ERROR", null_const, "Copying objects of type %s is not supported.", get_type_name(o.type));
     }
 }
 
