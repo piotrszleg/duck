@@ -127,21 +127,22 @@ void struct_descriptor_nested_tests(Executor* E){
 
     Object contained_replacement;
     table_init(E, &contained_replacement);
-    set(E, contained_replacement, to_string("a"), to_int(32));
-    set(E, contained_replacement, to_string("b"), to_float(0.1));
-    set(E, contained_replacement, to_string("c"), to_string("test test"));
+    table_set(E, contained_replacement.tp, to_string("a"), to_int(32));
+    table_set(E, contained_replacement.tp, to_string("b"), to_float(0.1));
+    table_set(E, contained_replacement.tp, to_string("c"), to_string("test test"));
 
-    Object substructure_pointer;
-
-    reference(&contained_replacement);
     set(E, sd, to_string("a"), contained_replacement);
-    substructure_pointer=get(E, sd, to_string("a"));
+
+    Object substructure_pointer=get(E, sd, to_string("a"));
     test_substructure(E, &st, substructure_pointer);
+    dereference(E, &substructure_pointer);
 
     set(E, sd, to_string("b"), contained_replacement);
+
     substructure_pointer=get(E, sd, to_string("b"));
     test_substructure(E, &st, substructure_pointer);
     dereference(E, &substructure_pointer);
+    
     dereference(E, &contained_replacement);
 
     Object c_pointer=get(E, sd, to_string("c"));
