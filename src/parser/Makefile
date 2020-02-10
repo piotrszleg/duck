@@ -24,7 +24,7 @@ lex.yy.c: lexer.l parser.tab.h
 
 # compile c files into objects
 $(object-files): $(source-files) $(headers)
-	gcc -g -Wall -c $(source-files)
+	gcc -g3  -gdwarf-2 -Wall -c $(source-files)
 
 # pack object files into archive
 $(archive-path): $(object-files)
@@ -32,10 +32,10 @@ $(archive-path): $(object-files)
 
 # compile c files into exe
 $(tests-path): tests.c $(source-files) $(headers)
-	gcc -g -Wall -D COUNT_AST_ALLOCATIONS -o $(tests-path) tests.c $(source-files) $(executable-only-source-files)
+	gcc -g3  -gdwarf-2 -Wall -D COUNT_AST_ALLOCATIONS -o $(tests-path) tests.c $(source-files) $(executable-only-source-files)
 
 $(repl-path): repl.c $(source-files) $(headers)
-	gcc -g -Wall -o $(repl-path) repl.c $(source-files) $(executable-only-source-files)
+	gcc -g3  -gdwarf-2 -Wall -o $(repl-path) repl.c $(source-files) $(executable-only-source-files)
 
 clean:
 	rm $(archive-path) $(tests-path) $(repl-path) $(object-files) parser.tab.c parser.tab.h lex.yy.c

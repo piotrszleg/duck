@@ -271,7 +271,9 @@ Object set(Executor* E, Object o, Object key, Object value){
         // try to get "get" operator overriding function from the Table and use it
         Object set_override=get(E, o, OVERRIDE(E, set));
         if(set_override.type!=t_null){
-            return call(E, set_override, (Object[]){o, key, value}, 3);
+            Object result=call(E, set_override, (Object[]){o, key, value}, 3);
+            dereference(E, &set_override);
+            return result;
         } else if(table_is_protected(o.tp)){
             RETURN_ERROR("SET_ERROR", multiple_causes(E, (Object[]){o, key, value}, 3), 
                          "Attempted to set a field in a protected table.");

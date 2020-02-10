@@ -11,7 +11,7 @@ tests: $(tests-path)
 
 # compile c files into objects
 compile-objects: $(source-files)
-	gcc -g -Wall -c $(source-files)
+	gcc -g3  -gdwarf-2  -Wall -c $(source-files)
 
 # pack object files into archive that can be added to main executable
 $(archive-path): compile-objects
@@ -19,7 +19,7 @@ $(archive-path): compile-objects
 
 # compile c files into exe with testing functions
 $(tests-path): tests.c $(source-files) $(executable-only-source-files)
-	gcc -g -Wall -o $(tests-path) tests.c $(source-files) $(executable-only-source-files)
+	gcc -g3  -gdwarf-2  -Wall -o $(tests-path) tests.c $(source-files) $(executable-only-source-files)
 
 clean:
 	rm -f $(archive-path) $(tests-path) $(object-files)

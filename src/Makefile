@@ -12,21 +12,23 @@ source-files := \
 
 build-folder := ../build
 
-options := -g -Wall -DDEBUGGING -Wl,--out-implib,$(build-folder)/libhost.a
+options := -g3 -gdwarf-2 -Wall -DDEBUGGING -Wl,--out-implib,$(build-folder)/libhost.a
 ifneq ($(OS),Windows_NT)
 	options:=$(options) -ldl
 endif
 
 host-tests := tests.exe
 executable := duck.exe
+tests := tests.dk
+tests-path := $(build-folder)/$(tests)
 executable-path := $(build-folder)/$(executable)
 host-tests-path := $(build-folder)/$(host-tests)
 
 all: $(executable-path)
 	cd $(build-folder)/; ./$(executable)
 
-tests: $(executable-path) tests.dk
-	cd $(build-folder)/; ./$(executable) tests.dk
+tests: $(executable-path) .//$(tests-path)
+	cd $(build-folder)/; ./$(executable) ./$(tests)
 
 repl: $(executable-path)
 	cd $(build-folder)/; ./$(executable) -repl
