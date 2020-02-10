@@ -37,8 +37,8 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
     return coroutine;
 }
 
-void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeachChildrenCallback callback){
-    executor_foreach_children(E, co->executor, callback);
+void coroutine_foreach_children(Executor* E, Coroutine* co, ForeachChildrenCallback callback, void* data){
+    executor_foreach_children(E, co->executor, callback, data);
 }
 
 void coroutine_free(Coroutine* co){

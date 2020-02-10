@@ -289,7 +289,7 @@ Object table_copy(Executor* E, Table* t, CopyingState* state){
     return copied;
 }
 
-void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback, void* data){
+void table_foreach_children(Executor* E, Table* t, ForeachChildrenCallback callback, void* data){
     for(int i=0; i<t->array_size; i++){
         callback(E, &t->array[i], data);
     }

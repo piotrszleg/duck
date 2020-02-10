@@ -151,8 +151,8 @@ OBJECT_INIT_E(symbol)
 typedef struct ManagedPointer ManagedPointer;
 
 typedef void (*ManagedPointerFreeFunction)(ManagedPointer*);
-typedef void (*ManagedPointerForeachChildrenCallback)(Executor*, Object*, void*);
-typedef void (*ManagedPointerForeachChildrenFunction)(Executor* E, ManagedPointer*, ManagedPointerForeachChildrenCallback, void*);
+typedef void (*ForeachChildrenCallback)(Executor*, Object*, void*);
+typedef void (*ManagedPointerForeachChildrenFunction)(Executor* E, ManagedPointer*, ForeachChildrenCallback, void*);
 typedef ManagedPointer* (*ManagedPointerCopyFunction)(Executor* E, const ManagedPointer*);
 
 struct ManagedPointer {
@@ -229,7 +229,7 @@ void dereference(Executor* E, Object* o);
 void heap_object_dereference(Executor* E, HeapObject* o);
 void heap_object_reference(HeapObject* o);
 void heap_object_foreach_children(Executor* E, HeapObject* o, 
-                                  ManagedPointerForeachChildrenCallback callback, 
+                                  ForeachChildrenCallback callback, 
                                   void* data);
     
 
@@ -250,7 +250,7 @@ void detach(Executor* E, Object* o);
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count);
 Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int arguments_count);
 void coroutine_free(Coroutine* co);
-void coroutine_foreach_children(Executor* E, Coroutine* co, ManagedPointerForeachChildrenCallback, void*);
+void coroutine_foreach_children(Executor* E, Coroutine* co, ForeachChildrenCallback, void*);
 Object executor_on_unhandled_error(Executor* E, Object error);
 Object executor_get_patching_table(Executor*);
 

@@ -33,7 +33,7 @@ Object call_function(Executor* E, Function* f, Object* arguments, int arguments_
 void coroutine_free(Coroutine* co) {}
 void coroutine_foreach_children(Executor* E, 
                                 Coroutine* co, 
-                                ManagedPointerForeachChildrenCallback callback, 
+                                ForeachChildrenCallback callback, 
                                 void* data) {}
 void get_execution_info(Executor* E, char* buffer, int buffer_count){
     strcat(buffer, "object_system testing unit");

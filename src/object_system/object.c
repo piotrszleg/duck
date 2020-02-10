@@ -58,24 +58,10 @@ void attach_callback(Executor* E, Object* o, void* data){
 void attach(Executor* E, Object* o){
     if(is_heap_object(*o) && !o->hp->attached){
         heap_object_chain(E, o->hp);
-        switch(o->type){
-            case t_function:
-                attach(E, &o->fp->enclosing_scope);
-                break;
-            case t_table:
-                table_foreach_children(E, o->tp, attach_callback, o);
-                break;
-            case t_coroutine:
-                coroutine_foreach_children(E, o->co, attach_callback, o);
-                break;
-            case t_managed_pointer:
-                o->mp->foreach_children(E, o->mp, attach_callback, o);
-            default:;
-            // TODO: error on symbols that are not builtin
-        }
+        heap_object_foreach_children(E, o->hp, attach_callback, o);
+        // TODO: error on symbols that are not builtin
     }
 }
-
 
 void detach_callback(Executor* E, Object* o, void* data){
     detach(E, o);
@@ -84,21 +70,8 @@ void detach_callback(Executor* E, Object* o, void* data){
 void detach(Executor* E, Object* o){
     if(is_heap_object(*o) && o->hp->attached){
         heap_object_unchain(E, o->hp);
-        switch(o->type){
-            case t_function:
-                detach(E, &o->fp->enclosing_scope);
-                break;
-            case t_table:
-                table_foreach_children(E, o->tp, detach_callback, o);
-                break;
-            case t_coroutine:
-                coroutine_foreach_children(E, o->co, detach_callback, o);
-                break;
-            case t_managed_pointer:
-                o->mp->foreach_children(E, o->mp, detach_callback, o);
-            default:;
-            // TODO: error on symbols that are not builtin
-        }
+        heap_object_foreach_children(E, o->hp, detach_callback, o);
+        // TODO: error on symbols that are not builtin
     }
 }
 
@@ -247,7 +220,7 @@ bool function_uses_source_pointer(Function* f) {
 }
 
 void heap_object_foreach_children(Executor* E, HeapObject* o, 
-                                  ManagedPointerForeachChildrenCallback callback, 
+                                  ForeachChildrenCallback callback, 
                                   void* data){
     #define CASTED(type) \
         type* casted=(type*)o;
@@ -373,6 +346,36 @@ void dereference_callback(Executor* E, Object* o, void* data){
     dereference(E, o);
 }
 
+void heap_object_free(Executor* E, Object* o){
+    heap_object_unchain(E, o->hp);
+    switch(o->type){
+        case t_function:
+            if(o->fp->argument_names!=NULL){
+                for(int i=0; i<o->fp->arguments_count; i++){
+                    free(o->fp->argument_names[i]);
+                }
+            }
+            free(o->fp->argument_names);
+            free(o->fp);
+            break;
+        case t_table:
+            table_free(o->tp);
+            break;
+        case t_managed_pointer:
+            o->mp->free(o->mp);
+            break;
+        case t_coroutine:
+            coroutine_free(o->co);
+            break;
+        case t_symbol:
+            free(o->sp->comment);
+            free(o->sp);
+            break;
+        default:;
+    }
+    o->hp=NULL;
+}
+
 void destroy_unreferenced(Executor* E, Object* o){
     if(is_heap_object(*o) && o->hp->ref_count<=0 && o->hp->ref_count!=ALREADY_DESTROYED){
         GarbageCollector* gc=executor_get_garbage_collector(E);
@@ -383,87 +386,17 @@ void destroy_unreferenced(Executor* E, Object* o){
         // this allows calling destructors correctly
         // if objects are dereferenced normally (without garbage collector running)
         // both of these actions are performed at one call
-        bool dereferencing_children=gc_state==gcs_inactive||gc_state==gcs_deinitializing;
-        bool freeing_memory=gc_state==gcs_inactive||gc_state==gcs_freeing_memory;
-        switch(o->type){
-            case t_function:
-            {
-                if(dereferencing_children){
-                    if(function_uses_source_pointer(o->fp)){
-                        heap_object_dereference(E, o->fp->source_pointer);
-                    }
-                    dereference(E, &o->fp->enclosing_scope);
-                }
-                if(freeing_memory){
-                    heap_object_unchain(E, o->hp);
-                    if(o->fp->argument_names!=NULL){
-                        for(int i=0; i<o->fp->arguments_count; i++){
-                            free(o->fp->argument_names[i]);
-                        }
-                    }
-                    free(o->fp->argument_names);
-                    free(o->fp);
-                    o->fp=NULL;
-                }
-                break;
+        if(gc_state==gcs_inactive || gc_state==gcs_deinitializing){
+            if(o->type==t_table){
+                call_destroy(E, *o);
             }
-            case t_table:
-            {
-                if(dereferencing_children){
-                    call_destroy(E, *o);
-                    table_foreach_children(E, o->tp, dereference_callback, o);
-                }
-                if(freeing_memory){
-                    if(gc_state==gcs_freeing_memory){
-                        table_foreach_children(E, o->tp, free_strings, o);
-                    }
-                    heap_object_unchain(E, o->hp);
-                    table_free(o->tp);
-                    o->tp=NULL;
-                }
-                break;
+            heap_object_foreach_children(E, o->hp, dereference_callback, &o);
+        }
+        if(gc_state==gcs_inactive || gc_state==gcs_freeing_memory){
+            if(gc_state==gcs_freeing_memory){
+                heap_object_foreach_children(E, o->hp, free_strings, o);
             }
-            case t_managed_pointer:
-            {
-                if(dereferencing_children && o->mp->foreach_children!=NULL){
-                    o->mp->foreach_children(E, o->mp, dereference_callback, NULL);
-                }
-                if(freeing_memory){
-                    if(gc_state==gcs_freeing_memory && o->mp->foreach_children!=NULL){
-                        o->mp->foreach_children(E, o->mp, free_strings, NULL);
-                    }
-                    heap_object_unchain(E, o->hp);
-                    o->mp->free(o->mp);
-                    o->mp=NULL;
-                }
-                break;
-            }
-            case t_coroutine:
-            {
-                if(dereferencing_children){
-                    coroutine_foreach_children(E, o->co, dereference_callback, o);
-                }
-                if(freeing_memory){
-                    if(gc_state==gcs_freeing_memory){
-                        coroutine_foreach_children(E, o->co, free_strings, o);
-                    }
-                    heap_object_unchain(E, o->hp);
-                    coroutine_free(o->co);
-                    o->co=NULL;
-                }
-                break;
-            }
-            case t_symbol:
-            {
-                if(freeing_memory){
-                    heap_object_unchain(E, o->hp);
-                    free(o->sp->comment);
-                    free(o->sp);
-                    o->sp=NULL;
-                }
-                break;
-            }
-            default:;
+            heap_object_free(E, o);
         }
     }
 }

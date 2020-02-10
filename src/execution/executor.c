@@ -12,23 +12,24 @@ Object executor_on_unhandled_error(Executor* E, Object error) {
     return null_const;
 }
 
-void executor_foreach_children(Executor* E, Executor* iterated_executor, ManagedPointerForeachChildrenCallback callback){
+void executor_foreach_children(Executor* E, Executor* iterated_executor, 
+                               ForeachChildrenCallback callback, void* data){
     vector* return_stack=&E->bytecode_environment.return_stack;
     for(int i=0; i<vector_count(return_stack); i++){
         ReturnPoint* return_point=vector_index(return_stack, i);
-        callback(E, &return_point->scope);
+        callback(E, &return_point->scope, data);
         if(return_point->program!=NULL){
             Object wrapped_program=wrap_heap_object((HeapObject*)return_point->program);
-            callback(E, &wrapped_program);
+            callback(E, &wrapped_program, data);
         }
     }
     for(int i=0; i<vector_count(&E->stack); i++){
-        callback(E, (Object*)vector_index(&E->stack, i));
+        callback(E, (Object*)vector_index(&E->stack, i), data);
     }
-    callback(E, &E->scope);
+    callback(E, &E->scope, data);
     if(E->bytecode_environment.executed_program!=NULL){
         Object wrapped_program=wrap_heap_object((HeapObject*)E->bytecode_environment.executed_program);
-        callback(E, &wrapped_program);
+        callback(E, &wrapped_program, data);
     }
 }
 
@@ -42,7 +43,7 @@ Object executor_get_patching_table(Executor* E){
 
 void executor_collect_garbage(Executor* E){
     gc_unmark_all(E->object_system.gc);
-    executor_foreach_children(E, E, gc_mark);
+    executor_foreach_children(E, E, gc_mark, E);
     gc_sweep(E);
     
 }

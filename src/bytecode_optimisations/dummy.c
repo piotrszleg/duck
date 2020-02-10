@@ -14,15 +14,15 @@ ObjectType dummy_type(const Dummy* dummy){
     }
 }
 
-void dummy_foreach_children(Executor* E, Dummy* dummy, ManagedPointerForeachChildrenCallback callback){
+void dummy_foreach_children(Executor* E, Dummy* dummy, ForeachChildrenCallback callback, void* data){
     if(dummy->type==d_constant){
-        callback(E, &dummy->constant_value);
+        callback(E, &dummy->constant_value, data);
     }
     if(dummy->type==d_or){
         Object wrapped_left=wrap_heap_object((HeapObject*)dummy->or.left);
-        callback(E, &wrapped_left);
+        callback(E, &wrapped_left, data);
         Object wrapped_right=wrap_heap_object((HeapObject*)dummy->or.right);
-        callback(E, &wrapped_right);
+        callback(E, &wrapped_right, data);
     }
 }
 

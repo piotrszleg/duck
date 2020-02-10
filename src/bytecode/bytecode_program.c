@@ -206,14 +206,15 @@ void bytecode_program_count_stack_depth(BytecodeProgram* program){
     program->stack_depth=max_stack_depth;
 }
 
-void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, ManagedPointerForeachChildrenCallback callback) {
+void bytecode_program_foreach_children(Executor* E, BytecodeProgram* program, 
+                    ForeachChildrenCallback callback, void* data) {
     for(int i=0; i<program->sub_programs_count; i++){
         Object wrapped=wrap_heap_object((HeapObject*)program->sub_programs[i]);
-        callback(E, &wrapped);
+        callback(E, &wrapped, data);
     }
     for(int i=0; i<vector_count(&program->variants); i++){
         Object wrapped=wrap_heap_object((HeapObject*)pointers_vector_get(&program->variants, i));
-        callback(E, &wrapped);
+        callback(E, &wrapped, data);
     }
 }
 

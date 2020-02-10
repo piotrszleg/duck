@@ -33,6 +33,7 @@ struct Executor {
 void executor_init(Executor* E);
 void executor_deinit(Executor* E);
 void executor_collect_garbage(Executor* E);
-void executor_foreach_children(Executor* E, Executor* iterated_executor, ManagedPointerForeachChildrenCallback callback);
+void executor_foreach_children(Executor* E, Executor* iterated_executor, 
+                               ForeachChildrenCallback callback, void* data);
 
 #endif

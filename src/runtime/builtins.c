@@ -231,16 +231,6 @@ Object builtin_table_stringify(Executor* E, Object scope, Object* arguments, int
     return to_string(table_stringify(E, table.tp));
 }
 
-Object builtin_table_copy(Executor* E, Object scope, Object* arguments, int arguments_count){
-    Object table=arguments[0];
-    REQUIRE_ARGUMENT_TYPE(table, t_table)
-    Object copies;
-    table_init(E, &copies);
-    Object result=table_copy(E, table.tp, copies.tp);
-    dereference(E, &copies);
-    return result;
-}
-
 Object builtin_serialize(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object self=arguments[0];
     return to_string(serialize(E, self));
@@ -587,7 +577,6 @@ Object builtins_table(Executor* E){
     REGISTER(table_get, 2)
     REGISTER(table_set, 3)
     REGISTER(table_stringify, 1)
-    REGISTER(table_copy, 1)
     REGISTER(protect, 1)
     REGISTER(import, 1)
     REGISTER(evaluate, 1)

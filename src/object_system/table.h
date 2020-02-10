@@ -54,7 +54,7 @@ void table_set(Executor* E, Table* t, Object key, Object value);
 void table_protect(Table* t);
 bool table_is_protected(Table* t);
 void table_free(Table* t);
-void table_foreach_children(Executor* E, Table* t, ManagedPointerForeachChildrenCallback callback, void* data);
+void table_foreach_children(Executor* E, Table* t, ForeachChildrenCallback callback, void* data);
 int table_compare(Executor* E, Table* a, Table* b, Object* error);
 char* table_serialize(Executor* E, Table* t);
 char* table_stringify(Executor* E, Table* t);
