@@ -336,7 +336,7 @@ void dereference(Executor* E, Object* o){
 }
 
 void free_strings(Executor* E, Object* o, void* data){
-    if(o->type==t_string){
+    if(o->type==t_string && o->text!=gc_text){
         free(o->text);
         o->text=gc_text;
     }

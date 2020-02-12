@@ -20,7 +20,7 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
 
     // create a coroutine scope inheriting from global scope
     table_init(CE, &CE->scope);
-    inherit_scope(CE, CE->scope, get(E, E->scope, to_string("global")));
+    inherit_scope(CE, CE->scope, get(E, E->scope, to_string("builtins")));
 
     CE->coroutine=coroutine.co;
     coroutine.co->state=co_uninitialized;
@@ -29,7 +29,7 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
     CE->bytecode_environment.executed_program=(BytecodeProgram*)function.fp->source_pointer;
     heap_object_reference((HeapObject*)function.fp->source_pointer);
     
-    for(int i=1; i<arguments_count; i++) {
+    for(int i=0; i<arguments_count; i++) {
         objects_vector_push(&CE->stack, arguments[i]);
     }
 

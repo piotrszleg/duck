@@ -79,7 +79,8 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         case t_pointer:
             return sign((long unsigned)a.p-(long unsigned)b.p);
         case t_managed_pointer:
-            return sign((long unsigned)a.mp-(long unsigned)b.mp);
+        case t_coroutine:
+            return sign(a.hp-b.hp);
         case t_symbol:
             return sign(a.sp->index-b.sp->index);
         case t_function:

@@ -134,23 +134,23 @@ test("question mark", ->{
     assert_error(f(1))
 })
 
-test("garbage collection", ->{
-    destroy_calls=0
-    circular_reference=->{
-        tab=[
-            number=1
-            destroy=self->destroy_calls+=self.number
-        ]
-        tab.self=tab
-        tab
-    }
-    loop=(times ,f)->{
-        f()
-        if(times>1){
-            loop(times-1, f)
-        } 
-    }
-    loop(100, circular_reference)
-    collect_garbage()
-    assert_equal(destroy_calls, 100)
-})
+# test("garbage collection", ->{
+#     destroy_calls=0
+#     circular_reference=->{
+#         tab=[
+#             number=1
+#             destroy=self->destroy_calls+=self.number
+#         ]
+#         tab.self=tab
+#         tab
+#     }
+#     loop=(times ,f)->{
+#         f()
+#         if(times>1){
+#             loop(times-1, f)
+#         } 
+#     }
+#     loop(100, circular_reference)
+#     collect_garbage()
+#     assert_equal(destroy_calls, 100)
+# })

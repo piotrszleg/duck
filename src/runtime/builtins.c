@@ -612,17 +612,15 @@ Object builtins_table(Executor* E){
     REGISTER(match, 2)
     #undef REGISTER
 
-    #define REGISTER_SPECIAL(name, index, variadic) \
-    { \
-        Object function; \
-        function_init(E, &function); \
-        function.fp->ftype=f_special; \
-        function.fp->special_index=index; \
-        table_set(E, scope.tp, to_string(#name), function); \
-        dereference(E, &function); \
-    }
-    REGISTER_SPECIAL(yield, 0, true)
-
+    Object function;
+    function_init(E, &function);
+    function.fp->ftype=f_special;
+    function.fp->special_index=0;
+    function.fp->arguments_count=0;
+    function.fp->variadic=true;
+    table_set(E, scope.tp, to_string("yield"), function);
+    dereference(E, &function);
+    
     set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
 
     set_function(E, scope, "coroutine", 1, true, builtin_coroutine);

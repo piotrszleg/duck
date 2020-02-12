@@ -12,7 +12,7 @@ source-files := \
 
 build-folder := ../build
 
-options := -g3 -gdwarf-2 -Wall -DDEBUGGING -Wl,--out-implib,$(build-folder)/libhost.a
+options := -g3 -gdwarf-2 -Wall -Wl,--out-implib,$(build-folder)/libhost.a #-DDEBUGGING
 ifneq ($(OS),Windows_NT)
 	options:=$(options) -ldl
 endif

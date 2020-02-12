@@ -173,7 +173,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
             Object right=execute_ast(E, u->right, false);
             USE(right)
             Object result=operator(E, left, right, u->op);
-            // USE(result)
+            USE(result)
             STOP_USING(left)
             STOP_USING(right)
             RETURN_USED(result)
@@ -285,8 +285,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
         case e_name:
         {
             Name* n=(Name*)expression;
-            Object result=get(E, E->scope, to_string(n->value));
-            RETURN_USED(result);
+            return get(E, E->scope, to_string(n->value));
         }
         case e_member_access:
         {
@@ -331,7 +330,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
         }
         default:
         {
-            RETURN_ERROR("AST_EXECUTION_ERROR", null_const, "Uncatched expression type: %i\n", expression->type)
+            RETURN_ERROR("AST_EXECUTION_ERROR", null_const, "Unknown expression type: %i\n", expression->type)
         }
     }
 }
