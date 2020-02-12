@@ -130,7 +130,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
             if(!keep_scope) {
                 Object block_scope;
                 table_init(E, &block_scope);
-                inherit_scope(E, block_scope, E->scope);
+                inherit_current_scope(E, block_scope.tp);
                 USE(E->scope)
                 E->scope=block_scope;
             }

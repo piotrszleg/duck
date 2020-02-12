@@ -223,7 +223,7 @@ void move_to_function(Executor* E, Function* f){
     Object function_scope;
     table_init(E, &function_scope);
     if(f->enclosing_scope.type!=t_null){
-        inherit_scope(E, function_scope, f->enclosing_scope);
+        inherit_scope(E, function_scope.tp, f->enclosing_scope);
     }
     reference(&function_scope);
     E->scope=function_scope;
@@ -417,7 +417,7 @@ Object execute_bytecode(Executor* E){
             {
                 Object new_scope;
                 table_init(E, &new_scope);
-                inherit_scope(E, new_scope, E->scope);
+                inherit_current_scope(E, new_scope.tp);
 
                 objects_vector_push(&E->stack, E->scope);
                 reference(&new_scope);

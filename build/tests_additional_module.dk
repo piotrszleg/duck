@@ -1,0 +1,1 @@
+[table=[1, 6], double=x->x*2, add=(a, b)->a+b]

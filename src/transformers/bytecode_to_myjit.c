@@ -20,7 +20,7 @@ void set_myjit_wrapper(Executor* E, Object* o, Object* key, Object* value, Objec
 }
 
 void inherit_scope_myjit_wrapper(Executor* E, Object* scope, Object* base){
-    inherit_scope(E, *scope, *base);
+    inherit_scope(E, scope->tp, *base);
 }
 
 bool is_falsy_myjit_wrapper(Object* o){

@@ -273,8 +273,9 @@ Object builtin_import(Executor* E, Object scope, Object* arguments, int argument
     REQUIRE_TYPE(path, t_string)
     Object sub_scope;
     table_init(E, &sub_scope);
-    inherit_scope(E, sub_scope, E->scope);
+    inherit_global_scope(E, sub_scope.tp);
     result=evaluate_file(E, path.text, sub_scope);
+    dereference(E, &sub_scope);
     return result;
 }
 
@@ -284,8 +285,9 @@ Object builtin_evaluate(Executor* E, Object scope, Object* arguments, int argume
     REQUIRE_TYPE(text, t_string)
     Object sub_scope;
     table_init(E, &sub_scope);
-    inherit_scope(E, sub_scope, E->scope);
+    inherit_global_scope(E, sub_scope.tp);
     result=evaluate_string(E, text.text, sub_scope);
+    dereference(E, &sub_scope);
     return result;
 }
 
@@ -555,7 +557,7 @@ Object builtins_table(Executor* E){
     Object scope;
     table_init(E, &scope);
 
-    table_set(E, scope.tp, to_int(0), to_string("builtins_table"));
+    table_set(E, scope.tp, to_int(0), to_string("builtins"));
     table_set(E, scope.tp, to_string("builtins"), scope);
     table_set(E, scope.tp, to_string("overrides"), E->object_system.overrides_table);
     table_set(E, scope.tp, to_string("types"), E->object_system.types_table);
@@ -656,7 +658,7 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
             }
         }
     } while(indexed.type==t_table 
-         && !EQUALS_STRING(indexed_zero_index, "builtins_table"));// builtins table can't be changed
+         && !EQUALS_STRING(indexed_zero_index, "builtins"));// builtins table can't be changed
     // key wasn't found in any outer scope
     table_set(E, self.tp, key, value);
 
@@ -664,21 +666,17 @@ Object scope_set_override(Executor* E, Object scope, Object* arguments, int argu
     return value;
 }
 
-void inherit_scope(Executor* E, Object scope, Object base){
-    if(scope.type!=t_table){
-        return;
-    }
-    /* Object base_global=table_get(E, base.tp, to_string("global"));
-    if(base_global.type!=t_null){
-        table_set(E, scope.tp, to_string("global"), base_global);
-    } else {
-        Object base_zero_index=table_get(E, base.tp, to_int(0));
-        if(EQUALS_STRING(base_zero_index, "builtins_table")){
-            table_set(E, scope.tp, to_string("global"), scope);
-        } else {
-            table_set(E, scope.tp, to_string("global"), base);
-        }
-    } */
-    table_set(E, scope.tp, OVERRIDE(E, prototype), base);
-    table_set(E, scope.tp, OVERRIDE(E, set), to_native_function(E, scope_set_override, NULL, 3, false));
+void inherit_scope(Executor* E, Table* scope, Object base){
+    table_set(E, scope, OVERRIDE(E, prototype), base);
+    table_set(E, scope, OVERRIDE(E, set), to_native_function(E, scope_set_override, NULL, 3, false));
+}
+
+void inherit_current_scope(Executor* E, Table* scope){
+    inherit_scope(E, scope, E->scope);
+}
+
+void inherit_global_scope(Executor* E, Table* scope){
+    Object global_scope=get(E, E->scope, to_string("builtins"));
+    inherit_scope(E, scope, global_scope);
+    dereference(E, &global_scope);
 }

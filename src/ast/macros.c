@@ -289,7 +289,7 @@ void proccess_macro_declaration(MacroDeclaration* md, MacroVisitorState* state){
     Object scope;
     table_init(E, &scope);
     if(E->options.include_builtins){
-        inherit_scope(E, scope, builtins_table(E));
+        inherit_global_scope(E, scope.tp);
     }
     register_ast_types(E, scope);
     map_set(&state->macro_definitions, md->left->identifier->value, evaluate(E, md->right, scope, "macro", false));

@@ -12,7 +12,7 @@ void repl(Executor* E){
     table_init(E, &global_scope);
     reference(&global_scope);
     if(E->options.include_builtins){
-        inherit_scope(E, global_scope, builtins_table(E));
+        inherit_scope(E, global_scope.tp, builtins_table(E));
     }
     size_t input_offset=0;// used to write consecutive lines into input buffer
     while(1) {

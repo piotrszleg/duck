@@ -20,7 +20,7 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
 
     // create a coroutine scope inheriting from global scope
     table_init(CE, &CE->scope);
-    inherit_scope(CE, CE->scope, get(E, E->scope, to_string("builtins")));
+    inherit_global_scope(E, CE->scope.tp);
 
     CE->coroutine=coroutine.co;
     coroutine.co->state=co_uninitialized;

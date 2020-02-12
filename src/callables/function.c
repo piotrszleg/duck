@@ -25,7 +25,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
             Object function_scope;
             table_init(E, &function_scope);
             if(f->enclosing_scope.type!=t_null){
-                inherit_scope(E, function_scope, f->enclosing_scope);
+                inherit_scope(E, function_scope.tp, f->enclosing_scope);
             }
             for(int i=0; i<arguments_count; i++){
                 table_set(E, function_scope.tp, to_string(f->argument_names[i]), arguments[i]);

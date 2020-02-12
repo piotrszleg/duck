@@ -25,6 +25,7 @@ Object evaluate(Executor* E, Expression* ast, Object scope, const char* file_nam
         if(delete_ast){
             delete_expression(ast);
         }
+        pop_return_point(E);
         return execution_result;
     } else if(!E->options.disable_bytecode) {
         BytecodeProgram* bytecode_program=ast_to_bytecode(ast, true);
@@ -44,12 +45,16 @@ Object evaluate(Executor* E, Expression* ast, Object scope, const char* file_nam
             E->bytecode_environment.executed_program=bytecode_program;
             // the end instruction will dereference these later
             heap_object_reference((HeapObject*)E->bytecode_environment.executed_program);
-            return execute_bytecode(E);
+            Object execution_result=execute_bytecode(E);
+            pop_return_point(E);
+            return execution_result;
         } else {
+            pop_return_point(E);
             RETURN_ERROR("EVALUATION_ERROR", null_const, 
                 "Bytecode generation failed and ast execution is disabled.")
         }
     } else {
+        pop_return_point(E);
         RETURN_ERROR("EVALUATION_ERROR", null_const, 
             "Both bytecode and ast execution are disabled.")
     }
@@ -90,7 +95,7 @@ void execute_file(Executor* E, const char* file_name){
     reference(&global_scope);
     table_set(E, global_scope.tp, to_string("arguments"), arguments_to_table(E, file_name, E->options.script_arguments));
     if(E->options.include_builtins){
-        inherit_scope(E, global_scope, builtins_table(E));
+        inherit_scope(E, global_scope.tp, builtins_table(E));
     }
     Object execution_result=evaluate_file(E, file_name, global_scope);
     USING_STRING(stringify(E, execution_result), 

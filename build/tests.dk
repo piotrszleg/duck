@@ -124,6 +124,20 @@ test("coroutines", ->{
     }
 })
 
+test("import", ->{
+    module=import("tests_additional_module.dk")
+    assert_equal(module.table, [1, 6])
+    assert_equal(module.double(5), 10)
+    assert_equal(module.add(5, 2), 7)
+})
+
+test("evaluate", ->{
+    assert_equal(evaluate("[a=1, b=2]"), [a=1, b=2])
+    # don't leak the current scope
+    a=11
+    assert_equal(evaluate("a"), null)
+})
+
 test("question mark", ->{
     f=x->{
         if(x){

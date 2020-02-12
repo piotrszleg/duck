@@ -14,7 +14,9 @@
 #include "import_dll.h"
 
 Object builtins_table(Executor* E);
-void inherit_scope(Executor* E, Object scope, Object base);
+void inherit_scope(Executor* E, Table* scope, Object base);
+void inherit_global_scope(Executor* E, Table* scope);
+void inherit_current_scope(Executor* E, Table* scope);
 bool scope_inherits(Executor* E, Object scope, Object presumed_base);
 
 #endif
