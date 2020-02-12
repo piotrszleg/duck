@@ -9,6 +9,7 @@ static const char* help= \
     "\nDuck 0.0.1\n"
     "\nOptions without argument are:\n"
     "\t-version\n"
+    "\t-help\n"
     "\t-?\n"
     "\nOptions with integer argument are:\n"
     #define BOOL(name, default)
@@ -70,6 +71,8 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
             OPTION("repl", options->repl=true; ) \
             OPTION("version", printf("%s", version); options->should_run=false; )
             OPTION("?", printf("%s", help);
+                    options->should_run=false; )
+            OPTION("help", printf("%s", help);
                     options->should_run=false; )
             #undef OPTION
             #undef BOOL_OPTION

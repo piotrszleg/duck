@@ -74,7 +74,8 @@
         "typeinfo": "c",
         "predict_instruction_output.h": "c",
         "bytecode_optimisation_utility.h": "c",
-        "heap_object.h": "c"
+        "heap_object.h": "c",
+        "options.h": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",
     "files.exclude": {
