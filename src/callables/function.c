@@ -1,5 +1,9 @@
 #include "function.h"
 
+void call_to_compiled_wrapper(CompiledFunction function, Executor* E, BytecodeProgram* bytecode_program) {
+        function(E, bytecode_program);
+}
+
 // this function should only be called from call_function, it's there to simplify the code structure
 static Object call_function_processed(Executor* E, Function* f, Object* arguments, int arguments_count){
     switch(f->ftype){
@@ -14,10 +18,9 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
             move_to_function(E, f);
             BytecodeProgram* bytecode_program=(BytecodeProgram*)f->source_pointer;
             if(bytecode_program->compiled!=NULL){
-                Object result;
-                bytecode_program->compiled(E, bytecode_program, &result);
+                call_to_compiled_wrapper(bytecode_program->compiled, E, bytecode_program);
                 pop_return_point(E);
-                return result;
+                return objects_vector_pop(&E->stack);
             } else {
                 return execute_bytecode(E);
             }

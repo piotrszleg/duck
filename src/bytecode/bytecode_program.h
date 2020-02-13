@@ -28,7 +28,7 @@ typedef struct {
 
 typedef struct BytecodeProgram BytecodeProgram;
 
-typedef void (*CompiledFunction)(Executor* E, BytecodeProgram* bytecode_program, Object* result);
+typedef void (*CompiledFunction)(Executor* E, BytecodeProgram* bytecode_program);
 
 typedef struct FunctionVariant FunctionVariant;
 

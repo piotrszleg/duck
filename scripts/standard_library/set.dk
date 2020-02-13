@@ -37,7 +37,7 @@ Set=initial->[
         }
         self::compact()
     }
-    stringify=self->{
+    .[overrides.stringify]=self->{
         result="Set("
         first=1
         self.inner `#` i->{
@@ -46,21 +46,24 @@ Set=initial->[
             } else {
                 result+=", "
             }
-            result+=string(i)
+            result+=cast(i, types.string)
         }
         result+=")"
         result
     }
 ]
-s=Set([])
+test=->{
+    s=Set([])
 
-s::insert(8)
-s::insert(8)
-s::insert(11)
-s::insert(11)
-s::insert(3)
-print(s)
+    s::insert(8)
+    s::insert(8)
+    s::insert(11)
+    s::insert(11)
+    s::insert(3)
+    print(s)
 
-s::remove(8)
-s::remove(11)
-print(s)
+    s::remove(8)
+    s::remove(11)
+    print(s)
+}
+Set

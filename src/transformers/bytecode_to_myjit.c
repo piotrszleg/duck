@@ -335,8 +335,6 @@ void instruction_to_myjit(Executor* E, struct jit * C, Instruction* instruction,
             jit_call(C, get_myjit_wrapper);
             PUSH(R(4))// push get return value on stack
             break;
-
-
         CASE(b_function_1)
             GET_EXECUTOR(R(1))
             PUSH_NULL(R(2))
@@ -488,20 +486,6 @@ void instruction_to_myjit(Executor* E, struct jit * C, Instruction* instruction,
             // intentional fallthrough if instruction is of type b_tail_call
         CASE(b_end)
         CASE(b_return)
-            // call pop, R(1)=vector_pop(OBJECT_STACK_REGISTER)
-            jit_prepare(C);
-            jit_putargr(C, OBJECT_STACK_REGISTER);
-            jit_call(C, vector_pop);
-            jit_retval(C, R(1));
-            // the third argument of CompiledFunction is writeable pointer used to return Object struct
-            // R(2)=result_argument
-            jit_getarg(C, R(2), 2);
-            // memcpy(R(2), R(1), sizeof(Object));
-            jit_prepare(C);
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(1));
-            jit_putargi(C, sizeof(Object));
-            jit_call(C, memcpy);
             jit_reti(C, 0);
             break;
         default:
@@ -542,7 +526,7 @@ void compile_bytecode_program(Executor* E, BytecodeProgram* program){
 
     jit_generate_code(C);
     // jit_dump_ops(C, JIT_DEBUG_OPS);
-    // jit_check_code(C, JIT_WARN_ALL);
+    jit_check_code(C, JIT_WARN_ALL);
 
     jit_free(C);
     #endif

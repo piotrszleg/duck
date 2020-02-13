@@ -1,3 +1,2 @@
-c=coroutine(a->a+yield(), 10)
-c()
-c(1)
+Set=import("../scripts/standard_library/set.dk")
+Set([1, 2])
