@@ -1,7 +1,11 @@
 #include "bytecode_to_myjit.h"
 #include "../execution/execution.h"
 
-#define OBJECT_STACK_REGISTER R(0)
+#ifdef HAS_LIGHTNING
+
+static jit_state_t *_jit;
+
+#define OBJECT_STACK_REGISTER JIT_V0
 
 void operator_myjit_wrapper(Executor* E, Object* a, Object* b, const char* op, Object* result){
     *result=operator(E, *a, *b, op);
@@ -31,462 +35,473 @@ int catch_in_gdb(Object* o){
    return o->int_value;
 }
 
-void instruction_to_myjit(Executor* E, struct jit * C, Instruction* instruction, int temporary_offset, jit_op** jit_labels) {
+#define PRINT(message) \
+    jit_prepare(); \
+    jit_pushargi(message); \
+    jit_finishi(printf);
+
+void instruction_to_myjit(Executor* E, 
+                          Instruction* instruction, 
+                          int temporary_offset,
+                          jit_node_t* executor_argument,
+                          jit_node_t* program_argument, 
+                          jit_node_t** jit_labels) {
+    
+    #define GET_TEMPORARY(register) \
+        jit_addi(register, JIT_FP, temporary_offset);
+    
+    #define GET_EXECUTOR(register) \
+        jit_getarg(register, executor_argument);
+
+    #define GET_PROGRAM(register) \
+        jit_getarg(register, program_argument);
+
     // TODO: reference/dereference
     #define POP(register) \
-        jit_prepare(C); \
-        jit_putargr(C, OBJECT_STACK_REGISTER); \
-        jit_call(C, vector_pop); \
-        jit_retval(C, register);
+        jit_prepare(); \
+        jit_pushargr(OBJECT_STACK_REGISTER); \
+        jit_finishi(vector_pop); \
+        jit_retval(register);
 
     #define REFERENCE(register) \
-        jit_prepare(C); \
-        jit_putargr(C, register); \
-        jit_call(C, reference);
+        jit_prepare(); \
+        jit_pushargr(register); \
+        jit_finishi(reference);
 
     #define DEREFERENCE(register, executor_temporary) \
-        jit_getarg(C, executor_temporary, 0); \
-        jit_prepare(C); \
-        jit_putargr(C, executor_temporary); \
-        jit_putargr(C, register); \
-        jit_call(C, dereference);
+        GET_EXECUTOR(executor_temporary); \
+        jit_prepare(); \
+        jit_pushargr(executor_temporary); \
+        jit_pushargr(register); \
+        jit_finishi(dereference);
 
     #define PUSH(register) \
-        jit_prepare(C); \
-        jit_putargr(C, OBJECT_STACK_REGISTER); \
-        jit_putargr(C, register); \
-        jit_call(C, vector_push); \
+        jit_prepare(); \
+        jit_pushargr(OBJECT_STACK_REGISTER); \
+        jit_pushargr(register); \
+        jit_finishi(vector_push); \
         REFERENCE(register)
 
-    #define GET_TEMPORARY(register) \
-        jit_addi(C, register, R_FP, temporary_offset);
-
     #define INDEX_STACK(register, index) \
-        jit_prepare(C); \
-        jit_putargr(C, OBJECT_STACK_REGISTER); \
-        jit_call(C, vector_top); \
+        jit_prepare(); \
+        jit_pushargr(OBJECT_STACK_REGISTER); \
+        jit_finishi(vector_top); \
+        jit_retval_l(register); \
         if(index>0){ \
-            jit_subi(C, register, R_OUT, index*sizeof(Object)); \
+            jit_subi(register, register, index*sizeof(Object)); \
         } else { \
-            jit_retval(C, register); \
+            jit_retval(register); \
         }
 
     #define CATCH(register) \
-        jit_prepare(C); \
-        jit_putargr(C, register); \
-        jit_call(C, catch_in_gdb);
+        jit_prepare(); \
+        jit_pushargr(register); \
+        jit_finishi(catch_in_gdb);
 
     // E->bytecode_environment.object_stack
     #define PRINT_STACK(executor, stack_temporary) \
-        jit_addi(C, stack_temporary, executor, FIELD_OFFSET(Executor, bytecode_environment)+FIELD_OFFSET(BytecodeEnvironment, object_stack)); \
-        jit_prepare(C); \
-        jit_putargr(C, executor); \
-        jit_putargr(C, stack_temporary); \
-        jit_call(C, print_object_stack);
+        jit_addi(stack_temporary, executor, FIELD_OFFSET(Executor, bytecode_environment)+FIELD_OFFSET(BytecodeEnvironment, object_stack)); \
+        jit_prepare(); \
+        jit_pushargr(executor); \
+        jit_pushargr(stack_temporary); \
+        jit_finishi(print_object_stack);
 
     // pushes null to the stack and writes  pointer to it to the register
     // vector_push(OBJECT_STACK_REGISTER, null_const);
     // register=vector_top(OBJECT_STACK_REGISTER);
     #define PUSH_NULL(register) \
         /*vector_push(OBJECT_STACK_REGISTER, null_const);*/ \
-        jit_prepare(C); \
-        jit_putargr(C, OBJECT_STACK_REGISTER); \
-        jit_putargi(C, &null_const); \
-        jit_call(C, vector_push); \
-        /* R(1)=vector_top(&object_stack);*/ \
-        jit_prepare(C); \
-        jit_putargr(C, OBJECT_STACK_REGISTER); \
-        jit_call(C, vector_top); \
-        jit_retval(C, register);
+        jit_prepare(); \
+        jit_pushargr(OBJECT_STACK_REGISTER); \
+        jit_pushargi((long)&null_const); \
+        jit_finishi(vector_push); \
+        /* JIT_V1=vector_top(&object_stack);*/ \
+        jit_prepare(); \
+        jit_pushargr(OBJECT_STACK_REGISTER); \
+        jit_finishi(vector_top); \
+        jit_retval(register);
 
     #define MOVE_OBJECT(destination, source) \
-        jit_prepare(C); \
-        jit_putargr(C, destination); \
-        jit_putargr(C, source); \
-        jit_putargi(C, sizeof(Object)); \
-        jit_call(C, memcpy);
-
-    #define GET_EXECUTOR(register) \
-        jit_getarg(C, register, 0);
+        jit_prepare(); \
+        jit_pushargr(destination); \
+        jit_pushargr(source); \
+        jit_pushargi(sizeof(Object)); \
+        jit_finishi(memcpy);
 
     #define GET_SCOPE(register, executor) \
-        jit_addi(C, register, executor, FIELD_OFFSET(Executor, scope));
+        jit_addi(register, executor, FIELD_OFFSET(Executor, scope));
 
     bool debug=true;
     
     #define CASE(instruction) \
         case instruction: \
             if(debug) { \
-                jit_msg(C, #instruction "\n"); \
+                PRINT(#instruction "\n"); \
             }
 
     switch (instruction->type){
         CASE(b_no_op)
             break;
         CASE(b_push_to_top)
-            // R(1) is loop iterator variable i
-            jit_movi(C, R(1), instruction->uint_argument);
-            GET_TEMPORARY(R(2))
+            // JIT_V1 is loop iterator variable i
+            jit_movi(JIT_V1, instruction->uint_argument);
+            GET_TEMPORARY(JIT_V2)
             // *temporary=*INDEX_STACK(i)
-            INDEX_STACK(R(3), R(1))
-            MOVE_OBJECT(R(2), R(3))
+            INDEX_STACK(JIT_V3, JIT_V1)
+            MOVE_OBJECT(JIT_V2, JIT_V3)
             // *INDEX_STACK(i)=*INDEX_STACK(i-1)
-            // R(4)=i-1
-            jit_subi(C, R(4), R(1), 1);
-            INDEX_STACK(R(5), R(4))
-            MOVE_OBJECT(R(3), R(5))
+            // JIT_V4=i-1
+            jit_subi(JIT_V4, JIT_V1, 1);
+            INDEX_STACK(JIT_R1, JIT_V4)
+            MOVE_OBJECT(JIT_V3, JIT_R1)
             // *INDEX_STACK(i-1)=*temporary
-            MOVE_OBJECT(R(5), R(2))
+            MOVE_OBJECT(JIT_R1, JIT_V2)
             break;
         CASE(b_swap)
             // *temporary=*INDEX_STACK(instruction->swap_argument.left)
-            GET_TEMPORARY(R(1))
-            INDEX_STACK(R(2), instruction->swap_argument.left)
-            MOVE_OBJECT(R(1), R(2))
+            GET_TEMPORARY(JIT_V1)
+            INDEX_STACK(JIT_V2, instruction->swap_argument.left)
+            MOVE_OBJECT(JIT_V1, JIT_V2)
             // *INDEX_STACK(instruction->swap_argument.left)=*INDEX_STACK(instruction->swap_argument.right)
-            INDEX_STACK(R(3), instruction->swap_argument.right)
-            MOVE_OBJECT(R(2), R(3))
+            INDEX_STACK(JIT_V3, instruction->swap_argument.right)
+            MOVE_OBJECT(JIT_V2, JIT_V3)
             // *INDEX_STACK(instruction->swap_argument.right)=*temporary
-            MOVE_OBJECT(R(3), R(1))
+            MOVE_OBJECT(JIT_V3, JIT_V1)
             break;
         CASE(b_discard)
-            // R(1)=vector_pop(OBJECT_STACK_REGISTER);
-            POP(R(1))
-            // R(2)=E;
-            jit_getarg(C, R(2), 0);
-            // dereference(R(2), R(1));
-            jit_prepare(C);
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(1));
-            jit_call(C, dereference);
+            // JIT_V1=vector_pop(OBJECT_STACK_REGISTER);
+            POP(JIT_V1)
+            // JIT_V2=E;
+            DEREFERENCE(JIT_V1, JIT_V2)
             break;
         CASE(b_double)
-            GET_TEMPORARY(R(1))
-            // get stack top to R(2)
-            jit_prepare(C);
-            jit_putargr(C, OBJECT_STACK_REGISTER);
-            jit_call(C, vector_top);
-            jit_retval(C, R(2));
-            // memcpy(R(1), R(2), sizeof(Object))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_putargi(C, sizeof(Object));
-            jit_call(C, memcpy);
+            GET_TEMPORARY(JIT_V1)
+            // get stack top to JIT_V2
+            jit_prepare();
+            jit_pushargr(OBJECT_STACK_REGISTER);
+            jit_finishi(vector_top);
+            jit_retval(JIT_V2);
+            // memcpy(JIT_V1, JIT_V2, sizeof(Object))
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_pushargi(sizeof(Object));
+            jit_finishi(memcpy);
             // push copied object back to stack
-            PUSH(R(1))
+            PUSH(JIT_V1)
             break;
         CASE(b_null)
             // vector_push(OBJECT_STACK_REGISTER, null_const);
-            jit_prepare(C);
-            jit_putargr(C, OBJECT_STACK_REGISTER);
-            jit_putargi(C, &null_const);
-            jit_call(C, vector_push);
+            jit_prepare();
+            jit_pushargr(OBJECT_STACK_REGISTER);
+            jit_pushargi((long)&null_const);
+            jit_finishi(vector_push);
             break;
         
         #define PUSH_TYPED(result_register, object_type, temporary1, temporary2) \
             PUSH_NULL(result_register) \
             /* vector_top(&object_stack)->type=t_int; */ \
-            jit_addi(C, temporary1, result_register, FIELD_OFFSET(Object, type)); \
-            jit_movi(C, temporary2, object_type); \
-            jit_str(C, temporary1, temporary2, sizeof(ObjectType));
+            jit_addi(temporary1, result_register, FIELD_OFFSET(Object, type)); \
+            jit_movi(temporary2, object_type); \
+            jit_str_l(temporary1, temporary2);
         CASE(b_load_int)
-            PUSH_TYPED(R(1), t_int, R(2), R(3))
+            PUSH_TYPED(JIT_V1, t_int, JIT_V2, JIT_V3)
             // vector_top(&object_stack)->int_value=instruction.int_argument
-            jit_addi(C, R(2), R(1), FIELD_OFFSET(Object, int_value));
-            jit_movi(C, R(3), instruction->int_argument);
-            jit_str(C, R(2), R(3), sizeof(int));
+            jit_addi(JIT_V2, JIT_V1, FIELD_OFFSET(Object, int_value));
+            jit_movi(JIT_V3, instruction->int_argument);
+            jit_str(JIT_V2, JIT_V3);
             break;
         CASE(b_load_float)
-            PUSH_TYPED(R(1), t_float, R(2), R(3))
+            PUSH_TYPED(JIT_V1, t_float, JIT_V2, JIT_V3)
             // vector_top(&object_stack)->float_value=instruction.float_argument;
-            jit_addi(C, R(2), R(1), FIELD_OFFSET(Object, float_value));
-            jit_fmovi(C, FR(0), instruction->float_argument);
-            jit_fstr(C, R(2), FR(0), sizeof(float));
+            jit_addi(JIT_V2, JIT_V1, FIELD_OFFSET(Object, float_value));
+            jit_movi_f(JIT_V0, instruction->float_argument);
+            jit_str_f(JIT_V2, JIT_V0);
             break;
         CASE(b_load_string)
-            PUSH_TYPED(R(1), t_string, R(2), R(3))
+            PUSH_TYPED(JIT_V1, t_string, JIT_V2, JIT_V3)
             // vector_top(&object_stack)->text=instruction.float_argument;
-            jit_addi(C, R(2), R(1), FIELD_OFFSET(Object, text));
-            // get bytecode_program argument to R(3)
-            jit_getarg(C, R(3), 1);
-            // get constants to R(4)
-            jit_ldxi(C, R(4), R(3), FIELD_OFFSET(BytecodeProgram, constants), sizeof(char*));
-            // get pointer to string constant to R(5)
-            jit_addi(C, R(5), R(4), instruction->uint_argument);
+            jit_addi(JIT_V2, JIT_V1, FIELD_OFFSET(Object, text));
+            // get bytecode_program argument to JIT_V3
+            GET_PROGRAM(JIT_V3)
+            // get constants to JIT_V4
+            jit_ldxi_l(JIT_V4, JIT_V3, FIELD_OFFSET(BytecodeProgram, constants));
+            // get pointer to string constant to JIT_R1
+            jit_addi(JIT_R1, JIT_V4, instruction->uint_argument);
             // write it to Object's text field
-            jit_str(C, R(2), R(5), sizeof(char*));
-            REFERENCE(R(1))
+            jit_str_l(JIT_V2, JIT_R1);
+            REFERENCE(JIT_V1)
             break;
         CASE(b_table_literal)
             // push null on stack and call table_init on it
-            GET_EXECUTOR(R(1))
-            PUSH_NULL(R(2))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_call(C, table_init);
+            GET_EXECUTOR(JIT_V1)
+            PUSH_NULL(JIT_V2)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_finishi(table_init);
             break;
         #undef PUSH_TYPED
 
         CASE(b_enter_scope)
-            GET_EXECUTOR(R(1))
-            GET_TEMPORARY(R(2))
+            GET_EXECUTOR(JIT_V1)
+            GET_TEMPORARY(JIT_V2)
             // call table_init
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_call(C, table_init);
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_finishi(table_init);
             // call inherit_scope
-            GET_SCOPE(R(3), R(1))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(3));
-            jit_call(C, inherit_scope_myjit_wrapper);
+            GET_SCOPE(JIT_V3, JIT_V1)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_pushargr(JIT_V3);
+            jit_finishi(inherit_scope_myjit_wrapper);
             // push older scope on the stack
-            PUSH(R(3))
+            PUSH(JIT_V3)
             // change the scope
-            REFERENCE(R(2))
-            DEREFERENCE(R(3), R(4))
-            MOVE_OBJECT(R(3), R(2))
+            REFERENCE(JIT_V2)
+            DEREFERENCE(JIT_V3, JIT_V4)
+            MOVE_OBJECT(JIT_V3, JIT_V2)
             break;
         CASE(b_leave_scope)
-            GET_EXECUTOR(R(1))
-            GET_SCOPE(R(2), R(1))
-            DEREFERENCE(R(2), R(4))
-            POP(R(3))
-            REFERENCE(R(3))
+            GET_EXECUTOR(JIT_V1)
+            GET_SCOPE(JIT_V2, JIT_V1)
+            DEREFERENCE(JIT_V2, JIT_V4)
+            POP(JIT_V3)
+            REFERENCE(JIT_V3)
             // change the scope to popped object
-            MOVE_OBJECT(R(2), R(3))
+            MOVE_OBJECT(JIT_V2, JIT_V3)
             break;
         CASE(b_get)
-            GET_EXECUTOR(R(1))
-            GET_SCOPE(R(2), R(1))
-            POP(R(3))// key
-            GET_TEMPORARY(R(4))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(3));
-            jit_putargr(C, R(4));
-            jit_call(C, get_myjit_wrapper);
-            PUSH(R(4))
+            GET_EXECUTOR(JIT_V1)
+            GET_SCOPE(JIT_V2, JIT_V1)
+            POP(JIT_V3)// key
+            GET_TEMPORARY(JIT_V4)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_pushargr(JIT_V3);
+            jit_pushargr(JIT_V4);
+            jit_finishi(get_myjit_wrapper);
+            PUSH(JIT_V4)
             break;
         CASE(b_set)
-            GET_EXECUTOR(R(1))
-            GET_SCOPE(R(2), R(1))
-            POP(R(3))// key
-            POP(R(4))// value
-            GET_TEMPORARY(R(5))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(3));
-            jit_putargr(C, R(4));
-            jit_putargr(C, R(5));
-            jit_call(C, set_myjit_wrapper);
-            PUSH(R(5))
+            GET_EXECUTOR(JIT_V1)
+            GET_SCOPE(JIT_V2, JIT_V1)
+            POP(JIT_V3)// key
+            POP(JIT_V4)// value
+            GET_TEMPORARY(JIT_R1)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_pushargr(JIT_V3);
+            jit_pushargr(JIT_V4);
+            jit_pushargr(JIT_R1);
+            jit_finishi(set_myjit_wrapper);
+            PUSH(JIT_R1)
             break;
         CASE(b_table_set_keep)
-            GET_EXECUTOR(R(1))
-            POP(R(2))// key
-            POP(R(3))// value
-            POP(R(4))// table
-            GET_TEMPORARY(R(5))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(4));
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(3));
-            jit_putargr(C, R(5));
-            jit_call(C, set_myjit_wrapper);
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(5));
-            jit_call(C, dereference);
-            PUSH(R(4))// push table back on stack
+            GET_EXECUTOR(JIT_V1)
+            POP(JIT_V2)// key
+            POP(JIT_V3)// value
+            POP(JIT_V4)// table
+            GET_TEMPORARY(JIT_R1)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V4);
+            jit_pushargr(JIT_V2);
+            jit_pushargr(JIT_V3);
+            jit_pushargr(JIT_R1);
+            jit_finishi(set_myjit_wrapper);
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_R1);
+            jit_finishi(dereference);
+            PUSH(JIT_V4)// push table back on stack
             break;
         CASE(b_table_set)
-            GET_EXECUTOR(R(1))
-            POP(R(2))// key
-            POP(R(3))// value
-            POP(R(4))// table
-            GET_TEMPORARY(R(5))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(4));
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(3));
-            jit_putargr(C, R(5));
-            jit_call(C, set_myjit_wrapper);
-            PUSH(R(5))// push set return value on stack
+            GET_EXECUTOR(JIT_V1)
+            POP(JIT_V2)// key
+            POP(JIT_V3)// value
+            POP(JIT_V4)// table
+            GET_TEMPORARY(JIT_R1)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V4);
+            jit_pushargr(JIT_V2);
+            jit_pushargr(JIT_V3);
+            jit_pushargr(JIT_R1);
+            jit_finishi(set_myjit_wrapper);
+            PUSH(JIT_R1)// push set return value on stack
             break;
         CASE(b_table_get)
-            GET_EXECUTOR(R(1))
-            POP(R(2))// key
-            POP(R(3))// table
-            GET_TEMPORARY(R(4))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(3));
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(4));
-            jit_call(C, get_myjit_wrapper);
-            PUSH(R(4))// push get return value on stack
+            GET_EXECUTOR(JIT_V1)
+            POP(JIT_V2)// key
+            POP(JIT_V3)// table
+            GET_TEMPORARY(JIT_V4)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V3);
+            jit_pushargr(JIT_V2);
+            jit_pushargr(JIT_V4);
+            jit_finishi(get_myjit_wrapper);
+            PUSH(JIT_V4)// push get return value on stack
             break;
         CASE(b_function_1)
-            GET_EXECUTOR(R(1))
-            PUSH_NULL(R(2))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_call(C, function_init);
-            // R(3) is a pointer to Function struct
-            jit_ldxi(C, R(3), R(2), FIELD_OFFSET(Object, fp), sizeof(Function*));
-            // R(4) is a pointer to enclosing scope
-            jit_addi(C, R(4), R(3), FIELD_OFFSET(Function, enclosing_scope));
-            GET_SCOPE(R(5), R(1))
-            MOVE_OBJECT(R(4), R(5))
-            REFERENCE(R(4))
-            // R(4) is a pointer to arguments_count
-            jit_addi(C, R(4), R(3), FIELD_OFFSET(Function, arguments_count));
-            jit_movi(C, R(5), instruction->function_argument.arguments_count);
-            jit_str(C, R(4), R(5), sizeof(uint));
-            // R(4) is a pointer to variadic
-            jit_addi(C, R(4), R(3), FIELD_OFFSET(Function, variadic));
-            jit_movi(C, R(5), instruction->function_argument.is_variadic);
-            jit_str(C, R(4), R(5), sizeof(bool));
-            // R(4) is a pointer to ftype
-            jit_addi(C, R(4), R(3), FIELD_OFFSET(Function, ftype));
-            jit_movi(C, R(5), f_bytecode);
-            jit_str(C, R(4), R(5), sizeof(FunctionType));
+            GET_EXECUTOR(JIT_V1)
+            PUSH_NULL(JIT_V2)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_finishi(function_init);
+            // JIT_V3 is a pointer to Function struct
+            jit_ldxi_l(JIT_V3, JIT_V2, FIELD_OFFSET(Object, fp));
+            // JIT_V4 is a pointer to enclosing scope
+            jit_addi(JIT_V4, JIT_V3, FIELD_OFFSET(Function, enclosing_scope));
+            GET_SCOPE(JIT_R1, JIT_V1)
+            MOVE_OBJECT(JIT_V4, JIT_R1)
+            REFERENCE(JIT_V4)
+            // JIT_V4 is a pointer to arguments_count
+            jit_addi(JIT_V4, JIT_V3, FIELD_OFFSET(Function, arguments_count));
+            jit_movi(JIT_R1, instruction->function_argument.arguments_count);
+            jit_str_i(JIT_V4, JIT_R1);
+            // JIT_V4 is a pointer to variadic
+            jit_addi(JIT_V4, JIT_V3, FIELD_OFFSET(Function, variadic));
+            jit_movi(JIT_R1, instruction->function_argument.is_variadic);
+            jit_str_i(JIT_V4, JIT_R1);
+            // JIT_V4 is a pointer to ftype
+            jit_addi(JIT_V4, JIT_V3, FIELD_OFFSET(Function, ftype));
+            jit_movi(JIT_R1, f_bytecode);
+            jit_str_i(JIT_V4, JIT_R1);
             break;
-        #define GET_PROGRAM(register) \
-            jit_getarg(C, register, 1);
         CASE(b_function_2)
             // get sub_program
-            // R(1) is pointer to current bytecode program
-            GET_PROGRAM(R(1))
-            // R(2) points to the first sub_program, R(2)=program->sub_programs[0]
-            jit_ldxi(C, R(2), R(1), FIELD_OFFSET(BytecodeProgram, sub_programs), sizeof(BytecodeProgram*));
-            // R(2) is moved by uint_argument
-            jit_ldxi(C, R(2), R(2), instruction->uint_argument*sizeof(BytecodeProgram*), sizeof(BytecodeProgram*));
+            // JIT_V1 is pointer to current bytecode program
+            GET_PROGRAM(JIT_V1)
+            // JIT_V2 points to the first sub_program, JIT_V2=program->sub_programs[0]
+            jit_ldxi_l(JIT_V2, JIT_V1, FIELD_OFFSET(BytecodeProgram, sub_programs));
+            // JIT_V2 is moved by uint_argument
+            jit_ldxi_l(JIT_V2, JIT_V2, instruction->uint_argument*sizeof(BytecodeProgram*));
 
-            INDEX_STACK(R(3), 0)
-            // R(4) is a pointer to Function struct
-            jit_ldxi(C, R(4), R(3), FIELD_OFFSET(Object, fp), sizeof(Function*));
-            // R(4) is a pointer to source_pointer field
-            jit_addi(C, R(4), R(4), FIELD_OFFSET(Function, source_pointer));
-            jit_str(C, R(4), R(2), sizeof(BytecodeProgram*));
+            INDEX_STACK(JIT_V3, 0)
+            // JIT_V4 is a pointer to Function struct
+            jit_ldxi_l(JIT_V4, JIT_V3, FIELD_OFFSET(Object, fp));
+            // JIT_V4 is a pointer to source_pointer field
+            jit_addi(JIT_V4, JIT_V4, FIELD_OFFSET(Function, source_pointer));
+            jit_str_l(JIT_V4, JIT_V2);
             // reference the program
             
-            CATCH(R(3))
-            jit_prepare(C);
-            jit_putargr(C, R(2));
-            jit_call(C, heap_object_reference);
+            CATCH(JIT_V3)
+            jit_prepare();
+            jit_pushargr(JIT_V2);
+            jit_finishi(heap_object_reference);
             break;
         CASE(b_binary)
-            GET_EXECUTOR(R(1))
-            // R(2) is operator name
-            POP(R(2))
-            POP(R(3))
-            POP(R(4))
-            // R(5) will contain text field of operator object
-            jit_ldxi(C, R(5), R(2), FIELD_OFFSET(Object, text), sizeof(char*));
-            GET_TEMPORARY(R(6))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(3));
-            jit_putargr(C, R(4));
-            jit_putargr(C, R(5));
-            jit_putargr(C, R(6));
-            jit_call(C, operator_myjit_wrapper);
-            PUSH(R(6))
+            GET_EXECUTOR(JIT_V1)
+            // JIT_V2 is operator name
+            POP(JIT_V2)
+            POP(JIT_V3)
+            POP(JIT_V4)
+            // JIT_R1 will contain text field of operator object
+            jit_ldxi_l(JIT_R1, JIT_V2, FIELD_OFFSET(Object, text));
+            GET_TEMPORARY(JIT_R2)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V3);
+            jit_pushargr(JIT_V4);
+            jit_pushargr(JIT_R1);
+            jit_pushargr(JIT_R2);
+            jit_finishi(operator_myjit_wrapper);
+            PUSH(JIT_R2)
             break;
         CASE(b_prefix)
-            GET_EXECUTOR(R(1))
-            POP(R(2))
-            POP(R(3))
-            GET_TEMPORARY(R(4))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, (jit_value)&null_const);
-            jit_putargr(C, R(3));
-            jit_putargi(C, R(2));
-            jit_putargr(C, R(4));
-            jit_call(C, operator_myjit_wrapper);
-            PUSH(R(4))
+            GET_EXECUTOR(JIT_V1)
+            POP(JIT_V2)
+            POP(JIT_V3)
+            GET_TEMPORARY(JIT_V4)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargi(&null_const);
+            jit_pushargr(JIT_V3);
+            jit_pushargi(JIT_V2);
+            jit_pushargr(JIT_V4);
+            jit_finishi(operator_myjit_wrapper);
+            PUSH(JIT_V4)
             break;
         // TODO: implement each of these in myjit
         #define BINARY(instruction, operator) \
             CASE(instruction) \
-                GET_EXECUTOR(R(1)) \
-                POP(R(2)) \
-                POP(R(3)) \
-                GET_TEMPORARY(R(4)) \
-                jit_prepare(C); \
-                jit_putargr(C, R(1)); \
-                jit_putargr(C, R(2)); \
-                jit_putargr(C, R(3)); \
-                jit_putargi(C, operator); \
-                jit_putargr(C, R(4)); \
-                jit_call(C, operator_myjit_wrapper); \
-                PUSH(R(4)) \
+                GET_EXECUTOR(JIT_V1) \
+                POP(JIT_V2) \
+                POP(JIT_V3) \
+                GET_TEMPORARY(JIT_V4) \
+                jit_prepare(); \
+                jit_pushargr(JIT_V1); \
+                jit_pushargr(JIT_V2); \
+                jit_pushargr(JIT_V3); \
+                jit_pushargi((long)operator); \
+                jit_pushargr(JIT_V4); \
+                jit_finishi(operator_myjit_wrapper); \
+                PUSH(JIT_V4) \
                 break;
         #define PREFIX(instruction, operator) \
             CASE(instruction) \
-                GET_EXECUTOR(R(1)) \
-                POP(R(2)) \
-                GET_TEMPORARY(R(3)) \
-                jit_prepare(C); \
-                jit_putargr(C, R(1)); \
-                jit_putargi(C, &null_const); \
-                jit_putargr(C, R(2)); \
-                jit_putargi(C, operator); \
-                jit_putargr(C, R(3)); \
-                jit_call(C, operator_myjit_wrapper); \
-                PUSH(R(3)) \
+                GET_EXECUTOR(JIT_V1) \
+                POP(JIT_V2) \
+                GET_TEMPORARY(JIT_V3) \
+                jit_prepare(); \
+                jit_pushargr(JIT_V1); \
+                jit_pushargi((long)&null_const); \
+                jit_pushargr(JIT_V2); \
+                jit_pushargi((long)operator); \
+                jit_pushargr(JIT_V3); \
+                jit_finishi(operator_myjit_wrapper); \
+                PUSH(JIT_V3) \
                 break;
         OPERATOR_INSTRUCTIONS
         #undef BINARY
         #undef PREFIX
         CASE(b_jump)
             // TODO: Jump back (although it isn't used in current version of bytecode generator)
-            jit_labels[instruction->uint_argument]=jit_jmpi(C, JIT_FORWARD);
+            jit_labels[instruction->uint_argument]=jit_forward();
+            jit_patch_at(jit_labels[instruction->uint_argument], jit_jmpi());
             break;
         CASE(b_jump_not)
-            POP(R(1))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_call(C, is_falsy_myjit_wrapper);
-            jit_labels[instruction->uint_argument]=jit_beqi(C, JIT_FORWARD, R_OUT, true);
+            POP(JIT_V1)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_finishi(is_falsy_myjit_wrapper);
+            jit_retval(JIT_V2);
+            jit_labels[instruction->uint_argument]=jit_forward();
+            jit_patch_at(jit_labels[instruction->uint_argument], jit_beqi(JIT_V2, true));
             break;
         CASE(b_label)
-            jit_patch(C, jit_labels[instruction->uint_argument]);
+            jit_patch(jit_labels[instruction->uint_argument]);
             break;
         CASE(b_call)
         CASE(b_tail_call)
-            GET_EXECUTOR(R(1))
-            POP(R(2))
-            INDEX_STACK(R(3), instruction->uint_argument)
-            GET_TEMPORARY(R(4))
-            jit_prepare(C);
-            jit_putargr(C, R(1));
-            jit_putargr(C, R(2));
-            jit_putargr(C, R(3));
-            jit_putargi(C, instruction->uint_argument);
-            jit_putargr(C, R(4));
-            jit_call(C, call_myjit_wrapper);
-            DEREFERENCE(R(2), R(5))
-            PUSH(R(4))
+            GET_EXECUTOR(JIT_V1)
+            POP(JIT_V2)
+            INDEX_STACK(JIT_V3, instruction->uint_argument)
+            GET_TEMPORARY(JIT_V4)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(JIT_V2);
+            jit_pushargr(JIT_V3);
+            jit_pushargi(instruction->uint_argument);
+            jit_pushargr(JIT_V4);
+            jit_finishi(call_myjit_wrapper);
+            DEREFERENCE(JIT_V2, JIT_R1)
+            PUSH(JIT_V4)
             if(instruction->type==b_call) {
                 break;
             }
             // intentional fallthrough if instruction is of type b_tail_call
         CASE(b_end)
         CASE(b_return)
-            jit_reti(C, 0);
+            jit_reti(0);
             break;
         default:
             THROW_ERROR(BYTECODE_ERROR, "Don't know how to compile instruction %s.", INSTRUCTION_NAMES[instruction->type]);
@@ -496,38 +511,48 @@ void instruction_to_myjit(Executor* E, struct jit * C, Instruction* instruction,
 }
 
 void compile_bytecode_program(Executor* E, BytecodeProgram* program){
-    #ifdef HAS_MYJIT
+    
     //creates a new instance of the compiler and ask it to assign result to program->compiled
-    struct jit * C = jit_init();
-    jit_prolog(C, &program->compiled);
+    
+    init_jit(program->source_file_name);
+    _jit = jit_new_state();
 
-    jit_declare_arg(C, JIT_PTR, sizeof(Executor*));
-    jit_declare_arg(C, JIT_PTR, sizeof(BytecodeProgram*));
-    jit_declare_arg(C, JIT_PTR, sizeof(Object*));
+    jit_note(__FILE__, __LINE__);
+    jit_prolog();
+    
+    // TODO: pass them to instruction_to_myjit
+    jit_node_t* executor_argument=jit_arg();
+    jit_node_t* program_argument=jit_arg();
 
     // allocate space for one object on the stack frame, it is used by some operations
-    int temporary_offset=jit_allocai(C, sizeof(Object));
+    int temporary_offset=jit_allocai(sizeof(Object));
 
-    jit_getarg(C, R(1), 0);// get executor to R1
-    jit_addi(C, OBJECT_STACK_REGISTER, R(1), (long unsigned)&E->stack-(long unsigned)E);// get object_stack to OBJECT_STACK_REGISTER
-    
-    jit_prepare(C);
-    jit_putargi(C, "<Executing MyJIT function>\n");
-    jit_call(C, printf);
+    jit_getarg(JIT_V1, executor_argument);// get executor to R1
+    jit_addi(OBJECT_STACK_REGISTER, JIT_V1, (long unsigned)&E->stack-(long unsigned)E);// get object_stack to OBJECT_STACK_REGISTER
 
-    jit_op** jit_labels=malloc(sizeof(jit_op*)*program->labels_count);
+    PRINT("-- lightning function begin\n")
+
+    jit_node_t** jit_labels=malloc(sizeof(jit_node_t*)*program->labels_count);
     for(int i=0; true; i++) {
-        instruction_to_myjit(E, C, &program->code[i], temporary_offset, jit_labels);
+        instruction_to_myjit(E, &program->code[i], temporary_offset,
+                             executor_argument, program_argument, jit_labels);
         if(program->code[i].type==b_end){
             break;
         }
     }
+    /*for(int i=0; i<program->labels_count; i++){
+        jit_link(jit_labels[i]);
+    }*/
     free(jit_labels);
 
-    jit_generate_code(C);
-    // jit_dump_ops(C, JIT_DEBUG_OPS);
-    jit_check_code(C, JIT_WARN_ALL);
+    jit_epilog();
+    jit_note(__FILE__, __LINE__);
+    program->compiled=jit_emit();
 
-    jit_free(C);
-    #endif
+    //jit_destroy_state();
+    finish_jit();
 }
+#else
+void compile_bytecode_program(Executor* E, BytecodeProgram* program){}
+
+#endif

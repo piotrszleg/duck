@@ -1,2 +1,2 @@
-Set=import("../scripts/standard_library/set.dk")
-Set([1, 2])
+add=(a, b)->a+b
+add(2, 5)

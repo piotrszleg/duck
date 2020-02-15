@@ -1,7 +1,6 @@
 submodules := object_system/object_system.a parser/parser.a
 
 source-files := \
-	myjit/jitlib-core.c \
 	$(shell find . \
 		! -name "tests.c" \
 		! -name "main.c" \
@@ -12,7 +11,7 @@ source-files := \
 
 build-folder := ../build
 
-options := -g3 -gdwarf-2 -Wall -Wl,--out-implib,$(build-folder)/libhost.a #-DDEBUGGING
+options :=  -llightning -g3 -gdwarf-2 -Wall -Wl,--out-implib,$(build-folder)/libhost.a #-DDEBUGGING
 ifneq ($(OS),Windows_NT)
 	options:=$(options) -ldl
 endif
