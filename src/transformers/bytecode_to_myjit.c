@@ -31,6 +31,7 @@ bool is_falsy_myjit_wrapper(Object* o){
     return is_falsy(*o);
 }
 
+// used for inspecting objects in debugger
 int catch_in_gdb(Object* o){
    return o->int_value;
 }
@@ -43,18 +44,18 @@ int catch_in_gdb(Object* o){
 void instruction_to_myjit(Executor* E, 
                           Instruction* instruction, 
                           int temporary_offset,
-                          jit_node_t* executor_argument,
-                          jit_node_t* program_argument, 
+                          int executor_offset,
+                          int program_offset, 
                           jit_node_t** jit_labels) {
     
     #define GET_TEMPORARY(register) \
         jit_addi(register, JIT_FP, temporary_offset);
     
     #define GET_EXECUTOR(register) \
-        jit_getarg(register, executor_argument);
+        jit_ldxi_l(register, JIT_FP, executor_offset);
 
     #define GET_PROGRAM(register) \
-        jit_getarg(register, program_argument);
+        jit_ldxi_l(register, JIT_FP, program_offset);
 
     // TODO: reference/dereference
     #define POP(register) \
@@ -393,7 +394,6 @@ void instruction_to_myjit(Executor* E,
             jit_str_l(JIT_V4, JIT_V2);
             // reference the program
             
-            CATCH(JIT_V3)
             jit_prepare();
             jit_pushargr(JIT_V2);
             jit_finishi(heap_object_reference);
@@ -520,22 +520,27 @@ void compile_bytecode_program(Executor* E, BytecodeProgram* program){
     jit_note(__FILE__, __LINE__);
     jit_prolog();
     
-    // TODO: pass them to instruction_to_myjit
-    jit_node_t* executor_argument=jit_arg();
-    jit_node_t* program_argument=jit_arg();
-
     // allocate space for one object on the stack frame, it is used by some operations
     int temporary_offset=jit_allocai(sizeof(Object));
+    int executor_offset=jit_allocai(sizeof(Executor*));
+    int program_offset=jit_allocai(sizeof(BytecodeProgram*));
 
-    jit_getarg(JIT_V1, executor_argument);// get executor to R1
-    jit_addi(OBJECT_STACK_REGISTER, JIT_V1, (long unsigned)&E->stack-(long unsigned)E);// get object_stack to OBJECT_STACK_REGISTER
+    #define WRITE_ARGUMENT(argument_register, allocated_register, offset) \
+        jit_getarg(argument_register, jit_arg()); \
+        jit_addi(allocated_register, JIT_FP, offset); \
+        jit_str_l(allocated_register, argument_register); \
+
+    WRITE_ARGUMENT(JIT_V1, JIT_V2, executor_offset)
+    jit_ldr_l(OBJECT_STACK_REGISTER, JIT_V2);// get object_stack to OBJECT_STACK_REGISTER
+    jit_addi(OBJECT_STACK_REGISTER, OBJECT_STACK_REGISTER, FIELD_OFFSET(Executor, stack));
+    WRITE_ARGUMENT(JIT_V1, JIT_V2, program_offset)
 
     PRINT("-- lightning function begin\n")
 
     jit_node_t** jit_labels=malloc(sizeof(jit_node_t*)*program->labels_count);
     for(int i=0; true; i++) {
         instruction_to_myjit(E, &program->code[i], temporary_offset,
-                             executor_argument, program_argument, jit_labels);
+                             executor_offset, program_offset, jit_labels);
         if(program->code[i].type==b_end){
             break;
         }
