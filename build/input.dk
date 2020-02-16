@@ -1,2 +1,2 @@
-add=x->print(x+x)
+add=x->format("({}) {}", x+x, x)
 add(10)

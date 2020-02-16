@@ -89,7 +89,7 @@ void instruction_to_myjit(Executor* E,
         jit_finishi(vector_top); \
         jit_retval_l(register); \
         if(index>0){ \
-            jit_subi(register, register, index*sizeof(Object)); \
+            jit_subi(register, register, (index)*sizeof(Object)); \
         } else { \
             jit_retval(register); \
         }
@@ -479,7 +479,7 @@ void instruction_to_myjit(Executor* E,
         CASE(b_tail_call)
             GET_EXECUTOR(JIT_V1)
             POP(JIT_V2)
-            INDEX_STACK(JIT_V3, instruction->uint_argument-1)
+            INDEX_STACK(JIT_V3, (int)instruction->uint_argument-1)
             GET_TEMPORARY(JIT_V4)
             jit_prepare();
             jit_pushargr(JIT_V1);
