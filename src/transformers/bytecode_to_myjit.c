@@ -182,12 +182,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(OBJECT_STACK_REGISTER);
             jit_finishi(vector_top);
             jit_retval(JIT_V2);
-            // memcpy(JIT_V1, JIT_V2, sizeof(Object))
-            jit_prepare();
-            jit_pushargr(JIT_V1);
-            jit_pushargr(JIT_V2);
-            jit_pushargi(sizeof(Object));
-            jit_finishi(memcpy);
+            MOVE_OBJECT(JIT_V1, JIT_V2)
             // push copied object back to stack
             PUSH(JIT_V1)
             break;
@@ -484,7 +479,7 @@ void instruction_to_myjit(Executor* E,
         CASE(b_tail_call)
             GET_EXECUTOR(JIT_V1)
             POP(JIT_V2)
-            INDEX_STACK(JIT_V3, instruction->uint_argument)
+            INDEX_STACK(JIT_V3, instruction->uint_argument-1)
             GET_TEMPORARY(JIT_V4)
             jit_prepare();
             jit_pushargr(JIT_V1);

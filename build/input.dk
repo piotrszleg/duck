@@ -1,2 +1,2 @@
-add=x->"test"+x
+add=x->print(x+x)
 add(10)
