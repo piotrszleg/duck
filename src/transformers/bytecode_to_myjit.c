@@ -31,6 +31,13 @@ bool is_falsy_myjit_wrapper(Object* o){
     return is_falsy(*o);
 }
 
+void stack_remove_items(Executor* E, vector* stack, int count){
+    for(int i=0; i<count; i++){
+        Object o=objects_vector_pop(stack);
+        dereference(E, &o);
+    }
+}
+
 // used for inspecting objects in debugger
 int catch_in_gdb(Object* o){
    return o->int_value;
@@ -133,7 +140,6 @@ void instruction_to_myjit(Executor* E,
         jit_addi(register, executor, FIELD_OFFSET(Executor, scope));
 
     bool debug=true;
-    
     #define CASE(instruction) \
         case instruction: \
             if(debug) { \
@@ -345,7 +351,7 @@ void instruction_to_myjit(Executor* E,
             jit_finishi(get_myjit_wrapper);
             PUSH(JIT_V4)// push get return value on stack
             break;
-        CASE(b_function_1)
+        CASE(b_function_1)b_func
             GET_EXECUTOR(JIT_V1)
             PUSH_NULL(JIT_V2)
             jit_prepare();
@@ -478,7 +484,9 @@ void instruction_to_myjit(Executor* E,
         CASE(b_call)
         CASE(b_tail_call)
             GET_EXECUTOR(JIT_V1)
+            // pop callable
             POP(JIT_V2)
+            // get pointer to arguments
             INDEX_STACK(JIT_V3, (int)instruction->uint_argument-1)
             GET_TEMPORARY(JIT_V4)
             jit_prepare();
@@ -488,7 +496,12 @@ void instruction_to_myjit(Executor* E,
             jit_pushargi(instruction->uint_argument);
             jit_pushargr(JIT_V4);
             jit_finishi(call_myjit_wrapper);
-            DEREFERENCE(JIT_V2, JIT_R1)
+            DEREFERENCE(JIT_V2, JIT_V1)
+            jit_prepare();
+            jit_pushargr(JIT_V1);
+            jit_pushargr(OBJECT_STACK_REGISTER);
+            jit_pushargi(instruction->uint_argument);
+            jit_finishi(stack_remove_items);
             PUSH(JIT_V4)
             if(instruction->type==b_call) {
                 break;
@@ -496,7 +509,7 @@ void instruction_to_myjit(Executor* E,
             // intentional fallthrough if instruction is of type b_tail_call
         CASE(b_end)
         CASE(b_return)
-            jit_reti(0);
+            jit_ret();
             break;
         default:
             THROW_ERROR(BYTECODE_ERROR, "Don't know how to compile instruction %s.", INSTRUCTION_NAMES[instruction->type]);
