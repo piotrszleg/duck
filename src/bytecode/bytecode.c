@@ -77,32 +77,34 @@ int pushes_to_stack(Instruction instr){
 }
 #undef X
 
+#define THESE return false // writting return false would look confusing in functions
 #define X(i) || instr==i
 bool changes_flow(InstructionType instr){
-    return false
+    THESE
     X(b_jump)
     X(b_jump_not);
 }
 bool finishes_program(InstructionType instr){
-    return false
+    THESE
     X(b_end)
     X(b_return)
     X(b_tail_call);
 }
 bool carries_stack(InstructionType instr){
-    return false
+    THESE
     X(b_jump_not)
     X(b_jump)
     X(b_label);
 }
 bool instruction_is_literal(InstructionType instr){
-    return false
+    THESE
     X(b_load_float)
     X(b_load_int)
     X(b_load_string)
     X(b_null)
     X(b_function_2);
 }
+#undef THESE
 #undef X
 
 int find_label(Instruction* code, int index){
