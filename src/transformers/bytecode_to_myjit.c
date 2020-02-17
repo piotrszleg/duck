@@ -351,7 +351,7 @@ void instruction_to_myjit(Executor* E,
             jit_finishi(get_myjit_wrapper);
             PUSH(JIT_V4)// push get return value on stack
             break;
-        CASE(b_function_1)b_func
+        CASE(b_function_1)
             GET_EXECUTOR(JIT_V1)
             PUSH_NULL(JIT_V2)
             jit_prepare();
