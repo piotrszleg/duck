@@ -8,3 +8,4 @@ runtime/struct_descriptor_notes.txt
 data/records.txt
 input
 valgrind_output.txt
+*.html

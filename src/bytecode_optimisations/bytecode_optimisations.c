@@ -1,21 +1,5 @@
 #include "bytecode_optimisations.h"
 
-#define LOG_IF_ENABLED(message, ...) \
-    if(print_optimisations){ \
-        printf(message, ##__VA_ARGS__); \
-    }
-
-void log_finding(BytecodeManipulation* manipulation, char* message, int instruction_index){
-    if(manipulation->print_optimisations){
-        printf("%s", message);
-        highlight_instructions(
-            vector_get_data(manipulation->instructions), 
-            vector_get_data(manipulation->constants), 
-            '>', instruction_index-1, instruction_index
-        );
-    }
-}
-
 bool is_instruction_of_type(vector* instructions, uint index, InstructionType expected_type){
     return vector_index_instruction(instructions, index)->type==expected_type;
 }
@@ -82,13 +66,11 @@ void optimise_get_instructions(Executor* E,
             }
         }
         if(is_compatible_get(manipulation, set_location, get_search)){
-            log_finding(manipulation, "Found a corresponding get instruction", get_search);
+            begin_recording_change(manipulation, "Removing get instruction.", (int[]){set_location, get_search, -1});
             if(first_get_removal){
-                LOG_IF_ENABLED("Removing discard instruction after set:\n");
                 fill_with_no_op(manipulation, set_location+1, set_location+1);
                 first_get_removal=false;
             } else{
-                LOG_IF_ENABLED("Adding double instruction after set:\n");
                 Dummy* doubled=vector_index_transformation(transformations, set_location)->outputs[0];
                 if(insert_double(manipulation, set_location+1, doubled)) {
                     get_search=bytecode_iterator_next(&bytecode_iterator, vector_get_data(instructions));// skip inserted instruction
@@ -100,6 +82,7 @@ void optimise_get_instructions(Executor* E,
             fill_with_no_op(manipulation, get_search-1, get_search);
             replace_dummies_in_transformations(manipulation, to_replace, vector_index_transformation(transformations, set_location)->outputs[0]);
             heap_object_dereference(E, (HeapObject*)to_replace);
+            end_recording_change(manipulation);
         }
     }
 }
@@ -115,10 +98,9 @@ void variable_lookup_optimisation(
     bool print_optimisations) {
     for(int set_search=vector_count(instructions)-1; set_search>=1; set_search--){
         if(is_optimisable_set(instructions, set_search)){
-            log_finding(manipulation, "Found a set instruction", set_search);
             optimise_get_instructions(E, manipulation, instructions, transformations, constants, set_search, print_optimisations);
             // the variable isn't used in it's own scope and in any closure, so the set instruction can be removed
-            LOG_IF_ENABLED("Removing set Instruction:\n");
+            begin_recording_change(manipulation, "Removing useless set instruction.", (int[]){set_search, -1});
             Dummy* to_replace=vector_index_transformation(transformations, set_search)->outputs[0];
             dummy_reference(to_replace);
             Dummy* replacing=vector_index_transformation(transformations, set_search)->inputs[1];
@@ -128,6 +110,7 @@ void variable_lookup_optimisation(
             replace_dummies_in_transformations(manipulation, to_replace, replacing);
             heap_object_dereference(E, (HeapObject*)to_replace);
             heap_object_dereference(E, (HeapObject*)replacing);
+            end_recording_change(manipulation);
         }
     }
 }
@@ -248,7 +231,7 @@ bool remove_useless_operations(BytecodeManipulation* manipulation, vector* instr
                 && instruction_is_constant(vector_index_instruction(instructions, producer_index), 
                                            vector_index_transformation(transformations, producer_index))
                 ) {
-                log_finding(manipulation, "Found an operation which result is immediately discarded.", producer_index);
+                begin_recording_change(manipulation, "Removing operation which result is immediately discarded", (int[]){producer_index, -1});
                 // discard inputs to the producer if it's not a double instruction
                 if(!is_instruction_of_type(instructions, producer_index, b_double)){
                     uint instructions_written=discard_transformation_inputs(manipulation, producer_index);
@@ -258,6 +241,7 @@ bool remove_useless_operations(BytecodeManipulation* manipulation, vector* instr
                 // remove producer and discard instruction
                 fill_with_no_op(manipulation, producer_index, producer_index);
                 fill_with_no_op(manipulation, pointer, pointer);
+                end_recording_change(manipulation);
                 return true;
             } else {
                 return false;
@@ -285,9 +269,10 @@ bool fold_constants(
     && instruction_is_constant(instruction, transformation)
     ){
         if(constant_dummy_to_bytecode(manipulation->executor, transformation->outputs[0], *pointer+1, instructions, transformations, constants)){
-            LOG_IF_ENABLED("Replacing operation %s with it's result:\n", INSTRUCTION_NAMES[instruction->type])
+            begin_recording_change(manipulation, "Replacing instruction with its result", (int[]){*pointer, -1});
             (*pointer)+=discard_transformation_inputs(manipulation, *pointer);
             fill_with_no_op(manipulation, *pointer, *pointer);
+            end_recording_change(manipulation);
             return true;
         }
     }
@@ -316,7 +301,9 @@ bool typed_instructions(vector* instructions, vector* transformations, int point
     #define PREFIX_VARIANT(base_instruction, type_name) \
         if(vector_index_instruction(instructions, pointer)->type==base_instruction \
         && dummy_type(vector_index_transformation(transformations, pointer)->inputs[0])==t_##type_name){ \
+            begin_recording_change(manipulation, (int[]){pointer, -1}); \
             vector_index_instruction(instructions, pointer)->type==base_instruction##_##type_name; \
+            end_recording_change(manipulation); \
             return true; \
         }
     OPERATOR_VARIANT(b_minus, int)
@@ -607,11 +594,6 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
         IF_DEBUGGING(assert_flow_chart_correctness(&provided, &stack, &transformations))
     generate_flow_chart(E, &provided, &stack, program, &transformations, &dummy_objects_counter);
     CHECK
-    if(print_optimisations){
-        printf("Deduced flow chart:\n");
-        print_transformations(vector_get_data(&instructions), vector_get_data(&transformations));
-        printf("\n");
-    }
 
     // step 2: perform optimisations
 
@@ -624,6 +606,8 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     manipulation.dummy_objects_counter=&dummy_objects_counter;
     manipulation.program=program;
     manipulation.print_optimisations=print_optimisations;
+
+    initialize_recording(&manipulation);
 
     // remove swap instructions because they are only making code more confusing and prevent some optimisations
     // they will be readded later in the most optimal way
@@ -671,24 +655,17 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
     discard_excess_objects(&manipulation, &stack);
     CHECK
 
-    if(print_optimisations){
-        printf("Disconnected flow chart:\n");
-        print_transformations(vector_get_data(&instructions), vector_get_data(&transformations));
-        printf("\n");
-    }
-
+    begin_recording_change(&manipulation, "Adding swap instructions.", NULL);
     add_swaps(&manipulation, &provided, &stack, &instructions, &transformations);
-    
+    end_recording_change(&manipulation);
+
     CHECK
 
     remove_no_ops(E, &instructions, &informations, &transformations);
 
     CHECK
 
-    if(print_optimisations){
-        printf("\nFinal flow chart:\n");
-        print_transformations(vector_get_data(&instructions), vector_get_data(&transformations));
-    }
+    finish_recording(&manipulation);
 
     // cleanup and moving data back from vectors to BytecodeProgram
     while(!vector_empty(&provided)){
@@ -709,5 +686,3 @@ void optimise_bytecode(Executor* E, BytecodeProgram* program, bool print_optimis
 
     #undef FILL_WITH_NO_OP
 }
-
-#undef LOG_IF_ENABLED

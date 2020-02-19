@@ -12,6 +12,7 @@
 #include "bytecode_optimisation_utility.h"
 #include "bytecode_manipulation.h"
 #include "function_inlining.h"
+#include "record_changes.h"
 
 void optimise_bytecode(Executor* E, BytecodeProgram* prog, bool print_optimisations);
 

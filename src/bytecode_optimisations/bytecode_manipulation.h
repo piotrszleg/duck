@@ -7,6 +7,7 @@
 #include "transformation.h"
 #include "bytecode_optimisation_utility.h"
 #include "predict_instruction_output.h"
+#include "stdio.h"
 
 typedef struct {
     BytecodeProgram* program;
@@ -17,6 +18,7 @@ typedef struct {
     vector* informations;
     bool print_optimisations;
     unsigned* dummy_objects_counter;
+    FILE* output_file;
 } BytecodeManipulation;
 
 

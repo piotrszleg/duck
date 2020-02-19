@@ -90,27 +90,23 @@ bool instruction_is_constant(Instruction* instruction, Transformation* transform
     }
 }
 
-static void print_dummies(Dummy** dummies, uint dummies_count){
+static void print_dummies(FILE* output, Dummy** dummies, uint dummies_count){
     for(int i=0; i<dummies_count; i++){
         if(i!=0){
-            printf(", ");
+            fprintf(output, ", ");
         }
-        dummy_print(dummies[i]);
-        IF_DEBUGGING(printf("#%i", dummies[i]->mp.hp.ref_count))
+        dummy_print(output, dummies[i]);
+        IF_DEBUGGING(fprintf("#%i", dummies[i]->mp.hp.ref_count))
     }
 }
 
-void print_transformations(Instruction* instructions, Transformation* transformations){
-    printf("Instructions transformations:\n");
-    unsigned instructions_count=count_instructions(instructions)+1;
-    for(int p=0; p<instructions_count; p++){
-        printf("%s (", INSTRUCTION_NAMES[instructions[p].type]);
-        print_dummies(transformations[p].inputs, transformations[p].inputs_count);
-        printf(")");
-        printf("->(");
-        print_dummies(transformations[p].outputs, transformations[p].outputs_count);
-        printf(")\n");
-    }
+void print_transformation(FILE* output, Instruction* instruction, Transformation* transformation){
+    fprintf(output, "%s (", INSTRUCTION_NAMES[instruction->type]);
+    print_dummies(output, transformation->inputs, transformation->inputs_count);
+    fprintf(output, ")");
+    fprintf(output, "->(");
+    print_dummies(output, transformation->outputs, transformation->outputs_count);
+    fprintf(output, ")\n");
 }
 
 // true on success

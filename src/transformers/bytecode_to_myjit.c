@@ -45,7 +45,7 @@ int catch_in_gdb(Object* o){
 
 #define PRINT(message) \
     jit_prepare(); \
-    jit_pushargi(message); \
+    jit_pushargi((long)message); \
     jit_finishi(printf);
 
 void instruction_to_myjit(Executor* E, 
@@ -424,7 +424,7 @@ void instruction_to_myjit(Executor* E,
             GET_TEMPORARY(JIT_V4)
             jit_prepare();
             jit_pushargr(JIT_V1);
-            jit_pushargi(&null_const);
+            jit_pushargi((long)&null_const);
             jit_pushargr(JIT_V3);
             jit_pushargi(JIT_V2);
             jit_pushargr(JIT_V4);

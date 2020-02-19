@@ -111,35 +111,35 @@ bool dummy_contains(const Dummy* a, const Dummy* b){
     }
 }
 
-static void print_id(unsigned int n){
+static void print_id(FILE* output, unsigned int n){
     int interval='Z'-'A';
     do{
-        printf("%c", 'A'+n%interval);
+        fprintf(output, "%c", 'A'+n%interval);
         n/=interval;
     } while(n);
 }
 
-void dummy_print(const Dummy* dummy){
+void dummy_print(FILE* output, const Dummy* dummy){
     switch(dummy->type){
         case d_any:
-            printf("any");
+            fprintf(output, "any");
             break;
         case d_any_type:
-            print_id(dummy->id);
+            print_id(output, dummy->id);
             break;
         case d_known_type:
             printf("(%s)", get_type_name(dummy->known_type));
-            print_id(dummy->id);
+            print_id(output, dummy->id);
             break;
         case d_constant:
             USING_STRING(stringify_object(NULL, dummy->constant_value),
-                printf("%s", str));
+                fprintf(output, "%s", str));
             break;
         case d_or:
             printf("(");
-            dummy_print(dummy->or.left);
+            dummy_print(output, dummy->or.left);
             printf(" or ");
-            dummy_print(dummy->or.right);
+            dummy_print(output, dummy->or.right);
             printf(")");
             break;
         default:

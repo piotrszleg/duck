@@ -2,4 +2,3 @@ test=(name, assertion)->{
     print("TEST: "+name)
     assertion()
     print("test successful")}
-test("test helper function", ->assert(1))

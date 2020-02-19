@@ -40,7 +40,7 @@ ObjectType dummy_type(const Dummy* dummy);
 bool dummies_equal(const Dummy* a, const Dummy* b);
 bool dummies_compatible(const Dummy* a, const Dummy* b);
 bool dummy_contains(const Dummy* a, const Dummy* b);
-void dummy_print(const Dummy* dummy);
+void dummy_print(FILE* output, const Dummy* dummy);
 // returns true if replacement happened
 bool dummy_replace(Executor* E, Dummy** dummy, Dummy* to_replace, Dummy* replacement);
 void dummy_reference(Dummy* dummy);
