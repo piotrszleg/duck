@@ -90,25 +90,6 @@ bool instruction_is_constant(Instruction* instruction, Transformation* transform
     }
 }
 
-static void print_dummies(FILE* output, Dummy** dummies, uint dummies_count){
-    for(int i=0; i<dummies_count; i++){
-        if(i!=0){
-            fprintf(output, ", ");
-        }
-        dummy_print(output, dummies[i]);
-        IF_DEBUGGING(fprintf("#%i", dummies[i]->mp.hp.ref_count))
-    }
-}
-
-void print_transformation(FILE* output, Instruction* instruction, Transformation* transformation){
-    fprintf(output, "%s (", INSTRUCTION_NAMES[instruction->type]);
-    print_dummies(output, transformation->inputs, transformation->inputs_count);
-    fprintf(output, ")");
-    fprintf(output, "->(");
-    print_dummies(output, transformation->outputs, transformation->outputs_count);
-    fprintf(output, ")\n");
-}
-
 // true on success
 bool constant_dummy_to_bytecode(Executor* E, Dummy* constant_dummy, unsigned position, vector* instructions, vector* transformations, vector* constants){
     Object object=constant_dummy->constant_value;

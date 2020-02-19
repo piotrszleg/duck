@@ -1,0 +1,34 @@
+body {
+    background-color:lightslategray;
+    margin-bottom:100px;
+}
+
+.before {
+    float: left;
+    width: 50%;
+}
+
+.after {
+    float: right;
+    width: 50%;
+}
+
+.panel {
+    width:100%;
+}
+
+.highlighted {
+    background-color:rgba(255, 255, 0, 0.6);
+}
+
+.add {
+    background-color:rgba(0, 128, 0, 0.6);
+}
+
+.replace {
+    background-color:rgba(0, 0, 255, 0.6);
+}
+
+.remove {
+    background-color:rgba(255, 0, 0, 0.6);
+}

@@ -17,10 +17,10 @@ typedef struct {
     vector* constants;
     vector* informations;
     bool print_optimisations;
-    unsigned* dummy_objects_counter;
+    uint* dummy_objects_counter;
     FILE* output_file;
+    vector/*<Change>*/ changes;
 } BytecodeManipulation;
-
 
 void remove_no_ops(Executor* E, vector* instructions, vector* informations, vector* transformations);
 void replace_dummies_in_transformations(BytecodeManipulation* manipulation, Dummy* to_replace, Dummy* replacement);
@@ -29,5 +29,7 @@ void fill_with_no_op(BytecodeManipulation* manipulation, unsigned start, unsigne
 bool insert_instruction(BytecodeManipulation* manipulation, unsigned index, Instruction* instruction, Transformation* transformation);
 bool insert_discard(BytecodeManipulation* manipulation, Dummy* discard_input, uint index);
 uint discard_transformation_inputs(BytecodeManipulation* manipulation, uint transformation_index);
+
+#include "record_changes.h"
 
 #endif

@@ -11,7 +11,6 @@ Assumption* get_argument_assumption(BytecodeProgram* program, unsigned index);
 Assumption* get_upvalue_assumption(BytecodeProgram* program, Object identifier);
 Dummy* assumption_to_dummy(Executor* E, Assumption* assumption, unsigned* dummy_objects_counter);
 bool instruction_is_constant(Instruction* instruction, Transformation* transformation);
-void print_transformation(FILE* output, Instruction* instruction, Transformation* transformation);
 
 // true on success
 bool constant_dummy_to_bytecode(Executor* E, 

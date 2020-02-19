@@ -62,12 +62,19 @@ void replace_dummies_in_transformations(BytecodeManipulation* manipulation, Dumm
 }
 
 void fill_with_no_op(BytecodeManipulation* manipulation, unsigned start, unsigned end) {
-    if(manipulation->print_optimisations){
-        highlight_instructions(vector_get_data(manipulation->instructions), vector_get_data(manipulation->constants), '-', start, end);
-    }
     for(int i=start; i<=end; i++) {
+        add_change(manipulation, ct_remove, i);
         transformation_deinit(manipulation->executor, vector_index_transformation(manipulation->transformations, i));
         vector_index_instruction(manipulation->instructions, i)->type=b_no_op;
+    }
+}
+
+void move_changes_forward(BytecodeManipulation* manipulation, int starting_index){
+    for(int i=0; i<vector_count(&manipulation->changes); i++){
+        Change* change=vector_index(&manipulation->changes, i);
+        if(change->line>=starting_index){
+            change->line++;
+        }
     }
 }
 
@@ -76,12 +83,15 @@ bool insert_instruction(BytecodeManipulation* manipulation, unsigned index, Inst
     if(vector_index_instruction(manipulation->instructions, index)->type==b_no_op) {
         *vector_index_instruction(manipulation->instructions, index)=*instruction;
         *vector_index_transformation(manipulation->transformations, index)=*transformation;
+        add_change(manipulation, ct_replace, index);
         return false;
     } else {
         vector_insert(manipulation->instructions, index, instruction);
         vector_insert(manipulation->transformations, index, transformation);
         // copy information from previous instruction
         vector_insert(manipulation->informations, index, vector_index(manipulation->informations, index-1));
+        move_changes_forward(manipulation, index);
+        add_change(manipulation, ct_add, index);
         return true;
     }
     if(manipulation->print_optimisations){
