@@ -28,7 +28,9 @@ static void print_dummies(FILE* output, Dummy** dummies, uint dummies_count){
         if(i!=0){
             fprintf(output, ", ");
         }
+        fprintf(output, "<span class=\"dummy\">");
         dummy_print(output, dummies[i]);
+        fprintf(output, "</span>");
         IF_DEBUGGING(fprintf(output, "#%i", dummies[i]->mp.hp.ref_count))
     }
     if(dummies_count>1){
@@ -55,8 +57,14 @@ static void print_transformations(BytecodeManipulation* manipulation){
 void initialize_recording(BytecodeManipulation* manipulation){
     vector_init(&manipulation->changes, sizeof(Change), 4);
     USING_STRING(suprintf("output/%#x.html",  manipulation->program),
-        manipulation->output_file=fopen(str, "w"));
-    fprintf(manipulation->output_file, "<head><link rel=\"stylesheet\" href=\"style.css\"></head><body>");
+        manipulation->output_file=fopen(str, "w");
+        printf("Outputting changes to build/%s\n", str);
+    );
+    fprintf(manipulation->output_file, 
+    "<head>"
+        "<link rel=\"stylesheet\" href=\"style.css\">"
+        "<script src=\"index.js\"></script>"
+    "</head><body>");
     fprintf(manipulation->output_file, "<div class=\"panel\">");
     fprintf(manipulation->output_file, "<h1 class=\"title\">Before optimisations</h1>");
     fprintf(manipulation->output_file,   "<pre class=\"code\">");
