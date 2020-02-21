@@ -69,15 +69,6 @@ void fill_with_no_op(BytecodeManipulation* manipulation, unsigned start, unsigne
     }
 }
 
-void move_changes_forward(BytecodeManipulation* manipulation, int starting_index){
-    for(int i=0; i<vector_count(&manipulation->changes); i++){
-        Change* change=vector_index(&manipulation->changes, i);
-        if(change->line>=starting_index){
-            change->line++;
-        }
-    }
-}
-
 // returns true if the result is inserting the instrcution and not changing b_no_op to it
 bool insert_instruction(BytecodeManipulation* manipulation, unsigned index, Instruction* instruction, Transformation* transformation) {
     if(vector_index_instruction(manipulation->instructions, index)->type==b_no_op) {

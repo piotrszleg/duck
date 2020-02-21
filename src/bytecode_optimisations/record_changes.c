@@ -54,7 +54,10 @@ static void print_transformations(BytecodeManipulation* manipulation){
     }
 }
 
+#define ONLY_IF_PRINTING if(!manipulation->print_optimisations) return;
+
 void initialize_recording(BytecodeManipulation* manipulation){
+    ONLY_IF_PRINTING
     vector_init(&manipulation->changes, sizeof(Change), 4);
     USING_STRING(suprintf("output/%#x.html",  manipulation->program),
         manipulation->output_file=fopen(str, "w");
@@ -73,6 +76,7 @@ void initialize_recording(BytecodeManipulation* manipulation){
     fprintf(manipulation->output_file, "</div>");
 }
 void finish_recording(BytecodeManipulation* manipulation){
+    ONLY_IF_PRINTING
     fprintf(manipulation->output_file, "<div class=\"panel\">");
     fprintf(manipulation->output_file, "<h1 class=\"title\">Final</h1>");
     fprintf(manipulation->output_file,   "<pre class=\"code\">");
@@ -85,6 +89,7 @@ void finish_recording(BytecodeManipulation* manipulation){
 }
 
 void begin_recording_change(BytecodeManipulation* manipulation, char* name, int* highlighted_lines){
+    ONLY_IF_PRINTING
     vector_clear(&manipulation->changes);
     fprintf(manipulation->output_file, "<div class=\"change panel\">");
     fprintf(manipulation->output_file,   "<h1 class=\"title\">%s</h1>", name);
@@ -111,10 +116,21 @@ void begin_recording_change(BytecodeManipulation* manipulation, char* name, int*
     fprintf(manipulation->output_file,   "</pre>");
 }
 void add_change(BytecodeManipulation* manipulation, ChangeType type, uint line){
+    ONLY_IF_PRINTING
     Change change={.type=type, .line=line};
     vector_push(&manipulation->changes, &change);
 }
+void move_changes_forward(BytecodeManipulation* manipulation, int starting_index){
+    ONLY_IF_PRINTING
+    for(int i=0; i<vector_count(&manipulation->changes); i++){
+        Change* change=vector_index(&manipulation->changes, i);
+        if(change->line>=starting_index){
+            change->line++;
+        }
+    }
+}
 void end_recording_change(BytecodeManipulation* manipulation){
+    ONLY_IF_PRINTING
     fprintf(manipulation->output_file,   "<pre class=\"after code\">");
     for(int i=0; i<vector_count(manipulation->transformations); i++){
         const char* change_type=NULL;

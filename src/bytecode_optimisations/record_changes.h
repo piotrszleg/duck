@@ -21,6 +21,7 @@ void finish_recording(BytecodeManipulation* manipulation);
 // last element of highlighted_lines should be -1, highlighted_lines can also be NULL
 void begin_recording_change(BytecodeManipulation* manipulation, char* name, 
                             int* highlighted_lines);
+void move_changes_forward(BytecodeManipulation* manipulation, int starting_index);
 void add_change(BytecodeManipulation* manipulation, ChangeType type, uint line);
 void end_recording_change(BytecodeManipulation* manipulation);
 

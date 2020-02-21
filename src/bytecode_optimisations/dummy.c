@@ -128,7 +128,7 @@ void dummy_print(FILE* output, const Dummy* dummy){
             print_id(output, dummy->id);
             break;
         case d_known_type:
-            printf("(%s)", get_type_name(dummy->known_type));
+            fprintf(output, "(%s)", get_type_name(dummy->known_type));
             print_id(output, dummy->id);
             break;
         case d_constant:
@@ -136,11 +136,11 @@ void dummy_print(FILE* output, const Dummy* dummy){
                 fprintf(output, "%s", str));
             break;
         case d_or:
-            printf("(");
+            fprintf(output, "(");
             dummy_print(output, dummy->or.left);
-            printf(" or ");
+            fprintf(output, " or ");
             dummy_print(output, dummy->or.right);
-            printf(")");
+            fprintf(output, ")");
             break;
         default:
             INCORRECT_ENUM_VALUE(DummyType, dummy, dummy->type);
