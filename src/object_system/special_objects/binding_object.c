@@ -54,7 +54,7 @@ Object binding_call(Executor* E, Object scope, Object* arguments, int arguments_
 void add_binding_fields(Executor* E, Object binding){
     set(E, binding, OVERRIDE(E, operator), to_native_function(E,  binding_operator, NULL, 2, false));
     set(E, binding, OVERRIDE(E, call), to_native_function(E, binding_call, NULL, 1, true));
-    set_function(E, binding, "bind", 1, true, binding_bind);
+    set_function(E, binding, to_string("bind"), 1, true, binding_bind);
 }
 
 Object to_binding(Executor* E, Object f, Object argument){

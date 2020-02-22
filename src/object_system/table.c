@@ -550,8 +550,8 @@ Object table_get_iterator_object(Executor* E, Object scope, Object* arguments, i
     *it=table_get_iterator(self.tp);
     table_set(E, iterator.tp, to_int(0), to_pointer(it));
     table_set(E, iterator.tp, to_string("table"), self);// ensures that table won't be destroyed before the iterator
-    set_function_bound(E, iterator, "next", 1, false, table_iterator_object_next);
-    set_function_bound(E, iterator, "destroy", 1, false, table_iterator_object_destroy);
+    set_function_bound(E, iterator, to_string("next"), 1, false, table_iterator_object_next);
+    set_function_bound(E, iterator, OVERRIDE(E, destroy), 1, false, table_iterator_object_destroy);
     table_protect(iterator.tp);
     return iterator;
 }

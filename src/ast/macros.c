@@ -195,7 +195,7 @@ void register_ast_types(Executor* E, Object scope){
     #undef INT_FIELD
     #undef END
 
-    set_function(E, scope, "copy_expression", 1, false, expression_descriptor_copy);
+    set_function(E, scope, to_string("copy_expression"), 1, false, expression_descriptor_copy);
 }
 
 Object wrap_expression(Executor* E, Expression* expression){

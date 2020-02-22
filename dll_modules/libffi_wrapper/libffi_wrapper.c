@@ -464,7 +464,7 @@ Object ffi_struct(Executor* E, Object scope, Object* arguments, int arguments_co
     struct_type->elements[arguments_count-1]=NULL;
     
     set(E, result, OVERRIDE(E, destroy), to_bound_function(E, result, 1, false, ffi_struct_destroy));
-    set_function_bound(E, result, "new_struct_descriptor", 1, false, ffi_struct_new_struct_descriptor);
+    set_function_bound(E, result, to_string("new_struct_descriptor"), 1, false, ffi_struct_new_struct_descriptor);
     table_protect(result.tp);
     return result;
 
@@ -506,8 +506,8 @@ Object ffi_open(Executor* E, Object scope, Object* arguments, int arguments_coun
     }
     set(E, result, to_int(0), to_pointer(dll_handle));
     
-    set_function_bound(E, result, "struct", 1, true, ffi_struct);
-    set_function_bound(E, result, "function", 2, true, ffi_function);
+    set_function_bound(E, result, to_string("struct"), 1, true, ffi_struct);
+    set_function_bound(E, result, to_string("function"), 2, true, ffi_function);
     set(E, result, OVERRIDE(E, destroy), to_bound_function(E, result, 1, false, ffi_destroy));
     
     Object basic_types;
@@ -529,7 +529,7 @@ Object ffi_open(Executor* E, Object scope, Object* arguments, int arguments_coun
 Object duck_module_init(Executor* E){
     Object module;
     table_init(E, &module);
-    set_function(E, module, "open", 1, false, ffi_open);
+    set_function(E, module, to_string("open"), 1, false, ffi_open);
     return module;
 }
 

@@ -321,18 +321,18 @@ Object file_iterator_next(Executor* E, Object scope, Object* arguments, int argu
     REQUIRE_TYPE(pointer, t_pointer)
     Object line_number=get(E, self, to_string("line_number"));
     REQUIRE_TYPE(line_number, t_int)
-    set(E, self, to_string("line_number"), to_int(line_number.int_value+1));
+    table_set(E, self.tp, to_string("line_number"), to_int(line_number.int_value+1));
 
     Object result;
     table_init(E, &result);
-    set(E, result, to_string("key"), to_int(line_number.int_value));
+    table_set(E, result.tp, to_string("key"), to_int(line_number.int_value));
     
     char* buffer=malloc(255);
     if(fgets_no_newline(buffer, 255, (FILE*)pointer.p)){
-        set(E, result, to_string("value"), to_string(buffer));
+        table_set(E, result.tp, to_string("value"), to_string(buffer));
         return result;
     } else {
-        set(E, result, to_string("finished"), to_int(1));
+        table_set(E, result.tp, to_string("finished"), to_int(1));
         return result;
     }
 }
@@ -343,9 +343,11 @@ Object file_iterator(Executor* E, Object scope, Object* arguments, int arguments
     REQUIRE_ARGUMENT_TYPE(self, t_table)
     Object iterator;
     table_init(E, &iterator);
-    set(E, iterator, to_string("iterated"), self);
-    set(E, iterator, to_string("line_number"), to_int(0));
-    set_function(E, iterator, "call", 1, false, file_iterator_next);
+    table_set(E, iterator.tp, to_string("iterated"), self);
+    table_set(E, iterator.tp, to_string("line_number"), to_int(0));
+    Object next_function=to_bound_function(E, iterator, 1, false, file_iterator_next);
+    table_set(E, iterator.tp, to_string("next"), next_function);
+    dereference(E, &next_function);
     Object pointer=table_get(E, self.tp, to_int(0));
     REQUIRE_TYPE(pointer, t_pointer)
     fseek((FILE*)pointer.p, 0, SEEK_SET);
@@ -418,12 +420,12 @@ Object builtin_open_file(Executor* E, Object scope, Object* arguments, int argum
     }
     Object result;
     table_init(E, &result);
-    set(E, result, to_int(0), to_pointer(fp));
-    set_function_bound(E, result, "read_entire", 1, false, file_read_entire);
-    set_function_bound(E, result, "read_line", 1, false, file_read_line);
-    set_function_bound(E, result, "write", 2, false, file_write);
-    set(E, result, OVERRIDE(E, iterator), to_bound_function(E, result, 2, false, file_iterator));
-    set_function_bound(E, result, "destroy", 1, false, file_destroy);
+    table_set(E, result.tp, to_int(0), to_pointer(fp));
+    set_function_bound(E, result, to_string("read_entire"), 1, false, file_read_entire);
+    set_function_bound(E, result, to_string("read_line"), 1, false, file_read_line);
+    set_function_bound(E, result, to_string("write"), 2, false, file_write);
+    set_function_bound(E, result, OVERRIDE(E, iterator), 2, false, file_iterator);
+    set_function_bound(E, result, OVERRIDE(E, destroy), 1, false, file_destroy);
     table_protect(result.tp);
 
     return result;
@@ -623,12 +625,12 @@ Object builtins_table(Executor* E){
     table_set(E, scope.tp, to_string("yield"), function);
     dereference(E, &function);
     
-    set_function(E, scope, "table_iterator", 1, false, table_get_iterator_object);
+    set_function(E, scope, to_string("table_iterator"), 1, false, table_get_iterator_object);
 
-    set_function(E, scope, "coroutine", 1, true, builtin_coroutine);
-    set_function(E, scope, "format", 1, true, builtin_format);
-    set_function(E, scope, "printf", 1, true, builtin_printf);
-    set_function(E, scope, "multiple_causes", 0, true, builtin_multiple_causes);
+    set_function(E, scope, to_string("coroutine"), 1, true, builtin_coroutine);
+    set_function(E, scope, to_string("format"), 1, true, builtin_format);
+    set_function(E, scope, to_string("printf"), 1, true, builtin_printf);
+    set_function(E, scope, to_string("multiple_causes"), 0, true, builtin_multiple_causes);
 
     return scope;
 }

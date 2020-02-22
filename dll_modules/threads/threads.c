@@ -61,8 +61,8 @@ Object new_mutex_table(Executor* E, ReferenceCountedMutex* rc_mutex){
     Object result;
     table_init(E, &result);
     table_set(E, result.tp, to_int(0), to_pointer(rc_mutex));
-    set_function_bound(E, result, "lock", 1, false, mutex_lock);
-    set_function_bound(E, result, "unlock", 1, false, mutex_unlock);
+    set_function_bound(E, result, to_string("lock"), 1, false, mutex_lock);
+    set_function_bound(E, result, to_string("unlock"), 1, false, mutex_unlock);
     table_set(E, result.tp, OVERRIDE(E, copy), to_bound_function(E, result, 1, false, mutex_copy));
     set_bound_destructor(E, result, mutex_destroy);
     table_protect(result.tp);
@@ -137,9 +137,9 @@ Object new_channel_table(Executor* E, Channel* channel){
     Object result;
     table_init(E, &result);
     table_set(E, result.tp, to_int(0), to_pointer(channel));
-    set_function_bound(E, result, "receive", 1, false, channel_receive);
-    set_function_bound(E, result, "send", 2, false, channel_send);
-    table_set(E, result.tp, OVERRIDE(E, copy), to_bound_function(E, result, 1, false, channel_copy));
+    set_function_bound(E, result, to_string("receive"), 1, false, channel_receive);
+    set_function_bound(E, result, to_string("send"), 2, false, channel_send);
+    set_function_bound(E, result, OVERRIDE(E, copy), 1, false, channel_copy);
     set_bound_destructor(E, result, channel_destroy);
     table_protect(result.tp);
     return result;
@@ -258,7 +258,7 @@ Object threads_start(Executor* E, Object scope, Object* arguments, int arguments
     table_init(E, &result);
     table_set(E, result.tp, to_int(0), to_pointer(thread));
     table_set(E, result.tp, to_int(1), to_pointer(argument));
-    set_function_bound(E, result, "join", 1, false, thread_join_and_destroy);
+    set_function_bound(E, result, to_string("join"), 1, false, thread_join_and_destroy);
     set_bound_destructor(E, result, thread_join_and_destroy);
     table_protect(result.tp);
     return result;
@@ -267,8 +267,8 @@ Object threads_start(Executor* E, Object scope, Object* arguments, int arguments
 Object duck_module_init(Executor* E){
     Object module;
     table_init(E, &module);
-    set_function(E, module, "start", 1, true, threads_start);
-    set_function(E, module, "new_mutex", 0, false, new_mutex);
-    set_function(E, module, "new_channel", 0, false, new_channel);
+    set_function(E, module, to_string("start"), 1, true, threads_start);
+    set_function(E, module, to_string("new_mutex"), 0, false, new_mutex);
+    set_function(E, module, to_string("new_channel"), 0, false, new_channel);
     return module;
 }

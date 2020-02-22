@@ -212,9 +212,9 @@ Object regex_module_compile(Executor* E, Object scope, Object* arguments, int ar
     } else {
         set(E, result, to_int(0), to_pointer(compiled_regex));
         set(E, result, OVERRIDE(E, call), to_bound_function(E, result, 1, true, regex_object_call));
-        set_function_bound(E, result, "split", 2, false, regex_object_split);
-        set_function_bound(E, result, "replace", 3, false, regex_object_replace);
-        set_function_bound(E, result, "process", 3, false, regex_object_process);
+        set_function_bound(E, result, to_string("split"), 2, false, regex_object_split);
+        set_function_bound(E, result, to_string("replace"), 3, false, regex_object_replace);
+        set_function_bound(E, result, to_string("process"), 3, false, regex_object_process);
         set(E, result, OVERRIDE(E, destroy), to_bound_function(E, result, 1, false, regex_object_destroy));
         table_protect(result.tp);
         return result;
@@ -224,6 +224,6 @@ Object regex_module_compile(Executor* E, Object scope, Object* arguments, int ar
 Object duck_module_init(Executor* E){
     Object module;
     table_init(E, &module);
-    set_function(E, module, "compile", 2, true, regex_module_compile);
+    set_function(E, module, to_string("compile"), 2, true, regex_module_compile);
     return module;
 }

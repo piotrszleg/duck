@@ -18,7 +18,7 @@ Object coroutine_iterator(Executor* E, Object coroutine){
     Object iterator;
     table_init(E, &iterator);
     set(E, iterator, to_string("coroutine"), coroutine);
-    set_function(E, iterator, "next", 1, false, coroutine_iterator_next);
+    set_function(E, iterator, to_string("next"), 1, false, coroutine_iterator_next);
     return iterator;
 }
 
@@ -49,7 +49,7 @@ Object string_iterator(Executor* E, Object str){
     set(E, iterator, to_string("iterated"), str);
     set(E, iterator, to_string("index"), to_int(0));
     set(E, iterator, to_string("length"), to_int(strlen(str.text)));
-    set_function(E, iterator, "next", 1, false, string_iterator_next);
+    set_function(E, iterator, to_string("next"), 1, false, string_iterator_next);
     return iterator;
 }
 
