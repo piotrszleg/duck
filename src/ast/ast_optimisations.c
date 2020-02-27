@@ -58,36 +58,6 @@ bool expression_is_constant(Expression* expression){
     }
 }
 
-Expression* to_literal(Executor* E, Object o){
-    switch(o.type){
-        case t_string:
-        {
-            StringLiteral* l=new_string_literal();
-            l->value=strdup(o.text);
-            return (Expression*)l;
-        }
-        case t_int:
-        {
-            IntLiteral* l=new_int_literal();
-            l->value=o.int_value;
-            return (Expression*)l;
-        }
-        case t_float:
-        {
-            FloatLiteral* l=new_float_literal();
-            l->value=o.float_value;
-            return (Expression*)l;
-        }
-        case t_null:
-            return (Expression*)new_empty();
-        case t_table:
-            handle_if_error(E, o);
-            return NULL;
-        default:
-            return NULL;
-    }
-}
-
 Object evaluate_expression(Executor* E, Expression* expression){
     return execute_ast(E, expression, false);
 }
@@ -138,7 +108,7 @@ ASTVisitorRequest optimise_ast_visitor (Expression* expression, void* data){
     else if(!expression_is_literal(expression) && expression_is_constant(expression)){
         ASTVisitorRequest request={next};
         Object evaluated=evaluate_expression(E, expression);
-        request.replacement=to_literal(E, evaluated);
+        request.replacement=object_to_literal(E, evaluated);
         //replace current expression with the literal
         LOG_CHANGE("constants folding", expression, request.replacement);
         return request;

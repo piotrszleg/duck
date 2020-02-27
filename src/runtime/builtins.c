@@ -281,13 +281,32 @@ Object builtin_import(Executor* E, Object scope, Object* arguments, int argument
 
 Object builtin_evaluate(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object text=arguments[0];
-    Object result;
     REQUIRE_TYPE(text, t_string)
     Object sub_scope;
     table_init(E, &sub_scope);
     inherit_global_scope(E, sub_scope.tp);
-    result=evaluate_string(E, text.text, sub_scope);
+    Object result=evaluate_string(E, text.text, sub_scope);
     dereference(E, &sub_scope);
+    return result;
+}
+
+Object builtin_evaluate_expression(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object expression=arguments[0];
+    Expression* converted=object_to_expression(E, expression);
+    Object sub_scope;
+    table_init(E, &sub_scope);
+    inherit_global_scope(E, sub_scope.tp);
+    Object result=evaluate(E, converted, sub_scope, "evaluate_expression", true);
+    dereference(E, &sub_scope);
+    return result;
+}
+
+Object builtin_parse(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object text=arguments[0];
+    REQUIRE_TYPE(text, t_string)
+    Expression* parsing_result=parse_string(text.text);
+    Object result=expression_to_object(E, parsing_result);
+    delete_expression(parsing_result);
     return result;
 }
 
@@ -614,6 +633,8 @@ Object builtins_table(Executor* E){
     REGISTER(collect_garbage, 0)
     REGISTER(debug, 0)
     REGISTER(match, 2)
+    REGISTER(evaluate_expression, 1)
+    REGISTER(parse, 1)
     #undef REGISTER
 
     Object function;

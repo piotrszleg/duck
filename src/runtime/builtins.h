@@ -12,6 +12,7 @@
 #include "../callables/coroutine.h"
 #include "struct_descriptor.h"
 #include "import_dll.h"
+#include "../transformers/expression_object.h"
 
 Object builtins_table(Executor* E);
 void inherit_scope(Executor* E, Table* scope, Object base);

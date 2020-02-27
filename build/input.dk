@@ -1,4 +1,1 @@
-test=(name, assertion)->{
-    print("TEST: "+name)
-    assertion()
-    print("test successful")}
+@quote, if(@variable) @variable, [variable="test"]
