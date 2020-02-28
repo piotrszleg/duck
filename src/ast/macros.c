@@ -106,7 +106,7 @@ ASTVisitorRequest macro_visitor(Expression* expression, void* data){
     ASTVisitorRequest request={down, NULL};
     return request;
 }
-Object quote_macro(Executor* E, Object scope, Object* arguments, int arguments_count){
+Object quote_with_macro(Executor* E, Object scope, Object* arguments, int arguments_count){
     Expression* expression=object_to_expression(E, arguments[0]);
     Object macros_map=evaluate(E, object_to_expression(E, arguments[1]), E->scope, "quote_macro", true);
     MacroVisitorState state;
@@ -124,8 +124,20 @@ Object quote_macro(Executor* E, Object scope, Object* arguments, int arguments_c
     if(state.error.type!=t_null){
         return state.error;
     } else {
-        return expression_to_object(E, expression);
+        Object as_object=expression_to_object(E, expression);
+        Expression* as_literal=object_to_literal(E, as_object);
+        Object literal_expression_object=expression_to_object(E, as_literal);
+        delete_expression(expression);
+        dereference(E, &as_object);
+        delete_expression(as_literal);
+        return literal_expression_object;
     }
+}
+Object quote_macro(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Expression* as_literal=object_to_literal(E, arguments[0]);
+    Object literal_expression_object=expression_to_object(E, as_literal);
+    delete_expression(as_literal);
+    return literal_expression_object;
 }
 Object execute_macros(Executor* E, Expression** ast){
     MacroVisitorState state;
@@ -135,7 +147,8 @@ Object execute_macros(Executor* E, Expression** ast){
     Object scope;
     table_init(E, &scope);
     inherit_global_scope(E, scope.tp);
-    set_function(E, scope, to_string("quote"), 2, false, quote_macro);
+    set_function(E, scope, to_string("quote_with"), 2, false, quote_with_macro);
+    set_function(E, scope, to_string("quote"), 1, false, quote_macro);
     E->scope=scope;
     visit_ast(ast, macro_visitor, &state);
     pop_return_point(E);

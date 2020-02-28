@@ -1,1 +1,1 @@
-@quote, if(@variable) @variable, [variable="test"]
+@quote_with, if(@a) @a, [a='test]

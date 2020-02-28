@@ -24,7 +24,30 @@ Expression* object_to_literal(Executor* E, Object o){
             return (Expression*)new_empty();
         case t_table:
             handle_if_error(E, o);
-            return NULL;
+            TableLiteral* table_literal=new_table_literal();
+            TableIterator it=table_get_iterator(o.tp);
+            for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+                Assignment* assignment=new_assignment();
+                pointers_vector_push(&table_literal->lines, assignment);
+                #define CHECK_EXPRESSION(expression) \
+                    if(expression==NULL){ \
+                        delete_expression((Expression*)table_literal); \
+                        return NULL; \
+                    }
+                if(i.key.type==t_string && is_valid_name(i.key.text)){
+                    Name* name=new_name();
+                    name->value=strdup(i.key.text);
+                    assignment->left=(Expression*)name;
+                } else {
+                    SelfIndexer* indexer=new_self_indexer();
+                    indexer->right=object_to_literal(E, i.key);
+                    CHECK_EXPRESSION(indexer->right)
+                    assignment->left=(Expression*)indexer;
+                }
+                assignment->right=object_to_literal(E, i.value);
+                CHECK_EXPRESSION(assignment->right)
+            }
+            return (Expression*)table_literal;
         default:
             return NULL;
     }
