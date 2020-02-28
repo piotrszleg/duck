@@ -27,25 +27,30 @@ Expression* object_to_literal(Executor* E, Object o){
             TableLiteral* table_literal=new_table_literal();
             TableIterator it=table_get_iterator(o.tp);
             for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
-                Assignment* assignment=new_assignment();
-                pointers_vector_push(&table_literal->lines, assignment);
-                #define CHECK_EXPRESSION(expression) \
-                    if(expression==NULL){ \
-                        delete_expression((Expression*)table_literal); \
-                        return NULL; \
-                    }
-                if(i.key.type==t_string && is_valid_name(i.key.text)){
-                    Name* name=new_name();
-                    name->value=strdup(i.key.text);
-                    assignment->left=(Expression*)name;
+                if(i.key.type==t_int && i.key.int_value==0){
+                    pointers_vector_push(&table_literal->lines, object_to_literal(E, i.value));
                 } else {
-                    SelfIndexer* indexer=new_self_indexer();
-                    indexer->right=object_to_literal(E, i.key);
-                    CHECK_EXPRESSION(indexer->right)
-                    assignment->left=(Expression*)indexer;
+                    Assignment* assignment=new_assignment();
+                    pointers_vector_push(&table_literal->lines, assignment);
+                    #define CHECK_EXPRESSION(expression) \
+                        if(expression==NULL){ \
+                            delete_expression((Expression*)table_literal); \
+                            return NULL; \
+                        }
+                
+                    if(i.key.type==t_string && is_valid_name(i.key.text)){
+                        Name* name=new_name();
+                        name->value=strdup(i.key.text);
+                        assignment->left=(Expression*)name;
+                    } else {
+                        SelfIndexer* indexer=new_self_indexer();
+                        indexer->right=object_to_literal(E, i.key);
+                        CHECK_EXPRESSION(indexer->right)
+                        assignment->left=(Expression*)indexer;
+                    }
+                    assignment->right=object_to_literal(E, i.value);
+                    CHECK_EXPRESSION(assignment->right)
                 }
-                assignment->right=object_to_literal(E, i.value);
-                CHECK_EXPRESSION(assignment->right)
             }
             return (Expression*)table_literal;
         default:
@@ -83,7 +88,8 @@ Object expression_to_object(Executor* E, Expression* expression){
                 table_set(E, converted_vector.tp, to_int(i), \
                     expression_to_object(E, pointers_vector_get(&casted->field_name, i))); \
             } \
-            table_set(E, result.tp, to_string(#field_name), converted_vector);   }
+            table_set(E, result.tp, to_string(#field_name), converted_vector); \
+            dereference(E, &converted_vector);   }
         #define END                      return result; }
         default: return null_const;
 
@@ -158,13 +164,13 @@ Expression* table_to_expression(Executor* E, Table* table){
     #define SPECIFIED_EXPRESSION_FIELD(struct_name, type_tag, field_name) \
         {   Object field=table_get(E, table, to_string(#field_name)); \
             result->field_name=(struct_name*)object_to_expression(E, field); }
-    #define TYPED_FIELD(field_name, object_type, object_field) \
+    #define TYPED_FIELD(field_name, object_type, value) \
         {   Object field=table_get(E, table, to_string(#field_name)); \
-            if(field.type==object_type) result->field_name=field.object_field; }
-    #define BOOL_FIELD(field_name)   TYPED_FIELD(field_name, t_int, int_value) 
-    #define FLOAT_FIELD(field_name)  TYPED_FIELD(field_name, t_float, float_value)
-    #define INT_FIELD(field_name)    TYPED_FIELD(field_name, t_int, int_value)
-    #define STRING_FIELD(field_name) TYPED_FIELD(field_name, t_string, text)
+            if(field.type==object_type) result->field_name=value; }
+    #define BOOL_FIELD(field_name)   TYPED_FIELD(field_name, t_int, field.int_value) 
+    #define FLOAT_FIELD(field_name)  TYPED_FIELD(field_name, t_float, field.float_value)
+    #define INT_FIELD(field_name)    TYPED_FIELD(field_name, t_int, field.int_value)
+    #define STRING_FIELD(field_name) TYPED_FIELD(field_name, t_string, strdup(field.text))
     #define VECTOR_FIELD(field_name) \
     {   \
         Object field=table_get(E, table, to_string(#field_name)); \

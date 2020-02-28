@@ -3,7 +3,7 @@ loop=(start, end ,f)->{
     f(start)
     if(start<end){
         loop(start+1, end, f)
-    } 
+    } #aa
 }
 symbols="ABCDEFGHIJKLMNOPRSTUWXYZabcdefghijklmnoprstuwxyz\n   "
 random_symbols=->symbols[random_int(0, symbols.length)]

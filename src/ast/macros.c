@@ -91,6 +91,10 @@ ASTVisitorRequest macro_visitor(Expression* expression, void* data){
         Object macro_value;
         char* macro_name;
         GET_MACRO(macro_value, macro_name, expression)
+        if(macro_arguments_count(macro_value)>0){
+            MACRO_ERROR(null_const, 
+                "There is not enough lines in block to fill \"%s\" macro's required arguments.", macro_name);
+        }
         Object evaluation_result=evaluate_macro(E, macro_value, NULL, 0);
         Expression* converted=object_to_expression(E, evaluation_result);
         if(converted!=NULL) {
@@ -106,32 +110,69 @@ ASTVisitorRequest macro_visitor(Expression* expression, void* data){
     ASTVisitorRequest request={down, NULL};
     return request;
 }
+
+typedef struct {
+    Executor* executor;
+    Table* variables_set;
+} QuoteWithVariablesVisitorState;
+
+static bool table_contains_string(Executor* E, Table* table, char* key){
+    TableIterator it=table_get_iterator(table);
+    for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
+        if(EQUALS_STRING(i.value, key)){
+            return true;
+        }
+    }
+    return false;
+}
+
+ASTVisitorRequest quote_with_variables_visitor(Expression* expression, void* data){
+    QuoteWithVariablesVisitorState* state=(QuoteWithVariablesVisitorState*)data;
+    if(expression->type==e_table_literal){
+        // ['macro, identifier=['name, value='variable]]
+        TableLiteral* as_table_literal=(TableLiteral*)expression;
+        Expression* first_line=pointers_vector_get(&as_table_literal->lines, 0);
+        if(first_line->type==e_string_literal){
+            // 'macro
+            StringLiteral* as_string_literal=(StringLiteral*)first_line;
+            if(strcmp(as_string_literal->value, "macro")==0){
+                // identifier=['name, value='variable]
+                Expression* second_line=pointers_vector_get(&as_table_literal->lines, 1);
+                Assignment* second_line_assignment=(Assignment*)second_line;
+                // ['name, value='variable]
+                TableLiteral* macro_name=(TableLiteral*)second_line_assignment->right;
+                // value='variable
+                Assignment* macro_name_value_assignment=(Assignment*)pointers_vector_get(&macro_name->lines, 1);
+                // 'variable
+                StringLiteral* name_string_literal=(StringLiteral*)macro_name_value_assignment->right;
+                if(table_contains_string(state->executor, state->variables_set, name_string_literal->value)){
+                    Name* name=new_name();
+                    name->value=strdup(name_string_literal->value);
+                    ASTVisitorRequest request={next, (Expression*)name};
+                    return request;
+                }
+            }
+        }
+    }
+    ASTVisitorRequest request={down, NULL};
+    return request;
+}
+
 Object quote_with_macro(Executor* E, Object scope, Object* arguments, int arguments_count){
     Expression* expression=object_to_expression(E, arguments[0]);
-    Object macros_map=evaluate(E, object_to_expression(E, arguments[1]), E->scope, "quote_macro", true);
-    MacroVisitorState state;
-    state.error=null_const;
-    state.executor=E;
-    Object sub_scope;
-    table_init(E, &sub_scope);
-    TableIterator it=table_get_iterator(macros_map.tp);
-    for(IterationResult i=table_iterator_next(&it); !i.finished; i=table_iterator_next(&it)) {
-        table_set(E, sub_scope.tp, i.key, i.value);
-    }
-    E->scope=sub_scope;
-    visit_ast(&expression, macro_visitor, &state);
-    pop_return_point(E);
-    if(state.error.type!=t_null){
-        return state.error;
-    } else {
-        Object as_object=expression_to_object(E, expression);
-        Expression* as_literal=object_to_literal(E, as_object);
-        Object literal_expression_object=expression_to_object(E, as_literal);
-        delete_expression(expression);
-        dereference(E, &as_object);
-        delete_expression(as_literal);
-        return literal_expression_object;
-    }
+    Object variables_set=evaluate(E, object_to_expression(E, arguments[1]), E->scope, "quote_macro", true);
+    
+    Object as_object=expression_to_object(E, expression);
+    Expression* as_literal=object_to_literal(E, as_object);
+    QuoteWithVariablesVisitorState state={E, variables_set.tp};
+    visit_ast(&as_literal, quote_with_variables_visitor, &state);
+    Object literal_expression_object=expression_to_object(E, as_literal);
+    
+    delete_expression(expression);
+    dereference(E, &as_object);
+    delete_expression(as_literal);
+    dereference(E, &variables_set);
+    return literal_expression_object;
 }
 Object quote_macro(Executor* E, Object scope, Object* arguments, int arguments_count){
     Expression* as_literal=object_to_literal(E, arguments[0]);
