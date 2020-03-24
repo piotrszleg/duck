@@ -62,6 +62,9 @@ ASTVisitorRequest macro_visitor(Expression* expression, void* data){
                     MACRO_ERROR(null_const, 
                         "There is not enough lines in block to fill \"%s\" macro's required arguments.", macro_name);
                 }
+                if(macro_value.type==t_function && macro_value.fp->variadic){
+                    expected_arguments=vector_count(&b->lines)-i-1;
+                }
                 Object* arguments=malloc(sizeof(Object)*expected_arguments);
                 for(int j=0; j<expected_arguments; j++){
                     arguments[j]=expression_to_object(E, copy_expression(pointers_vector_get(&b->lines, i+1+j)));\
@@ -79,8 +82,6 @@ ASTVisitorRequest macro_visitor(Expression* expression, void* data){
                         vector_delete(&b->lines, i+1);
                     }
                     dereference(E, &evaluation_result);
-                    ASTVisitorRequest request={down};
-                    return request;
                 } else {
                     MACRO_ERROR(evaluation_result, 
                         "Can't turn the result of evaluating macro \"%s\" back to expression.", macro_name)

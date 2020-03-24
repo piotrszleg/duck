@@ -97,6 +97,10 @@ void execute_file(Executor* E, const char* file_name){
     if(E->options.include_builtins){
         inherit_scope(E, global_scope.tp, builtins_table(E));
     }
+    if(E->options.execute_prelude){
+          Object prelude_execution_result=evaluate_file(E, "prelude.dk", global_scope);
+          dereference(E, &prelude_execution_result);
+    }
     Object execution_result=evaluate_file(E, file_name, global_scope);
     USING_STRING(stringify(E, execution_result), 
         printf("The script \"%s\" has exited with result:\n%s\n", file_name, str));

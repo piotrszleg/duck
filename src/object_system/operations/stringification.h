@@ -2,6 +2,7 @@
 #define STRINGIFICATION_H
 
 #include "../object.h"
+#include "../../containers/stream.h"
 
 char* suprintf (const char * format, ...);
 char* stringify_object(Executor* E, Object o);

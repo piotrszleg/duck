@@ -183,6 +183,7 @@ struct Function {
         HeapObject* source_pointer;
         unsigned special_index;
     };
+    char* name;
     char** argument_names;
     unsigned arguments_count;
     bool variadic;

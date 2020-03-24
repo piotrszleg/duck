@@ -557,6 +557,13 @@ Object match(Executor* E, Object tested, Object signature){
                 Object key=get(E, it, to_string("key"));
                 Object value=get(E, it, to_string("value"));
                 Object at_key=get(E, tested, key);
+                if(is_error(E, at_key)){
+                    dereference(E, &key);
+                    dereference(E, &value);
+                    error_handle(E, at_key);
+                    dereference(E, &at_key);
+                    return to_int(false);
+                }
                 Object match_result=match(E, at_key, value);
                 if(is_falsy(match_result)) {
                     return match_result;
@@ -574,6 +581,24 @@ Object builtin_match(Executor* E, Object scope, Object* arguments, int arguments
     return match(E, tested, signature);
 }
 
+Object builtin_map(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object iterable=arguments[0];
+    Object function=arguments[1];
+    Object it;
+    Object result;
+    table_init(E, &result);
+    FOREACH(iterable, it, {
+        Object key=get(E, it, to_string("key"));
+        Object value=get(E, it, to_string("value"));
+        Object passed_value=call(E, function, &value, 1);
+        table_set(E, result.tp, key, passed_value);
+        dereference(E, &key);
+        dereference(E, &value);
+        dereference(E, &passed_value);
+    })
+    return result;
+}
+
 Object builtins_table(Executor* E){
     Object scope;
     table_init(E, &scope);
@@ -588,6 +613,7 @@ Object builtins_table(Executor* E){
         function_init(E, &f##_function); \
         f##_function.fp->arguments_count=args_count; \
         f##_function.fp->native_pointer=&builtin_##f; \
+        f##_function.fp->name=strdup(#f); \
         table_set(E, scope.tp, to_string(#f), f##_function); \
         dereference(E, &f##_function);
     REGISTER(print, 1)
@@ -635,6 +661,7 @@ Object builtins_table(Executor* E){
     REGISTER(match, 2)
     REGISTER(evaluate_expression, 1)
     REGISTER(parse, 1)
+    REGISTER(map, 2)
     #undef REGISTER
 
     Object function;

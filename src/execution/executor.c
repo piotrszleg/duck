@@ -69,3 +69,30 @@ void executor_deinit(Executor* E){
     bytecode_environment_deinit(&E->bytecode_environment);
     vector_deinit(&E->stack);
 }
+
+inline void executor_stack_forward_allocate(Executor* E, uint count){
+    E->forward_allocated+=count;
+    vector_ensure_capacity(&E->stack, E->forward_allocated);
+}
+inline void executor_stack_forward_deallocate(Executor* E, uint count){
+    E->forward_allocated-=count;
+    vector_check_downsize(&E->stack);
+}
+inline void executor_stack_push_allocated(Executor* E, Object object){
+    E->stack.count++;
+    *((Object*)vector_top(&E->stack))=object;
+}
+inline Object executor_stack_pop_allocated(Executor* E){
+    Object result=*(Object*)vector_top(&E->stack);
+    E->stack.count--;
+    return result;
+}
+inline void executor_stack_push(Executor* E, Object object){
+    E->forward_allocated++;
+    vector_push(&E->stack, &object);
+}
+inline void executor_stack_remove(Executor* E, Object object){
+    if(objects_vector_delete(E, &E->stack, object)){
+        E->forward_allocated--;
+    }
+}

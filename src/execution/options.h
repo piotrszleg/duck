@@ -12,6 +12,7 @@
     BOOL(print_bytecode, false) \
     BOOL(debug, false) \
     BOOL(include_builtins, true) \
+    BOOL(execute_prelude, true) \
     BOOL(optimise_ast, true) \
     BOOL(ast_remove_useless_expressions, true) \
     BOOL(ast_optimise_conditionals, true) \

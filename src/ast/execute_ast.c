@@ -1,5 +1,14 @@
 #include "execute_ast.h"
 
+#define USE(object) \
+    executor_stack_push(E, object);
+#define STOP_USING(object) \
+    executor_stack_remove(E, object); \
+    dereference(E, &object);
+#define RETURN_USED(object) \
+    executor_stack_remove(E, object); \
+    return object;
+
 Object ast_set(Executor* E, Object scope, Expression* expression, Object value){
     switch(expression->type){
         case e_name:
@@ -11,19 +20,24 @@ Object ast_set(Executor* E, Object scope, Expression* expression, Object value){
         {
             MemberAccess* m=(MemberAccess*)expression;
             Object indexed=execute_ast(E, m->left, false);
+            USE(indexed)
             Object result=set(E, indexed, to_string(m->right->value), value);
-            dereference(E, &indexed);
-            return result;
+            USE(result)
+            STOP_USING(indexed)
+            RETURN_USED(result)
         }
         case e_indexer:
         {
             Indexer* i=(Indexer*)expression;
             Object indexed=execute_ast(E, i->left, false);
+            USE(indexed)
             Object key=execute_ast(E, i->right, false);
+            USE(key)
             Object result=set(E, indexed, key, value);
-            dereference(E, &key);
-            dereference(E, &indexed);
-            return result;
+            USE(result)
+            STOP_USING(indexed)
+            STOP_USING(key)
+            RETURN_USED(result);
         }
         default:
             USING_STRING(stringify_expression(expression, 0),
@@ -50,15 +64,6 @@ void ast_source_pointer_init(Executor* E, ASTSourcePointer* source_pointer){
     managed_pointer_init(E, (ManagedPointer*)source_pointer, (ManagedPointerFreeFunction)ast_source_pointer_free);
     source_pointer->mp.copy=(ManagedPointerCopyFunction)ast_source_pointer_copy;
 }
-
-#define USE(object) \
-    vector_push(&E->stack, &object);
-#define STOP_USING(object) \
-    objects_vector_delete(E, &E->stack, object); \
-    dereference(E, &object);
-#define RETURN_USED(object) \
-    objects_vector_delete(E, &E->stack, object); \
-    return object;
 
 Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
     if(expression==NULL){

@@ -1,0 +1,17 @@
+@switch=(variable, cases_block)->{
+    cases=cases_block.lines
+    ['block, lines=map(cases, case->{
+        signature=case.lines[0]
+        body=case.lines[1]
+        @quote_with
+        if(match(@variable, @signature)) @body
+        ['variable, 'signature, 'body]
+    })]
+}
+i=2
+@switch, i, {
+    [1, "one"!]
+    [2, "two"!]
+    [[.[overrides.stringify]=types.function], i::stringify()!]
+    [types.string, i!]
+}

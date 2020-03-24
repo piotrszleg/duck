@@ -39,6 +39,15 @@ keys=iterator_processor><[
         iterator_result
     }
 ]
+values=iterator_processor><[
+    index=0
+    call=(self, iterator_result)->{
+        iterator_result.value=iterator_result.key
+        iterator_result.key=self.index
+        self.index+=1
+        iterator_result
+    }
+]
 filter=(iterated, predicate)->[
     iterator=self->[
         it=iterator(iterated)

@@ -5,6 +5,7 @@
 #include <time.h>
 #include "../object_system/object.h"
 #include "../object_system/object_operations.h"
+#include "../object_system/special_objects/error_object.h"
 #include "../error/error.h"
 #include "../utility.h"
 #include "../bytecode/execute_bytecode.h"

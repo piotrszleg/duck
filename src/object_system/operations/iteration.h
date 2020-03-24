@@ -15,7 +15,6 @@ Object get_iterator(Executor* E, Object o);
         } else if(iterator.type==t_null){ \
             RETURN_ERROR("ITERATION_ERROR", iterated, "Object doesn't have an iterator field.") \
         } \
-        reference(&iterator); \
         Object next=get(E, iterator, to_string("next")); \
         if(is_error(E, next)){ \
             RETURN_ERROR("ITERATION_ERROR", next, "Object iterator's next is an error.") \
@@ -25,16 +24,18 @@ Object get_iterator(Executor* E, Object o);
         \
         while(true) { \
             receiver=call(E, next, &iterator, 1); \
-            reference(&receiver); \
             if(is_error(E, receiver)){ \
+                Object error; \
+                NEW_ERROR(error, "ITERATION_ERROR", receiver, "Iteration result is an error.") \
                 dereference(E, &receiver); \
                 dereference(E, &iterator); \
-                RETURN_ERROR("ITERATION_ERROR", receiver, "Iteration result is an error.") \
-                return receiver; \
+                dereference(E, &next); \
+                return error; \
             } \
             if(is_truthy(get(E, receiver, to_string("finished")))){ \
                 dereference(E, &receiver); \
                 dereference(E, &iterator); \
+                dereference(E, &next); \
                 break; \
             } else { \
                 body \

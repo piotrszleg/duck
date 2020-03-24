@@ -1,0 +1,12 @@
+@print_strings=lines...->{
+    map(lines, line->{
+        if(get_type(line)==types.string){
+            ['call, called=['name value='print], arguments=[line]]
+        } else line
+    }
+}
+@print_strings
+"Choose option"
+"1. option 1"
+"2. option 2"
+"3. option 3"

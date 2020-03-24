@@ -110,6 +110,7 @@ void function_init(Executor* E, Object* o){
     heap_object_init(E, o->hp);
     o->hp->gc_type=t_function;
     o->fp->variadic=false;
+    o->fp->name=NULL;
     o->fp->argument_names=NULL;
     o->fp->arguments_count=0;
     o->fp->ftype=f_native;
@@ -356,6 +357,7 @@ void heap_object_free(Executor* E, Object* o){
                 }
             }
             free(o->fp->argument_names);
+            free(o->fp->name);
             free(o->fp);
             break;
         case t_table:

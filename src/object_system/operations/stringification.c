@@ -118,54 +118,40 @@ char* stringify_object(Executor* E, Object o){
         case t_function:
         {
             Function* f=o.fp;
+            stream s;
+            stream_init(&s, STRINGIFY_BUFFER_SIZE);
+            stream_push_const_string(&s, "<");
+            if(f->name!=NULL){
+                stream_push_string(&s, f->name);
+            }
             if(f->argument_names!=NULL){
-                char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
-                CHECK_ALLOCATION(buffer);
-                buffer[0]='\0';
-                int buffer_size=STRINGIFY_BUFFER_SIZE;
-                int buffer_count=0;// how many characters were written to the buffer
                 
-                // if buffer isn't big enough to hold the added string characters double its size
-                #define BUFFER_WRITE(string, count) \
-                    while(buffer_size<=buffer_count+count){ \
-                        buffer_size*=2; \
-                        buffer=realloc(buffer, buffer_size*sizeof(char)); \
-                    } \
-                    strncat(buffer, string, buffer_size); \
-                    buffer_count+=count;
-                
-                BUFFER_WRITE("<function (", 10);
-                int first=1;
+                stream_push_const_string(&s, "(");
+                bool first=false;
                 for (int i = 0; i < f->arguments_count; i++){
                     char* argument_name=f->argument_names[i];
-                    int character_count=strlen(argument_name);
-
-                    if(first){
-                        BUFFER_WRITE(argument_name, character_count);
-                        first=0;
-                    } else {
-                        int formatted_count=3+character_count;
-                        char* argument_buffer=malloc(formatted_count*sizeof(char));
-                        snprintf(argument_buffer, formatted_count, ", %s", argument_name);
-                        BUFFER_WRITE(argument_buffer, formatted_count);
-                        free(argument_buffer);
+                    if(!first){
+                        stream_push_const_string(&s, ", ");
                     }
+                    stream_push_string(&s, argument_name);
+                    first=false;
                 }
                 if(f->variadic){
-                    BUFFER_WRITE("...", 3);
+                    stream_push_const_string(&s, "...");
                 }
-                BUFFER_WRITE(")>\0", 2);
-                
-                return buffer;
+                stream_push_const_string(&s, ")");
             } else {
-                char* buffer=malloc(16*sizeof(char*));
+                char* buffer=malloc(8*sizeof(char*));
                 if(f->variadic){
-                    snprintf(buffer, 16, "<function %i...>", f->arguments_count);
+                    snprintf(buffer, 8, " %i", f->arguments_count);
                 } else {
-                    snprintf(buffer, 16, "<function %i>", f->arguments_count);
+                    snprintf(buffer, 8, " %i...", f->arguments_count);
                 }
-                return buffer;
+                stream_push_string(&s, buffer);
+                free(buffer);
             }
+            stream_push_const_string(&s, ">\0");
+            return stream_get_data(&s);
         }
         case t_coroutine:
             return suprintf("<coroutine %#x>", (long unsigned)o.co);

@@ -24,7 +24,8 @@ void vector_deinit(vector* v){
     free(v->items);
 }
 
-void* vector_index(const vector* v, int index){
+// TODO: change into macro
+inline void* vector_index(const vector* v, int index){
     return (char*)v->items + index*v->item_size;
 }
 
@@ -47,7 +48,15 @@ void vector_check_upsize(vector* v){
     }
 }
 
-void vector_push(vector* v, const void* value){
+void vector_ensure_capacity(vector* v, uint capacity){
+    if(capacity>v->size){
+        v->size=nearest_power_of_two(capacity);
+        v->items=realloc(v->items, v->item_size*v->size);
+        CHECK_ALLOCATION(v->items)
+    }
+}
+
+inline void vector_push(vector* v, const void* value){
     v->count++;
     vector_check_upsize(v);
     memcpy(vector_index(v, v->count-1), value, v->item_size);
@@ -95,7 +104,7 @@ void vector_insert_multiple(vector* v, int index, void* elements, int count){
     }
 }
 
-static void vector_check_downsize(vector* v){
+void vector_check_downsize(vector* v){
     if(v->count<v->size/4 && v->count>0){
         v->size/=2;
         v->items=realloc(v->items, v->item_size*v->size);
@@ -128,7 +137,7 @@ int vector_search(vector* v, void* item){
     return -1;
 }
 
-void vector_clear(vector* v){
+inline void vector_clear(vector* v){
     v->count=0;
 }
 
@@ -141,7 +150,7 @@ void vector_delete_range(vector* v, int start, int end){
     vector_check_downsize(v);
 }
 
-void* vector_pop(vector* v){
+inline void* vector_pop(vector* v){
     // TEMPORARY
     // vector_check_downsize(v);// downsize is here because we don't want to deallocate the returned pointer
     v->count--;
@@ -149,16 +158,16 @@ void* vector_pop(vector* v){
     return (void*)item_position;
 }
 
-void* vector_top(vector* v){
+inline void* vector_top(vector* v){
     char* item_position=((char*)v->items) + (v->count-1)*v->item_size;
     return (void*)item_position;
 }
 
-int vector_count(const vector* v){
+inline int vector_count(const vector* v){
     return v->count;
 }
 
-bool vector_empty(const vector* v){
+inline bool vector_empty(const vector* v){
     return v->count==0;
 }
 

@@ -25,6 +25,9 @@ void vector_deinit(vector* v);
 void vector_push(vector* v, const void* o);
 void* vector_pop(vector* v);
 void* vector_top(vector* v);
+
+void vector_ensure_capacity(vector* v, uint capacity);
+void vector_check_downsize(vector* v);
 // will make vector count equal to new_count, added elements are zeroed
 void vector_extend(vector* v, int new_count);
 
