@@ -1,3 +1,5 @@
+# HAS_LIGHTNING = 1
+
 submodules := object_system/object_system.a parser/parser.a
 
 source-files := \
@@ -11,7 +13,11 @@ source-files := \
 
 build-folder := ../build
 
-options :=  -llightning -g3 -gdwarf-2 -Wall -Wl,--out-implib,$(build-folder)/libhost.a #-DDEBUGGING
+options := -g3 -gdwarf-2 -Wall -Wl,--out-implib,$(build-folder)/libhost.a #-DDEBUGGING
+ifdef $(HAS_LIGHTNING)
+	options:=$(options)  -llightning -D HAS_LIGHTNING
+endif
+# linux requires -ldl flag
 ifneq ($(OS),Windows_NT)
 	options:=$(options) -ldl
 endif
