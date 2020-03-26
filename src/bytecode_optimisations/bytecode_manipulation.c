@@ -80,7 +80,8 @@ bool insert_instruction(BytecodeManipulation* manipulation, unsigned index, Inst
         vector_insert(manipulation->instructions, index, instruction);
         vector_insert(manipulation->transformations, index, transformation);
         // copy information from previous instruction
-        vector_insert(manipulation->informations, index, vector_index(manipulation->informations, index-1));
+        InstructionInformation information=*(InstructionInformation*)vector_index(manipulation->informations, index-1);
+        vector_insert(manipulation->informations, index, &information);
         move_changes_forward(manipulation, index);
         add_change(manipulation, ct_add, index);
         return true;
