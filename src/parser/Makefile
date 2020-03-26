@@ -1,9 +1,14 @@
 archive-path := parser.a
 tests-path := tests.exe
 repl-path := repl.exe
-source-files := parser.tab.c lex.yy.c ast.c ast_visitor.c ast_postprocessing.c ../containers/map.c
-executable-only-source-files := ../error/error.c ../containers/stream.c ../containers/vector.c ../utility.c
-object-files := parser.tab.o lex.yy.o ast.o ast_visitor.o ast_postprocessing.o map.o
+source-files := \
+	$(shell find . \
+		! -name "tests.c" \
+		! -name "repl.c" \
+		-name "*.c") \
+		parser.tab.c lex.yy.c
+executable-only-source-files := ../error/error.c ../containers/stream.c ../containers/vector.c ../containers/map.c ../utility.c
+object-files := $(shell find . -name "*.o")
 
 all: $(archive-path)
 

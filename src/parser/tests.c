@@ -293,9 +293,9 @@ void closures(){
     , 3);
     
     // TODO: some kind of pattern matching traversal instead of these macros
-    assert(ASSERT_CAST(FIRST_LINE(FIRST_LINE(as_block)), Assignment, assignment)->used_in_closure=true);
+    assert(ASSERT_CAST(FIRST_LINE(FIRST_LINE(as_block)), Assignment, assignment)->used_in_closure==true);
     assert(ASSERT_CAST(ASSERT_CAST(FIRST_LINE(GET_LINE(as_block, 1)), FunctionDeclaration, function_declaration)->body, Assignment, assignment)->used_in_closure==false);
-    assert(ASSERT_CAST(FIRST_LINE(GET_LINE(as_block, 2)), Assignment, assignment)->used_in_closure=true);
+    assert(ASSERT_CAST(FIRST_LINE(GET_LINE(as_block, 2)), Assignment, assignment)->used_in_closure==true);
     
     delete_expression((Expression*)as_block);
     printf("test successful\n");

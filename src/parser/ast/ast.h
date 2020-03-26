@@ -2,9 +2,9 @@
 #define AST_H
 
 #include <string.h>
-#include "../containers/vector.h"
-#include "../containers/stream.h"
-#include "../error/error.h"
+#include "../../containers/vector.h"
+#include "../../containers/stream.h"
+#include "../../error/error.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>

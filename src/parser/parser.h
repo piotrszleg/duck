@@ -7,7 +7,7 @@
 #include "../utility.h"
 #include "../containers/vector.h"
 #include "../error/error.h"
-#include "ast.h"
+#include "ast/ast.h"
 
 Expression* parse_string(const char* s);
 Expression* parse_file(const char* file);

@@ -1,6 +1,6 @@
 %{
 #include "parser.h"
-#include "ast_postprocessing.h"
+#include "ast/ast_postprocessing.h"
 
 // Declare stuff from Flex that Bison needs to know about:
 extern int yylex();
