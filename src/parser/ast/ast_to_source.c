@@ -62,10 +62,15 @@ void ast_to_source_recursive(stream* s, Expression* expression){
             ast_to_source_recursive(s, conditional->condition);
             stream_push_const_string(s, ") ");
             ast_to_source_recursive(s, conditional->ontrue);
-            // TODO: detect elif
             if(conditional->onfalse->type!=e_empty){
-                stream_push_const_string(s, " else ");
-                ast_to_source_recursive(s, conditional->onfalse);
+                if(conditional->onfalse->type==e_conditional){
+                    // make elif instead of nested if
+                    stream_push_const_string(s, " el");
+                    ast_to_source_recursive(s, conditional->onfalse);
+                } else {
+                    stream_push_const_string(s, " else ");
+                    ast_to_source_recursive(s, conditional->onfalse);
+                }
             }
             break;
         }
