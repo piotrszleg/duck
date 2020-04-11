@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include "../utility.h"
-#include "../parser/ast.h"
+#include "../parser/ast/ast.h"
 #include "../object_system/object.h"
 #include "../containers/objects_vector.h"
 #include "../transformers/bytecode_to_myjit.h"

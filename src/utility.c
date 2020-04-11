@@ -131,3 +131,26 @@ void* realloc_zero(void* previous, size_t previous_size, size_t new_size) {
     }
     return reallocated;
 }
+
+#define STRINGIFY_BUFFER_SIZE 16
+// printf variant that returns pointer to formatted string
+char* suprintf (const char * format, ...){
+    char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));
+    CHECK_ALLOCATION(buffer);
+    int buffer_size=STRINGIFY_BUFFER_SIZE;
+    va_list args;
+
+    while(true){
+        va_start (args, format);
+        int vsprintf_result=vsnprintf (buffer, buffer_size, format, args);
+        va_end (args);
+        if(vsprintf_result>=buffer_size){
+            buffer_size*=2;
+            buffer=realloc(buffer, buffer_size*sizeof(char));
+            CHECK_ALLOCATION(buffer);
+        } else {
+            break;
+        }
+    }
+    return buffer;
+}

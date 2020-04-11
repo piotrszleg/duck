@@ -25,7 +25,7 @@ void stream_fit(stream* s, int minimal_size);
 #define stream_push_const_string(s, string) \
     stream_push(s, string, sizeof(string)-1)
 
-#define stream_printf(s, format, ...) \
+#define stream_printf(s, format, ...) { \
     int available_space=(s)->size-(s)->position; \
     int needed_characters=snprintf(((char*)(s)->data)+(s)->position, available_space, (format), __VA_ARGS__); \
     if(needed_characters<0) { \
@@ -39,6 +39,7 @@ void stream_fit(stream* s, int minimal_size);
             CRITICAL_ERROR(PRINTF_ERROR, "Snprintf function failed."); \
         } \
     } \
-    (s)->position+=needed_characters;
+    (s)->position+=needed_characters; \
+}
 
 #endif

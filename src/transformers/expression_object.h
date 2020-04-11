@@ -1,7 +1,7 @@
 #ifndef EXPRESSION_OBJECT_H
 #define EXPRESSION_OBJECT_H
 
-#include "../parser/ast_visitor.h"
+#include "../parser/ast/ast_visitor.h"
 #include "../object_system/object.h"
 
 Expression* object_to_literal(Executor* E, Object o);

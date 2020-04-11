@@ -1,7 +1,7 @@
 #ifndef AST_TO_BYTECODE_H
 #define AST_TO_BYTECODE_H
 
-#include "../parser/ast.h"
+#include "../parser/ast/ast.h"
 #include "../parser/parser.h"
 #include "../bytecode/bytecode_program.h"
 #include "../error/error.h"

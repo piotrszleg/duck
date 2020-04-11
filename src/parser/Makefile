@@ -28,11 +28,11 @@ lex.yy.c: lexer.l parser.tab.h
 	flex lexer.l
 
 # compile c files into objects
-$(object-files): $(source-files) $(headers)
+compile-objects: $(source-files) $(headers)
 	gcc -g3  -gdwarf-2 -Wall -c $(source-files)
 
 # pack object files into archive
-$(archive-path): $(object-files)
+$(archive-path): compile-objects
 	ar cr $(archive-path) $(object-files)
 
 # compile c files into exe

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "parser.h"
+#include "ast/ast_to_source.h"
 
 int main(){
     #if YYDEBUG == 1
@@ -18,11 +19,11 @@ int main(){
             }
             Expression* parsing_result=parse_string(input);
             if(parsing_result!=NULL){
-                printf("%s\n",stringify_expression(parsing_result, 0));
+                USING_STRING(ast_to_source(parsing_result),
+                    printf("%s\n", str))
             }
         }, {
-            printf("Error occured:\n");
-            printf(err_message);
+            printf("Error occured:\n%s", err_message);
         })
     }
 }

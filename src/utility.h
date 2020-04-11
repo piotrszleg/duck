@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include "error/error.h"
 #include "c_fixes.h"
 
@@ -59,5 +60,6 @@ char* string_repeat(const char* str, int times);
 bool strings_counted_equal(char* a, char* b, size_t count);
 void* copy_memory(void* source, size_t size);
 void* realloc_zero(void* previous, size_t previous_size, size_t new_size);
+char* suprintf (const char * format, ...);
 
 #endif

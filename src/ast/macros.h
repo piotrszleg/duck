@@ -1,7 +1,7 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#include "../parser/ast_visitor.h"
+#include "../parser/ast/ast_visitor.h"
 #include "../containers/map.h"
 #include "../execution/execution.h"
 #include "../transformers/expression_object.h"
