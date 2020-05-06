@@ -599,6 +599,16 @@ Object builtin_map(Executor* E, Object scope, Object* arguments, int arguments_c
     return result;
 }
 
+/*
+help(subject)
+
+Displays help related to subject.
+*/
+Object builtin_help(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object subject=arguments[0];
+    return help(E, subject);
+}
+
 Object builtins_table(Executor* E){
     Object scope;
     table_init(E, &scope);
@@ -662,6 +672,7 @@ Object builtins_table(Executor* E){
     REGISTER(evaluate_expression, 1)
     REGISTER(parse, 1)
     REGISTER(map, 2)
+    REGISTER(help, 1)
     #undef REGISTER
 
     Object function;

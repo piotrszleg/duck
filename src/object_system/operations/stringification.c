@@ -19,8 +19,10 @@ char* serialize(Executor* E, Object o) {
         if(serialize_override.type!=t_null){
             Object result=call(E, serialize_override, &o, 1);
             if(result.type!=t_string){
+                dereference(E, &serialize_override);
                 return stringify_object(E, result);
             } else {
+                dereference(E, &serialize_override);
                 return result.text;
             }
         } else {

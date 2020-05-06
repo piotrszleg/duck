@@ -25,7 +25,8 @@
     X(copy) \
     X(destroy) \
     X(prototype) \
-    X(is_error)
+    X(is_error) \
+    X(help)
 
 typedef struct Executor Executor;
 
@@ -184,6 +185,7 @@ struct Function {
         unsigned special_index;
     };
     char* name;
+    char* help;
     char** argument_names;
     unsigned arguments_count;
     bool variadic;

@@ -4,8 +4,8 @@
 #include "repl.h"
 #include "execution.h"
 
-static const char* version="0.0.1";
-static const char* help= \
+static const char* VERSION="0.0.1";
+static const char* ARGUMENTS_HELP= \
     "\nDuck 0.0.1\n"
     "\nOptions without argument are:\n"
     "\t-version\n"
@@ -69,10 +69,10 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
             #undef BOOL
             #undef UINT
             OPTION("repl", options->repl=true; ) \
-            OPTION("version", printf("%s", version); options->should_run=false; )
-            OPTION("?", printf("%s", help);
+            OPTION("version", printf("%s", VERSION); options->should_run=false; )
+            OPTION("?", printf("%s", ARGUMENTS_HELP);
                     options->should_run=false; )
-            OPTION("help", printf("%s", help);
+            OPTION("help", printf("%s", ARGUMENTS_HELP);
                     options->should_run=false; )
             #undef OPTION
             #undef BOOL_OPTION
