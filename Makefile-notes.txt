@@ -1,0 +1,11 @@
+./configure CC=c99 CFLAGS=-g LIBS=-lposix
+
+./configure CC="gcc -arch i386 -arch x86_64 -arch ppc -arch ppc64" \
+                 CXX="g++ -arch i386 -arch x86_64 -arch ppc -arch ppc64" \
+                 CPP="gcc -E" CXXCPP="g++ -E"
+
+                 --prefix=PREFIX
+
+'--exec-prefix=PREFIX'
+
+./configure CC=x86_64-w64-mingw32-gcc-7.3-win32 --prefix=build

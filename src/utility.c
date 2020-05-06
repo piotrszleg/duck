@@ -33,9 +33,15 @@ uint nearest_power_of_two(uint number){
     result |= result >> 1;
     result |= result >> 2;
     result |= result >> 4;
-    result |= result >> 8;
-    result |= result >> 16;
-    result |= result >> 32;
+    #if INT_MAX>=INT16_MAX
+        result |= result >> 8;
+            #if INT_MAX>=INT32_MAX
+                result |= result >> 16;
+                #if INT_MAX>=INT64_MAX
+                    result |= result >> 32;
+                #endif
+        #endif
+    #endif
     result++;
     return result;
 }
@@ -132,7 +138,6 @@ void* realloc_zero(void* previous, size_t previous_size, size_t new_size) {
     return reallocated;
 }
 
-#define STRINGIFY_BUFFER_SIZE 16
 // printf variant that returns pointer to formatted string
 char* suprintf (const char * format, ...){
     char* buffer=malloc(STRINGIFY_BUFFER_SIZE*sizeof(char));

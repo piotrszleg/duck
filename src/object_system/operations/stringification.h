@@ -3,6 +3,7 @@
 
 #include "../object.h"
 #include "../../containers/stream.h"
+#include "../../utility.h"
 
 char* suprintf (const char * format, ...);
 char* stringify_object(Executor* E, Object o);

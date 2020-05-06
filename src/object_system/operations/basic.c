@@ -115,7 +115,7 @@ Object cast(Executor* E, Object o, ObjectType type){
 static unsigned hash_string(const char *str) {
     unsigned hashed = 5381;
     while (*str) {
-      hashed = ((hashed << 5) + hashed) ^ *str++;
+        hashed = ((hashed << 5) + hashed) ^ *str++;
     }
     return hashed;
 }

@@ -190,7 +190,7 @@ bool is(Executor* E, Object a, Object b){
 Object operator(Executor* E, Object a, Object b, const char* op){
     size_t op_length=strlen(op);
     if(a.type==t_table){
-        Object operator_override=get(E, a, OVERRIDE(E, get));
+        Object operator_override=get(E, a, OVERRIDE(E, operator));
         if(operator_override.type!=t_null){
             // call get_function a and b as arguments
             Object result=call(E, operator_override, OBJECTS_ARRAY(a, b, to_string(op)), 3);

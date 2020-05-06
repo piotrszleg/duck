@@ -29,7 +29,7 @@ char* serialize(Executor* E, Object o) {
     } else if(is_serializable(o)){
         return stringify_object(E, o);
     } else {
-        return strdup("");
+        return strdup("null");
     }
 }
 
@@ -100,11 +100,12 @@ char* stringify_object(Executor* E, Object o){
             stream_push_const_string(&s, "<");
             if(f->name!=NULL){
                 stream_push_string(&s, f->name);
+            } else {
+                stream_push_const_string(&s, "function");
             }
             if(f->argument_names!=NULL){
-                
                 stream_push_const_string(&s, "(");
-                bool first=false;
+                bool first=true;
                 for (int i = 0; i < f->arguments_count; i++){
                     char* argument_name=f->argument_names[i];
                     if(!first){
@@ -120,9 +121,9 @@ char* stringify_object(Executor* E, Object o){
             } else {
                 char* buffer=malloc(8*sizeof(char*));
                 if(f->variadic){
-                    snprintf(buffer, 8, " %i", f->arguments_count);
-                } else {
                     snprintf(buffer, 8, " %i...", f->arguments_count);
+                } else {
+                    snprintf(buffer, 8, " %i", f->arguments_count);
                 }
                 stream_push_string(&s, buffer);
                 free(buffer);

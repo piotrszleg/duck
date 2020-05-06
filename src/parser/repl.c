@@ -8,7 +8,8 @@ int main(){
        extern int yydebug;
        yydebug = 1;
     #endif
-    printf("Read eval print loop of the duck parser. \n---\nType in duck syntax to see it's AST representation. \nWrite \"quit\" to exit the program.\n");
+    
+    printf("Read eval print loop of the duck parser. \n---\nType in duck syntax to see it being reinterpreted. \nWrite \"quit\" to exit the program.\n");
     char input[128];
     while(1) {
         TRY_CATCH({

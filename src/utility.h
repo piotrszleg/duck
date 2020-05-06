@@ -60,6 +60,7 @@ char* string_repeat(const char* str, int times);
 bool strings_counted_equal(char* a, char* b, size_t count);
 void* copy_memory(void* source, size_t size);
 void* realloc_zero(void* previous, size_t previous_size, size_t new_size);
+#define STRINGIFY_BUFFER_SIZE 16
 char* suprintf (const char * format, ...);
 
 #endif

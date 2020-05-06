@@ -1,5 +1,3 @@
-source-files:=./ast/ast.c ./ast/ast_postprocessing.c ./ast/ast_to_source.c ./ast/ast_visitor.c ./lex.yy.c ./parser.tab.c 
- object-files:= ast.o  ast_postprocessing.o  ast_to_source.o  ast_visitor.o ./lex.yy.o ./parser.tab.o
 gcc := gcc
 archive-path := parser.a
 tests-path := tests.exe

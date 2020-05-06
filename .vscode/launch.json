@@ -15,7 +15,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb",
+            "miDebuggerPath": "gdb",
             "sourceFileMap": {
                 "/build/glibc-OTsEL5": "/usr/src/glibc"
             },
@@ -81,7 +81,7 @@
             "name": "(gdb) parser tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/parser/tests.exe",
+            "program": "${workspaceFolder}/src/parser/tests.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
