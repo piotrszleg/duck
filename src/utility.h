@@ -63,4 +63,29 @@ void* realloc_zero(void* previous, size_t previous_size, size_t new_size);
 #define STRINGIFY_BUFFER_SIZE 16
 char* suprintf (const char * format, ...);
 
+
+// executes body with input variable containing text written
+#define REPL(body) \
+{   char input[256]; \
+    size_t input_offset=0;/* used to write consecutive lines into input buffer */ \
+    while(1) { \
+        if(input_offset==0){ \
+            printf(">>"); \
+        } else { \
+            printf("  "); \
+        } \
+        if(fgets_no_newline(input+input_offset, sizeof(input)-input_offset, stdin)!=NULL){ \
+            size_t input_length=strlen(input+input_offset); \
+            /* if input line ends with '\' character the next line is appended to it after a newline */ \
+            if(input[input_offset+input_length-1]=='\\'){ \
+                input[input_offset+input_length-1]='\n'; \
+                input_offset+=input_length; \
+            } else { \
+                input_offset=0; \
+                {body;} \
+            } \
+        } \
+    } \
+}
+
 #endif

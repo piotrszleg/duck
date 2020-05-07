@@ -1,1 +1,6 @@
-open_file
+help(print=object->{
+    /* prints all fields in an object
+       object : any */
+    object # print
+    // other comment
+})

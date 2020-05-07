@@ -74,3 +74,7 @@ void stream_truncate(stream* s){
 void* stream_get_data(stream* s){
     return s->data;
 }
+
+void stream_clear(stream* s){
+    s->position=0;
+}

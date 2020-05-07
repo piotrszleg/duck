@@ -4,9 +4,12 @@ lexer.l
 #include <stdio.h>
 #include "../error/error.h"
 #include "../utility.h"
+#include "../containers/stream.h"
 #include "parser.tab.h"
 int line_number = 1;
 int column_number = 0;
+
+static stream multiline_string_stream;
 
 // removes first and last character from source
 char* proccess_quoted_string(const char* source){
@@ -58,11 +61,28 @@ void reset_lexer(){
 
 %}
 %option noyywrap
-%s COMMENT
+%x COMMENT
+%x MULTILINE_STRING
 %%
 [ \t]                   { COUNT_COLUMNS; }
 \n                      { line_number++; column_number=0; return ENDL; }
-#.*                     ;// comment
+\/\/.*                  ;// single line comment
+
+"'''"           		  { stream_init(&multiline_string_stream, 32); BEGIN(MULTILINE_STRING); }
+<MULTILINE_STRING>[^'\n]* { stream_push_string(&multiline_string_stream, yytext); COUNT_COLUMNS; }
+<MULTILINE_STRING>''[^']  { stream_push_string(&multiline_string_stream, yytext); COUNT_COLUMNS; }// incomplete parentheses
+<MULTILINE_STRING>'[^']  { stream_push_string(&multiline_string_stream, yytext); COUNT_COLUMNS; }// incomplete parentheses
+<MULTILINE_STRING>"\n"    { stream_push_string(&multiline_string_stream, yytext); line_number++; column_number=0; }
+<MULTILINE_STRING>"'''"	  { BEGIN(INITIAL); 
+						  yylval.sval = strdup(stream_get_data(&multiline_string_stream));
+						  stream_deinit(&multiline_string_stream);
+						  return STRING; }
+
+"/*"           			{ BEGIN(COMMENT); }// multiline comment
+<COMMENT>[^*\n]*  		{ COUNT_COLUMNS; }/* eat anything that's not a '*' */
+<COMMENT>"*"+[^*/\n]*	{ COUNT_COLUMNS; }/* eat up '*'s not followed by '/'s */
+<COMMENT>"*/"			{ BEGIN(INITIAL); }
+
 if                      { COUNT_COLUMNS; return IF; }
 elif                    { COUNT_COLUMNS; return ELIF; }
 else                    { COUNT_COLUMNS; return ELSE; }
@@ -80,8 +100,8 @@ null				    { COUNT_COLUMNS; return NULL_LITERAL; }
 [a-zA-Z_][a-zA-Z0-9_]*  { COUNT_COLUMNS; yylval.sval = strdup(yytext); return NAME; }
 !=					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 ==					    { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
-[\(\)\{\},\.#=\[\]!-] 	{ COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, '-' must be separated from other binary operators because it is also a prefix
-[+\-\/*^&|<>%]+         { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
+[\(\)\{\},\.=\[\]!-] 	{ COUNT_COLUMNS; return yytext[0]; }// symbols used directly by parser, '-' must be separated from other binary operators because it is also a prefix
+[+\-\/*^&|<>%#]+        { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 [<>!]=         			{ COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 [+\-\/*^&|]+=           { COUNT_COLUMNS; yylval.sval = remove_last_character(yytext); return ASSIGN_BINARY_OPERATOR; }// +=, -= etc
 \`.+?\`             	{ COUNT_COLUMNS; yylval.sval = unquote(yytext); return BINARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` times_two

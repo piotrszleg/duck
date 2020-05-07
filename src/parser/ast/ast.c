@@ -1,7 +1,5 @@
 #include "ast.h"
 
-#define STRINGIFY_BUFFER_SIZE 64
-
 #ifdef COUNT_AST_ALLOCATIONS
 static int ast_allocations_count=0;
 #define AST_ALLOCATION   ast_allocations_count++;
@@ -64,11 +62,9 @@ char* stringify_expression(Expression* expression, int indentation){
     }
     indentation_string[indentation]='\0';
 
-    char buffer[STRINGIFY_BUFFER_SIZE];
-
     #define WRITE(message) stream_push(&s, message, strlen(message));
     #define WRITE_CONST(message) stream_push(&s, message, sizeof(message));
-    #define WRITE_FORMATTED(message, ...) snprintf(buffer, STRINGIFY_BUFFER_SIZE, message, ##__VA_ARGS__); WRITE(buffer)// TODO: upscale the buffer
+    #define WRITE_FORMATTED(message, ...) stream_printf(&s, message, ##__VA_ARGS__);
 
     switch(expression->type){
         #define EXPRESSION(struct_name, type_tag) \

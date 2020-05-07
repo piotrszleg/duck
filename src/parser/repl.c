@@ -10,21 +10,18 @@ int main(){
     #endif
     
     printf("Read eval print loop of the duck parser. \n---\nType in duck syntax to see it being reinterpreted. \nWrite \"quit\" to exit the program.\n");
-    char input[128];
-    while(1) {
+    REPL(
         TRY_CATCH({
-            printf(">>");
-            fgets_no_newline(input, 128, stdin);
             if(strcmp(input, "quit")==0){
-                break;
+                return 0;
             }
             Expression* parsing_result=parse_string(input);
             if(parsing_result!=NULL){
-                USING_STRING(ast_to_source(parsing_result),
+                USING_STRING(stringify_expression(parsing_result, 0),
                     printf("%s\n", str))
             }
-        }, {
+        },
             printf("Error occured:\n%s", err_message);
-        })
-    }
+        )
+    )
 }

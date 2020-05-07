@@ -21,6 +21,7 @@ void stream_truncate(stream* s);
 void* stream_get_data(stream* s);
 size_t stream_size(stream* s);
 void stream_fit(stream* s, int minimal_size);
+void stream_clear(stream* s);
 
 #define stream_push_const_string(s, string) \
     stream_push(s, string, sizeof(string)-1)
