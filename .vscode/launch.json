@@ -15,10 +15,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "gdb",
-            "sourceFileMap": {
-                "/build/glibc-OTsEL5": "/usr/src/glibc"
-            },
+            "miDebuggerPath": "E:/Programy/MinGW/bin/gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

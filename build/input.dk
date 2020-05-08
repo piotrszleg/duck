@@ -1,6 +1,2 @@
-help(print=object->{
-    /* prints all fields in an object
-       object : any */
-    object # print
-    // other comment
-})
+f=(a, b=3)->b
+f(10)

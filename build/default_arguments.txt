@@ -1,1 +1,1 @@
--dont_optimise_at_runtime -print_bytecode -dont_compile_bytecode -dont_execute_prelude input.dk
+-disable_bytecode input.dk

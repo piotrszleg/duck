@@ -1,6 +1,6 @@
-assert(1)# comments are working
-# also at line beginning
-# assert(0)
+assert(1)// comments are working
+// also at line beginning
+// assert(0)
 
 print("TEST: assignment")
 n=1
@@ -61,20 +61,20 @@ test("string functions", ->{
 test("format function", ->{
     assert_equal(format("name: {}, surname: {}", "John", "Doe"), "name: John, surname: Doe")
 
-    # not enough arguments provided to the format function should cause an error
+    // not enough arguments provided to the format function should cause an error
     assert_error(format("name: {}, surname: {}", "John"))
     assert_error(format("name: {}, surname: {}"))
 
-    # incorrectly written braces
+    // incorrectly written braces
     assert_equal(format("name: {, surname: {}", "John", "Doe"), "name: {, surname: John")
     assert_equal(format("name: {, surname: }", "John", "Doe"), "name: {, surname: }")
     assert_equal(format("name: {}, surname: {", "John", "Doe"), "name: John, surname: {")
 
-    # escaping
+    // escaping
     assert_equal(format("\{}", 1), "{}")
     assert_equal(format("\\{}", 1), "\1")
 
-    # error when first argument is not a string
+    // error when first argument is not a string
     assert_error(format(1, 4))
 })
 
@@ -88,7 +88,7 @@ test("type casting", ->{
 })
 
 test("closures", ->{
-    # a and one are variables used by closure returned by adder
+    // a and one are variables used by closure returned by adder
     adder=a->{
         one=1
         x->(a+x)*one
@@ -133,7 +133,7 @@ test("import", ->{
 
 test("evaluate", ->{
     assert_equal(evaluate("[a=1, b=2]"), [a=1, b=2])
-    # don't leak the current scope
+    // don't leak the current scope
     a=11
     assert_equal(evaluate("a"), null)
 })
@@ -148,23 +148,23 @@ test("question mark", ->{
     assert_error(f(1))
 })
 
-# test("garbage collection", ->{
-#     destroy_calls=0
-#     circular_reference=->{
-#         tab=[
-#             number=1
-#             destroy=self->destroy_calls+=self.number
-#         ]
-#         tab.self=tab
-#         tab
-#     }
-#     loop=(times ,f)->{
-#         f()
-#         if(times>1){
-#             loop(times-1, f)
-#         } 
-#     }
-#     loop(100, circular_reference)
-#     collect_garbage()
-#     assert_equal(destroy_calls, 100)
-# })
+// test("garbage collection", ->{
+//     destroy_calls=0
+//     circular_reference=->{
+//         tab=[
+//             number=1
+//             destroy=self->destroy_calls+=self.number
+//         ]
+//         tab.self=tab
+//         tab
+//     }
+//     loop=(times ,f)->{
+//         f()
+//         if(times>1){
+//             loop(times-1, f)
+//         } 
+//     }
+//     loop(100, circular_reference)
+//     collect_garbage()
+//     assert_equal(destroy_calls, 100)
+// })

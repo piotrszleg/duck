@@ -399,6 +399,7 @@ arguments:
 	| argument {
 		vector* arguments=malloc(sizeof(vector));
 		CHECK_ALLOCATION(arguments);
+		vector_init(arguments, sizeof(Argument), 8);
 		pointers_vector_push(arguments, $1);
 		$$=arguments;
 	}
@@ -437,10 +438,8 @@ function:
 	'(' arguments ')' ARROW expression {
 		FunctionDeclaration* f=new_function_declaration();
 		ADD_DEBUG_INFO(f)
-		vector_copy($2, &f->arguments);
-		vector_deinit($2);
+		f->arguments=*(vector*)$2;
 		free($2);
-
 
 		f->variadic=false;
 		f->body=$5;
