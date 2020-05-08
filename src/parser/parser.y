@@ -12,8 +12,57 @@ const char* file_name;
 bool is_repl;
 
 Expression* parsing_result;
- 
-void yyerror(const char *s);
+
+char* get_source_line(const char* file, int line){
+	size_t size = 128;
+    char *buf = malloc(size+1);
+
+    FILE* f = fopen(file, "r");
+    if (f == NULL) {
+        return strdup("");
+    }
+
+	int l=1;
+    while (fgets_no_newline(buf, size, f) != NULL) {
+		if(l==line){
+			fclose(f);
+			return buf;
+		}
+        l++;
+    }
+	fclose(f);
+	return strdup("");
+}
+
+void print_arrow(int length){
+	for(int i=0; i<length; i++){
+		printf("-");
+	}
+	printf("^\n");
+}
+
+// this function doesn't terminate parsing, it needs to be done from parser code
+void syntax_error(const char* message){
+	bool is_repl=strcmp(file_name, "repl")==0;
+	if(is_repl){
+		// two arrow needs to be two characters longer than normal because of ">>" prompt text
+		print_arrow(column_number+1);
+	}
+	printf("ParsingError: %s\nat(%s:%i:%i)\n", message, file_name, line_number, column_number);
+	if(!is_repl){
+		char* line=get_source_line(file_name, line_number);
+		printf("%s\n", line);
+		print_arrow(column_number-1);
+		free(line);
+	}
+	delete_expression(parsing_result);
+	parsing_result=NULL;
+}
+
+// called by yacc when parsing fails
+void yyerror(const char *message) {
+	syntax_error(message);
+}
 
 // if item is already at the end of the vector don't add it again
 void pointers_vector_push_ignore_duplicate(vector *v, void *item){
@@ -24,13 +73,44 @@ void pointers_vector_push_ignore_duplicate(vector *v, void *item){
 
 #define ADD_DEBUG_INFO(expression) expression->line_number=line_number; expression->column_number=column_number;
 
-Argument* name_to_argument(Name* n) {
-	Argument* a=new_argument();
-	ADD_DEBUG_INFO(a)
+void name_to_argument(Name* n, Argument* a) {
 	a->name=strdup(n->value);
+	a->line_number=n->line_number;
+	a->column_number=n->column_number;
 	a->used_in_closure=false;
-	delete_expression((Expression*)n);
-	return a;
+}
+
+// true on error
+bool process_function_declaration_arguments(FunctionDeclaration* function){
+    int arguments_count=vector_count(&function->arguments);
+    bool past_optional_arguments=false;
+    for(int i=0; i<arguments_count; i++){
+        Expression* argument=pointers_vector_get(&function->arguments, i);
+        // if one of the arguments is variadic then function is variadic
+        switch(argument->type) {
+            case e_variadic_argument:
+                if(i!=arguments_count-1){
+                    syntax_error("Variadic argument must be last in arguments list");
+					return true;
+                } else {
+                	function->variadic=true;
+				}
+                break;
+            case e_optional_argument:
+                past_optional_arguments=true;
+                break;
+            case e_argument:
+                if(past_optional_arguments){
+                    syntax_error("Optional argument cannot be followed by normal argument");
+					return true;
+                }
+                break;
+			default:
+				syntax_error("Incorrect argument expression type");
+				return true;
+        }
+    }
+	return false;
 }
 
 #define YYERROR_VERBOSE 1
@@ -45,7 +125,7 @@ Argument* name_to_argument(Name* n) {
 	int ival;
 	float fval;
 	char *sval;
-	struct vector* args;
+	struct vector* arguments;
 	struct Expression* expression;
 }
 
@@ -90,15 +170,18 @@ Argument* name_to_argument(Name* n) {
 %type <expression> binary;
 %type <expression> prefix;
 %type <expression> call;
-%type <args> arguments;
+%type <arguments> arguments;
 %type <expression> function;
 %type <expression> conditional;
 %type <expression> conditional_else;
 %type <expression> message;
 %type <expression> parentheses;
+%type <expression> unpack;
 %type <expression> macro;
 %type <expression> macro_declaration;
 %type <expression> argument;
+%type <expression> optional_argument;
+%type <expression> variadic_argument;
 %type <expression> return;
 %type <expression> return_if_error;
 
@@ -174,6 +257,7 @@ expression:
 	| macro_declaration
 	| return
 	| return_if_error
+	| unpack
 	;
 parentheses:
 	'(' expression ')' {
@@ -181,6 +265,14 @@ parentheses:
 		ADD_DEBUG_INFO(p)
 		p->value=$2;
 		$$=(Expression*)p;
+	}
+	;
+unpack:
+	ELLIPSIS expression {
+		Unpack* u=new_unpack();
+		ADD_DEBUG_INFO(u)
+		u->value=(Expression*)$2;
+		$$=(Expression*)u;
 	}
 	;
 identifier:
@@ -305,19 +397,39 @@ arguments:
 		$$=$1;
 	}
 	| argument {
-		vector* args=malloc(sizeof(vector));
-		CHECK_ALLOCATION(args);
-		vector_init(args, sizeof(Expression*), 4);
-		pointers_vector_push(args, $1);
-		$$=args;
+		vector* arguments=malloc(sizeof(vector));
+		CHECK_ALLOCATION(arguments);
+		pointers_vector_push(arguments, $1);
+		$$=arguments;
 	}
 	;
 argument:
-	NAME {
+	name {
 		Argument* a=new_argument();
-		ADD_DEBUG_INFO(a)
-		a->name=$1;
-		a->used_in_closure=false;
+		Name* name=(Name*)$1;
+		name_to_argument(name, a);
+		delete_expression((Expression*)name);
+		$$=(Expression*)a;
+	}
+	| optional_argument { $$=$1; }
+	| variadic_argument { $$=$1; }
+	;
+variadic_argument:
+	name ELLIPSIS {
+		VariadicArgument* a=new_variadic_argument();
+		Name* name=(Name*)$1;
+		name_to_argument(name, (Argument*)a);
+		delete_expression((Expression*)name);
+		$$=(Expression*)a;
+	}
+	;
+optional_argument:
+	name '=' expression {
+		OptionalArgument* a=new_optional_argument();
+		Name* name=(Name*)$1;
+		name_to_argument(name, (Argument*)a);
+		delete_expression((Expression*)name);
+		a->value=$3;
 		$$=(Expression*)a;
 	}
 	;
@@ -328,35 +440,42 @@ function:
 		vector_copy($2, &f->arguments);
 		vector_deinit($2);
 		free($2);
+
+
 		f->variadic=false;
 		f->body=$5;
-		$$=(Expression*)f;
-	}
-	| '(' arguments ELLIPSIS ')' ARROW expression {
-		FunctionDeclaration* f=new_function_declaration();
-		ADD_DEBUG_INFO(f)
-		vector_copy($2, &f->arguments);
-		vector_deinit($2);
-		free($2);
-		f->variadic=true;
-		f->body=$6;
-		$$=(Expression*)f;
-	}
-	| name ELLIPSIS ARROW expression {
-		FunctionDeclaration* f=new_function_declaration();
-		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, name_to_argument((Name*)$1));
-		f->variadic=true;
-		f->body=$4;
+		if(process_function_declaration_arguments(f)){
+			// function's arguments are formed incorrectly
+			delete_expression((Expression*)f);
+			YYABORT;
+		}
+		// one argument function's don't need to be processed using this function
 		$$=(Expression*)f;
 	}
 	| name ARROW expression {
-		FunctionDeclaration* f=new_function_declaration();
-		ADD_DEBUG_INFO(f)
-		pointers_vector_push(&f->arguments, name_to_argument((Name*)$1));
-		f->variadic=false;
-		f->body=$3;
-		$$=(Expression*)f;
+		// changing name above to argument causes assignments to be incorrectly parsed
+		#define ONE_ARGUMENT_FUNCTION(result, argument, _body, _variadic) \
+			FunctionDeclaration* f=new_function_declaration(); \
+			ADD_DEBUG_INFO(f) \
+			\
+			/* transform name into argument and delete it */ \
+			Argument* a=new_argument(); \
+			Name* name=(Name*)argument; \
+			name_to_argument(name, a); \
+			delete_expression((Expression*)name); \
+			if (_variadic) { \
+				a->type=e_variadic_argument; \
+			} \
+			\
+			pointers_vector_push(&f->arguments, a); \
+			f->variadic=_variadic; \
+			f->body=_body; \
+			result=(Expression*)f;
+		ONE_ARGUMENT_FUNCTION($$, $1, $3, false)
+	}
+	| name ELLIPSIS ARROW expression {
+		ONE_ARGUMENT_FUNCTION($$, $1, $4, true)
+		#undef ONE_ARGUMENT_FUNCTION
 	}
 	| ARROW expression {
 		FunctionDeclaration* f=new_function_declaration();
@@ -441,7 +560,7 @@ call:
 		FunctionCall* c=new_function_call();
 		ADD_DEBUG_INFO(c)
 		c->called=$1;
-		c->arguments=(TableLiteral*)$3;
+		c->arguments=(Block*)$3;
 		c->arguments->type=e_table_literal;
 		$$=(Expression*)c;
 	}
@@ -449,7 +568,7 @@ call:
 		FunctionCall* c=new_function_call();
 		ADD_DEBUG_INFO(c)
 		c->called=$1;
-		c->arguments=(TableLiteral*)new_block();
+		c->arguments=(Block*)new_block();
 		$$=(Expression*)c;
 	}
 	;
@@ -459,7 +578,7 @@ message:
 		ADD_DEBUG_INFO(m)
 		m->messaged_object=$1;
 		m->message_name=(Name*)$3;
-		m->arguments=(TableLiteral*)$5;
+		m->arguments=(Block*)$5;
 		m->arguments->type=e_table_literal;
 		$$=(Expression*)m;
 	}
@@ -468,7 +587,7 @@ message:
 		ADD_DEBUG_INFO(m)
 		m->messaged_object=$1;
 		m->message_name=(Name*)$3;
-		m->arguments=(TableLiteral*)new_block();
+		m->arguments=(Block*)new_block();
 		$$=(Expression*)m;
 	}
 	;
@@ -579,48 +698,4 @@ Expression* parse_file(const char* file) {
 		postprocess_ast(&parsing_result);
 	}
 	return parsing_result;
-}
-
-char* get_source_line(const char* file, int line){
-	size_t size = 128;
-    char *buf = malloc(size+1);
-
-    FILE* f = fopen(file, "r");
-    if (f == NULL) {
-        return strdup("");
-    }
-
-	int l=1;
-    while (fgets_no_newline(buf, size, f) != NULL) {
-		if(l==line){
-			fclose(f);
-			return buf;
-		}
-        l++;
-    }
-	fclose(f);
-	return strdup("");
-}
-
-void print_arrow(int length){
-	for(int i=0; i<length; i++){
-		printf("-");
-	}
-	printf("^\n");
-}
-
-void yyerror(const char *message) {
-	bool is_repl=strcmp(file_name, "repl")==0;
-	if(is_repl){
-		// two arrow needs to be two characters longer than normal because of ">>" prompt text
-		print_arrow(column_number+1);
-	}
-	printf("ParsingError: %s\nat(%s:%i:%i)\n", message, file_name, line_number, column_number);
-	if(!is_repl){
-		char* line=get_source_line(file_name, line_number);
-		printf("%s\n", line);
-		print_arrow(column_number-1);
-		free(line);
-	}
-	parsing_result=NULL;
 }

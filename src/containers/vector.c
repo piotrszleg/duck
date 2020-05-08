@@ -4,8 +4,10 @@ void vector_init(vector* v, size_t item_size, int size){
     v->count=0;
     v->item_size=item_size;
     v->size=size;
-    v->items=malloc(item_size*size);
-    CHECK_ALLOCATION(v->items)
+    if(size*item_size>0){
+        v->items=malloc(item_size*size);
+        CHECK_ALLOCATION(v->items)
+    }
 }
 
 // source needs to be a dynamically allocated memory block of size item_size*source_items_count
@@ -194,7 +196,8 @@ void vector_copy(vector* source, vector* destination){
     destination->count=source->count;
     destination->item_size=source->item_size;
     destination->size=source->size;
-    memcpy(destination->items, source->items, destination->size*destination->item_size);
+    free(destination->items);
+    destination->items=copy_memory(source->items, source->size*source->item_size);
 }
 
 void vector_tests(){

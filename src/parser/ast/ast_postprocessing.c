@@ -14,8 +14,7 @@ typedef map_t(VariableDeclaration) DeclarationsMap;
 typedef struct {
     DeclarationsMap declarations;
     vector functions;
-    vector contexts;
-    
+    vector contexts;    
 } PostprocessingState;
 
 char* get_root_variable_name(Expression* expression){
@@ -254,7 +253,7 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
         FunctionCall* call=new_function_call();
         call->called=(Expression*)message_function;
         // (messaged, arguments...)
-        TableLiteral* call_arguments=new_table_literal();
+        Block* call_arguments=new_block();
         pointers_vector_push(&call_arguments->lines, copy_expression((Expression*)messaged));
         for(int i=0; i<vector_count(&m->arguments->lines); i++) {
             pointers_vector_push(&call_arguments->lines, copy_expression((Expression*)pointers_vector_get(&m->arguments->lines, i)));
@@ -286,7 +285,7 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
             map_deinit(&state->declarations);
             state->declarations=new_declarations;
         } else {
-            // ast_visitor entered this function
+            // ast_visitor entered this function first time
             vector_push(&state->functions, (const void*)&expression);
         }
         // intentional fallthrough
@@ -301,6 +300,9 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
         }
         break;
     }
+    // these three structures share their first two fields layout
+    case e_variadic_argument:
+    case e_optional_argument:
     case e_argument: {
         Argument* argument=(Argument*)expression;
         char* variable=argument->name;
@@ -370,7 +372,10 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
             if(declaration!=NULL && declaration->owning_function!=CURRENT_FUNCTION){
                 if(declaration->first_assignment->type==e_assignment){
                     ((Assignment*)declaration->first_assignment)->used_in_closure=true;
-                } else if(declaration->first_assignment->type==e_argument) {
+                } else if(declaration->first_assignment->type==e_variadic_argument
+                       || declaration->first_assignment->type==e_optional_argument
+                       || declaration->first_assignment->type==e_argument) {
+                    // these three structures share their first two fields layout
                     ((Argument*)declaration->first_assignment)->used_in_closure=true;
                 }
             }

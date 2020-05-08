@@ -58,7 +58,7 @@ bool ast_allocations_zero();
     END \
     EXPRESSION(FunctionCall, function_call) \
         EXPRESSION_FIELD(called) \
-        SPECIFIED_EXPRESSION_FIELD(TableLiteral, table_literal, arguments) \
+        SPECIFIED_EXPRESSION_FIELD(Block, block, arguments) \
     END \
     EXPRESSION(Binary, binary) \
         STRING_FIELD(op) \
@@ -91,7 +91,7 @@ bool ast_allocations_zero();
     EXPRESSION(Message, message) \
         EXPRESSION_FIELD(messaged_object) \
         SPECIFIED_EXPRESSION_FIELD(Name, name, message_name) \
-        SPECIFIED_EXPRESSION_FIELD(TableLiteral, table_literal, arguments) \
+        SPECIFIED_EXPRESSION_FIELD(Block, block, arguments) \
     END \
     EXPRESSION(Macro, macro) \
         SPECIFIED_EXPRESSION_FIELD(Name, name, identifier) \
@@ -112,9 +112,21 @@ bool ast_allocations_zero();
     EXPRESSION(Argument, argument) \
         STRING_FIELD(name) \
         BOOL_FIELD(used_in_closure) \
+    END \
+    EXPRESSION(OptionalArgument, optional_argument) \
+        STRING_FIELD(name) \
+        BOOL_FIELD(used_in_closure) \
+        EXPRESSION_FIELD(value) \
+    END \
+    EXPRESSION(VariadicArgument, variadic_argument) \
+        STRING_FIELD(name) \
+        BOOL_FIELD(used_in_closure) \
+    END \
+    EXPRESSION(Unpack, unpack) \
+        EXPRESSION_FIELD(value) \
     END
 
-#define EXPRESSION_TYPES_COUNT (int)e_argument
+#define EXPRESSION_TYPES_COUNT (int)e_unpack
 
 // generate enum of expression types, each value is prepended with "e_"
 typedef enum ExpressionType ExpressionType;
