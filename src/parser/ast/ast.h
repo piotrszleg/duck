@@ -72,6 +72,7 @@ bool ast_allocations_zero();
     EXPRESSION(FunctionDeclaration, function_declaration) \
         VECTOR_FIELD(arguments) \
         BOOL_FIELD(variadic) \
+        BOOL_FIELD(has_optional_arguments) \
         EXPRESSION_FIELD(body) \
     END \
     EXPRESSION(Conditional, conditional) \

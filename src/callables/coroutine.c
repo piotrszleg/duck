@@ -17,6 +17,7 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
     vector_init(&CE->traceback, sizeof(TracebackPoint), 16);
     // coroutine executor shares garbage collector and symbols with main executor
     *OBJECT_SYSTEM(CE)=*OBJECT_SYSTEM(E);
+    CE->undefined_argument=E->undefined_argument;
 
     // create a coroutine scope inheriting from global scope
     table_init(CE, &CE->scope);

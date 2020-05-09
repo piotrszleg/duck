@@ -60,6 +60,7 @@ void executor_init(Executor* E){
     object_system_init(E);
     bytecode_environment_init(&E->bytecode_environment);
     vector_init(&E->stack, sizeof(Object), 8);
+    E->undefined_argument=new_symbol(E, "undefined_argument");
 }
 
 void executor_deinit(Executor* E){

@@ -17,7 +17,7 @@ int main(){
             }
             Expression* parsing_result=parse_string(input);
             if(parsing_result!=NULL){
-                USING_STRING(stringify_expression(parsing_result, 0),
+                USING_STRING(ast_to_source(parsing_result),
                     printf("%s\n", str))
             }
         },

@@ -39,9 +39,24 @@ void ast_to_source_recursive(stream* s, Expression* expression){
             ast_to_source_recursive(s, ((Parentheses*)expression)->value);
             stream_push_const_string(s, ")");
             break;
+        case e_unpack:
+            stream_push_const_string(s, "...");
+            ast_to_source_recursive(s, ((Unpack*)expression)->value);
+            break;
         case e_argument:
             stream_push_string(s, ((Argument*)expression)->name);
             break;
+        case e_variadic_argument:
+            stream_push_string(s, ((Argument*)expression)->name);
+            stream_push_const_string(s, "...");
+            break;
+        case e_optional_argument: {
+            OptionalArgument* argument=(OptionalArgument*)expression;
+            stream_push_string(s, argument->name);
+            stream_push_const_string(s, "=");
+            ast_to_source_recursive(s, argument->value);
+            break;
+        }
         case e_assignment: {
             Assignment* assignment=(Assignment*)expression;
             ast_to_source_recursive(s, assignment->left);
@@ -142,7 +157,7 @@ void ast_to_source_recursive(stream* s, Expression* expression){
         }
         case e_function_declaration:{
             FunctionDeclaration* declaration=(FunctionDeclaration*)expression;
-            bool add_parentheses=vector_count(&declaration->arguments)>1;
+            bool add_parentheses=vector_count(&declaration->arguments)>1 || declaration->has_optional_arguments;
             if(add_parentheses){
                 stream_push_const_string(s, "(");
             }

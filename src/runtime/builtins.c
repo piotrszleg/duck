@@ -617,6 +617,7 @@ Object builtins_table(Executor* E){
     table_set(E, scope.tp, to_string("builtins"), scope);
     table_set(E, scope.tp, to_string("overrides"), E->object_system.overrides_table);
     table_set(E, scope.tp, to_string("types"), E->object_system.types_table);
+    table_set(E, scope.tp, to_string("undefined_argument"), E->undefined_argument);
 
     #define REGISTER(f, args_count) \
         Object f##_function; \

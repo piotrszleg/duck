@@ -97,6 +97,7 @@ bool process_function_declaration_arguments(FunctionDeclaration* function){
 				}
                 break;
             case e_optional_argument:
+				function->has_optional_arguments=true;
                 past_optional_arguments=true;
                 break;
             case e_argument:

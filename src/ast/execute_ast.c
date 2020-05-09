@@ -263,7 +263,6 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
                     default:
                         STOP_USING(f)
                         RETURN_ERROR("CALL_ERROR", f, "Unknown special function of special_index %i.", f.fp->special_index)
-                
                 }
             } else {
                 int arguments_count=vector_count(&c->arguments->lines);

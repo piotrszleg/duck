@@ -29,6 +29,8 @@ struct Executor {
     Debugger debugger;
     BytecodeEnvironment bytecode_environment;
     Options options;
+
+    Object undefined_argument;
 };
 
 void executor_init(Executor* E);

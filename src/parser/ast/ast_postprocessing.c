@@ -91,6 +91,52 @@ void replace_null_conditional(Expression* expression) {
     }
 }
 
+/* 
+adds 
+if(<optional_argument.name>==undefined_argument) 
+    <optional_argument.name>=<optional_argument.value>
+to the block
+*/
+Expression* optional_argument_assignment(OptionalArgument* optional_argument) {
+    Conditional* conditional=new_conditional();
+    Binary* equals_undefined_argument=new_binary();
+    Name* argument_name=new_name();
+    argument_name->value=strdup(optional_argument->name);
+    Name* undefined_argument_name=new_name();
+    undefined_argument_name->value=strdup("undefined_argument");
+    equals_undefined_argument->left=(Expression*)argument_name;
+    equals_undefined_argument->right=(Expression*)undefined_argument_name;
+    equals_undefined_argument->op=strdup("==");
+    conditional->condition=(Expression*)equals_undefined_argument;
+    Assignment* assignment=new_assignment();
+    assignment->left=copy_expression((Expression*)argument_name);
+    assignment->right=copy_expression(optional_argument->value);
+    conditional->ontrue=(Expression*)assignment;
+    conditional->onfalse=(Expression*)new_empty();
+    return (Expression*)conditional;
+}
+
+void process_optional_arguments(FunctionDeclaration* function){
+    Block* body;
+    if(function->body->type==e_block){
+        body=(Block*)function->body;
+    } else {
+        // function body must be a block because we need to insert new lines into it
+        body=new_block();
+        pointers_vector_push(&body->lines, function->body);
+        function->body=(Expression*)body;
+    }
+    vector* arguments=&function->arguments;
+    // iteration is in reverse to make the conditionals in the same order as arguments
+    for(int i=vector_count(arguments)-1; i>=0; i--){
+        Expression* argument=(Expression*)pointers_vector_get(arguments, i);
+        if(argument->type==e_optional_argument){
+            Expression* assignment=optional_argument_assignment((OptionalArgument*)argument);
+            vector_insert(&body->lines, 0, &assignment);
+        }
+    }
+}
+
 ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
     ASTVisitorRequest request={down, NULL};
     PostprocessingState* state=data;
@@ -287,6 +333,11 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
         } else {
             // ast_visitor entered this function first time
             vector_push(&state->functions, (const void*)&expression);
+
+            FunctionDeclaration* function=(FunctionDeclaration*)expression;
+            if(function->has_optional_arguments){
+                process_optional_arguments(function);
+            }
         }
         // intentional fallthrough
     }
