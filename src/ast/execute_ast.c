@@ -213,10 +213,23 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
         {
             FunctionDeclaration* d=(FunctionDeclaration*)expression;
             int arguments_count=vector_count(&d->arguments);
+
             Object f;
             function_init(E, &f);
-            f.fp->argument_names=malloc(sizeof(char*)*arguments_count);
+            
             f.fp->arguments_count=arguments_count;
+            if(d->has_optional_arguments){
+                int optional_arguments_count=0;
+                for(int i=0; i<arguments_count; i++){
+                    Expression* argument=(Expression*)pointers_vector_get(&d->arguments, i);
+                    if(argument->type==e_optional_argument){
+                        optional_arguments_count++;
+                    }
+                }
+                f.fp->optional_arguments_count=optional_arguments_count;
+            }
+            
+            f.fp->argument_names=malloc(sizeof(char*)*arguments_count);
             f.fp->variadic=d->variadic;
             for (int i = 0; i < arguments_count; i++){
                 f.fp->argument_names[i]=strdup(((Argument*)pointers_vector_get(&d->arguments, i))->name);

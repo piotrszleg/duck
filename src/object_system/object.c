@@ -113,6 +113,7 @@ void function_init(Executor* E, Object* o){
     o->fp->name=NULL;
     o->fp->argument_names=NULL;
     o->fp->arguments_count=0;
+    o->fp->optional_arguments_count=0;
     o->fp->ftype=f_native;
     o->fp->enclosing_scope=null_const;
 }

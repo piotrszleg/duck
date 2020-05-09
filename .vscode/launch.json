@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/duck.exe",
-            "args": [],
+            "args": ["-dont_execute_prelude", "input.dk"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",
             "environment": [],

@@ -97,6 +97,7 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
             for(; options->script_arguments[scripts_arguments_count]!=NULL; scripts_arguments_count++);
             if(scripts_arguments_count>0){
                 options->script_arguments=realloc(options->script_arguments, sizeof(char*)*(scripts_arguments_count+additional_arguments_count+1));// +1 for NULL teminator
+                CHECK_ALLOCATION(options->script_arguments)
                 for(int j=0; j<additional_arguments_count; j++){
                     options->script_arguments[scripts_arguments_count+j]=strdup(arguments[i+j]);
                 }
@@ -107,6 +108,7 @@ void read_arguments(Options* options, int arguments_count, char **arguments) {
         }
     } else {
         options->script_arguments=malloc(sizeof(char*)*(additional_arguments_count+1));// +1 for NULL teminator
+        CHECK_ALLOCATION(options->script_arguments)
         for(int j=0; j<additional_arguments_count; j++){
             options->script_arguments[j]=strdup(arguments[i+j]);
         }
@@ -134,6 +136,7 @@ void read_arguments_from_file(Options* options){
         }
         int arguments_size=8;
         char** arguments=malloc(sizeof(char*)*arguments_size);
+        CHECK_ALLOCATION(arguments)
         int arguments_count=0;
         int start=0;
         int i=0;

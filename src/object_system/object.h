@@ -188,6 +188,7 @@ struct Function {
     char* help;
     char** argument_names;
     unsigned arguments_count;
+    unsigned optional_arguments_count;
     bool variadic;
     Object enclosing_scope;
 };

@@ -45,34 +45,48 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
 
 // return error if arguments count is incorrect and proccess variadic functions, then call the Function using call_function_processed
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count){
-
+    
     #define CALL_ERROR(message, ...) \
         RETURN_ERROR("CALL_ERROR", wrap_heap_object((HeapObject*)f),message, ##__VA_ARGS__)
     
-    int arguments_count_difference=arguments_count-f->arguments_count+f->variadic;
-    if(arguments_count_difference<0){
-        CALL_ERROR("Not enough arguments in function call, expected at least %i, given %i.", f->arguments_count-f->variadic, arguments_count);
-    } else if(!f->variadic && arguments_count_difference>0) {
+    int minimal_arguments=(int)f->arguments_count-f->optional_arguments_count-f->variadic;
+    int max_arguments=f->arguments_count;
+    if(arguments_count<minimal_arguments){
+        CALL_ERROR("Not enough arguments in function call, expected at least %i, given %i.", minimal_arguments, arguments_count);
+    } else if(!f->variadic && arguments_count>max_arguments) {
         CALL_ERROR("Too many arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
     }
 
-    if(f->variadic&&f->ftype!=f_native){
+
+    // native functions don't need their variadic arguments to be packed
+    if((f->variadic||f->optional_arguments_count>0)&&f->ftype!=f_native){
         // make new arguments array
         int processed_arguments_count=f->arguments_count;
+        int normal_arguments_count=MAX(minimal_arguments, arguments_count);
         Object* processed_arguments=malloc(sizeof(Object)*processed_arguments_count);
         // copy non variadic arguments
-        for(int i=0; i<f->arguments_count-1; i++){
+        for(int i=0; i<normal_arguments_count; i++){
             processed_arguments[i]=arguments[i];
         }
-        // pack variadic arguments into a Table
-        Object variadic_table;
-        table_init(E, &variadic_table);
-        for(int i=arguments_count_difference-1; i>=0; i--){
-            set(E, variadic_table, to_int(i), arguments[f->arguments_count-1+i]);
+        // add undefined arguments
+        int undefined_arguments=processed_arguments_count-arguments_count;
+        if(undefined_arguments>0){
+            for(int i=0; i<f->optional_arguments_count; i++){
+                processed_arguments[normal_arguments_count+i]=E->undefined_argument;
+                reference(&processed_arguments[f->arguments_count+i]);
+            }
         }
-        // append the variadic array to the end of processed arguments array
-        processed_arguments[f->arguments_count-1]=variadic_table;
-
+        if(f->variadic){
+            // pack variadic arguments into a Table
+            Object variadic_table;
+            table_init(E, &variadic_table);
+            int variadic_arguments_start=f->arguments_count-1;
+            for(int i=variadic_arguments_start; i<arguments_count; i++){
+                set(E, variadic_table, to_int(i-variadic_arguments_start), arguments[i]);
+            }
+            // append the variadic array to the end of processed arguments array
+            processed_arguments[f->arguments_count-1]=variadic_table;
+        }
         return call_function_processed(E, f, processed_arguments, processed_arguments_count);
     } else {
         return call_function_processed(E, f, arguments, arguments_count);
