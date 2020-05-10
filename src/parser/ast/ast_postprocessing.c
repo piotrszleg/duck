@@ -335,7 +335,7 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
             vector_push(&state->functions, (const void*)&expression);
 
             FunctionDeclaration* function=(FunctionDeclaration*)expression;
-            if(function->has_optional_arguments){
+            if(function->optional_arguments_count>0){
                 process_optional_arguments(function);
             }
         }

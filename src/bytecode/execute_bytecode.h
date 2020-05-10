@@ -38,5 +38,6 @@ void create_variant(Executor* E, BytecodeProgram* program);
 
 #include "../runtime/builtins.h"
 #include "../error/execution_state.h"
+#include "../callables/function.h"
 
 #endif

@@ -336,6 +336,7 @@ void ast_to_bytecode_recursive(Expression* expression, BytecodeTranslation* tran
 
             FunctionArgument argument;
             argument.arguments_count=arguments_count;
+            argument.optional_arguments_count=d->optional_arguments_count;
             argument.is_variadic=d->variadic;
             Instruction instr={b_function_1};
             instr.function_argument=argument;

@@ -285,7 +285,8 @@ Object evaluate_string(Executor* E, const char* s, Object scope);
 
 Object execute_bytecode(Executor* E){
     int* pointer=&E->bytecode_environment.pointer;// points to the current Instruction
-    BytecodeProgram* program=E->bytecode_environment.executed_program;
+
+    #define PROGRAM E->bytecode_environment.executed_program
     
     #define PUSH(object) \
         executor_stack_push_allocated(E, object)
@@ -295,7 +296,7 @@ Object execute_bytecode(Executor* E){
 
     #define NEXT_INSTRUCTION \
         (*pointer)++; \
-        Instruction instruction=program->code[*pointer];
+        Instruction instruction=PROGRAM->code[*pointer];
 
     #define BYTECODE_ERROR(cause, message, ...) \
         {   Object err; \
@@ -307,10 +308,10 @@ Object execute_bytecode(Executor* E){
         if(E->options.debug){
             debugger_update(E, &E->debugger);
         }
-        Instruction instruction=program->code[*pointer];
-        E->file=program->source_file_name;
-        E->line=program->information[*pointer].line;
-        E->column=program->information[*pointer].column;
+        Instruction instruction=PROGRAM->code[*pointer];
+        E->file=PROGRAM->source_file_name;
+        E->line=PROGRAM->information[*pointer].line;
+        E->column=PROGRAM->information[*pointer].column;
         
         switch(instruction.type){
             case b_no_op:
@@ -349,7 +350,7 @@ Object execute_bytecode(Executor* E){
             #undef INDEX_STACK
             case b_load_string:
             {
-                char* str=strdup(((char*)program->constants)+instruction.uint_argument);
+                char* str=strdup(((char*)PROGRAM->constants)+instruction.uint_argument);
                 PUSH(to_string(str));
                 break;
             }
@@ -672,7 +673,7 @@ Object execute_bytecode(Executor* E){
             }
             case b_jump:
             {
-                *pointer=E->bytecode_environment.executed_program->labels[instruction.uint_argument];
+                *pointer=PROGRAM->labels[instruction.uint_argument];
                 break;
             }
             // b_function_2 always follows b_function_1 so they are handled in a single case label
@@ -683,6 +684,7 @@ Object execute_bytecode(Executor* E){
                 f.fp->enclosing_scope=E->scope;
                 reference(&E->scope);
                 f.fp->arguments_count=instruction.function_argument.arguments_count;
+                f.fp->optional_arguments_count=instruction.function_argument.optional_arguments_count;
                 f.fp->variadic=instruction.function_argument.is_variadic;
                 f.fp->ftype=f_bytecode;
                 // b_function_2 always follows b_function_1 so it can be read directly
@@ -717,8 +719,8 @@ Object execute_bytecode(Executor* E){
                 Object o=POP();
                 int provided_arguments=instruction.uint_argument;
 
-                InstructionInformation call_information=program->information[E->bytecode_environment.pointer];
-                TracebackPoint traceback_point={program->source_file_name, call_information.line};
+                InstructionInformation call_information=PROGRAM->information[E->bytecode_environment.pointer];
+                TracebackPoint traceback_point={PROGRAM->source_file_name, call_information.line};
                 vector_push(&E->traceback, &traceback_point);
 
                 #define RETURN(value) \
@@ -734,12 +736,12 @@ Object execute_bytecode(Executor* E){
                     for (int i = 0; i < provided_arguments; i++){ \
                         Object argument=POP(); \
                             dereference(E, &argument); \
-                    } \
-                    dereference(E, &o);
+                    }
                 #define CALL_ERROR(message, ...) \
                 {   Object err; \
                     POP_ARGUMENTS \
                     NEW_ERROR(err, "CALL_ERROR", o, message, ##__VA_ARGS__); \
+                    dereference(E, &o); \
                     RETURN(err) }
                 
                 if(o.type==t_null){
@@ -761,10 +763,9 @@ Object execute_bytecode(Executor* E){
                 }
                 int arguments_count_difference=provided_arguments-o.fp->arguments_count+o.fp->variadic;
                 // check arguments count
-                if(arguments_count_difference<0){
-                    CALL_ERROR("Not enough arguments in function call, expected at least %i, given %i.", o.fp->arguments_count-o.fp->variadic, provided_arguments);
-                } else if(!o.fp->variadic && arguments_count_difference>0) {
-                    CALL_ERROR("Too many arguments in function call, expected %i, given %i.", o.fp->arguments_count, provided_arguments);
+                Object error;
+                if(!is_arguments_count_correct(E, o.fp, provided_arguments, &error)){
+                    return error;
                 }
                 if(o.fp->ftype==f_native){
                     Object* arguments=malloc(sizeof(Object)*provided_arguments);
@@ -779,6 +780,13 @@ Object execute_bytecode(Executor* E){
                     free(arguments);
                     RETURN(call_result)
                 } else if(o.fp->ftype==f_bytecode) {
+                    if(o.fp->optional_arguments_count>0){
+                        int arguments_to_fill=o.fp->arguments_count-o.fp->variadic-provided_arguments;
+                        for(int i=0; i<arguments_to_fill; i++){
+                            reference(&E->undefined_argument);
+                            PUSH(E->undefined_argument);
+                        }
+                    }
                     if(o.fp->variadic){
                         // pack variadic arguments into a table and push this table back onto the stack
                         Object variadic_table;
@@ -802,6 +810,7 @@ Object execute_bytecode(Executor* E){
                                 POP_ARGUMENTS
                                 Object err;
                                 NEW_ERROR(err, "COROUTINE_ERROR", o, "Yield from outside of coroutine.");
+                                dereference(E, &o);
                                 RETURN(err)
                             }
                             // simply return the value from stack top
@@ -815,7 +824,11 @@ Object execute_bytecode(Executor* E){
                                 return null_const;
                             } else {
                                 POP_ARGUMENTS
-                                RETURN_ERROR("COROUTINE_ERROR", null_const, "Incorrect number of arguments (%i) was passed to coroutine yield.", provided_arguments);
+                                dereference(E, &o);
+                                Object err;
+                                NEW_ERROR(err, "COROUTINE_ERROR", o, "Incorrect number of arguments (%i) was passed to coroutine yield.", provided_arguments);
+                                dereference(E, &o);
+                                RETURN(err)
                             }
                         }
                         default:
@@ -837,7 +850,7 @@ Object execute_bytecode(Executor* E){
                 if(E->options.debug){
                     debugger_update(E, &E->debugger);
                 }
-                executor_stack_forward_deallocate(E, program->stack_depth);
+                executor_stack_forward_deallocate(E, PROGRAM->stack_depth);
                 if(pop_return_point(E)){
                     if(E->coroutine!=NULL){
                         E->coroutine->state=co_finished;

@@ -107,6 +107,7 @@ typedef struct {
 
 typedef struct{
     unsigned char arguments_count;
+    unsigned char optional_arguments_count;
     bool is_variadic:1;
 } FunctionArgument;
 

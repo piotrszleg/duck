@@ -43,25 +43,34 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
     }
 }
 
+bool is_arguments_count_correct(Executor* E, Function* function, int arguments_count, Object* error){
+    int minimal_arguments=(int)function->arguments_count-function->optional_arguments_count-function->variadic;
+    int max_arguments=function->arguments_count;
+    if(arguments_count<minimal_arguments){
+        NEW_ERROR(*error, "CALL_ERROR", wrap_heap_object((HeapObject*)function), 
+        "Not enough arguments in function call, expected at least %i, given %i.", minimal_arguments, arguments_count);
+        return false;
+    } else if(!function->variadic && arguments_count>max_arguments) {
+        NEW_ERROR(*error, "CALL_ERROR", wrap_heap_object((HeapObject*)function), 
+        "Too many arguments in function call, expected %i, given %i.", max_arguments, arguments_count);
+        return false;
+    }
+    return true;
+}
+
 // return error if arguments count is incorrect and proccess variadic functions, then call the Function using call_function_processed
 Object call_function(Executor* E, Function* f, Object* arguments, int arguments_count){
-    
-    #define CALL_ERROR(message, ...) \
-        RETURN_ERROR("CALL_ERROR", wrap_heap_object((HeapObject*)f),message, ##__VA_ARGS__)
-    
-    int minimal_arguments=(int)f->arguments_count-f->optional_arguments_count-f->variadic;
-    int max_arguments=f->arguments_count;
-    if(arguments_count<minimal_arguments){
-        CALL_ERROR("Not enough arguments in function call, expected at least %i, given %i.", minimal_arguments, arguments_count);
-    } else if(!f->variadic && arguments_count>max_arguments) {
-        CALL_ERROR("Too many arguments in function call, expected %i, given %i.", f->arguments_count, arguments_count);
+     
+    Object error;
+    if(!is_arguments_count_correct(E, f, arguments_count, &error)){
+        return error;
     }
-
 
     // native functions don't need their variadic arguments to be packed
     if((f->variadic||f->optional_arguments_count>0)&&f->ftype!=f_native){
         // make new arguments array
         int processed_arguments_count=f->arguments_count;
+        int minimal_arguments=(int)f->arguments_count-f->optional_arguments_count-f->variadic;
         int normal_arguments_count=MAX(minimal_arguments, arguments_count);
         Object* processed_arguments=malloc(sizeof(Object)*processed_arguments_count);
         // copy non variadic arguments

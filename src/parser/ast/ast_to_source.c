@@ -157,7 +157,7 @@ void ast_to_source_recursive(stream* s, Expression* expression){
         }
         case e_function_declaration:{
             FunctionDeclaration* declaration=(FunctionDeclaration*)expression;
-            bool add_parentheses=vector_count(&declaration->arguments)>1 || declaration->has_optional_arguments;
+            bool add_parentheses=vector_count(&declaration->arguments)>1 || declaration->optional_arguments_count>0;
             if(add_parentheses){
                 stream_push_const_string(s, "(");
             }
