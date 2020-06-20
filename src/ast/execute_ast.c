@@ -226,11 +226,13 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
                 f.fp->argument_names[i]=strdup(((Argument*)pointers_vector_get(&d->arguments, i))->name);
             }
             f.fp->enclosing_scope=E->scope;
+            f.fp->help=strdup(d->help);
             reference(&E->scope);
             USE(f)
             BytecodeProgram* bytecode_program;
             if(!E->options.disable_bytecode 
-                && (bytecode_program=ast_function_to_bytecode(d))!=NULL){
+            // attempt to compile the function
+            && (bytecode_program=ast_function_to_bytecode(d))!=NULL){
                 f.fp->ftype=f_bytecode;
                 bytecode_program->source_file_name=strdup(E->file);
                 if(E->options.optimise_bytecode){

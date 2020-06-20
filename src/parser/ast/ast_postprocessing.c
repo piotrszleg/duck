@@ -137,10 +137,24 @@ void process_optional_arguments(FunctionDeclaration* function){
     }
 }
 
+char* extract_function_help(FunctionDeclaration* function){
+    Expression* body=function->body;
+    if(body->type!=e_block)
+        return NULL;
+    Block* body_block=(Block*)body;
+    if(vector_count(&body_block->lines)<1)
+        return NULL;
+    Expression* first_line=pointers_vector_get(&body_block->lines, 0);
+    if(first_line->type!=e_string_literal)
+        return NULL;
+    return strdup(((StringLiteral*)first_line)->value);
+}
+
 ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
     ASTVisitorRequest request={down, NULL};
     PostprocessingState* state=data;
 
+    // process null conditionals
     if(is_null_conditional(expression)) {
         Expression* copy=copy_expression((Expression*)expression);
         replace_null_conditional(copy);
@@ -208,6 +222,7 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
             request.replacement=(Expression*)replacement_2;
             return request;
         } else {
+            // short circuit evaluation
             if(strcmp(b->op, "||")==0){
                 /*
                 left || right
@@ -277,7 +292,7 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
             messaged->message_name(arguments...)
 
             {
-                messaged=messaged # save messaged to temporary variable to avoid executing it's statement two times
+                messaged=messaged # save messaged to temporary variable to avoid executing its statement two times
                 messaged.message_name(messaged, arguments...)
             }
         */
@@ -338,15 +353,16 @@ ASTVisitorRequest postprocess_ast_visitor(Expression* expression, void* data){
             if(function->optional_arguments_count>0){
                 process_optional_arguments(function);
             }
+            function->help=extract_function_help(function);
         }
         // intentional fallthrough
     }
     case e_table_literal: {
-        // if the table literal is already on the stack then ast_visitor is escaping it
+        // if the table literal or function is already on the stack then ast_visitor is escaping it
         if(!vector_empty(&state->contexts) && *(Expression**)(vector_top(&state->contexts))==expression) {
             vector_pop(&state->contexts);
         } else {
-            // ast_visitor entered this function
+            // ast_visitor entered this context
             vector_push(&state->contexts, (const void*)&expression);
         }
         break;

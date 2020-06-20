@@ -74,6 +74,7 @@ bool ast_allocations_zero();
         BOOL_FIELD(variadic) \
         INT_FIELD(optional_arguments_count) \
         EXPRESSION_FIELD(body) \
+        STRING_FIELD(help) \
     END \
     EXPRESSION(Conditional, conditional) \
         EXPRESSION_FIELD(condition) \

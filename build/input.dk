@@ -1,1 +1,2 @@
-help(match)
+sum=(a,b)->{"sum of two numbers", a+b}
+help(sum)
