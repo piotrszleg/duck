@@ -1,0 +1,13 @@
+#!/bin/sh
+
+duck="../build/duck.exe -dont_print_result"
+
+basename -s .dk $1 | xargs printf "TEST: %s\n"
+
+$duck $1
+if [ $? -eq 0 ]
+then
+  echo "\e[90mtest finished\e[0m"
+else
+  echo "\e[41mtest failed\e[0m"
+fi

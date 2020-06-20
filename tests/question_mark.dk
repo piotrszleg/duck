@@ -1,0 +1,7 @@
+f=x->{
+    if(x){
+        format("{}")!?
+    }
+    10
+}
+assert_error(f(1))

@@ -1,0 +1,6 @@
+five=5
+text="5"
+assert_equal(to_int(text), five)
+assert_equal(to_string(five), text)
+assert_equal(cast(text, types.int), five)
+assert_equal(cast(five, types.string), text)

@@ -1,0 +1,4 @@
+module=import("test_module.dk")
+assert_equal(module.table, [1, 6])
+assert_equal(module.double(5), 10)
+assert_equal(module.add(5, 2), 7)

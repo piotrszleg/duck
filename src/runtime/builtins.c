@@ -136,6 +136,7 @@ Object builtin_format(Executor* E, Object scope, Object* arguments, int argument
         }
         #undef COUNT_STR
         #undef MATCH
+        #undef WRITE_NEXT_VARIADIC_ARGUMENT
     }
     stream_push(&s, "\0", sizeof(char));
     return to_string(stream_get_data(&s));
@@ -154,6 +155,16 @@ Object builtin_assert(Executor* E, Object scope, Object* arguments, int argument
         RETURN_ERROR("ASSERTION_FAILED", tested, "Assertion failed, the object is falsy.");
     } else {
         return null_const;
+    }
+}
+
+Object builtin_assert_error(Executor* E, Object scope, Object* arguments, int arguments_count){
+    Object tested=arguments[0];
+    if(is_error(E, tested)){
+        error_handle(E, tested);
+        return null_const;
+    } else {
+        RETURN_ERROR("ASSERTION_FAILED", tested, "Assertion failed, the object isn't an error.");
     }
 }
 
@@ -465,15 +476,19 @@ Object builtin_import_dll(Executor* E, Object scope, Object* arguments, int argu
 
 Object builtin_exit(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object execution_result=arguments[0];
-    USING_STRING(stringify(E, execution_result), 
-        printf("The script \"%s\" has exited with result:\n%s\n", E->file, str));
+    if(E->options.print_result){
+        USING_STRING(stringify(E, execution_result), 
+            printf("The script \"%s\" has exited with result:\n%s\n", E->file, str));
+    }
     exit(0);
 }
 
 Object builtin_terminate(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object exit_code=arguments[0];
     REQUIRE_TYPE(exit_code, t_int);
-    printf("The script \"%s\" has terminated with return code %i", E->file, exit_code.int_value);
+    if(E->options.print_result){
+        printf("The script \"%s\" has terminated with return code %i\n", E->file, exit_code.int_value);
+    }
     exit(exit_code.int_value);
 }
 
@@ -632,6 +647,7 @@ Object builtins_table(Executor* E){
     REGISTER(input, 0)
     REGISTER(assert, 1)
     REGISTER(assert_equal, 2)
+    REGISTER(assert_error, 1)
     REGISTER(get_type, 1)
     REGISTER(get_type_name, 1)
     REGISTER(table_get, 2)

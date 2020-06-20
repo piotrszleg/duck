@@ -1,0 +1,15 @@
+c=coroutine(b->{
+    a=yield()
+    yield(b+a)
+}, 10)
+c()
+assert_equal(c(2), 12)
+counter=1
+coroutine(->{
+    yield(1)
+    yield(2)
+    yield(3)
+}) `#` x->{
+    assert_equal(x, counter)
+    counter+=1
+}

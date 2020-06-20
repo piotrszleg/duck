@@ -1,0 +1,14 @@
+assert_equal(substring("John", 2, 4), "hn")
+assert_error(substring("John", -1, 4))
+assert_error(substring("John", 0, 5))
+assert_error(substring("John", "John", 4))
+assert_error(substring("John", 0, "John"))
+
+assert_equal(string_length("John"), 4)
+assert_error(string_length(1))
+
+assert_equal(to_character(64), "@")
+assert_error(to_character("@"))
+    
+assert_equal(from_character("@"), 64)
+assert_error(from_character(64))

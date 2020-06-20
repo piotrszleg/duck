@@ -8,7 +8,8 @@ Object executor_on_unhandled_error(Executor* E, Object error) {
         }
     }
     USING_STRING(stringify(E, error),
-        printf("Unhandled error:\n%s", str));
+        printf("Unhandled error:\n%s\n", str));
+    exit(-1);
     return null_const;
 }
 

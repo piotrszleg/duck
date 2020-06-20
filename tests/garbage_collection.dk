@@ -1,0 +1,19 @@
+destroy_calls=0
+circular_reference=->{
+    tab=[
+        number=1
+        destroy=self->destroy_calls+=self.number
+    ]
+    tab.self=tab
+    tab
+}
+// this function isn't optimised correctly and causes errors
+loop=(times ,f)->{
+    f()
+    if(times>1){
+        loop(times-1, f)
+    }
+}
+loop(100, circular_reference)
+collect_garbage()
+assert_equal(destroy_calls, 100)

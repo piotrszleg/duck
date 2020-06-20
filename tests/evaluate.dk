@@ -1,0 +1,4 @@
+assert_equal(evaluate("[a=1, b=2]"), [a=1, b=2])
+// don't leak the current scope
+a=11
+assert_equal(evaluate("a"), null)

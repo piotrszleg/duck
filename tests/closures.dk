@@ -1,0 +1,7 @@
+// a and one are variables used by closure returned by adder
+adder=a->{
+    one=1
+    x->(a+x)*one
+}
+add_two=adder(2)
+assert_equal(add_two(5), 7)
