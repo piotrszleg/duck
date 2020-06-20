@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
 #include "../object_system/object.h"
 #include "../object_system/object_operations.h"
 #include "../object_system/special_objects/error_object.h"

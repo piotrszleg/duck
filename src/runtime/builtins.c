@@ -624,6 +624,19 @@ Object builtin_help(Executor* E, Object scope, Object* arguments, int arguments_
     return help(E, subject);
 }
 
+char** copy_arguments(int arguments_count, ...){
+    if(arguments_count==0)
+        return NULL;
+    char** result=malloc(sizeof(char*)*arguments_count);
+    va_list va;
+    va_start (va, arguments_count);
+    for(int i=0; i<arguments_count; i++){
+        result[i]=strdup(va_arg(va, char*));
+    }
+    va_end (va);
+    return result;
+}
+
 Object builtins_table(Executor* E){
     Object scope;
     table_init(E, &scope);
@@ -634,22 +647,33 @@ Object builtins_table(Executor* E){
     table_set(E, scope.tp, to_string("types"), E->object_system.types_table);
     table_set(E, scope.tp, to_string("undefined_argument"), E->undefined_argument);
 
-    #define REGISTER(f, args_count) \
-        Object f##_function; \
-        function_init(E, &f##_function); \
-        f##_function.fp->arguments_count=args_count; \
-        f##_function.fp->native_pointer=&builtin_##f; \
-        f##_function.fp->name=strdup(#f); \
-        table_set(E, scope.tp, to_string(#f), f##_function); \
-        dereference(E, &f##_function);
-    REGISTER(print, 1)
-    REGISTER(output, 1)
-    REGISTER(input, 0)
-    REGISTER(assert, 1)
-    REGISTER(assert_equal, 2)
-    REGISTER(assert_error, 1)
-    REGISTER(get_type, 1)
-    REGISTER(get_type_name, 1)
+    #define REGISTER_(with_help, f, hlp, args_count, ...) \
+    { \
+        Object function; \
+        function_init(E, &function); \
+        function.fp->arguments_count=args_count; \
+        function.fp->native_pointer=&builtin_##f; \
+        function.fp->name=strdup(#f); \
+        if(with_help){ \
+            function.fp->help=strdup(hlp); \
+            function.fp->argument_names=copy_arguments(args_count, ##__VA_ARGS__); \
+        } \
+        table_set(E, scope.tp, to_string(#f), function); \
+        dereference(E, &function);  \
+    }
+
+    #define REGISTER_WITH_HELP(f, hlp, args_count, ...) REGISTER_(true, f, hlp, args_count, ##__VA_ARGS__)
+
+    #define REGISTER(f, args_count) REGISTER_(false, f, "", args_count)
+
+    REGISTER_WITH_HELP(print, "Outputs a text into the console and inserts newline after it.", 1, "text")
+    REGISTER_WITH_HELP(output, "Outputs a text into the console.", 1, "text")
+    REGISTER_WITH_HELP(input, "Returns the string written into the console by the user.", 0)
+    REGISTER_WITH_HELP(assert, "Fails if assertion is falsy", 1, "assertion")
+    REGISTER_WITH_HELP(assert_equal, "Fails if actual is different than expected.", 2, "actual", "expected")
+    REGISTER_WITH_HELP(assert_error, "Fails if expected_error isn't an error object.", 1, "expected_error")
+    REGISTER_WITH_HELP(get_type, "Returns type of the object.", 1, "object")
+    REGISTER_WITH_HELP(get_type_name, "Returns name of the type of the object.", 1, "object")
     REGISTER(table_get, 2)
     REGISTER(table_set, 3)
     REGISTER(table_stringify, 1)
@@ -663,8 +687,12 @@ Object builtins_table(Executor* E){
     REGISTER(to_string, 1)
     REGISTER(to_float, 1)
     REGISTER(to_int, 1)
-    REGISTER(cast, 2)
-    REGISTER(open_file, 2)
+    REGISTER_WITH_HELP(cast, "Casts object to the type.", 2, "object", "type")
+    REGISTER_WITH_HELP(open_file, 
+    "Opens a file in a specified mode and returns its object.\n"
+    "Refer to C's fopen function for available modes.\n"
+    "Call help on file object to get more help."
+    , 2, "file_name", "mode")
     REGISTER(remove_file, 1)
     REGISTER(import_dll, 1)
     REGISTER(iterator, 1)
@@ -673,23 +701,39 @@ Object builtins_table(Executor* E){
     REGISTER(exit, 1)
     REGISTER(terminate, 1)
     REGISTER(traceback, 0)
-    REGISTER(new_error, 3)
+    REGISTER_WITH_HELP(new_error, "Creates a new error object.", 3, "type", "cause", "message")
     REGISTER(copy, 1)
     REGISTER(set_random_seed, 1)
-    REGISTER(random_int, 2)
+    REGISTER_WITH_HELP(random_int, "Returns a random number between start(inclusive) and end(exclusive).", 2, "start", "end")
     REGISTER(random_01, 0)
     REGISTER(call, 2)
     REGISTER(create_variant, 1)
     REGISTER(serialize, 1)
-    REGISTER(new_symbol, 1)
+    REGISTER_WITH_HELP(new_symbol, "Creates a new symbol object.", 1, "comment")
     REGISTER(is_error, 1)
     REGISTER(collect_garbage, 0)
     REGISTER(debug, 0)
-    REGISTER(match, 2)
+    REGISTER_WITH_HELP(match, 
+    "If signature is a type it returns true if tested belongs to the type.\n"
+    "If signature is a table it goes through its keys\n"
+    "and for each key gets the value at the key from tested and signature and calls match on them.\n"
+    "If match returned truthy value for each field then the result is true, else the result is false.\n"
+    "If signature is a function it calls it with tested and returns the result.\n"
+    "This property can be used to express more complex ideas like type alternative.", 
+    2, "tested", "signature")
     REGISTER(evaluate_expression, 1)
     REGISTER(parse, 1)
-    REGISTER(map, 2)
-    REGISTER(help, 1)
+    REGISTER_WITH_HELP(map, 
+    "Returns a new table constructed by calling function on iterable fields' values.\n"
+    "For example map([a=2, b=3], x->x*2) returns [a=4, b=6]."
+    , 2, "iterable", "function")
+    REGISTER_WITH_HELP(help, 
+    "Shows help for the subject. Subject can be an object of any type\n."
+    "Some of the builtin objects have their help set.\n"
+    "To add help to a table set it's overrides.help field.\n"
+    "For example: tab=[.[overrides.help]=\"Help for the object.\"].\n"
+    "If the first line of function is a string literal its value is used as this function's help."
+    , 1, "subject")
     #undef REGISTER
 
     Object function;

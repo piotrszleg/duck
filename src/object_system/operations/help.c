@@ -19,6 +19,8 @@ Object help(Executor* E, Object subject){
         case t_function:
         {
             char* help_string=subject.fp->help;
+            USING_STRING(stringify(E, subject),
+                printf("Help for function %s:\n", str))
             if(help_string!=NULL){
                 printf("%s\n", help_string);
                 return null_const;

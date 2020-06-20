@@ -5,6 +5,7 @@ void repl(Executor* E){
     "\n---\n"
     "Type in duck expressions to get their evaluation results.\n"
     "Ending the line with '\\' character will allow you to add next line.\n"
+    "You can explore the builtin documentation by calling help on different objects.\n"
     "Call function \"exit\" with any argument to exit the program.\n");
 
     Object global_scope;
