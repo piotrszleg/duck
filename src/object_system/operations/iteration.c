@@ -56,7 +56,7 @@ Object string_iterator(Executor* E, Object str){
 Object get_iterator(Executor* E, Object o){
     switch(o.type){
         case t_table: {
-            Object iterator_override=get(E, o, OVERRIDE(E, iterator));
+            Object iterator_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, iterator));
             if(iterator_override.type!=t_null){
                 return call(E, iterator_override, &o, 1);
             } else {

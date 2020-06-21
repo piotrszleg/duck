@@ -120,7 +120,7 @@ typedef struct {
     uint last_builtin_symbol;
     Object overrides_table;
     Object types_table;
-    Object type_symbols[LAST_OBJECT_TYPE+1];
+    Object types_objects[LAST_OBJECT_TYPE+1];
 } ObjectSystem;
 
 // ObjectSystem struct should be the first field of executor

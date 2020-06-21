@@ -5,7 +5,7 @@ Object help(Executor* E, Object subject){
     switch(subject.type){
         case t_table:
         {
-            Object help_override=get(E, subject, OVERRIDE(E, help));
+            Object help_override=get_ignore_topmost_prototypes(E, subject, OVERRIDE(E, help));
             if(help_override.type==t_string){
                 printf("%s\n", help_override.text);
                 return null_const;

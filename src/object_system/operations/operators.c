@@ -61,7 +61,7 @@ int compare_and_get_error(Executor* E, Object a, Object b, Object* error){
         case t_float:
             return sign(a.float_value-b.float_value);
         case t_table: {
-            Object compare_override=get(E, a, OVERRIDE(E, compare));
+            Object compare_override=get_ignore_topmost_prototypes(E, a, OVERRIDE(E, compare));
             if(compare_override.type!=t_null){
                 Object call_result=call(E, compare_override, (Object[]){a, b}, 2);
                 dereference(E, &compare_override);
@@ -190,7 +190,7 @@ bool is(Executor* E, Object a, Object b){
 Object operator(Executor* E, Object a, Object b, const char* op){
     size_t op_length=strlen(op);
     if(a.type==t_table){
-        Object operator_override=get(E, a, OVERRIDE(E, operator));
+        Object operator_override=get_ignore_topmost_prototypes(E, a, OVERRIDE(E, operator));
         if(operator_override.type!=t_null){
             // call get_function a and b as arguments
             Object result=call(E, operator_override, OBJECTS_ARRAY(a, b, to_string(op)), 3);

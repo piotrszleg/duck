@@ -1,5 +1,5 @@
-source-files:=./object.c ./object_history.c ./object_utility.c ./operations/basic.c ./operations/copying.c ./operations/help.c ./operations/iteration.c ./operations/operators.c ./operations/patching.c ./operations/stringification.c ./special_objects/binding_object.c ./special_objects/error_object.c ./special_objects/pipe_object.c ./table.c ../error/error.c
-object-files:=object.o object_history.o object_utility.o basic.o copying.o help.o iteration.o operators.o patching.o stringification.o binding_object.o error_object.o pipe_object.o table.o error.o 
+source-files:=./object.c ./object_history.c ./object_utility.c ./operations/basic.c ./operations/copying.c ./operations/help.c ./operations/iteration.c ./operations/operators.c ./operations/patching.c ./operations/stringification.c ./prototype_chain.c ./special_objects/binding_object.c ./special_objects/error_object.c ./special_objects/pipe_object.c ./table.c ../error/error.c
+object-files:=object.o object_history.o object_utility.o basic.o copying.o help.o iteration.o operators.o patching.o stringification.o prototype_chain.o binding_object.o error_object.o pipe_object.o table.o error.o 
 archive-path := object_system.a
 tests-path := tests.exe
 executable-only-source-files := ../containers/stream.c  ../containers/vector.c ../utility.c

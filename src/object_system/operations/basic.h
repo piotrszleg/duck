@@ -23,6 +23,7 @@ bool cast_is_constant(ObjectType from, ObjectType to);
 Object cast(Executor* E, Object o, ObjectType type);
 Object call(Executor* E, Object o, Object* arguments, int arguments_count);
 Object get(Executor* E, Object o, Object key);
+Object get_ignore_topmost_prototypes(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);
 
 void get_execution_info(Executor* E, char* buffer, int buffer_count);

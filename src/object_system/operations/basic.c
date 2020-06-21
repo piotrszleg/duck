@@ -70,7 +70,7 @@ Object cast(Executor* E, Object o, ObjectType type){
         return o;
     }
     if(o.type==t_table){
-        Object cast_override=get(E, o, OVERRIDE(E, cast));
+        Object cast_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, cast));
         if(cast_override.type!=t_null){
             // call get_function a and b as arguments
             Object result=call(E, cast_override, (Object[]){o, to_string(get_type_name(type))}, 2);
@@ -132,19 +132,20 @@ unsigned hash_and_get_error(Executor* E, Object o, Object* error) {
         case t_null:
             return 0;
         case t_table: {
-            Object hash_override=get(E, o, OVERRIDE(E, hash));
+            Object hash_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, hash));
             if(hash_override.type!=t_null){
                 Object call_result=call(E, hash_override, &o, 1);
                 dereference(E, &hash_override);
                 if(call_result.type!=t_int){
                     NEW_ERROR(*error, "HASH_ERROR", multiple_causes(E, (Object[]){o, call_result}, 2), "Function at field hash didn't return an int value.");
                     return 0;
-                } else if(call_result.int_value<0){
-                    NEW_ERROR(*error, "HASH_ERROR", multiple_causes(E, (Object[]){o, call_result}, 2), "Function at field hash returned a negative value.");
-                    return 0;
-                } else {
-                    return call_result.int_value;
                 }
+                // transform int bits to uint bits
+                union {
+                    int int_value;
+                    uint uint_value;
+                } hash={call_result.int_value};
+                return hash.uint_value;
             } else {
                 dereference(E, &hash_override);
                 return table_hash(E, o.tp, error);
@@ -181,18 +182,39 @@ uint hash(Executor* E, Object key){
     return hashed;
 }
 
-Object get(Executor* E, Object o, Object key){
+#define GET_OR_RETURN_ERROR(result, key) \
+{ \
+    Object error=null_const; \
+    result=table_get_with_hashing_error(E, o.tp, key, &error); \
+    if(error.type!=t_null){ \
+        return error; \
+    } \
+}
+
+Object get_prototype_override(Executor* E, Object o){
+    if(o.type==t_table){
+        Object result;
+        GET_OR_RETURN_ERROR(result, OVERRIDE(E, prototype))
+        if(result.type!=t_null){
+            return result;
+        }
+    }
+    return null_const;
+}
+
+Object get_prototype(Executor* E, Object o){
+    Object result=get_prototype_override(E, o);
+    if(result.type!=t_null){
+        return result;
+    }
+    return OBJECT_SYSTEM(E)->types_objects[o.type];
+}
+
+Object get_common(Executor* E, Object o, Object key){
     switch(o.type){
         case t_table:
         {
             // try to get "get" field overriding function from the table and use it
-            Object error=null_const;
-            #define GET_OR_RETURN_ERROR(result, key) \
-                result=table_get_with_hashing_error(E, o.tp, key, &error); \
-                if(error.type!=t_null){ \
-                    return error; \
-                }
-
             Object get_override;
             GET_OR_RETURN_ERROR(get_override, OVERRIDE(E, get))
             Object result;
@@ -206,15 +228,6 @@ Object get(Executor* E, Object o, Object key){
                 if(result.type!=t_null) {
                     reference(&result);
                     return result;
-                } else {
-                    Object prototype;
-                    GET_OR_RETURN_ERROR(prototype, OVERRIDE(E, prototype))
-                    if(prototype.type!=t_null){
-                        result=get(E, prototype, key);
-                        return result;
-                    } else {
-                        return result;
-                    }
                 }
             }
             break;
@@ -262,14 +275,45 @@ Object get(Executor* E, Object o, Object key){
             break;
         default:;
     }
+    return null_const;
+}
+
+Object get_ignore_topmost_prototypes(Executor* E, Object o, Object key){
+    Object result=get_common(E, o, key);
+    if(result.type!=t_null){
+        return result;
+    }
+    Object prototype=get_prototype_override(E, o);
+    if(prototype.type!=t_null){
+        Object result=get_ignore_topmost_prototypes(E, prototype, key);
+        if(result.type!=t_null){
+            return result;
+        }
+    }
+    return null_const;
+}
+    
+
+Object get(Executor* E, Object o, Object key){
+    Object result=get_common(E, o, key);
+    if(result.type!=t_null){
+        return result;
+    }
+    Object prototype=get_prototype(E, o);
+    if(prototype.type!=t_null){
+        Object result=get_ignore_topmost_prototypes(E, prototype, key);
+        if(result.type!=t_null){
+            return result;
+        }
+    }
     PATCH(get, o.type, o, key);
-    RETURN_ERROR("GET_ERROR",  multiple_causes(E, (Object[]){o, key}, 2), "Can't get field in object of type <%s>", get_type_name(o.type));
+    return null_const;
 }
 
 Object set(Executor* E, Object o, Object key, Object value){
     if(o.type==t_table){
         // try to get "get" operator overriding function from the Table and use it
-        Object set_override=get(E, o, OVERRIDE(E, set));
+        Object set_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, set));
         if(set_override.type!=t_null){
             Object result=call(E, set_override, (Object[]){o, key, value}, 3);
             dereference(E, &set_override);
@@ -300,7 +344,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
         }
         case t_table:
         {
-            Object call_override=get(E, o, OVERRIDE(E, call));
+            Object call_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, call));
             if(call_override.type!=t_null){
                 // add o object as a first argument
                 Object* arguments_with_self=malloc(sizeof(Object)*(arguments_count+1));
@@ -330,7 +374,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count) {
 }
 
 void call_destroy(Executor* E, Object o){
-    Object destroy_override=get(E, o, OVERRIDE(E, destroy));
+    Object destroy_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, destroy));
     if(destroy_override.type!=t_null){
         Object destroy_result=call(E, destroy_override, &o, 1);
         dereference(E, &destroy_override);

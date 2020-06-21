@@ -404,6 +404,8 @@ void destroy_unreferenced(Executor* E, Object* o){
     }
 }
 
+void initialize_prototype_chain(Executor* E);
+
 void object_system_init(Executor* E){
     ObjectSystem* object_system=OBJECT_SYSTEM(E);
     object_system->gc=malloc(sizeof(GarbageCollector));
@@ -420,12 +422,26 @@ void object_system_init(Executor* E){
     OVERRIDES
     #undef X
 
+    Object any_type_object;
+    table_init(E, &any_type_object);
+
     #define X(name) \
-        object_system->type_symbols[t_##name]=new_symbol(E, #name); \
-        table_set(E, object_system->types_table.tp, to_string(#name), object_system->type_symbols[t_##name]);
+    { \
+        Object type_object; \
+        if(strcmp(#name, "any")==0) \
+            type_object=any_type_object; \
+        else { \
+            table_init(E, &type_object); \
+            table_set(E, type_object.tp, OVERRIDE(E, prototype), any_type_object); \
+        } \
+        table_set(E, type_object.tp, to_string("name"), to_string(#name)); \
+        object_system->types_objects[t_##name]=type_object; \
+        table_set(E, object_system->types_table.tp, to_string(#name), type_object); \
+    }
     OBJECT_TYPES
     #undef X
     object_system->last_builtin_symbol=object_system->symbols_counter;
+    initialize_prototype_chain(E);
 }
 
 bool symbol_is_builtin(Executor* E, Symbol* sp){
@@ -433,7 +449,7 @@ bool symbol_is_builtin(Executor* E, Symbol* sp){
 }
 
 Object get_type_symbol(Executor* E, ObjectType type){
-    return OBJECT_SYSTEM(E)->type_symbols[type];
+    return OBJECT_SYSTEM(E)->types_objects[type];
 }
 
 const char* get_type_name(ObjectType type){

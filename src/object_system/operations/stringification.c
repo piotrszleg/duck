@@ -15,7 +15,7 @@ bool is_serializable(Object o) {
 
 char* serialize(Executor* E, Object o) {
     if(o.type==t_table){
-        Object serialize_override=get(E, o, OVERRIDE(E, serialize));
+        Object serialize_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, serialize));
         if(serialize_override.type!=t_null){
             Object result=call(E, serialize_override, &o, 1);
             if(result.type!=t_string){
@@ -37,7 +37,7 @@ char* serialize(Executor* E, Object o) {
 
 char* stringify(Executor* E, Object o){
     if(o.type==t_table){
-        Object stringify_override=get(E, o, OVERRIDE(E, stringify));
+        Object stringify_override=get_ignore_topmost_prototypes(E, o, OVERRIDE(E, stringify));
         if(stringify_override.type!=t_null){
             Object result=call(E, stringify_override, &o, 1);
             if(result.type!=t_string){

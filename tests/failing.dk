@@ -1,1 +1,2 @@
+// fail this test on purpose to see if it becomes reported
 terminate(-1)
