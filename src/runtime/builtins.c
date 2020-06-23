@@ -186,7 +186,9 @@ Object builtin_assert_equal(Executor* E, Object scope, Object* arguments, int ar
 }
 
 Object builtin_get_type(Executor* E, Object scope, Object* arguments, int arguments_count){
-    return get_type_symbol(E, arguments[0].type);
+    Object result=get_type_symbol(E, arguments[0].type);
+    reference(&result);
+    return result;
 }
 
 Object builtin_get_type_name(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -562,6 +564,7 @@ Object builtin_new_symbol(Executor* E, Object scope, Object* arguments, int argu
 Object match(Executor* E, Object tested, Object signature){
     switch(signature.type){
         case t_symbol:
+            // TOFIX
             return to_int(get_type_symbol(E, tested.type).sp->index==signature.sp->index);
         case t_function:
             return call(E, signature, &tested, 1);

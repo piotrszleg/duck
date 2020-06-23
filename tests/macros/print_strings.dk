@@ -1,9 +1,10 @@
 @print_strings=lines...->{
-    map(lines, line->{
+    result=map(lines, line->{
         if(get_type(line)==types.string){
-            ['call, called=['name, value='print], arguments=[line]]
+            ['function_call, called=['name, value='print], arguments=['table_literal, lines=[line]]]
         } else line
     })
+    ['block, lines=result]
 }
 @print_strings
 "Choose option"

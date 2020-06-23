@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/duck.exe",
-            "args": ["E:/Projects/C/duck/tests/features/binding.dk"],
+            "args": ["E:/Projects/C/duck/tests/macros/print_strings.dk"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",
             "environment": [],

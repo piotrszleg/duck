@@ -195,9 +195,11 @@ Object operator(Executor* E, Object a, Object b, const char* op){
             // call get_function a and b as arguments
             Object result=call(E, operator_override, OBJECTS_ARRAY(a, b, to_string(op)), 3);
             dereference(E, &operator_override);
-            return result;
+            // if function returned null continue searching for operator
+            if(result.type!=t_null){
+                return result;
+            }
         }
-        dereference(E, &operator_override);
     }
     #define OP_CASE(operator_name) if(strcmp(op, operator_name)==0)
     #define COMPARISON_OPERATOR(check) { \

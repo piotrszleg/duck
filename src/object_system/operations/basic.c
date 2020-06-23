@@ -75,9 +75,11 @@ Object cast(Executor* E, Object o, ObjectType type){
             // call get_function a and b as arguments
             Object result=call(E, cast_override, (Object[]){o, to_string(get_type_name(type))}, 2);
             dereference(E, &cast_override);
-            return result;
+            // if function returned null continue searching for casting method
+            if(result.type!=t_null){
+                return result;
+            }
         }
-        dereference(E, &cast_override);
     }
     switch(type){
         case t_string:

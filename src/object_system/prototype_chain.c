@@ -28,6 +28,9 @@ Object any_call(Executor* E, Object scope, Object* arguments, int arguments_coun
 // TOFIX: this two will fall into infinite recursion on a specially prepared table
 Object any_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
     REQUIRE_ARGUMENT_TYPE(arguments[2], t_string)
+    if(arguments[0].type==t_table){
+        return null_const;
+    }
     return operator(E, arguments[0], arguments[1], arguments[2].text);
 }
 
