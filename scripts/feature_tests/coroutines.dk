@@ -1,7 +1,0 @@
-c=coroutine(b->{
-    a=yield()
-    print(b+a)
-    yield(a)
-}, 10)
-c(), c(2)
-coroutine(->{yield(9), yield(8), yield(7)}) `#` x->print("->"+x)

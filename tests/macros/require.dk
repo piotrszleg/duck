@@ -13,8 +13,8 @@
     ['variable, 'type]
 }
 f=x->{
-    @require_type, x, types.int
+    // @require_type, x, types.int
     @require, x>0
     x*x
 }
-f(-10)
+assert_error(f(-10))
