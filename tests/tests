@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # make sure that the newline encoding is right
 test_files=$(find . -name "*.dk" ! -name "prelude.dk");

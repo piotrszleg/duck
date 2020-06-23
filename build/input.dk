@@ -1,11 +1,5 @@
-table=[
-    a=1,
-    b=2
-    // this disables getting and setting fields in the table
-    .[overrides.get]=_...->null
-    .[overrides.set]=_...->null
-]
-assert_equal(table.a, null)
-assert_equal(types.table[overrides.get](table, 'a), 1)
-types.table[overrides.set](table, 'b, 3)
-assert_equal(types.table[overrides.get](table, 'b), 3)
+a=x->x*2
+b=x->x+1
+c=x->"$"+x
+f=a--b--c
+assert(f(3)=="$7")
