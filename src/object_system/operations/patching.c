@@ -1,15 +1,17 @@
 #include "patching.h"
 
 Object get_patch(Executor* E, ObjectType object_type, Object patch_symbol) {
-    Object patching_table=executor_get_patching_table(E);
-    if(patching_table.type==t_null){
-        return null_const;
+    Object type_patching_table=OBJECT_SYSTEM(E)->types_objects[object_type];
+    Object result=get_ignore_topmost_prototypes(E, type_patching_table, patch_symbol);
+    // if result isn't a function object it is surely added by the user
+    if(result.type!=t_function){
+        return result;
     }
-    REQUIRE_TYPE(patching_table, t_table)
-    Object type_patching_table=table_get(E, patching_table.tp, get_type_symbol(E, object_type));
-    if(type_patching_table.type==t_null){
+    Object scope=result.fp->enclosing_scope;
+    // ignore functions that aren't added by the user
+    if(scope.type==t_symbol && scope.sp==patch_symbol.sp){
         return null_const;
+    } else {
+        return result;
     }
-    REQUIRE_TYPE(type_patching_table, t_table)
-    return table_get(E, type_patching_table.tp, patch_symbol);
 }

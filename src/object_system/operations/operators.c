@@ -356,6 +356,6 @@ Object operator(Executor* E, Object a, Object b, const char* op){
         }
         default:;
     }
-    PATCH(operator, a.type, a, b);
+    PATCH(operator, a.type, a, b, to_string(op));
     RETURN_ERROR("OPERATOR_ERROR", multiple_causes(E, OBJECTS_ARRAY(a, b), 2), "Can't perform operotion '%s' on objects of type <%s> and <%s>", op, get_type_name(a.type), get_type_name(b.type));
 }

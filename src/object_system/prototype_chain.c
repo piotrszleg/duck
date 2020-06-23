@@ -1,5 +1,6 @@
 #include "prototype_chain.h"
 
+// TOFIX: this doesn't comply with call override convention
 Object any_call(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object function=arguments[0];
     Object arguments_table=arguments[1];
@@ -16,8 +17,15 @@ Object any_call(Executor* E, Object scope, Object* arguments, int arguments_coun
     Object result=call(E, function, arguments_array, i);
     free(arguments_array);
     return result;
+
+    if(arguments[0].type==t_table){
+        return call(E, function, arguments_array, i);
+    } else {
+        return call(E, function, arguments_array, i);
+    }
 }
 
+// TOFIX: this two will fall into infinite recursion on a specially prepared table
 Object any_operator(Executor* E, Object scope, Object* arguments, int arguments_count){
     REQUIRE_ARGUMENT_TYPE(arguments[2], t_string)
     return operator(E, arguments[0], arguments[1], arguments[2].text);
@@ -87,11 +95,21 @@ Object any_stringify(Executor* E, Object scope, Object* arguments, int arguments
 void initialize_prototype_chain(Executor* E){
     ObjectSystem* object_system=OBJECT_SYSTEM(E);
     Object any_type=object_system->types_objects[t_any];
-    set_function(E, any_type, OVERRIDE(E, call), 2, false, any_call);
-    set_function(E, any_type, OVERRIDE(E, operator), 3, false, any_operator);
-    set_function(E, any_type, OVERRIDE(E, cast), 2, false, any_cast);
-    set_function(E, any_type, OVERRIDE(E, compare), 2, false, any_compare);
-    set_function(E, any_type, OVERRIDE(E, hash), 1, false, any_hash);
-    set_function(E, any_type, OVERRIDE(E, iterator), 1, false, any_iterator);
-    set_function(E, any_type, OVERRIDE(E, stringify), 1, false, any_stringify);
+
+    // override symbol is saved as enclosing scope of the function
+    // it is checked later to not execute this functions infinitely
+    #define REGISTER(override, arguments_count, variadic, native_function) \
+        set_function(E, any_type, OVERRIDE(E, override), arguments_count, variadic, native_function); \
+        table_get(E, any_type.tp, OVERRIDE(E, override)).fp->enclosing_scope=OVERRIDE(E, override); \
+        reference(&OVERRIDE(E, override));
+
+    REGISTER(call, 2, false, any_call)
+    REGISTER(operator, 3, false, any_operator)
+    REGISTER(cast, 2, false, any_cast);
+    REGISTER(compare, 2, false, any_compare);
+    REGISTER(hash, 1, false, any_hash);
+    REGISTER(iterator, 1, false, any_iterator);
+    REGISTER(stringify, 1, false, any_stringify);
+
+    #undef REGISTER
 }

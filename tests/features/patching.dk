@@ -1,0 +1,13 @@
+// adding python 2 style string formatting as patched custom operator
+types.string[overrides.operator]=(a, b, op)->{
+    if(op=="%"){
+        // call format on the string and unwrapped b table 
+        arguments=[a]
+        b ## (index, value)->{
+            arguments[index+1]=value
+        }
+        call(format, arguments)
+    } else null
+}
+formatted="{.x={}, .y={}}" % [10, 20]
+assert_equal(formatted, "{.x=10, .y=20}")

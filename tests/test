@@ -1,6 +1,6 @@
 #!/bin/sh
 
-duck="../build/duck.exe -dont_print_result"
+duck="../build/duck.exe -dont_print_result -dont_execute_prelude"
 
 basename -s .dk $1 | xargs printf "TEST: %s\n"
 
