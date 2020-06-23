@@ -25,6 +25,7 @@ Object call(Executor* E, Object o, Object* arguments, int arguments_count);
 Object get(Executor* E, Object o, Object key);
 Object get_ignore_topmost_prototypes(Executor* E, Object o, Object key);
 Object set(Executor* E, Object o, Object key, Object value);
+Object get_prototype(Executor* E, Object o);
 
 void get_execution_info(Executor* E, char* buffer, int buffer_count);
 

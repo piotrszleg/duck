@@ -613,14 +613,12 @@ Object builtin_map(Executor* E, Object scope, Object* arguments, int arguments_c
     return result;
 }
 
-/*
-help(subject)
-
-Displays help related to subject.
-*/
 Object builtin_help(Executor* E, Object scope, Object* arguments, int arguments_count){
-    Object subject=arguments[0];
-    return help(E, subject);
+    return help(E, arguments[0]);
+}
+
+Object builtin_prototype(Executor* E, Object scope, Object* arguments, int arguments_count){
+    return get_prototype(E, arguments[0]);
 }
 
 char** copy_arguments(int arguments_count, ...){
@@ -712,6 +710,7 @@ Object builtins_table(Executor* E){
     REGISTER(is_error, 1)
     REGISTER(collect_garbage, 0)
     REGISTER(debug, 0)
+    REGISTER(prototype, 1)
     REGISTER_WITH_HELP(match, 
     "If signature is a type it returns true if tested belongs to the type.\n"
     "If signature is a table it goes through its keys\n"

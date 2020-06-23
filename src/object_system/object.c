@@ -391,7 +391,12 @@ void destroy_unreferenced(Executor* E, Object* o){
         // both of these actions are performed at one call
         if(gc_state==gcs_inactive || gc_state==gcs_deinitializing){
             if(o->type==t_table){
+                // call destroy might dereference the object in the process
+                // of executing the destructor, so here the ref count is set
+                // so it doesn't get destroyed
+                o->hp->ref_count=1;
                 call_destroy(E, *o);
+                o->hp->ref_count=ALREADY_DESTROYED;
             }
             heap_object_foreach_children(E, o->hp, dereference_callback, &o);
         }

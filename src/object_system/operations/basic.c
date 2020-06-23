@@ -182,6 +182,7 @@ uint hash(Executor* E, Object key){
     return hashed;
 }
 
+// result is not referenced, only viewed
 #define GET_OR_RETURN_ERROR(result, key) \
 { \
     Object error=null_const; \
@@ -196,6 +197,7 @@ Object get_prototype_override(Executor* E, Object o){
         Object result;
         GET_OR_RETURN_ERROR(result, OVERRIDE(E, prototype))
         if(result.type!=t_null){
+            reference(&result);
             return result;
         }
     }
@@ -217,13 +219,11 @@ Object get_common(Executor* E, Object o, Object key){
             // try to get "get" field overriding function from the table and use it
             Object get_override;
             GET_OR_RETURN_ERROR(get_override, OVERRIDE(E, get))
-            Object result;
             if(get_override.type!=t_null){
                 Object arguments[]={o, key};
-                result=call(E, get_override, arguments, 2);
-                dereference(E, &get_override);
-                return result;
+                return call(E, get_override, arguments, 2);
             } else {
+                Object result;
                 GET_OR_RETURN_ERROR(result, key)
                 if(result.type!=t_null) {
                     reference(&result);
@@ -286,6 +286,7 @@ Object get_ignore_topmost_prototypes(Executor* E, Object o, Object key){
     Object prototype=get_prototype_override(E, o);
     if(prototype.type!=t_null){
         Object result=get_ignore_topmost_prototypes(E, prototype, key);
+        dereference(E, &prototype);
         if(result.type!=t_null){
             return result;
         }

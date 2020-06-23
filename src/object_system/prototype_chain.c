@@ -32,12 +32,15 @@ Object any_operator(Executor* E, Object scope, Object* arguments, int arguments_
 }
 
 Object any_cast(Executor* E, Object scope, Object* arguments, int arguments_count){
+    if(arguments[0].type!=t_table){
+        RETURN_ERROR("TYPE_CONVERSION_FAILURE", MULTIPLE_CAUSES(arguments[0], arguments[1]), "types.any[overrides.cast] doesn't work on tables.");
+    }
     for(int i=0; i<=LAST_OBJECT_TYPE; i++){
         if(compare(E, get_type_symbol(E, i), arguments[1])==0){
             return cast(E, arguments[0], i);
         }
     }
-    RETURN_ERROR("TYPE_CONVERSION_FAILURE", MULTIPLE_CAUSES(arguments[0], arguments[1]), "Any cast failed.");
+    RETURN_ERROR("TYPE_CONVERSION_FAILURE", MULTIPLE_CAUSES(arguments[0], arguments[1]), "Second argument to types.any[overrides.cast] isn't a builtin type.");
 }
 
 Object any_compare(Executor* E, Object scope, Object* arguments, int arguments_count){
@@ -82,6 +85,27 @@ Object any_iterator(Executor* E, Object scope, Object* arguments, int arguments_
     }
 }
 
+Object any_get(Executor* E, Object scope, Object* arguments, int arguments_count){
+    if(arguments[0].type==t_table){
+        // table get returns only a 'view' into table data
+        // it needs to be referenced before returning
+        Object result=table_get(E, arguments[0].tp, arguments[1]);
+        reference(&result);
+        return result;
+    } else {
+        return get(E, arguments[0], arguments[1]);
+    }
+}
+
+Object any_set(Executor* E, Object scope, Object* arguments, int arguments_count){
+    if(arguments[0].type==t_table){
+        table_set(E, arguments[0].tp, arguments[1], arguments[2]);
+        return null_const;
+    } else {
+        return set(E, arguments[0], arguments[1], arguments[2]);
+    }
+}
+
 Object any_stringify(Executor* E, Object scope, Object* arguments, int arguments_count){
     Object object=arguments[0];
     if(object.type==t_table){
@@ -98,18 +122,20 @@ void initialize_prototype_chain(Executor* E){
 
     // override symbol is saved as enclosing scope of the function
     // it is checked later to not execute this functions infinitely
-    #define REGISTER(override, arguments_count, variadic, native_function) \
-        set_function(E, any_type, OVERRIDE(E, override), arguments_count, variadic, native_function); \
+    #define REGISTER(override, arguments_count, variadic) \
+        set_function(E, any_type, OVERRIDE(E, override), arguments_count, variadic, any_##override); \
         table_get(E, any_type.tp, OVERRIDE(E, override)).fp->enclosing_scope=OVERRIDE(E, override); \
         reference(&OVERRIDE(E, override));
 
-    REGISTER(call, 2, false, any_call)
-    REGISTER(operator, 3, false, any_operator)
-    REGISTER(cast, 2, false, any_cast);
-    REGISTER(compare, 2, false, any_compare);
-    REGISTER(hash, 1, false, any_hash);
-    REGISTER(iterator, 1, false, any_iterator);
-    REGISTER(stringify, 1, false, any_stringify);
+    REGISTER(call, 2, false)
+    REGISTER(operator, 3, false)
+    REGISTER(cast, 2, false)
+    REGISTER(compare, 2, false)
+    REGISTER(hash, 1, false)
+    REGISTER(iterator, 1, false)
+    REGISTER(stringify, 1, false)
+    REGISTER(get, 2, false)
+    REGISTER(set, 3, false)
 
     #undef REGISTER
 }

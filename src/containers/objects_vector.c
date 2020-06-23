@@ -12,7 +12,7 @@ Object objects_vector_pop(vector* stack){
 
 bool objects_vector_delete(Executor* E, vector* v, Object o){
     for(int i=0; i<vector_count(v); i++){
-        if(compare(E, *(Object*)vector_index(v, i), o)==0){
+        if(is(E, *(Object*)vector_index(v, i), o)==0){
             vector_delete(v, i);
             return true;
         }
