@@ -1,1 +1,1 @@
-E:/Projects/C/duck/tests/macros/print_strings.dk
+input.dk

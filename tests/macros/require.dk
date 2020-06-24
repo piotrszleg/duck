@@ -13,7 +13,7 @@
     ['variable, 'type]
 }
 f=x->{
-    // @require_type, x, types.int
+    @require_type, x, types.int
     @require, x>0
     x*x
 }

@@ -1,0 +1,7 @@
+loop=(times, f)->{
+    f()
+    if(times>1){
+        loop(times-1, f)
+    }
+}
+loop(10, ->null)

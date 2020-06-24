@@ -1,0 +1,7 @@
+// just moving arguments around and checking
+// if variable lookup optimizer breaks the code
+f=(a, b)->{
+    c=get_type(a+b)
+    get_type(a*b)==c
+}
+assert(f(10, 7))

@@ -2564,7 +2564,10 @@ Expression* parse_file(const char* file) {
 	// Open a file handle to a particular file:
 	FILE *myfile = fopen(file, "r");
 	if (!myfile) {
-		printf("I can't open the file!\n");
+		// TODO: some better syntax and file reading errors reporting system
+		// that would allow ignoring this error for prelude and also generating error
+		// object for the user
+		// printf("I can't open the file!\n");
 		return NULL;
 	}
 	// Set Flex to read from it instead of defaulting to STDIN:

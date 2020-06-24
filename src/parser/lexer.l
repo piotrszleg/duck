@@ -104,5 +104,5 @@ null				    { COUNT_COLUMNS; return NULL_LITERAL; }
 [+\-\/*^&|<>%#]+        { COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 [<>!]=         			{ COUNT_COLUMNS; yylval.sval = strdup(yytext); return BINARY_OPERATOR; }
 [+\-\/*^&|]+=           { COUNT_COLUMNS; yylval.sval = remove_last_character(yytext); return ASSIGN_BINARY_OPERATOR; }// +=, -= etc
-\`.+?\`             	{ COUNT_COLUMNS; yylval.sval = unquote(yytext); return BINARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` times_two
+\`[^\`]*\`             	{ COUNT_COLUMNS; yylval.sval = unquote(yytext); return BINARY_OPERATOR; }// function names can be used as operators, for example: [1,2,3] `map` times_two
 %%

@@ -1,0 +1,10 @@
+f=(->{
+    // code is packed into function
+    // because top level code is executed in ast form
+    // the goal is to move the variables around 
+    // and check if variable lookup optimizer breaks the code
+    a=1
+    b=5
+    c=8
+    assert_equal(a+a+b+b+a+c+b, 26)
+})()
