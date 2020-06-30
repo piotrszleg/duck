@@ -9,6 +9,8 @@
 #include "error/error.h"
 #include "c_fixes.h"
 
+char* strdup_optional(char* str);
+
 #ifndef FIELD_OFFSET
 #define FIELD_OFFSET(type, field_name) (long long)&((type*)0)->field_name
 #endif

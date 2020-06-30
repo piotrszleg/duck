@@ -208,7 +208,7 @@ Expression* copy_expression(Expression* expression){
         #define BOOL_FIELD(field_name)                       copy->field_name=casted->field_name;
         #define INT_FIELD(field_name)                        copy->field_name=casted->field_name;
         #define FLOAT_FIELD(field_name)                        copy->field_name=casted->field_name;
-        #define STRING_FIELD(field_name)                     copy->field_name=strdup(casted->field_name);
+        #define STRING_FIELD(field_name)                     copy->field_name=strdup_optional(casted->field_name);
         #define VECTOR_FIELD(field_name) \
             for (int i = 0; i < vector_count(&casted->field_name); i++){ \
                 pointers_vector_push(&copy->field_name, copy_expression((Expression*)pointers_vector_get(&casted->field_name, i))); \

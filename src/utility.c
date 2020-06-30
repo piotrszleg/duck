@@ -159,3 +159,10 @@ char* suprintf (const char * format, ...){
     }
     return buffer;
 }
+
+char* strdup_optional(char* str){
+    if(str!=NULL)
+        return strdup(str);
+    else
+        return NULL;
+}

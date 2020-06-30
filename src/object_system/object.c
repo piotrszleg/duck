@@ -116,6 +116,7 @@ void function_init(Executor* E, Object* o){
     o->fp->optional_arguments_count=0;
     o->fp->ftype=f_native;
     o->fp->enclosing_scope=null_const;
+    o->fp->help=NULL;
 }
 
 void table_init(Executor* E, Object* o){

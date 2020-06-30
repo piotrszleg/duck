@@ -8,7 +8,7 @@
 #define ERROR_BUFFER_SIZE 128
 #define NEW_ERROR(result, type, cause, message, ...) \
     { char* location=malloc(ERROR_BUFFER_SIZE*sizeof(char)); \
-    char e_info[ERROR_BUFFER_SIZE]; \
+    char e_info[ERROR_BUFFER_SIZE/2]; \
     get_execution_info(E, e_info, ERROR_BUFFER_SIZE); \
     snprintf(location, ERROR_BUFFER_SIZE, "at:\t(%s)\nsrc:\t(%s:%d)", e_info, __FILE__, __LINE__); \
     char* message_formatted=malloc(ERROR_BUFFER_SIZE *sizeof(char)); \

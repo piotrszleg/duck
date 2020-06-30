@@ -1,4 +1,4 @@
-# HAS_LIGHTNING = 1
+HAS_LIGHTNING = 1
 submodules := object_system/object_system.a parser/parser.a
 build-folder := ../build
 

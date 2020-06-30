@@ -1,3 +1,2 @@
-sum=0
-0`to`10`by`2#value->sum+=value
-assert(sum==30)
+f=(a, b)->a+b
+f(10, 20)
