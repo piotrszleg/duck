@@ -1,7 +1,7 @@
 # Duck Programming Language
 
 ## About
-Duck is a high level programming language with features similar to Python, Javascript and Lua. It is written in C and as for now it can be evaluated in three levels: abstract syntax tree, bytecode and machine code using MyJIT.
+Duck is a high level programming language with features similar to Python, Javascript and Lua. It is written in C and as for now it can be evaluated in three levels: abstract syntax tree, bytecode and machine code using GNU lightning.
 
 ## Building
 You'll need to have gcc compiler and make in your PATH. Type `gcc -v` and `make -v` into your terminal to make sure that they are accessible.

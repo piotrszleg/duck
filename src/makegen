@@ -6,7 +6,6 @@ source_files=$(find . \
 			  ! -name "main.c" \
 			  ! -path "./object_system*" \
 			  ! -path "./parser*" \
-			  ! -path "./myjit*" \
 			  -name "*.c");
 		
 # remove newlines

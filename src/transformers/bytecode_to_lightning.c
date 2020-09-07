@@ -1,4 +1,4 @@
-#include "bytecode_to_myjit.h"
+#include "bytecode_to_lightning.h"
 #include "../execution/execution.h"
 
 #ifdef HAS_LIGHTNING
@@ -7,27 +7,27 @@ static jit_state_t *_jit;
 
 #define OBJECT_STACK_REGISTER JIT_V0
 
-void operator_myjit_wrapper(Executor* E, Object* a, Object* b, const char* op, Object* result){
+void operator_lightning_wrapper(Executor* E, Object* a, Object* b, const char* op, Object* result){
     *result=operator(E, *a, *b, op);
 }
 
-void call_myjit_wrapper(Executor* E, Object* o, Object* arguments, int arguments_count, Object* result){
+void call_lightning_wrapper(Executor* E, Object* o, Object* arguments, int arguments_count, Object* result){
     *result=call(E, *o, arguments, arguments_count);
 }
 
-void get_myjit_wrapper(Executor* E, Object* o, Object* key, Object* result){
+void get_lightning_wrapper(Executor* E, Object* o, Object* key, Object* result){
     *result=get(E, *o, *key);
 }
 
-void set_myjit_wrapper(Executor* E, Object* o, Object* key, Object* value, Object* result){
+void set_lightning_wrapper(Executor* E, Object* o, Object* key, Object* value, Object* result){
     *result=set(E, *o, *key, *value);
 }
 
-void inherit_scope_myjit_wrapper(Executor* E, Object* scope, Object* base){
+void inherit_scope_lightning_wrapper(Executor* E, Object* scope, Object* base){
     inherit_scope(E, scope->tp, *base);
 }
 
-bool is_falsy_myjit_wrapper(Object* o){
+bool is_falsy_lightning_wrapper(Object* o){
     return is_falsy(*o);
 }
 
@@ -48,7 +48,7 @@ int catch_in_gdb(Object* o){
     jit_pushargi((long)message); \
     jit_finishi(printf);
 
-void instruction_to_myjit(Executor* E, 
+void instruction_to_lightning(Executor* E, 
                           Instruction* instruction, 
                           int temporary_offset,
                           int executor_offset,
@@ -259,7 +259,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V1);
             jit_pushargr(JIT_V2);
             jit_pushargr(JIT_V3);
-            jit_finishi(inherit_scope_myjit_wrapper);
+            jit_finishi(inherit_scope_lightning_wrapper);
             // push older scope on the stack
             PUSH(JIT_V3)
             // change the scope
@@ -286,7 +286,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V2);
             jit_pushargr(JIT_V3);
             jit_pushargr(JIT_R2);
-            jit_finishi(get_myjit_wrapper);
+            jit_finishi(get_lightning_wrapper);
             PUSH(JIT_R2)
             break;
         CASE(b_set)
@@ -301,7 +301,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V3);
             jit_pushargr(JIT_R2);
             jit_pushargr(JIT_R1);
-            jit_finishi(set_myjit_wrapper);
+            jit_finishi(set_lightning_wrapper);
             PUSH(JIT_R1)
             break;
         CASE(b_table_set_keep)
@@ -316,7 +316,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V2);
             jit_pushargr(JIT_V3);
             jit_pushargr(JIT_R1);
-            jit_finishi(set_myjit_wrapper);
+            jit_finishi(set_lightning_wrapper);
             jit_prepare();
             jit_pushargr(JIT_V1);
             jit_pushargr(JIT_R1);
@@ -335,7 +335,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V2);
             jit_pushargr(JIT_V3);
             jit_pushargr(JIT_R1);
-            jit_finishi(set_myjit_wrapper);
+            jit_finishi(set_lightning_wrapper);
             PUSH(JIT_R1)// push set return value on stack
             break;
         CASE(b_table_get)
@@ -348,7 +348,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V3);
             jit_pushargr(JIT_V2);
             jit_pushargr(JIT_R2);
-            jit_finishi(get_myjit_wrapper);
+            jit_finishi(get_lightning_wrapper);
             PUSH(JIT_R2)// push get return value on stack
             break;
         CASE(b_function_1)
@@ -414,7 +414,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_R2);
             jit_pushargr(JIT_R1);
             jit_pushargr(JIT_R2);
-            jit_finishi(operator_myjit_wrapper);
+            jit_finishi(operator_lightning_wrapper);
             PUSH(JIT_R2)
             break;
         CASE(b_prefix)
@@ -428,10 +428,10 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V3);
             jit_pushargi(JIT_V2);
             jit_pushargr(JIT_R2);
-            jit_finishi(operator_myjit_wrapper);
+            jit_finishi(operator_lightning_wrapper);
             PUSH(JIT_R2)
             break;
-        // TODO: implement each of these in myjit
+        // TODO: implement each of these in lightning
         #define BINARY(instruction, operator) \
             CASE(instruction) \
                 GET_EXECUTOR(JIT_V1) \
@@ -444,7 +444,7 @@ void instruction_to_myjit(Executor* E,
                 jit_pushargr(JIT_V3); \
                 jit_pushargi((long)operator); \
                 jit_pushargr(JIT_R2); \
-                jit_finishi(operator_myjit_wrapper); \
+                jit_finishi(operator_lightning_wrapper); \
                 PUSH(JIT_R2) \
                 break;
         #define PREFIX(instruction, operator) \
@@ -458,7 +458,7 @@ void instruction_to_myjit(Executor* E,
                 jit_pushargr(JIT_V2); \
                 jit_pushargi((long)operator); \
                 jit_pushargr(JIT_V3); \
-                jit_finishi(operator_myjit_wrapper); \
+                jit_finishi(operator_lightning_wrapper); \
                 PUSH(JIT_V3) \
                 break;
         OPERATOR_INSTRUCTIONS
@@ -473,7 +473,7 @@ void instruction_to_myjit(Executor* E,
             POP(JIT_V1)
             jit_prepare();
             jit_pushargr(JIT_V1);
-            jit_finishi(is_falsy_myjit_wrapper);
+            jit_finishi(is_falsy_lightning_wrapper);
             jit_retval(JIT_V2);
             jit_labels[instruction->uint_argument]=jit_forward();
             jit_patch_at(jit_labels[instruction->uint_argument], jit_beqi(JIT_V2, true));
@@ -495,7 +495,7 @@ void instruction_to_myjit(Executor* E,
             jit_pushargr(JIT_V3);
             jit_pushargi(instruction->uint_argument);
             jit_pushargr(JIT_R2);
-            jit_finishi(call_myjit_wrapper);
+            jit_finishi(call_lightning_wrapper);
             DEREFERENCE(JIT_V2, JIT_V1)
             jit_prepare();
             jit_pushargr(JIT_V1);
@@ -547,7 +547,7 @@ void compile_bytecode_program(Executor* E, BytecodeProgram* program){
 
     jit_node_t** jit_labels=malloc(sizeof(jit_node_t*)*program->labels_count);
     for(int i=0; true; i++) {
-        instruction_to_myjit(E, &program->code[i], temporary_offset,
+        instruction_to_lightning(E, &program->code[i], temporary_offset,
                              executor_offset, program_offset, jit_labels);
         if(program->code[i].type==b_end){
             break;
