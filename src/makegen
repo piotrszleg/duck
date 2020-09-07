@@ -17,5 +17,5 @@ source_files=$(echo $source_files | tr '\n' ' ');
 object_files=$(echo $source_files | sed -e "s/\.c/\.o/g" | xargs basename -a);
 object_files=$(echo $object_files | tr '\n' ' ');
 
-echo "source-files:=$source_files\n" "object-files:=$object_files" > Makefile ;
+echo -e "source-files:=$source_files\n" "object-files:=$object_files" > Makefile ;
 cat Makefile.in >> Makefile ;

@@ -4,8 +4,6 @@
 #include "../bytecode/bytecode_program.h"
 #include "../utility.h"
 
-#define HAS_LIGHTNING
-
 #ifdef HAS_LIGHTNING
 #include "lightning.h"
 #endif
