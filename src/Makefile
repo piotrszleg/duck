@@ -4,17 +4,16 @@ HAS_LIGHTNING = 1
 submodules := object_system/object_system.a parser/parser.a
 build-folder := ../build
 
-options := -g3 -gdwarf-2 -Wall -Wl,--out-implib,$(build-folder)/libhost.a #-DDEBUGGING
-ifdef $(HAS_LIGHTNING)
-	options:=$(options)  -llightning -D HAS_LIGHTNING
-endif
+options := -g3 -gdwarf-2 -Wall -Wl,--out-implib,$(build-folder)/libhost.a -DDEBUGGING
+options:= -llightning /home/piotr/Programming/lightning-2.1.2/lib/liblightning.la $(options)
+
 # linux requires -ldl flag
 ifneq ($(OS),Windows_NT)
 	options:=$(options) -ldl
 endif
 
-host-tests := tests.exe
-executable := duck.exe
+host-tests := tests
+executable := duck
 tests := tests.dk
 tests-path := $(build-folder)/$(tests)
 executable-path := $(build-folder)/$(executable)
@@ -39,10 +38,10 @@ parser/parser.a:
 	make -C parser
 
 $(executable-path): main.c $(source-files) $(submodules)
-	gcc -o $(executable-path) main.c $(source-files) $(submodules) $(options)
+	libtool --mode=link gcc -o $(executable-path) main.c $(source-files) $(submodules) $(options)
 
 $(host-tests-path): tests.c $(source-files) $(submodules)
-	gcc -o $(host-tests-path) tests.c $(source-files) $(submodules) $(options)
+	libtool --mode=link gcc -o $(host-tests-path) tests.c $(source-files) $(submodules) $(options)
 
 clean:
 	rm $(executable-path) $(host-tests-path)

@@ -9,3 +9,6 @@ data/records.txt
 input
 valgrind_output.txt
 *.html
+build/.libs/lt-duck
+build/duck
+build/.libs/duck
