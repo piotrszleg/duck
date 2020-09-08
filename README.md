@@ -3,10 +3,72 @@
 ## About
 Duck is a high level programming language with features similar to Python, Javascript and Lua. It is written in C and as for now it can be evaluated in three levels: abstract syntax tree, bytecode and machine code using GNU lightning.
 
+Expressions can be separated either by a newline or a comma and each expression carries a value. Iteration is realised using `#` and `##` binary operators that take iterable as a left side and function accepting one or two arguments as a right side and built in functions like range and while.
+ 
+Main Duck features are:
+- dynamic typing
+- automatic garbage collection
+- monkey patching
+- AST level procedural macros
+
+Types exposed to the user are:
+| Type      | Examples                      | Description
+| ----------|:------------------------------|--------------
+| null      | `null`                        | used to represent nothing: empty value in a table, uninitialized variable, nothing returned by a function
+| int       | `1`                           | used to represent integer numbers
+| float     | `0.5`                         | used to represent real numbers
+| function  | `->1`, `x->2*x`, `(a, b)->a+b`| part of the program that can be called with arguments along with its creation scope
+| string    | `'a`, `'name`, `"John Smith"` | immutable object representing text or a single character
+| table     | `[1, 2, 3]`, `[x=1, y=2]`     | complex type containing unsorted key-value pairs, supporting various functionality overrides through symbol keys
+| coroutine | `coroutine(->yield(1))`       | running cooperative thread supporting iteration protocol
+| symbol    | `new_symbol("Monday")`        | unique object with a text comment, equivalent of enum types in statically typed languages also used for special table keys
+| any       | `types.any`                   | wildcard type used in place of a specific object type (for example in pattern matching)
+
+All of this types are listed in `types` global variable, so for example to access int type you'd write `types.int`. 
+Casting is done using `cast` function, for example `cast(1, types.string)`, there are also helper functions `to_int`, `to_float` and `to_string`.
+
+Missing type functionality can be monkey patched at runtime by adding functions to these type tables. So you might for example implement an int iterator that will go through its bits and use it with all of the standard functions and operators working on iterables `types.int[overrides.iterator]=value->...`. 
+
+## Examples
+
+Checking if a number is even:
+```
+number=10
+if((number%2)==0){
+    print("even")
+} else{
+    print("not even")
+}
+```
+
+Creating a table and printing its elements:
+```
+array=[1, 0.5, 'test, count=3]
+array ## (key, value)->{
+    printf("array[{}]={}", key, value)
+}
+```
+Overriding text representation of an object:
+```
+[
+    value=10
+    .[overrides.stringify]=self->format("{}$", self.value)
+]
+```
+Printing object representation of table expression using a macro:
+```
+@print_expression=expression->print(expression)
+@print_expression, [1, 2, 3]
+```
+
+See `scripts` and `tests` folders for more.
+
 ## Building
 You'll need to have gcc compiler and make in your PATH. Type `gcc -v` and `make -v` into your terminal to make sure that they are accessible.
 
 Type `make -C src` to build the project. If everything works out you'll have an executable file in `build/duck.exe`.
+
+If you want to use GNU lightning you'll have to install it, uncomment `HAS_LIGHTNING` in `src/Makefile` and correct its `.la` file path.
 
 ## Testing
 All interpreter tests are contained in `tests` folder. In this folder there is also `tests` shell script that will go through all of them and print the results. 

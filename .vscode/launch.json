@@ -8,14 +8,14 @@
             "name": "(gdb) duck",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/duck.exe",
+            "program": "${workspaceFolder}/build/duck",
             "args": ["input.dk"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "E:/Programy/MinGW/bin/gdb.exe",
+            "miDebuggerPath": "gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

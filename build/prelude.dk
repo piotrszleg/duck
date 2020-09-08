@@ -15,6 +15,7 @@ builtins.range=(start, end, step)->[
         }
     }
 ]
+builtins.while=f->if(f()) while(f) else null
 types.int[overrides.operator]=(self, other, operator)->{
     if(operator=='to) builtins.range(self, other, 1)
 }
