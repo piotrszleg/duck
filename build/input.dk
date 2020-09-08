@@ -1,1 +1,2 @@
-10
+@print_expression=expression->print(expression)
+@print_expression, [x=1, y=2]
