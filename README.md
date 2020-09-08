@@ -58,7 +58,7 @@ Overriding text representation of an object:
 Printing object representation of a table expression using macro:
 ```
 @print_expression=expression->print(expression)
-@print_expression, [1, 2, 3]
+@print_expression, [x=1, y=2]
 ```
 
 See `scripts` and `tests` folders for more.
