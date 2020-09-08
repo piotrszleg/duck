@@ -13,7 +13,7 @@ Main Duck features are:
 
 Types exposed to the user are:
 | Type      | Examples                      | Description
-| ----------|:------------------------------|--------------
+|:----------|:------------------------------|:-----------
 | null      | `null`                        | used to represent nothing: empty value in a table, uninitialized variable, nothing returned by a function
 | int       | `1`                           | used to represent integer numbers
 | float     | `0.5`                         | used to represent real numbers
@@ -55,7 +55,7 @@ Overriding text representation of an object:
     .[overrides.stringify]=self->format("{}$", self.value)
 ]
 ```
-Printing object representation of table expression using a macro:
+Printing object representation of a table expression using macro:
 ```
 @print_expression=expression->print(expression)
 @print_expression, [1, 2, 3]
