@@ -142,12 +142,14 @@ void read_arguments_from_file(Options* options){
                 repeat=false;
             }
             if(content[i]==' ' || content[i]=='\n' || content[i]=='\0') {
-                content[i]='\0';
-                arguments[arguments_count]=&content[start];
-                arguments_count++;
-                if(arguments_count>=arguments_size){
-                    arguments_size*=2;
-                    arguments=realloc(arguments, sizeof(char*)*arguments_size);
+                if(i!=start){// handling repeated whitespace and whitespace at the begginging
+                    content[i]='\0';
+                    arguments[arguments_count]=&content[start];
+                    arguments_count++;
+                    if(arguments_count>=arguments_size){
+                        arguments_size*=2;
+                        arguments=realloc(arguments, sizeof(char*)*arguments_size);
+                    }
                 }
                 start=i+1;
             }
