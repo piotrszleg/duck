@@ -1,3 +1,2 @@
-array=[1, 0.5, 'test, count=3]
-// >< is partial application operator
-array ## (printf><"array[{}]={}")
+f=(a, b)->b+a
+f(10, 5)

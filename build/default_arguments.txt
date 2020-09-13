@@ -1,1 +1,1 @@
- -dont_execute_prelude input.dk
+-dont_execute_prelude input.dk

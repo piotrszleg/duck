@@ -75,7 +75,13 @@
         "predict_instruction_output.h": "c",
         "bytecode_optimisation_utility.h": "c",
         "heap_object.h": "c",
-        "options.h": "c"
+        "options.h": "c",
+        "chrono": "c",
+        "compare": "c",
+        "functional": "c",
+        "ranges": "c",
+        "ratio": "c",
+        "variant": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",
     "files.exclude": {
