@@ -6,7 +6,7 @@ void stack_init(Stack* s, size_t item_size, int size){
     if(size*item_size>0){
         s->items=malloc(item_size*size);
         CHECK_ALLOCATION(s->items);
-        s->top=s->items-item_size;
+        s->top=s->items;
     }
 }
 
@@ -15,29 +15,22 @@ void stack_deinit(Stack* s){
 }
 
 void stack_push(Stack* s, const void* value){
-    s->top+=s->item_size;
     memcpy(s->top, value, s->item_size);
+    s->top+=s->item_size;
 }
 
 void* stack_pop(Stack* s){
     s->top-=s->item_size;
-    return s->top;
-    /*
-    POP(t)
-        get_stack s
-        ld t s
-        t-=sizeof(Object)
-        st s t
-    */   
+    return s->top; 
 }
 
 
 void* stack_top(Stack* s){
-    return s->top;
+    return s->top-s->item_size;
 }
 
 int stack_count(const Stack* s){
-    return (s->top+s->item_size-s->items)/s->item_size;
+    return (s->top-s->items)/s->item_size;
 }
 
 void* stack_index(Stack* s, unsigned int index){

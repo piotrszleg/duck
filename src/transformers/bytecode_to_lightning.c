@@ -91,8 +91,10 @@ void instruction_to_lightning(Executor* E,
 
     #define MOVE_OBJECT(destination, source) \
     {   Register loaded=TEMPORARY_REGISTER(); \
-        jit_ldr(loaded, source); \
-        jit_str(destination, loaded); \
+        jit_ldr_l(loaded, source); \
+        jit_str_l(destination, loaded); \
+        jit_ldxi_l(loaded, source, 8); \
+        jit_stxi_l(8, destination, loaded); \
         RETURN_TEMPORARY_REGISTER(loaded);  }
 
     #define SET_STACK(_) ;
@@ -117,21 +119,11 @@ void instruction_to_lightning(Executor* E,
         jit_pushargr(register); \
         CALL(dereference);
 
-    #define PUSH(register) \
-    {   Register stack=PRESERVED_REGISTER(); \
-        GET_STACK(stack); \
-        MOVE_OBJECT(stack, register) \
-        jit_addi(stack, stack, sizeof(Object)); \
-        SET_STACK(stack); \
-        RETURN_PRESERVED_REGISTER(stack) \
-        REFERENCE(register)   }
-
     #define INDEX_STACK(register, index) \
         GET_STACK(register); \
+        jit_ldr(register, register); \
         if(index>0){ \
-            jit_subi(register, register, (index)*sizeof(Object)); \
-        } else { \
-            jit_retval(register); \
+            jit_subi(register, register, (index-1)*sizeof(Object)); \
         }
 
     #define CATCH(register) \
@@ -156,11 +148,24 @@ void instruction_to_lightning(Executor* E,
         Register stack=TEMPORARY_REGISTER(); \
         GET_STACK(stack); \
         jit_ldr(top, stack); \
-        jit_addi(top, top, sizeof(Object)); \
         MOVE_OBJECT(top, null_register) \
+        jit_addi(top, top, sizeof(Object)); \
         jit_str(stack, top); \
+        jit_subi(top, top, sizeof(Object)); \
         RETURN_TEMPORARY_REGISTER(stack) \
         RETURN_TEMPORARY_REGISTER(null_register)  }
+
+    #define PUSH(register) \
+    {   Register stack=TEMPORARY_REGISTER(); \
+        Register top=TEMPORARY_REGISTER(); \
+        GET_STACK(stack); \
+        jit_ldr(top, stack); \
+        MOVE_OBJECT(top, register) \
+        jit_addi(top, top, sizeof(Object)); \
+        jit_str(stack, top); \
+        RETURN_TEMPORARY_REGISTER(stack) \
+        RETURN_TEMPORARY_REGISTER(top) \
+        REFERENCE(register)   }
 
     #define GET_SCOPE(register, executor) \
         jit_addi(register, executor, FIELD_OFFSET(Executor, scope));
@@ -180,6 +185,23 @@ void instruction_to_lightning(Executor* E,
             PUSH_NULL(discarded);
             RETURN_PRESERVED_REGISTER(discarded);
             break;
+        #define PUSH_TYPED(result_register, object_type) \
+            PUSH_NULL(result_register) \
+            Register type_register=TEMPORARY_REGISTER(); \
+            jit_movi(type_register, object_type); \
+            jit_stxi_l(FIELD_OFFSET(Object, type), result_register, type_register); \
+            RETURN_TEMPORARY_REGISTER(type_register)
+        CASE(b_load_int)
+            Register pushed=PRESERVED_REGISTER();
+            PUSH_TYPED(pushed, t_int)
+            // vector_top(&object_stack)->int_value=instruction.int_argument
+            Register value_register=TEMPORARY_REGISTER();
+            jit_movi(value_register, instruction->int_argument);
+            jit_stxi_l(FIELD_OFFSET(Object, int_value), pushed, value_register);
+            RETURN_TEMPORARY_REGISTER(value_register);
+            RETURN_PRESERVED_REGISTER(pushed);
+            break;
+        #undef PUSH_TYPED
         CASE(b_swap)
             // *temporary=*INDEX_STACK(instruction->swap_argument.left)
             Register temporary=PRESERVED_REGISTER();
@@ -202,9 +224,9 @@ void instruction_to_lightning(Executor* E,
             CASE(instruction) { \
                 Register executor=TEMPORARY_REGISTER(); \
                 GET_EXECUTOR(executor) \
-                Register left=TEMPORARY_REGISTER(); \
+                Register left=PRESERVED_REGISTER(); \
                 POP(left) \
-                Register right=TEMPORARY_REGISTER(); \
+                Register right=PRESERVED_REGISTER(); \
                 POP(right) \
                 Register result=PRESERVED_REGISTER(); \
                 GET_TEMPORARY(result) \
@@ -212,13 +234,13 @@ void instruction_to_lightning(Executor* E,
                 jit_pushargr(executor); \
                 RETURN_TEMPORARY_REGISTER(executor); \
                 jit_pushargr(left); \
-                RETURN_TEMPORARY_REGISTER(left); \
+                RETURN_PRESERVED_REGISTER(left); \
                 jit_pushargr(right); \
-                RETURN_TEMPORARY_REGISTER(right); \
+                RETURN_PRESERVED_REGISTER(right); \
                 jit_pushargi((long)operator); \
                 jit_pushargr(result); \
                 CALL(operator_lightning_wrapper); \
-                /*PUSH(result)*/ \
+                PUSH(result) \
                 RETURN_PRESERVED_REGISTER(result); \
                 break; \
             }
