@@ -88,19 +88,22 @@ void instruction_to_lightning(Executor* E,
     #define GET_EXECUTOR(register) LOAD_LOCAL(register, executor_offset)
     #define GET_PROGRAM(register)  LOAD_LOCAL(register, program_offset)
     #define GET_STACK(register)    LOAD_LOCAL(register, stack_offset)
-    #define SET_STACK(register)    jit_stxi_l(stack_offset, JIT_FP, register);
 
     #define MOVE_OBJECT(destination, source) \
-        jit_prepare(); \
-        jit_pushargr(destination); \
-        jit_pushargr(source); \
-        jit_pushargi(sizeof(Object)); \
-        CALL(memcpy);
+    {   Register loaded=TEMPORARY_REGISTER(); \
+        jit_ldr(loaded, source); \
+        jit_str(destination, loaded); \
+        RETURN_TEMPORARY_REGISTER(loaded);  }
+
+    #define SET_STACK(_) ;
 
     #define POP(register) \
-        GET_STACK(register); \
+    {   Register stack=TEMPORARY_REGISTER(); \
+        GET_STACK(stack); \
+        jit_ldr(register, stack); \
         jit_subi(register, register, sizeof(Object)); \
-        SET_STACK(register);
+        jit_str(stack, register); \
+        RETURN_TEMPORARY_REGISTER(stack); }
 
     #define REFERENCE(register) \
         jit_prepare(); \
@@ -147,16 +150,17 @@ void instruction_to_lightning(Executor* E,
     // pushes null to the stack and writes  pointer to it to the register
     // vector_push(OBJECT_STACK_REGISTER, null_const);
     // register=vector_top(OBJECT_STACK_REGISTER);
-    #define PUSH_NULL(register) \
-        Register null_register=PRESERVED_REGISTER(); \
+    #define PUSH_NULL(top) \
+    {   Register null_register=TEMPORARY_REGISTER(); \
         jit_movi(null_register, (long int)&null_const); \
-        Register stack=PRESERVED_REGISTER(); \
+        Register stack=TEMPORARY_REGISTER(); \
         GET_STACK(stack); \
-        MOVE_OBJECT(stack, null_register) \
-        jit_addi(stack, stack, sizeof(Object)); \
-        SET_STACK(stack); \
-        RETURN_PRESERVED_REGISTER(stack) \
-        RETURN_PRESERVED_REGISTER(null_register) 
+        jit_ldr(top, stack); \
+        jit_addi(top, top, sizeof(Object)); \
+        MOVE_OBJECT(top, null_register) \
+        jit_str(stack, top); \
+        RETURN_TEMPORARY_REGISTER(stack) \
+        RETURN_TEMPORARY_REGISTER(null_register)  }
 
     #define GET_SCOPE(register, executor) \
         jit_addi(register, executor, FIELD_OFFSET(Executor, scope));
@@ -174,6 +178,7 @@ void instruction_to_lightning(Executor* E,
         CASE(b_null)
             Register discarded=PRESERVED_REGISTER();
             PUSH_NULL(discarded);
+            RETURN_PRESERVED_REGISTER(discarded);
             break;
         CASE(b_swap)
             // *temporary=*INDEX_STACK(instruction->swap_argument.left)
@@ -281,15 +286,9 @@ void initialize_lightning_function(
 
     Register stack=executor;
     jit_addi(stack, stack, FIELD_OFFSET(Executor, stack));
-    jit_prepare();
-    jit_pushargr(stack);
+    jit_addi(stack, stack, FIELD_OFFSET(Stack, top));
+    WRITE_TO_ALLOCATED(stack, stack_offset)
     RETURN_TEMPORARY_REGISTER(stack);
-    CALL(vector_top)
-    Register top=TEMPORARY_REGISTER();
-    jit_retval(top);
-    jit_addi(top, top, sizeof(Object));
-    WRITE_ARGUMENT(top, stack_offset)
-    RETURN_TEMPORARY_REGISTER(top);
 
     Register program=TEMPORARY_REGISTER();
     WRITE_ARGUMENT(program, program_offset)
@@ -299,7 +298,6 @@ void initialize_lightning_function(
 }
 
 void compile_bytecode_program(Executor* E, BytecodeProgram* program){
-
     printf("Started assembling.\n");
     
     //creates a new instance of the compiler and ask it to assign result to program->compiled
