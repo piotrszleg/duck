@@ -6,6 +6,7 @@
 #include "../ast/execute_ast.h"
 #include "options.h"
 #include "debugger.h"
+#include "../containers/stack.h"
 
 typedef struct {
     char* file_name;
@@ -24,7 +25,7 @@ struct Executor {
     
     bool returning;
     uint forward_allocated;
-    vector stack;
+    Stack stack;
 
     Debugger debugger;
     BytecodeEnvironment bytecode_environment;

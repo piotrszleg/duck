@@ -13,7 +13,7 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
     // copy bytecode program
     CE->options=E->options;
     bytecode_environment_init(&CE->bytecode_environment);
-    vector_init(&CE->stack, sizeof(Object), 8);
+    stack_init(&CE->stack, sizeof(Object), 8);
     vector_init(&CE->traceback, sizeof(TracebackPoint), 16);
     // coroutine executor shares garbage collector and symbols with main executor
     *OBJECT_SYSTEM(CE)=*OBJECT_SYSTEM(E);
@@ -31,7 +31,7 @@ Object new_coroutine(Executor* E, Object function, Object* arguments, int argume
     heap_object_reference((HeapObject*)function.fp->source_pointer);
     
     for(int i=0; i<arguments_count; i++) {
-        objects_vector_push(&CE->stack, arguments[i]);
+        stack_push(&CE->stack, &arguments[i]);
     }
 
     coroutine.co->executor=CE;
@@ -59,9 +59,9 @@ Object call_coroutine(Executor* E, Coroutine* coroutine, Object* arguments, int 
         case co_running:
             // coroutine expects one value to be emitted from yield call
             if(arguments_count==1){
-                objects_vector_push(&coroutine->executor->stack, arguments[0]);
+                stack_push(&coroutine->executor->stack, &arguments[0]);
             } else if(arguments_count==0){
-                objects_vector_push(&coroutine->executor->stack, null_const);
+                stack_push(&coroutine->executor->stack, &null_const);
             } else {
                 RETURN_ERROR("COROUTINE_ERROR", wrap_heap_object((HeapObject*)coroutine), "Coroutines can accept either zero or one argument, %i given", arguments_count)
             }

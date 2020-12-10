@@ -8,15 +8,17 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
         case f_bytecode:
             create_return_point(E, true);
             for(int i=0; i<arguments_count; i++){
-                objects_vector_push(&E->stack, arguments[i]);
-                reference((Object*)vector_top(&E->stack));
+                stack_push(&E->stack, &arguments[i]);
+                reference((Object*)stack_top(&E->stack));
             }
             move_to_function(E, f);
             BytecodeProgram* bytecode_program=(BytecodeProgram*)f->source_pointer;
             if(bytecode_program->compiled!=NULL){
                 bytecode_program->compiled(E, bytecode_program);
                 pop_return_point(E);
-                return objects_vector_pop(&E->stack);
+                print_object_stack(E, &E->stack);
+                printf("end\n");
+                return *(Object*)stack_pop(&E->stack);
             } else {
                 return execute_bytecode(E);
             }
@@ -29,7 +31,7 @@ static Object call_function_processed(Executor* E, Function* f, Object* argument
             for(int i=0; i<arguments_count; i++){
                 table_set(E, function_scope.tp, to_string(f->argument_names[i]), arguments[i]);
             }
-            vector_push(&E->stack, &E->scope);
+            stack_push(&E->stack, &E->scope);
             Object previous_scope=E->scope;
             reference(&E->scope);
             E->scope=function_scope;

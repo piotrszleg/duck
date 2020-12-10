@@ -4,6 +4,7 @@
 #include "../object_system/object.h"
 #include "../error/error.h"
 #include "../containers/vector.h"
+#include "../containers/stack.h"
 #include "bytecode_program.h"
 #include "../utility.h"
 #include "bytecode_program.h"
@@ -27,7 +28,7 @@ typedef struct {
 void bytecode_environment_init(BytecodeEnvironment* environment);
 void bytecode_environment_deinit(BytecodeEnvironment* environment);
 
-void print_object_stack(Executor* E, const vector* s);
+void print_object_stack(Executor* E, const Stack* s);
 void push(vector* stack, Object o);
 Object pop(vector* stack);
 Object execute_bytecode(Executor* E);

@@ -81,7 +81,8 @@
         "functional": "c",
         "ranges": "c",
         "ratio": "c",
-        "variant": "c"
+        "variant": "c",
+        "bitset": "c"
     },
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",
     "files.exclude": {

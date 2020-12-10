@@ -151,7 +151,7 @@ Object execute_ast(Executor* E, Expression* expression, bool keep_scope){
                 }
             }
             if(!keep_scope) {
-                vector_pop(&E->stack);
+                stack_pop(&E->stack);
                 dereference(E, &E->scope);
                 E->scope=previous_scope;
             }

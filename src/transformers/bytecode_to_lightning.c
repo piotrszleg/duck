@@ -88,7 +88,7 @@ void instruction_to_lightning(Executor* E,
     #define GET_EXECUTOR(register) LOAD_LOCAL(register, executor_offset)
     #define GET_PROGRAM(register)  LOAD_LOCAL(register, program_offset)
     #define GET_STACK(register)    LOAD_LOCAL(register, stack_offset)
-    #define SET_STACK(register)    jit_stxi_l(JIT_FP, stack_offset, register);
+    #define SET_STACK(register)    jit_stxi_l(stack_offset, JIT_FP, register);
 
     #define MOVE_OBJECT(destination, source) \
         jit_prepare(); \
@@ -100,7 +100,7 @@ void instruction_to_lightning(Executor* E,
     #define POP(register) \
         GET_STACK(register); \
         jit_subi(register, register, sizeof(Object)); \
-        jit_stxr(register, JIT_FP, stack_offset);
+        SET_STACK(register);
 
     #define REFERENCE(register) \
         jit_prepare(); \
@@ -149,15 +149,14 @@ void instruction_to_lightning(Executor* E,
     // register=vector_top(OBJECT_STACK_REGISTER);
     #define PUSH_NULL(register) \
         Register null_register=PRESERVED_REGISTER(); \
-        jit_movi(null_register, &null_const); \
+        jit_movi(null_register, (long int)&null_const); \
         Register stack=PRESERVED_REGISTER(); \
         GET_STACK(stack); \
         MOVE_OBJECT(stack, null_register) \
         jit_addi(stack, stack, sizeof(Object)); \
         SET_STACK(stack); \
         RETURN_PRESERVED_REGISTER(stack) \
-        RETURN_PRESERVED_REGISTER(null_register) \
-        REFERENCE(register)
+        RETURN_PRESERVED_REGISTER(null_register) 
 
     #define GET_SCOPE(register, executor) \
         jit_addi(register, executor, FIELD_OFFSET(Executor, scope));
@@ -171,6 +170,10 @@ void instruction_to_lightning(Executor* E,
 
     switch (instruction->type){
         CASE(b_no_op)
+            break;
+        CASE(b_null)
+            Register discarded=PRESERVED_REGISTER();
+            PUSH_NULL(discarded);
             break;
         CASE(b_swap)
             // *temporary=*INDEX_STACK(instruction->swap_argument.left)
@@ -195,11 +198,11 @@ void instruction_to_lightning(Executor* E,
                 Register executor=TEMPORARY_REGISTER(); \
                 GET_EXECUTOR(executor) \
                 Register left=TEMPORARY_REGISTER(); \
-                POP(JIT_V2) \
+                POP(left) \
                 Register right=TEMPORARY_REGISTER(); \
-                POP(JIT_V3) \
+                POP(right) \
                 Register result=PRESERVED_REGISTER(); \
-                GET_TEMPORARY(JIT_R2) \
+                GET_TEMPORARY(result) \
                 jit_prepare(); \
                 jit_pushargr(executor); \
                 RETURN_TEMPORARY_REGISTER(executor); \
@@ -210,7 +213,7 @@ void instruction_to_lightning(Executor* E,
                 jit_pushargi((long)operator); \
                 jit_pushargr(result); \
                 CALL(operator_lightning_wrapper); \
-                PUSH(result) \
+                /*PUSH(result)*/ \
                 RETURN_PRESERVED_REGISTER(result); \
                 break; \
             }
@@ -232,6 +235,14 @@ void instruction_to_lightning(Executor* E,
         OPERATOR_INSTRUCTIONS
         #undef BINARY
         #undef PREFIX
+        CASE(b_discard)
+            Register popped=PRESERVED_REGISTER();
+            // popped=vector_pop(OBJECT_STACK_REGISTER);
+            POP(popped)
+            // JIT_V2=E;
+            // DEREFERENCE(JIT_V1, JIT_V2)
+            RETURN_PRESERVED_REGISTER(popped);
+            break;
         CASE(b_end)
         CASE(b_return)
             jit_ret();
@@ -276,6 +287,7 @@ void initialize_lightning_function(
     CALL(vector_top)
     Register top=TEMPORARY_REGISTER();
     jit_retval(top);
+    jit_addi(top, top, sizeof(Object));
     WRITE_ARGUMENT(top, stack_offset)
     RETURN_TEMPORARY_REGISTER(top);
 
@@ -329,7 +341,7 @@ void compile_bytecode_program(Executor* E, BytecodeProgram* program){
     );
 
     jit_node_t** jit_labels=malloc(sizeof(jit_node_t*)*program->labels_count);
-    /*for(int i=0; true; i++) {
+    for(int i=0; true; i++) {
         instruction_to_lightning(E, 
                             &program->code[i],
                             &temporary_registers,
@@ -342,7 +354,7 @@ void compile_bytecode_program(Executor* E, BytecodeProgram* program){
         if(program->code[i].type==b_end){
             break;
         }
-    }*/
+    }
     /*for(int i=0; i<program->labels_count; i++){
         jit_link(jit_labels[i]);
     }*/

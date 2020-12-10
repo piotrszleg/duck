@@ -24,8 +24,8 @@ void executor_foreach_children(Executor* E, Executor* iterated_executor,
             callback(E, &wrapped_program, data);
         }
     }
-    for(int i=0; i<vector_count(&E->stack); i++){
-        callback(E, (Object*)vector_index(&E->stack, i), data);
+    for(int i=0; i<stack_count(&E->stack); i++){
+        callback(E, (Object*)stack_index(&E->stack, i), data);
     }
     callback(E, &E->scope, data);
     if(E->bytecode_environment.executed_program!=NULL){
@@ -60,7 +60,7 @@ void executor_init(Executor* E){
     vector_init(&E->traceback, sizeof(TracebackPoint), 16);
     object_system_init(E);
     bytecode_environment_init(&E->bytecode_environment);
-    vector_init(&E->stack, sizeof(Object), 8);
+    stack_init(&E->stack, sizeof(Object), 8);
     E->undefined_argument=new_symbol(E, "undefined_argument");
 }
 
@@ -69,32 +69,31 @@ void executor_deinit(Executor* E){
     object_system_deinit(E);
     vector_deinit(&E->traceback);
     bytecode_environment_deinit(&E->bytecode_environment);
-    vector_deinit(&E->stack);
+    stack_deinit(&E->stack);
 }
 
 inline void executor_stack_forward_allocate(Executor* E, uint count){
-    E->forward_allocated+=count;
-    vector_ensure_capacity(&E->stack, E->forward_allocated);
+    stack_allocate(&E->stack, count);
 }
 inline void executor_stack_forward_deallocate(Executor* E, uint count){
-    E->forward_allocated-=count;
-    vector_check_downsize(&E->stack);
+    stack_deallocate(&E->stack, count);
 }
 inline void executor_stack_push_allocated(Executor* E, Object object){
-    E->stack.count++;
-    *((Object*)vector_top(&E->stack))=object;
+    stack_push(&E->stack, &object);
 }
 inline Object executor_stack_pop_allocated(Executor* E){
-    Object result=*(Object*)vector_top(&E->stack);
-    E->stack.count--;
-    return result;
+    return *(Object*)stack_pop(&E->stack);
 }
 inline void executor_stack_push(Executor* E, Object object){
-    E->forward_allocated++;
-    vector_push(&E->stack, &object);
+    stack_allocate(&E->stack, 1);
+    stack_push(&E->stack, &object);
 }
 inline void executor_stack_remove(Executor* E, Object object){
+    /*
     if(objects_vector_delete(E, &E->stack, object)){
         E->forward_allocated--;
     }
+    */
+    stack_pop(&E->stack);
+    stack_deallocate(&E->stack, 1);
 }

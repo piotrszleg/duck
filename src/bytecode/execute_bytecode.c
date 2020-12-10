@@ -6,11 +6,11 @@ Object peek(vector* stack){
     return *(Object*)vector_top(stack);
 }
 
-void print_object_stack(Executor* E, const vector* s){
+void print_object_stack(Executor* E, const Stack* s){
     printf("Object stack:\n");
     int pointer=0;
     Object* casted_items=(Object*)s->items;
-    while(pointer<vector_count(s)){
+    while(pointer<stack_count(s)){
         USING_STRING(stringify(E, casted_items[pointer]), 
             printf("%s\n", str))
         pointer++;
@@ -165,7 +165,7 @@ void proccess_statistics(Executor* E, BytecodeEnvironment* environment){
     for(int i=0; i<call_fields; i++){
         Object argument;
         if(i<arguments_count){
-            argument=*(Object*)vector_index(&E->stack, vector_count(&E->stack)-1-i);
+            argument=*(Object*)stack_index(&E->stack, stack_count(&E->stack)-1-i);
         } else {
             char* upvalue_name=program->constants+program->upvalues[i-arguments_count];
             argument=get(E, E->scope, to_string(upvalue_name));
@@ -201,7 +201,7 @@ BytecodeProgram* choose_variant(Executor* E, BytecodeProgram* root){
         for(int j=0; j<arguments_count; i++){
             Object argument;
             if(j<arguments_count){
-                argument=*(Object*)vector_index(&E->stack, vector_count(&E->stack)-1-i);
+                argument=*(Object*)stack_index(&E->stack, stack_count(&E->stack)-1-i);
             } else {
                 char* upvalue_name=variant->constants+variant->upvalues[i-arguments_count];
                 argument=get(E, E->scope, to_string(upvalue_name));
@@ -323,7 +323,7 @@ Object execute_bytecode(Executor* E){
                 dereference(E, &top);
                 break;
             }
-            #define INDEX_STACK(index) ((Object*)E->stack.items)[E->stack.count-1-(index)]
+            #define INDEX_STACK(index) (*(Object*)(E->stack.top-(index)))
             case b_push_to_top:
             {
                 for(int i=instruction.uint_argument; i>=1; i--){
