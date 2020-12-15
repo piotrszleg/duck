@@ -97,3 +97,11 @@ The `dll_modules` folder contains C modules with optional functionality.
 To compile a dll_module copy `build/libhost.a` into its folder, then move to its folder and run `make`. 
 
 The `.dk` files that test their functionality should be in the same folder. To run them you'll need to copy the resulting `.dll` files as well as their dependency `.dll` files into the same folder as the interpreter executable. If you installed the dependency `dlls` into your system's dynamic library search path (for example by using some linux package manager) you don't need to copy them into interpreter executable folder, only the `dlls` resulting from building the optional modules. The DLL dependencies for Windows are in `dlls` folder, for other systems you'll need to provide them yourself.
+
+## Current Development Status
+
+The previous machine instructions generator was too low level, hard to debug and incomplete. It is now left as a reference while new generator is being written. That's why it's best to either disable JIT or go back a few commits.
+
+I decided to focus on the core language and leave external libraries for now, but they should still be functional or requiring some very minor tweaks.
+
+GCC on Windows has safer standard functions implementations which results in more tests passing in this environment.
